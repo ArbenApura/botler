@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ANDROID COLOUR TOKENS, LIGHT: WARM PAPER, WARM INK, SOFT SAGE. THE SAME VALUES AS lib/theme/tokens.dart -->
+<resources>
+    <color name="botler_paper">#FAF7F0</color>
+    <color name="botler_ink">#2B2722</color>
+    <color name="botler_line">#E4DED2</color>
+    <color name="botler_accent">#4F6F55</color>
+</resources>

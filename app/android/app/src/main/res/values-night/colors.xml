@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ANDROID COLOUR TOKENS, DARK: DEEP WARM CHARCOAL -->
+<resources>
+    <color name="botler_paper">#1F1C18</color>
+    <color name="botler_ink">#EDE7DA</color>
+    <color name="botler_line">#37332D</color>
+    <color name="botler_accent">#8FB394</color>
+</resources>

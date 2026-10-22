@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- THE QUICK-ADD WIDGET: A PAPER CARD WITH ONE LINE. COLOURS COME FROM res/values/colors.xml AND values-night/colors.xml, THE ANDROID TOKEN FILES -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/quick_add_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/quick_add_background"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="B"
+        android:textColor="@color/botler_accent"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:text="@string/quick_add_hint"
+        android:textColor="@color/botler_ink"
+        android:textSize="16sp" />
+</LinearLayout>

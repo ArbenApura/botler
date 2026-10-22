@@ -1,0 +1,21 @@
+﻿# Strict analysis: no implicit casts, no inferred dynamic, no raw generic types. See CLAUDE.md, "Dart style".
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - build/**
+    - android/**
+
+linter:
+  rules:
+    curly_braces_in_flow_control_structures: false
+    avoid_dynamic_calls: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    unawaited_futures: true
+    use_build_context_synchronously: true
+
