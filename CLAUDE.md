@@ -35,15 +35,21 @@ After each finished change, from the repo root:
 
 ## Money, time and data rules
 
-- Currency PHP, time zone Asia/Manila. Amounts are integer centavos everywhere (database, API, Dart). Never floats for money. Dates that mean "a day" are Manila calendar dates.
+- Each person has one currency (`user_setting`, default PHP, 21 supported; amounts are never converted when it changes), time zone Asia/Manila. Amounts are integer minor units of that currency (centavos for PHP, whole yen for JPY) everywhere (database, API, Dart). Format and parse only through `finance/currency.ts` and `core/money.dart`. Never floats for money. Dates that mean "a day" are Manila calendar dates.
 - A split always sums exactly to the pay. Percent splits put the remainder on the "rest" target or the first rule, deterministically.
 - Balance = latest snapshot plus signed transactions since it. A transfer between own accounts is never spending.
 - Amounts read from a photo or screenshot, and large balance changes, are confirmed by the user before saving.
 - Every write verb takes a client `requestId` (unique per user) and a replay returns the first result.
 
+## Audit and data reset
+
+- Every write to a person's tables is captured by database triggers into the append-only `audit_event` table (per-person `seq` and hash chain). A verb body can never skip it; a new tenant table is either audited or on the written exempt list, and a test fails otherwise. `audit_event` is never edited or deleted by the app.
+- Resetting a balance is `snapshot_record` with `mode: 'reset'` and a reason: the history stays and the difference is a reset, not spending. Nothing deletes history to "set a balance".
+- `data_reset` is person-only: a single-use token from `data_reset_preview`, the typed word and the phone's lock. It is never in an agent tool schema and never behind an approval card.
+
 ## Agent, privacy and untrusted text
 
-- The agent records freely (expenses, tasks, events, reminders) and asks before changing the money plan. The gated verb list lives in the ops layer. A gated verb needs an `approvalId` minted only by a user-authenticated HTTP call; the model can never mint one.
+- The agent records freely (expenses, tasks, events, reminders) and edits what already exists freely (`account_update`, `bill_update`, `goal_update`, `income_update`: names, amounts, the linked account; owner decision 2026-10-22, the audit trail names the agent as actor). It asks before adding to or removing from the money plan (new account, bill, goal or payday, hiding an account) and before a balance count. The gated verb list lives in the ops layer. A gated verb needs an `approvalId` minted only by a user-authenticated HTTP call; the model can never mint one.
 - The caller (user id) is injected server-side. Tool schemas never contain `user_id` or tenant columns.
 - DeepSeek gets amounts and labels, never account numbers; family names are masked. The filter runs on the final assembled prompt (memories and tool results included).
 - Text from the web, other people's calendars, OCR or anything fetched is untrusted data. After it enters a turn, write verbs in that turn are disabled or forced through approval. Facts are extracted only from the user's own turns.

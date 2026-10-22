@@ -15,6 +15,8 @@ flutter run --release --dart-define=GOOGLE_WEB_CLIENT_ID=<web client id>.apps.go
 flutter run --dart-define=BOTLER_API=http://10.0.2.2:5280
 ```
 
+A release build also needs the web client id from `server/.env` (`GOOGLE_CLIENT_ID`) as `--dart-define=GOOGLE_WEB_CLIENT_ID=...` (read it without printing it). R8 shrinking is off on purpose: it removed code `shared_preferences` needs and crashed the release app, so always run a release build on a device or emulator before shipping. Strings live in `app/lib/l10n/parts/*.en.arb` and `*.fil.arb`; after editing run `dart run tool/l10n.dart` then `flutter gen-l10n`.
+
 ## What the owner must create (nothing here can be done by the app)
 
 1. **Google OAuth Android client** (Google Cloud console, the project that holds Botler's web client): package `com.arbenger.botler` and the SHA-1 of the signing key. Debug SHA-1: `keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android` . Release SHA-1: of the keystore below. The app signs in with the **web** client id (`--dart-define=GOOGLE_WEB_CLIENT_ID=...`); the Android client only has to exist for the same package and SHA-1.
