@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"afb-arbenger": {
+			"type": "http",
+			"url": "https://afb.arbenger.com/mcp/arbenger"
+		}
+	}
+}

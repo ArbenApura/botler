@@ -1,0 +1,96 @@
+# THE VPS COMPOSE PROJECT "botler": POSTGRESQL (pgvector), A ONE SHOT MIGRATION AND THE APP.
+# From this folder on the server:   docker compose build botler-app && docker compose up -d   (after .env is filled in, see .env.example)
+# Creating it on the VPS needs the user's yes immediately before (see VPS.md).
+# Fully separate from the agent-flow-board project on the same server: own volumes, no host port for Postgres. The app joins AFB's
+# network only so AFB's Caddy can reach it as botler-app:3000 (one site block in AFB's Caddyfile, see botler.caddy). Postgres never joins it.
+# SERVICE NAMES ARE UNIQUE ON PURPOSE: Compose makes each service name a DNS alias on every network the service joins, so a service
+# called "app" or "postgres" would collide with AFB's services of the same name on AFB's network. Never rename these to generic names.
+
+name: botler
+
+services:
+  botler-db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      BOTLER_OWNER_PASSWORD: ${BOTLER_OWNER_PASSWORD:?Set BOTLER_OWNER_PASSWORD in .env}
+    volumes:
+      - botler_pgdata:/var/lib/postgresql/data
+      # Makes the owner role (not a superuser, so row level security binds it) and the database, and installs pgvector
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-botler.sh:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d botler']
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    # The VPS has 3.7 GB shared with AFB, so the database is capped. No published port: only the containers below reach it
+    mem_limit: 768m
+
+  botler-migrate:
+    # The image is built once, by the botler-app service (docker compose build botler-app). This service only runs it
+    image: botler-server:local
+    pull_policy: never
+    command: ['node', 'cli/migrate.mjs']
+    restart: 'no'
+    depends_on:
+      botler-db:
+        condition: service_healthy
+    environment:
+      DATABASE_OWNER_URL: postgres://botler_owner:${BOTLER_OWNER_PASSWORD}@botler-db:5432/botler
+      # Gives the app_runtime role its login. The app connects as that role, so forced row level security applies to it
+      BOTLER_RUNTIME_PASSWORD: ${BOTLER_RUNTIME_PASSWORD:?Set BOTLER_RUNTIME_PASSWORD in .env}
+    networks:
+      - internal
+
+  botler-app:
+    build: ../../server
+    image: botler-server:local
+    restart: unless-stopped
+    depends_on:
+      botler-migrate:
+        condition: service_completed_successfully
+    environment:
+      BOTLER_BASE_URL: ${BOTLER_BASE_URL:?Set BOTLER_BASE_URL in .env, for example https://botler.arbenger.com}
+      # The app works out its own address from these headers, which the proxy sets. Without PROTOCOL_HEADER it assumes https
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}
+      DATABASE_URL: postgres://app_runtime:${BOTLER_RUNTIME_PASSWORD}@botler-db:5432/botler
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in .env}
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:?Set ALLOWED_EMAILS in .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Set DEEPSEEK_API_KEY in .env}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      # Push notifications through Firebase. Both empty means push is off (the phone still syncs when opened and every ~15 minutes)
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
+      BOTLER_EMBED_CACHE: /models
+      BOTLER_CHAT_TOKEN_CAP: ${BOTLER_CHAT_TOKEN_CAP:-}
+      BOTLER_MEMORY_TOKEN_CAP: ${BOTLER_MEMORY_TOKEN_CAP:-}
+      BOTLER_GLOBAL_TOKEN_CAP: ${BOTLER_GLOBAL_TOKEN_CAP:-}
+      BOTLER_RATE_PER_MINUTE: ${BOTLER_RATE_PER_MINUTE:-}
+    volumes:
+      # The embedding model (about 120 MB) is downloaded once, on first use, and kept here
+      - botler_models:/models
+    networks:
+      - internal
+      - afb_edge
+    # No published port: only AFB's Caddy reaches the app, over the shared network, by the name botler-app.
+    # The embedding model needs about 600 MB when it is loaded, so the cap is 1 GB (the host has 3.7 GB shared with AFB)
+    mem_limit: 1024m
+
+networks:
+  internal:
+  # AFB's compose network, joined only by the app so its Caddy can proxy to it
+  afb_edge:
+    external: true
+    name: agent-flow-board_default
+
+volumes:
+  botler_pgdata:
+    name: botler_pgdata
+  botler_models:
+    name: botler_models

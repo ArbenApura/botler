@@ -1,0 +1,93 @@
+{
+  "env": {
+    "AFB_SERVER": "https://afb.arbenger.com"
+  },
+  "permissions": {
+    "allow": [
+      "mcp__afb-arbenger__session_start",
+      "mcp__afb-arbenger__work_start",
+      "mcp__afb-arbenger__work_stop",
+      "mcp__afb-arbenger__step_done",
+      "mcp__afb-arbenger__record",
+      "mcp__afb-arbenger__item_new",
+      "mcp__afb-arbenger__item_get",
+      "mcp__afb-arbenger__item_update",
+      "mcp__afb-arbenger__item_doc",
+      "mcp__afb-arbenger__item_list",
+      "mcp__afb-arbenger__item_history",
+      "mcp__afb-arbenger__plan_add_phase",
+      "mcp__afb-arbenger__plan_add_steps",
+      "mcp__afb-arbenger__plan_add_checks",
+      "mcp__afb-arbenger__step_update",
+      "mcp__afb-arbenger__comment_add",
+      "mcp__afb-arbenger__comment_list",
+      "mcp__afb-arbenger__task_list",
+      "mcp__afb-arbenger__task_new",
+      "mcp__afb-arbenger__task_update",
+      "mcp__afb-arbenger__search",
+      "mcp__afb-arbenger__related_plans",
+      "mcp__afb-arbenger__board_brief",
+      "mcp__afb-arbenger__board_validate",
+      "mcp__afb-arbenger__project_rules",
+      "mcp__afb-arbenger__workflow_get"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/afb-tab-title.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/afb-tab-title.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-flow-board hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-flow-board hook claude",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-flow-board hook claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

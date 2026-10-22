@@ -1,0 +1,64 @@
+# Secrets and local config
+VPS.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.age
+.mcp.local.json
+
+# Node and Yarn (the release file under .yarn/releases is committed)
+node_modules/
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/patches
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+package-lock.json
+pnpm-lock.yaml
+
+# SvelteKit build output
+server/.svelte-kit/
+server/build/
+server/.vercel/
+server/.output/
+server/cli/
+server/coverage/
+server/test-results/
+
+# Flutter and Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/build/
+app/.pub-cache/
+app/.pub/
+app/android/.gradle/
+app/android/local.properties
+app/android/key.properties
+app/android/app/google-services.json
+app/ios/Pods/
+*.keystore
+*.jks
+
+# Local databases, dumps and logs
+*.dump
+*.sql.gz
+*.log
+.local/
+tmp/
+
+# Claude Code local files
+.claude/settings.local.json
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+server/.embed-cache/

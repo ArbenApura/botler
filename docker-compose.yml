@@ -1,0 +1,28 @@
+# LOCAL DEVELOPMENT ONLY. THE VPS COMPOSE FILE IS deploy/vps/docker-compose.yml.
+# Botler's own PostgreSQL with pgvector. Port 5434 and the volume botler_pgdata_dev are Botler's: AFB's database (5433) is never touched.
+# Keep the data: use `docker compose stop` / `start`. Never run `docker compose down -v` here.
+name: botler
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: botler-pg-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localpostgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - '127.0.0.1:5434:5432'
+    volumes:
+      - botler_pgdata_dev:/var/lib/postgresql/data
+      - ./deploy/local/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d botler']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  botler_pgdata_dev:
+    name: botler_pgdata_dev

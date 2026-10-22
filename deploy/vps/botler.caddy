@@ -1,0 +1,21 @@
+# ADD THIS SITE BLOCK TO AFB'S Caddyfile (agent-flow-board/deploy/vps/Caddyfile), THEN: docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+# It needs the Cloudflare record  A botler.arbenger.com -> 15.235.241.169  (DNS only, grey cloud) so Caddy can get its own certificate.
+# Both are changes outside this repo: the user confirms them immediately before (see VPS.md).
+# Keep the block in AFB's repo copy of the Caddyfile too, or the next AFB deploy overwrites it.
+botler.arbenger.com {
+	encode zstd gzip
+
+	reverse_proxy botler-app:3000 {
+		# Chat replies stream, so nothing may hold the response back
+		flush_interval -1
+		health_uri /healthz
+		health_interval 15s
+	}
+
+	header {
+		-Server
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Content-Type-Options nosniff
+		Strict-Transport-Security "max-age=31536000"
+	}
+}
