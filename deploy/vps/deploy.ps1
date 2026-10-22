@@ -41,6 +41,8 @@ cd ~/botler/deploy/vps
 # Build once and alone (the host has 3.7 GB shared with AFB), then start
 docker compose build botler-app
 docker compose up -d
+# The egress wall lives inside the app container, so it is set again after every start (see egress.sh)
+bash ~/botler/deploy/vps/egress.sh
 docker image prune -f >/dev/null
 docker compose ps --format '{{.Service}} {{.Status}}'
 '@

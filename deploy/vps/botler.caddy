@@ -3,7 +3,20 @@
 # Both are changes outside this repo: the user confirms them immediately before (see VPS.md).
 # Keep the block in AFB's repo copy of the Caddyfile too, or the next AFB deploy overwrites it.
 botler.arbenger.com {
-	encode zstd gzip
+	# Compress pages and JSON, but never the chat stream (text/event-stream): compression holds back small pieces, so the answer would
+	# arrive all at once. Only the types listed here are compressed. After a reload, check with:  curl -N -H "Authorization: Bearer ..." https://botler.arbenger.com/api/v1/agent/chat
+	# (the first "start" event must appear at once, before the model has finished)
+	encode zstd gzip {
+		match {
+			header Content-Type text/html*
+			header Content-Type text/css*
+			header Content-Type text/plain*
+			header Content-Type text/javascript*
+			header Content-Type application/javascript*
+			header Content-Type application/json*
+			header Content-Type image/svg+xml*
+		}
+	}
 
 	reverse_proxy botler-app:3000 {
 		# Chat replies stream, so nothing may hold the response back
