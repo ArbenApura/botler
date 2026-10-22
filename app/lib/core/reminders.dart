@@ -68,29 +68,33 @@ Future<void> initReminders() async {
 /// Starts the background task's own Dart isolate: no screen, no providers, just the session, the server and the notifications.
 @pragma('vm:entry-point')
 void callbackDispatcher() {
-  Workmanager().executeTask((task, input) async {
-    WidgetsFlutterBinding.ensureInitialized();
+  Workmanager().executeTask((task, input) async => backgroundSyncOnce());
+}
+
+/// One background round with no screen and no providers: send what waits in the outbox, then bring the alarms in line with the server.
+/// Used by the periodic task and by a silent push. True when it is done or not worth repeating; false when the task should be retried.
+Future<bool> backgroundSyncOnce() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    const store = SecureSessionStore();
+    if (await store.read() == null) return true;
+    await _initNotifications();
+    final api = ApiClient(
+      base: apiBase,
+      token: () async => (await store.read())?.token,
+    );
     try {
-      final prefs = await SharedPreferences.getInstance();
-      const store = SecureSessionStore();
-      if (await store.read() == null) return true;
-      await _initNotifications();
-      final api = ApiClient(
-        base: apiBase,
-        token: () async => (await store.read())?.token,
-      );
-      try {
-        await Outbox(prefs).flush(api);
-        await syncReminders(api, prefs);
-      } finally {
-        api.close();
-      }
-      return true;
-    } on ApiException catch (e) {
-      // No connection or a busy server: the next run tries again
-      return e.isRetryable;
+      await Outbox(prefs).flush(api);
+      await syncReminders(api, prefs);
+    } finally {
+      api.close();
     }
-  });
+    return true;
+  } on ApiException catch (e) {
+    // No connection or a busy server: the next run tries again
+    return e.isRetryable;
+  }
 }
 
 /// Sends what is waiting in the outbox, then brings the alarms in line with the server. Used when the app is in front.

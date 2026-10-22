@@ -153,10 +153,17 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       // Signed in: take the currency and languages the server has
       if (next.value != null) {
         unawaited(ref.read(settingsProvider.notifier).pullFromServer());
+        unawaited(ref.read(pushServiceProvider).register());
       }
     });
+    // A silent push while the app is open: send what waits and bring the alarms in line, like coming back to the front
+    ref.read(pushServiceProvider).onSync = () {
+      ref.invalidate(syncProvider);
+      unawaited(flushAndSync(ref.container));
+    };
     if (ref.read(sessionProvider).value != null) {
       unawaited(ref.read(settingsProvider.notifier).pullFromServer());
+      unawaited(ref.read(pushServiceProvider).register());
     }
   }
 

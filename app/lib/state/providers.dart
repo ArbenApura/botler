@@ -14,6 +14,7 @@ import '../core/auth.dart';
 import '../core/config.dart';
 import '../core/json.dart';
 import '../core/outbox.dart';
+import '../core/push.dart';
 
 // -- TYPES -- //
 
@@ -104,6 +105,19 @@ final Provider<Outbox> outboxProvider = Provider<Outbox>(
   (ref) => Outbox(ref.watch(prefsProvider)),
 );
 
+/// The seam to Firebase. Tests override it.
+final Provider<PushHost> pushHostProvider = Provider<PushHost>(
+  (ref) => const FirebasePushHost(),
+);
+
+final Provider<PushService> pushServiceProvider = Provider<PushService>(
+  (ref) => PushService(
+    host: ref.watch(pushHostProvider),
+    api: ref.watch(apiProvider),
+    prefs: ref.watch(prefsProvider),
+  ),
+);
+
 // -- SESSION -- //
 
 class SessionNotifier extends AsyncNotifier<Session?> {
@@ -121,6 +135,15 @@ class SessionNotifier extends AsyncNotifier<Session?> {
   }
 
   Future<void> signOut() async {
+    // The server forgets this phone first: the call needs the session that is cleared next
+    try {
+      await ref
+          .read(pushServiceProvider)
+          .unregister()
+          .timeout(const Duration(seconds: 8));
+    } on Exception {
+      // Push is optional: signing out never waits on it
+    }
     await ref.read(sessionStoreProvider).clear();
     state = const AsyncData<Session?>(null);
   }

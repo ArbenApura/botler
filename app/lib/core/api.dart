@@ -127,6 +127,14 @@ class ApiClient {
         return decodeJson(r.body);
       });
 
+  Future<Json> delete(String path, {Map<String, String>? query}) =>
+      _guard(() async {
+        final uri = Uri.parse('$base$path').replace(queryParameters: query);
+        final r = await _http.delete(uri, headers: await _headers());
+        if (r.statusCode >= 400) throw _failure(r);
+        return decodeJson(r.body);
+      });
+
   /// A download as a stream, for the app update. The session token goes only to the Botler server over https (or the local server a debug
   /// build talks to), and a redirect is never followed, so the token can never be sent anywhere else. Throws ApiException on 4xx and 5xx.
   Future<http.StreamedResponse> getStream(String path) async {
