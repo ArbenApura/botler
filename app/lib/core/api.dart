@@ -127,6 +127,38 @@ class ApiClient {
         return decodeJson(r.body);
       });
 
+  /// A download as a stream, for the app update. The session token goes only to the Botler server over https (or the local server a debug
+  /// build talks to), and a redirect is never followed, so the token can never be sent anywhere else. Throws ApiException on 4xx and 5xx.
+  Future<http.StreamedResponse> getStream(String path) async {
+    if (!base.startsWith('https://') && !base.startsWith('http://')) {
+      throw const ApiException(
+        'INVALID',
+        'The server address is not valid.',
+        0,
+      );
+    }
+    final req = http.Request('GET', Uri.parse('$base$path'))
+      ..followRedirects = false
+      ..headers.addAll(await _headers())
+      // The file is already compressed, and the byte count must stay exact
+      ..headers['accept-encoding'] = 'identity';
+    final http.StreamedResponse res;
+    try {
+      res = await _http.send(req).timeout(_timeout);
+    } on SocketException {
+      throw const ApiException('NETWORK', 'No connection.', 0);
+    } on http.ClientException {
+      throw const ApiException('NETWORK', 'No connection.', 0);
+    } on TimeoutException {
+      throw const ApiException('NETWORK', 'The server took too long.', 0);
+    }
+    if (res.statusCode >= 300) {
+      // A redirect counts as a failure here: the update never leaves the Botler server
+      throw _failure(await http.Response.fromStream(res));
+    }
+    return res;
+  }
+
   /// Runs one operation of the server's registry (POST /api/v1/do/NAME) and returns its result.
   /// Pass [key] to make the call safe to repeat; the outbox does.
   Future<Object?> verb(

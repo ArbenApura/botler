@@ -14,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../update/update_gate.dart';
 import 'chat_group.dart';
 import 'chat_items.dart';
 import 'chat_start.dart';
@@ -338,6 +339,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       body: SafeArea(
         child: Column(
           children: <Widget>[
+            // A newer build, when one is ready and was not dismissed
+            const UpdateBanner(),
             Expanded(
               child: Stack(
                 children: <Widget>[

@@ -1604,5 +1604,87 @@
   "uiLoading": "Loading",
   "uiNotNow": "Not now",
   "undo": "Undo",
+  "updBannerSize": "About {size} MB to download.",
+  "@updBannerSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updBannerTitle": "Update {version} is ready",
+  "@updBannerTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updDismiss": "Not now",
+  "updDownloading": "Downloading {percent} percent",
+  "@updDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "updFailDamaged": "The download was damaged. Try again.",
+  "updFailInstaller": "The update did not finish. Try again.",
+  "updFailNetwork": "No connection. Check your internet and try again.",
+  "updFailPermission": "Allow Botler to install apps in Android settings, then come back and try again.",
+  "updFailServer": "The server could not give the update. Try again later.",
+  "updFailSpace": "Not enough space on the phone. Free some space and try again.",
+  "updFailWrongBuild": "That download is not an update for this app. Nothing was installed.",
+  "updInstalling": "Android is asking to install it. Tap Install there.",
+  "updNow": "Update now",
+  "updOpenSettings": "Open Android settings",
+  "updRequiredBody": "Botler {version} is needed to keep things working. It is about {size} MB.",
+  "@updRequiredBody": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updRequiredTitle": "Update needed",
+  "updRetry": "Try again",
+  "updRowAvailable": "Version {version} is ready. Tap to update.",
+  "@updRowAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updRowChecking": "Checking for updates…",
+  "updRowFailed": "Could not check. Tap to try again.",
+  "updRowLine": "Version {version} (build {build})",
+  "@updRowLine": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "int"
+      }
+    }
+  },
+  "updRowPending": "{count} waiting to sync",
+  "@updRowPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updRowPendingNone": "Nothing waiting to sync",
+  "updRowTitle": "App version",
+  "updRowUpToDate": "Up to date. Tap to check again.",
+  "updUseForNow": "Use the app for now",
+  "updVerifying": "Checking the download…",
   "yes": "Yes"
 }

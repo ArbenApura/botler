@@ -1,0 +1,84 @@
+{
+  "updRowTitle": "App version",
+  "updRowLine": "Version {version} (build {build})",
+  "@updRowLine": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "int"
+      }
+    }
+  },
+  "updRowChecking": "Checking for updates…",
+  "updRowUpToDate": "Up to date. Tap to check again.",
+  "updRowAvailable": "Version {version} is ready. Tap to update.",
+  "@updRowAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updRowFailed": "Could not check. Tap to try again.",
+  "updRowPendingNone": "Nothing waiting to sync",
+  "updRowPending": "{count} waiting to sync",
+  "@updRowPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updBannerTitle": "Update {version} is ready",
+  "@updBannerTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updBannerSize": "About {size} MB to download.",
+  "@updBannerSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updNow": "Update now",
+  "updDismiss": "Not now",
+  "updRetry": "Try again",
+  "updOpenSettings": "Open Android settings",
+  "updUseForNow": "Use the app for now",
+  "updRequiredTitle": "Update needed",
+  "updRequiredBody": "Botler {version} is needed to keep things working. It is about {size} MB.",
+  "@updRequiredBody": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updDownloading": "Downloading {percent} percent",
+  "@updDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "updVerifying": "Checking the download…",
+  "updInstalling": "Android is asking to install it. Tap Install there.",
+  "updFailNetwork": "No connection. Check your internet and try again.",
+  "updFailServer": "The server could not give the update. Try again later.",
+  "updFailSpace": "Not enough space on the phone. Free some space and try again.",
+  "updFailDamaged": "The download was damaged. Try again.",
+  "updFailWrongBuild": "That download is not an update for this app. Nothing was installed.",
+  "updFailPermission": "Allow Botler to install apps in Android settings, then come back and try again.",
+  "updFailInstaller": "The update did not finish. Try again."
+}

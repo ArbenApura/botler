@@ -63,3 +63,8 @@ Thumbs.db
 !.vscode/extensions.json
 server/.embed-cache/
 .afb/
+
+CREDENTIALS.md
+
+*.apk
+*.aab

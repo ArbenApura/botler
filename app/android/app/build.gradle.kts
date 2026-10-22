@@ -8,6 +8,7 @@ import java.util.Properties
 
 // THE RELEASE KEY: key.properties (next to this folder's parent, gitignored) names the keystore. Without it a release build is signed with the
 // debug key, which installs on the owner's own phone but is not for sharing.
+// UPDATE: since the in-app updates plan (BTL-20261022-1428) that fallback is gone and a release build without key.properties fails.
 val keyProps = Properties().apply {
     val f = rootProject.file("key.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -51,9 +52,17 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (keyProps.containsKey("storeFile")) signingConfigs.getByName("release")
-                            else signingConfigs.getByName("debug")
+            // No debug fallback any more: an update only installs over the same key, so every release build must use the release key
+            signingConfig = if (keyProps.containsKey("storeFile")) signingConfigs.getByName("release") else null
         }
+    }
+}
+
+// A release build without key.properties fails loudly instead of producing an APK that could never update the installed app
+gradle.taskGraph.whenReady {
+    val releaseBuild = allTasks.any { it.name.matches(Regex("(assemble|bundle|package)Release")) }
+    if (releaseBuild && !keyProps.containsKey("storeFile")) {
+        throw GradleException("app/android/key.properties is missing: a release build must be signed with the release key (see docs/ANDROID.md)")
     }
 }
 

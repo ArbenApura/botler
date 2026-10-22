@@ -2287,5 +2287,106 @@ class AppLocalizationsEn extends AppLocalizations {
   String get undo => 'Undo';
 
   @override
+  String updBannerSize(String size) {
+    return 'About $size MB to download.';
+  }
+
+  @override
+  String updBannerTitle(String version) {
+    return 'Update $version is ready';
+  }
+
+  @override
+  String get updDismiss => 'Not now';
+
+  @override
+  String updDownloading(int percent) {
+    return 'Downloading $percent percent';
+  }
+
+  @override
+  String get updFailDamaged => 'The download was damaged. Try again.';
+
+  @override
+  String get updFailInstaller => 'The update did not finish. Try again.';
+
+  @override
+  String get updFailNetwork =>
+      'No connection. Check your internet and try again.';
+
+  @override
+  String get updFailPermission =>
+      'Allow Botler to install apps in Android settings, then come back and try again.';
+
+  @override
+  String get updFailServer =>
+      'The server could not give the update. Try again later.';
+
+  @override
+  String get updFailSpace =>
+      'Not enough space on the phone. Free some space and try again.';
+
+  @override
+  String get updFailWrongBuild =>
+      'That download is not an update for this app. Nothing was installed.';
+
+  @override
+  String get updInstalling =>
+      'Android is asking to install it. Tap Install there.';
+
+  @override
+  String get updNow => 'Update now';
+
+  @override
+  String get updOpenSettings => 'Open Android settings';
+
+  @override
+  String updRequiredBody(String version, String size) {
+    return 'Botler $version is needed to keep things working. It is about $size MB.';
+  }
+
+  @override
+  String get updRequiredTitle => 'Update needed';
+
+  @override
+  String get updRetry => 'Try again';
+
+  @override
+  String updRowAvailable(String version) {
+    return 'Version $version is ready. Tap to update.';
+  }
+
+  @override
+  String get updRowChecking => 'Checking for updates…';
+
+  @override
+  String get updRowFailed => 'Could not check. Tap to try again.';
+
+  @override
+  String updRowLine(String version, int build) {
+    return 'Version $version (build $build)';
+  }
+
+  @override
+  String updRowPending(int count) {
+    return '$count waiting to sync';
+  }
+
+  @override
+  String get updRowPendingNone => 'Nothing waiting to sync';
+
+  @override
+  String get updRowTitle => 'App version';
+
+  @override
+  String get updRowUpToDate => 'Up to date. Tap to check again.';
+
+  @override
+  String get updUseForNow => 'Use the app for now';
+
+  @override
+  String get updVerifying => 'Checking the download…';
+
+  @override
   String get yes => 'Yes';
 }

@@ -28,6 +28,7 @@ import 'features/money/goals_screen.dart';
 import 'features/payday/payday_screen.dart';
 import 'features/settings/reset_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/update/update_gate.dart';
 import 'state/providers.dart';
 import 'theme/theme.dart';
 import 'ui/transitions.dart';
@@ -196,7 +197,9 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       routerConfig: _router,
       builder: (context, child) => MoneyScope(
         currency: settings.currency,
-        child: LockGate(child: child ?? const SizedBox.shrink()),
+        child: LockGate(
+          child: UpdateGate(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

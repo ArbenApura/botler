@@ -108,6 +108,11 @@ export const variables = defineEnvVars({
 			'Tokens the whole service may use per month, both buckets together. Default 12000000.',
 		schema: (value) => positiveInt(value, 12_000_000, 'BOTLER_GLOBAL_TOKEN_CAP')
 	},
+	BOTLER_RELEASES_DIR: {
+		description:
+			'The folder that holds the published Android builds (botler-<version>+<code>.apk) and latest.json. Mounted read-only. A missing folder only turns the update check into none.',
+		schema: (value) => (value && value.trim() ? value.trim() : '/releases')
+	},
 	BOTLER_RATE_PER_MINUTE: {
 		description: 'Model calls one person may start per minute. Default 20.',
 		schema: (value) => positiveInt(value, 20, 'BOTLER_RATE_PER_MINUTE')

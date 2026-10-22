@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- THE ONLY FOLDER THE SYSTEM INSTALLER MAY READ FROM BOTLER: THE UPDATE DOWNLOADS IN THE CACHE -->
+<paths>
+    <cache-path name="updates" path="updates/"/>
+</paths>

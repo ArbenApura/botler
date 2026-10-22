@@ -76,6 +76,9 @@ services:
     volumes:
       # The embedding model (about 120 MB) is downloaded once, on first use, and kept here
       - botler_models:/models
+      # The published Android builds. A host folder OUTSIDE ~/botler, so deploy.ps1's rsync --delete never touches it, and so the release
+      # script can fill it with scp (a named volume cannot be written that way). The app only reads it. Created by release-app.ps1.
+      - ${BOTLER_RELEASES_HOST_DIR:-/srv/botler-releases}:/releases:ro
     networks:
       - internal
       - afb_edge

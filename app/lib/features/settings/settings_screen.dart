@@ -20,6 +20,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import '../money/account_detail_screen.dart';
+import 'update_row.dart';
 
 // -- TYPES -- //
 
@@ -193,6 +194,9 @@ class SettingsScreen extends ConsumerWidget {
 
           // -- AUDIT TRAIL -- //
           const _AuditRow(),
+
+          // -- APP VERSION AND UPDATES -- //
+          const UpdateRow(),
 
           // -- REMINDERS -- //
           SectionTitle(t.settingsReminders),

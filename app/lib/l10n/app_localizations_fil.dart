@@ -2300,5 +2300,106 @@ class AppLocalizationsFil extends AppLocalizations {
   String get undo => 'I-undo';
 
   @override
+  String updBannerSize(String size) {
+    return 'Mga $size MB ang idadownload.';
+  }
+
+  @override
+  String updBannerTitle(String version) {
+    return 'Handa na ang update $version';
+  }
+
+  @override
+  String get updDismiss => 'Mamaya na';
+
+  @override
+  String updDownloading(int percent) {
+    return 'Dinadownload, $percent porsyento';
+  }
+
+  @override
+  String get updFailDamaged => 'Nasira ang download. Subukan ulit.';
+
+  @override
+  String get updFailInstaller => 'Hindi natapos ang update. Subukan ulit.';
+
+  @override
+  String get updFailNetwork =>
+      'Walang koneksyon. Tingnan ang internet at subukan ulit.';
+
+  @override
+  String get updFailPermission =>
+      'Payagan ang Botler na mag-install ng apps sa settings ng Android, saka bumalik at subukan ulit.';
+
+  @override
+  String get updFailServer =>
+      'Hindi maibigay ng server ang update. Subukan ulit mamaya.';
+
+  @override
+  String get updFailSpace =>
+      'Kulang ang espasyo sa phone. Magbakante at subukan ulit.';
+
+  @override
+  String get updFailWrongBuild =>
+      'Hindi update ng app na ito ang na-download. Walang na-install.';
+
+  @override
+  String get updInstalling =>
+      'Humihingi ng pahintulot ang Android para i-install. I-tap ang Install doon.';
+
+  @override
+  String get updNow => 'I-update na';
+
+  @override
+  String get updOpenSettings => 'Buksan ang settings ng Android';
+
+  @override
+  String updRequiredBody(String version, String size) {
+    return 'Kailangan ang Botler $version para tuloy-tuloy ang takbo. Mga $size MB ito.';
+  }
+
+  @override
+  String get updRequiredTitle => 'Kailangan ng update';
+
+  @override
+  String get updRetry => 'Subukan ulit';
+
+  @override
+  String updRowAvailable(String version) {
+    return 'Handa na ang bersyon $version. I-tap para i-update.';
+  }
+
+  @override
+  String get updRowChecking => 'Tinitingnan ang mga update…';
+
+  @override
+  String get updRowFailed => 'Hindi matingnan. I-tap para subukan ulit.';
+
+  @override
+  String updRowLine(String version, int build) {
+    return 'Bersyon $version (build $build)';
+  }
+
+  @override
+  String updRowPending(int count) {
+    return '$count ang naghihintay na i-sync';
+  }
+
+  @override
+  String get updRowPendingNone => 'Walang naghihintay na i-sync';
+
+  @override
+  String get updRowTitle => 'Bersyon ng app';
+
+  @override
+  String get updRowUpToDate => 'Pinakabago na. I-tap para tingnan ulit.';
+
+  @override
+  String get updUseForNow => 'Gamitin muna ang app';
+
+  @override
+  String get updVerifying => 'Sinisiyasat ang download…';
+
+  @override
   String get yes => 'Oo';
 }

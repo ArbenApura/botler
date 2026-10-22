@@ -3966,6 +3966,168 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get undo;
 
+  /// No description provided for @updBannerSize.
+  ///
+  /// In en, this message translates to:
+  /// **'About {size} MB to download.'**
+  String updBannerSize(String size);
+
+  /// No description provided for @updBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {version} is ready'**
+  String updBannerTitle(String version);
+
+  /// No description provided for @updDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get updDismiss;
+
+  /// No description provided for @updDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {percent} percent'**
+  String updDownloading(int percent);
+
+  /// No description provided for @updFailDamaged.
+  ///
+  /// In en, this message translates to:
+  /// **'The download was damaged. Try again.'**
+  String get updFailDamaged;
+
+  /// No description provided for @updFailInstaller.
+  ///
+  /// In en, this message translates to:
+  /// **'The update did not finish. Try again.'**
+  String get updFailInstaller;
+
+  /// No description provided for @updFailNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Check your internet and try again.'**
+  String get updFailNetwork;
+
+  /// No description provided for @updFailPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Botler to install apps in Android settings, then come back and try again.'**
+  String get updFailPermission;
+
+  /// No description provided for @updFailServer.
+  ///
+  /// In en, this message translates to:
+  /// **'The server could not give the update. Try again later.'**
+  String get updFailServer;
+
+  /// No description provided for @updFailSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough space on the phone. Free some space and try again.'**
+  String get updFailSpace;
+
+  /// No description provided for @updFailWrongBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'That download is not an update for this app. Nothing was installed.'**
+  String get updFailWrongBuild;
+
+  /// No description provided for @updInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Android is asking to install it. Tap Install there.'**
+  String get updInstalling;
+
+  /// No description provided for @updNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get updNow;
+
+  /// No description provided for @updOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Android settings'**
+  String get updOpenSettings;
+
+  /// No description provided for @updRequiredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler {version} is needed to keep things working. It is about {size} MB.'**
+  String updRequiredBody(String version, String size);
+
+  /// No description provided for @updRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update needed'**
+  String get updRequiredTitle;
+
+  /// No description provided for @updRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get updRetry;
+
+  /// No description provided for @updRowAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is ready. Tap to update.'**
+  String updRowAvailable(String version);
+
+  /// No description provided for @updRowChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates…'**
+  String get updRowChecking;
+
+  /// No description provided for @updRowFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check. Tap to try again.'**
+  String get updRowFailed;
+
+  /// No description provided for @updRowLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} (build {build})'**
+  String updRowLine(String version, int build);
+
+  /// No description provided for @updRowPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting to sync'**
+  String updRowPending(int count);
+
+  /// No description provided for @updRowPendingNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing waiting to sync'**
+  String get updRowPendingNone;
+
+  /// No description provided for @updRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App version'**
+  String get updRowTitle;
+
+  /// No description provided for @updRowUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date. Tap to check again.'**
+  String get updRowUpToDate;
+
+  /// No description provided for @updUseForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the app for now'**
+  String get updUseForNow;
+
+  /// No description provided for @updVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the download…'**
+  String get updVerifying;
+
   /// No description provided for @yes.
   ///
   /// In en, this message translates to:
