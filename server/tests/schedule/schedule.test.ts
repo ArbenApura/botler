@@ -425,16 +425,6 @@ describe('the sync contract', () => {
 		// A single day opens and closes on its due date
 		expect(s.nextBill?.windowStart).toBe(s.nextBill?.dueDate);
 		expect(s.firstEventToday?.title).toBe('Standup');
-		expect(s.firstEventToday?.untrusted).toBe(false);
-	});
-
-	it('says calendar sync is off by default', async () => {
-		const f = await seedPerson(t);
-		expect((await syncGet(f.ctx)).calendar).toEqual({
-			status: 'off',
-			errorCode: null,
-			lastSyncAt: null
-		});
 	});
 
 	it("keeps one person's reminders out of another's sync", async () => {
@@ -447,17 +437,14 @@ describe('the sync contract', () => {
 });
 
 describe('who may do what', () => {
-	it('refuses unknown fields, and keeps calendar switching for the person', async () => {
+	it('refuses unknown fields, and has no calendar sync switch', async () => {
 		const f = await seedPerson(t);
 		await expect(
 			invokeVerb(as(f.ctx), 'task_create', { title: 'x', userId: 'other' })
 		).rejects.toMatchObject({ code: 'INVALID' });
-		const agent: Ctx = { handle: t.handle, actor: { userId: f.userId, kind: 'agent' } };
-		await expect(invokeVerb(agent, 'calendar_enable', {})).rejects.toMatchObject({
-			code: 'FORBIDDEN'
+		await expect(invokeVerb(as(f.ctx), 'calendar_enable', {})).rejects.toMatchObject({
+			code: 'NOT_FOUND'
 		});
-		await expect(invokeVerb(as(f.ctx), 'calendar_enable', {})).resolves.toEqual({ status: 'ok' });
-		await expect(invokeVerb(as(f.ctx), 'calendar_disable', {})).resolves.toEqual({ status: 'off' });
 		expect(new OpsError('INVALID', 'x').code).toBe('INVALID');
 	});
 

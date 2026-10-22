@@ -16,6 +16,7 @@ import 'features/auth/lock_gate.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/chat/chat_screen.dart';
+import 'features/chat/chat_state.dart';
 import 'features/expense/expense_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/memory/memory_screen.dart';
@@ -129,6 +130,13 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    // A different person signing in must never see the last person's conversation, nor skip loading their own
+    ref.listen<String?>(sessionProvider.select((s) => s.value?.email), (
+      prev,
+      next,
+    ) {
+      if (prev != next) ref.invalidate(chatProvider);
+    });
     return MaterialApp.router(
       title: 'Botler',
       debugShowCheckedModeBanner: false,

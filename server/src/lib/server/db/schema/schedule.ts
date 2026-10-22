@@ -1,4 +1,4 @@
-// THE SCHEDULING TABLES: TASKS, EVENTS (WITH THEIR GOOGLE CALENDAR TWIN), ROUTINES, THE REMINDERS THE PHONE SCHEDULES, AND THE CALENDAR SYNC STATE.
+// THE SCHEDULING TABLES: TASKS, EVENTS, ROUTINES AND THE REMINDERS THE PHONE SCHEDULES.
 // Reminders are rows the server computes from everything else (bills, paydays, tasks, events, routines) and keeps true: when the thing
 // no longer needs action (a bill is paid) its reminder is cancelled. The phone replaces its whole set of alarms from this list.
 
@@ -22,7 +22,7 @@ import { id, oneOf, plainTable, stamps, userTable, version } from './helpers';
 
 export const TASK_STATUSES = ['open', 'done', 'dropped'] as const;
 export const TASK_SOURCES = ['user', 'chat', 'calendar'] as const;
-export const EVENT_SOURCES = ['botler', 'google', 'bill', 'payday'] as const;
+export const EVENT_SOURCES = ['botler', 'bill', 'payday'] as const;
 export const REMINDER_KINDS = [
 	'task',
 	'event',
@@ -35,7 +35,6 @@ export const REMINDER_KINDS = [
 ] as const;
 export const REMINDER_STATUSES = ['scheduled', 'sent', 'dismissed', 'cancelled'] as const;
 export const REMINDER_ORIGINS = ['user', 'agent', 'system'] as const;
-export const CALENDAR_STATUSES = ['off', 'ok', 'error'] as const;
 
 // -- TASKS -- //
 
@@ -82,26 +81,17 @@ export const calendarEvent = userTable(
 		allDay: boolean('all_day').notNull().default(false),
 		location: text('location').notNull().default(''),
 		notes: text('notes').notNull().default(''),
-		/** Made in Botler, read from Google, or made by Botler for a bill or a payday. Text from Google is untrusted. */
+		/** Made by the person or the assistant, or made by Botler for a bill or a payday. */
 		source: text('source', { enum: EVENT_SOURCES }).notNull().default('botler'),
 		/** What a bill or payday event stands for, so it is kept in step with it ("bill:<id>:<due date>"). */
 		refKey: text('ref_key'),
-		googleEventId: text('google_event_id'),
-		/** Google's version of the event as we last saw it, to tell our own writes from a change someone made. */
-		googleEtag: text('google_etag'),
-		googleUpdatedAt: timestamp('google_updated_at', { withTimezone: true }),
-		/** The local version that Google has. A local version above this means there is something to send. */
-		syncedVersion: integer('synced_version').notNull().default(0),
-		/** A repeat instance carries the id of the series it belongs to. */
-		recurringEventId: text('recurring_event_id'),
-		/** Removed locally or in Google; kept until the removal has reached the other side. */
+		/** Set when an event is removed; nothing lists a removed event. */
 		deletedAt: timestamp('deleted_at', { withTimezone: true }),
 		version: version(),
 		...stamps()
 	},
 	(t) => [
 		index('calendar_event_user_time_idx').on(t.userId, t.startsAt),
-		unique('calendar_event_google_uq').on(t.userId, t.googleEventId),
 		unique('calendar_event_ref_uq').on(t.userId, t.refKey),
 		oneOf('calendar_event_source_chk', t.source, EVENT_SOURCES),
 		check('calendar_event_time_chk', sql`${t.endsAt} >= ${t.startsAt}`),
@@ -159,29 +149,6 @@ export const reminder = userTable(
 		oneOf('reminder_status_chk', t.status, REMINDER_STATUSES),
 		oneOf('reminder_origin_chk', t.origin, REMINDER_ORIGINS),
 		check('reminder_title_chk', sql`length(${t.title}) between 1 and 200`)
-	]
-);
-
-// -- CALENDAR SYNC STATE -- //
-
-export const calendarSync = userTable(
-	'calendar_sync',
-	() => user.id,
-	{
-		id: id(),
-		status: text('status', { enum: CALENDAR_STATUSES }).notNull().default('off'),
-		calendarId: text('calendar_id').notNull().default('primary'),
-		/** Google's cursor for "what changed since". Never shown. */
-		syncToken: text('sync_token'),
-		/** Why it stopped, when it did: invalid_grant means Google no longer lets us in and the person must reconnect. */
-		errorCode: text('error_code'),
-		lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
-		lastFullSyncAt: timestamp('last_full_sync_at', { withTimezone: true }),
-		...stamps()
-	},
-	(t) => [
-		unique('calendar_sync_user_uq').on(t.userId),
-		oneOf('calendar_sync_status_chk', t.status, CALENDAR_STATUSES)
 	]
 );
 

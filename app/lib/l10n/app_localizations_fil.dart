@@ -262,9 +262,6 @@ class AppLocalizationsFil extends AppLocalizations {
   String get agendaFreqWeekly => 'Sa ilang araw';
 
   @override
-  String get agendaFromGoogle => 'mula sa Google Calendar';
-
-  @override
   String agendaMonthlyAt(String day, String time) {
     return 'Tuwing ika-$day ng buwan ng $time';
   }
@@ -401,7 +398,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get auditChApp => 'sa app';
 
   @override
-  String get auditChCalendar => 'Google Calendar';
+  String get auditChCalendar => 'Calendar sync (retired)';
 
   @override
   String get auditChChat => 'sa chat';
@@ -852,9 +849,6 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
-  String get calFromGoogle => 'Mula sa Google Calendar';
-
-  @override
   String get calLayerBills => 'Mga bill';
 
   @override
@@ -982,8 +976,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatAssistantDown => 'Hindi available ang assistant ngayon.';
 
   @override
-  String get chatCalendarStopped =>
-      'Huminto ang pag-sync ng Google Calendar. I-tap para kumonekta ulit.';
+  String get chatCardExpired => 'Nag-expire na ang hiling na ito.';
 
   @override
   String get chatCardFailed => 'Hindi ito nagawa.';
@@ -991,6 +984,22 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String chatChecked(String what) {
     return 'Sinuri: $what';
+  }
+
+  @override
+  String chatCheckedMany(String what, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pa',
+      one: '1 pa',
+    );
+    return '$what, $_temp0';
+  }
+
+  @override
+  String chatCheckedMore(int count) {
+    return '+$count';
   }
 
   @override
@@ -1007,6 +1016,9 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get chatEarlier => 'Mas maaga';
+
+  @override
   String get chatHintMessage => 'Mag-message kay Botler';
 
   @override
@@ -1014,6 +1026,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatInForce => 'Umiiral';
+
+  @override
+  String get chatJumpLatest => 'Pumunta sa pinakabagong mensahe';
 
   @override
   String chatLogged(String amount, String account) {
@@ -1038,9 +1053,25 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get chatNewBody =>
+      'Mabubura sa screen ang usapan at magsisimula si Botler nang wala ito. Mananatili ang pera, paalala at alaala mo.';
+
+  @override
+  String get chatNewTitle => 'Magsimula ng bagong chat?';
+
+  @override
+  String get chatNewTooltip => 'Bagong chat';
+
+  @override
+  String get chatNewYes => 'Magsimula ng bagong chat';
+
+  @override
   String chatNextBill(String name, String day) {
     return 'Susunod na bill: $name, $day';
   }
+
+  @override
+  String get chatNoAnswer => 'Walang naging sagot dito.';
 
   @override
   String get chatNoBill => 'Walang paparating na bill';
@@ -1126,6 +1157,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatStopped => 'Itinigil.';
+
+  @override
+  String get chatSummaryOpen => 'Buod ng pera';
 
   @override
   String get chatTakePhoto => 'Kumuha ng litrato';
@@ -1461,7 +1495,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get menuAccounts => 'Mga account';
 
   @override
-  String get menuAccountsLine => 'Ang laman ng RCBC, GCash, Maya at cash';
+  String get menuAccountsLine => 'Ang laman ng bawat account mo';
 
   @override
   String get menuAgenda => 'Agenda';
@@ -1511,8 +1545,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get menuSettings => 'Mga setting';
 
   @override
-  String get menuSettingsLine =>
-      'Wika, pera, lock, notification, kalendaryo, itsura';
+  String get menuSettingsLine => 'Wika, pera, lock, notification, itsura';
 
   @override
   String get menuTitle => 'Menu';
@@ -1681,7 +1714,7 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get resetLine =>
-      'Burahin ang ilan o lahat ng hawak ni Botler tungkol sa iyo. Mananatili ang sign-in, settings, mga phone at Google connection mo.';
+      'Burahin ang ilan o lahat ng hawak ni Botler tungkol sa iyo. Mananatili ang sign-in, settings at mga phone mo.';
 
   @override
   String get resetNothing => 'Walang buburahin sa bahaging ito.';
@@ -2046,33 +2079,6 @@ class AppLocalizationsFil extends AppLocalizations {
   String get settingsAppLanguage => 'Wika ng app';
 
   @override
-  String get settingsCalBody =>
-      'Lumalabas sa Google Calendar ang mga event na ginawa sa Botler, at lumalabas dito ang mga ginawa roon. Idinaragdag din ang mga bill at sweldo na kailangan ng aksyon, nang walang halaga.';
-
-  @override
-  String get settingsCalConnect => 'I-connect ang Google Calendar';
-
-  @override
-  String get settingsCalError =>
-      'Huminto: kailangan ng Google na mag-connect ka ulit';
-
-  @override
-  String get settingsCalFinish =>
-      'Tapusin sa browser, tapos bumalik at pindutin ang “Nakakonekta na ako”.';
-
-  @override
-  String get settingsCalIConnected => 'Nakakonekta na ako';
-
-  @override
-  String get settingsCalOff => 'Naka-off';
-
-  @override
-  String get settingsCalSyncing => 'Nagsi-sync sa dalawang direksyon';
-
-  @override
-  String get settingsCalTurnOff => 'I-off';
-
-  @override
   String get settingsCurrency => 'Pera';
 
   @override
@@ -2098,9 +2104,6 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get settingsCurrencySearch => 'Maghanap ng pera';
-
-  @override
-  String get settingsGoogleCalendar => 'Google Calendar';
 
   @override
   String get settingsHideBody =>

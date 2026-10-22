@@ -407,10 +407,7 @@ class ItemRow extends ConsumerWidget {
             : '${context.money(item.amount ?? 0)} · ';
         return '$amount${item.paid ? t.calPaydaySplitDone : t.calPaydayLabel}';
       case 'event':
-        return <String>[
-          time ?? t.calAllDay,
-          if (item.source == 'google') t.calFromGoogle,
-        ].join(' · ');
+        return time ?? t.calAllDay;
       case 'routine':
         return <String>[t.calRoutineLabel, ?time].join(' · ');
       case 'task':

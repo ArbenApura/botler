@@ -1,4 +1,4 @@
-// SETTINGS: WHO IS SIGNED IN, THE LANGUAGE AND CURRENCY, THE APP LOCK, WHAT NOTIFICATIONS SHOW, HOW EARLY REMINDERS COME, WHICH LANGUAGE TO LISTEN FOR, GOOGLE CALENDAR, AND THE LOOK.
+// SETTINGS: WHO IS SIGNED IN, THE LANGUAGE AND CURRENCY, THE APP LOCK, WHAT NOTIFICATIONS SHOW, HOW EARLY REMINDERS COME, WHICH LANGUAGE TO LISTEN FOR AND THE LOOK.
 // The lock is only turned on after it has worked once, so a phone with no fingerprint set up cannot lock the person out.
 // The language, the assistant's replies, the currency and the first day of the week are kept on the server too (the assistant needs them),
 // so they are saved there first and only then shown here. Changing the currency never converts an amount, and the screen says so before it does.
@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -34,14 +33,11 @@ class SettingsScreen extends ConsumerWidget {
     final s = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final session = ref.watch(sessionProvider).value;
-    final sync = ref.watch(syncProvider);
-    final cal = asJson(sync.value?['calendar']);
-    final status = str(cal['status'], 'off');
     final currency = currencyOf(s.currency);
     return Scaffold(
       appBar: AppBar(title: Text(t.settingsTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           PaperCard(
             child: Row(
@@ -244,72 +240,6 @@ class SettingsScreen extends ConsumerWidget {
                 l == null ? null : notifier.update(s.copyWith(speechLocale: l)),
           ),
 
-          // -- GOOGLE CALENDAR -- //
-          SectionTitle(t.settingsGoogleCalendar),
-          PaperCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  switch (status) {
-                    'ok' => t.settingsCalSyncing,
-                    'error' => t.settingsCalError,
-                    _ => t.settingsCalOff,
-                  },
-                  style: TextStyle(
-                    color: status == 'error' ? c.warning : c.ink,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(t.settingsCalBody, style: TextStyle(color: c.muted)),
-                const SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    if (status != 'ok')
-                      FilledButton(
-                        onPressed: () async {
-                          // Read before the await: no context is used after one
-                          final finish = t.settingsCalFinish;
-                          try {
-                            final r = await ref
-                                .read(apiProvider)
-                                .post(
-                                  '/api/v1/calendar/connect',
-                                  <String, Object?>{},
-                                );
-                            final url = Uri.tryParse(str(r['url']));
-                            if (url != null) {
-                              await launchUrl(
-                                url,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            }
-                            if (context.mounted) say(context, finish);
-                          } catch (e) {
-                            if (context.mounted)
-                              say(context, errorWords(e, context));
-                          }
-                        },
-                        child: Text(t.settingsCalConnect),
-                      ),
-                    if (status != 'ok')
-                      TextButton(
-                        onPressed: () =>
-                            _switch(context, ref, 'calendar_enable'),
-                        child: Text(t.settingsCalIConnected),
-                      ),
-                    if (status == 'ok')
-                      TextButton(
-                        onPressed: () =>
-                            _switch(context, ref, 'calendar_disable'),
-                        child: Text(t.settingsCalTurnOff),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
           // -- LOOK -- //
           SectionTitle(t.settingsLook),
           SegmentedButton<ThemeMode>(
@@ -398,15 +328,6 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (yes && context.mounted) {
       await _save(context, ref, currency: chosen);
-    }
-  }
-
-  Future<void> _switch(BuildContext context, WidgetRef ref, String verb) async {
-    try {
-      await ref.read(apiProvider).verb(verb);
-      ref.invalidate(syncProvider);
-    } catch (e) {
-      if (context.mounted) say(context, errorWords(e, context));
     }
   }
 }

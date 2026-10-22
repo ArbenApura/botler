@@ -91,8 +91,8 @@ describe('the verb registry', () => {
 				.sort();
 		expect(by('person')).toEqual([
 			'audit_export',
-			'calendar_disable',
-			'calendar_enable',
+			'chat_clear',
+			'chat_history',
 			'data_reset',
 			'data_reset_preview',
 			'memory_export',
@@ -147,7 +147,7 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(28);
+		expect(by('read')).toHaveLength(27);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {

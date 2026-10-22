@@ -1,10 +1,10 @@
-// THE SUMMARY CARD AT THE TOP OF THE CHAT: THREE QUIET LINES (THE TOTAL ACROSS ACCOUNTS, THE NEXT BILL, TODAY'S FIRST EVENT). IT SCROLLS AWAY WITH THE CHAT.
-// With no connection it shows the last answer that worked and says so. A calendar sync that stopped shows one line with a way to fix it.
+// THE SUMMARY CARD AT THE TOP OF THE CHAT: THREE QUIET LINES (THE TOTAL ACROSS ACCOUNTS, THE NEXT BILL, TODAY'S FIRST EVENT). IT SCROLLS AWAY WITH THE CHAT,
+// AND A SMALL CHIP WITH THE TOTAL TAKES ITS PLACE AT THE TOP OF A LONG CHAT.
+// With no connection it shows the last answer that worked and says so.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
@@ -39,7 +39,6 @@ class SummaryCard extends ConsumerWidget {
           final event = summary['firstEventToday'] is Map<Object?, Object?>
               ? asJson(summary['firstEventToday'])
               : null;
-          final calendar = asJson(s['calendar']);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -75,25 +74,28 @@ class SummaryCard extends ConsumerWidget {
                     ? context.t.chatNoEvent
                     : '${_time(context, str(event['startsAt']))}  ${str(event['title'])}',
               ),
-              if (str(calendar['status']) == 'error') ...<Widget>[
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () => context.push('/settings'),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      context.t.chatCalendarStopped,
-                      style: TextStyle(color: c.warning),
-                    ),
-                  ),
-                ),
-              ],
             ],
           );
         },
       ),
     );
   }
+}
+
+/// Opens the summary in a sheet, from the app bar, so the person never has to scroll a long chat back to its top to see the money.
+void showSummarySheet(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    backgroundColor: context.colors.paper,
+    builder: (_) => const SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SummaryCard(),
+      ),
+    ),
+  );
 }
 
 class _Line extends StatelessWidget {

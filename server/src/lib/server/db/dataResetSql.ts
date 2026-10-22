@@ -53,13 +53,11 @@ const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'bi
 export const EVERYTHING_EXTRA: readonly string[] = ['memory_profile'];
 
 /**
- * Tables that a reset keeps, and why. The person stays signed in, keeps the settings they chose, the phone registrations, the Google
- * connection and the counters that guard the model budget. The trail is handled by its own scope.
+ * Tables that a reset keeps, and why. The person stays signed in, keeps the settings they chose, the phone registrations and the counters that guard the model budget. The trail is handled by its own scope.
  */
 export const KEPT_ON_RESET: Record<string, string> = {
 	user_setting: 'the person keeps their settings',
 	device: 'the phones stay registered',
-	calendar_sync: 'the Google connection stays; its events are local copies in the schedule scope',
 	model_usage: 'the budget counters of the model must not be reset by the person',
 	request_log: 'idempotency records, and the single-use reset confirmations',
 	audit_event: 'erased by its own scope, which leaves the tombstone'

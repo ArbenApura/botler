@@ -10,9 +10,6 @@ import { allowedUser } from '#lib/server/auth/allowlist.js';
 import { getAllowList, getAuth } from '#lib/server/auth/index.js';
 import { getDb } from '#lib/server/db/index.js';
 import { jobHandlers } from '#lib/server/jobs/handlers.js';
-import { createGoogleApi } from '#lib/server/calendar/google.js';
-import { googleTokenGetter } from '#lib/server/calendar/token.js';
-import { createCalendarHandlers } from '#lib/server/jobs/calendar.js';
 import { createMemoryHandlers } from '#lib/server/jobs/memory.js';
 import { createPushHandlers } from '#lib/server/jobs/push.js';
 import { getPusher } from '#lib/server/push/index.js';
@@ -36,14 +33,8 @@ export const init: ServerInit = async () => {
 	const handle = await getDb();
 	// A half set up push stops the start here; no push at all is allowed (the phone syncs on open and on a timer)
 	if (!getPusher()) console.warn(JSON.stringify({ event: 'push_not_configured' }));
-	const calendarHandlers = createCalendarHandlers({
-		api: (userId) =>
-			createGoogleApi({
-				getToken: async () => googleTokenGetter(handle, await getAuth(), userId)()
-			})
-	});
 	const pushHandlers = createPushHandlers({ pusher: () => getPusher() });
-	startWorker(handle, { ...jobHandlers, ...memoryHandlers, ...calendarHandlers, ...pushHandlers });
+	startWorker(handle, { ...jobHandlers, ...memoryHandlers, ...pushHandlers });
 };
 
 /** Reads the session once per request (cookie or bearer token) and serves /api/auth/* through Better Auth. */

@@ -34,7 +34,7 @@ class GoalsScreen extends ConsumerWidget {
         value: goals,
         onRetry: () => ref.invalidate(_goalsProvider),
         data: (list) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: pagePadding(context),
           children: <Widget>[
             if (list.isEmpty) Note(context.t.goalsEmpty),
             for (final g in list)

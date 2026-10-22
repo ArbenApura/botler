@@ -53,7 +53,7 @@ export function createAuth(deps: { handle: DbHandle; config: AuthConfig }) {
 			}
 		}),
 		emailAndPassword: { enabled: false },
-		// Google tokens (including the refresh token Calendar sync will use) are encrypted at rest and never returned by any API
+		// Google tokens are encrypted at rest and never returned by any API
 		account: { encryptOAuthTokens: true },
 		socialProviders: {
 			google: {

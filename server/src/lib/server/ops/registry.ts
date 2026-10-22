@@ -54,6 +54,7 @@ import {
 	settingsSetInput,
 	accountHistoryInput,
 	auditExportInput,
+	chatHistoryInput,
 	calendarRangeInput,
 	dataResetInput,
 	dataResetPreviewInput,
@@ -73,6 +74,7 @@ import {
 	wipeInput
 } from '../db/zod';
 import { accountHistory, exportAudit, verifyAudit } from './audit';
+import { chatClear, chatHistory } from './chatHistory';
 import { calendarRange } from './calendarRange';
 import { previewDataReset, resetData } from './dataReset';
 import { getSettings, setSettings } from './settings';
@@ -140,7 +142,6 @@ import {
 	updateRoutine,
 	updateTask
 } from './schedule';
-import { calendarStatus, disableCalendar, enableCalendar } from './calendar';
 import { syncGet } from './sync';
 import { approveRule, listRules, proposeRule, proposeRuleFromText, retireRule } from './rules';
 import { parse, requireBill } from './shared';
@@ -269,9 +270,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'calendar_range',
 		kind: 'read',
-		taints: true,
 		description:
-			'Everything dated between two days (at most 92): bills as payment windows, paydays, events, routines, tasks and reminders, with an estimate of what the accounts will hold. Event titles may come from outside.',
+			'Everything dated between two days (at most 92): bills as payment windows, paydays, events, routines, tasks and reminders, with an estimate of what the accounts will hold.',
 		input: calendarRangeInput,
 		run: (ctx, a) => calendarRange(ctx, a)
 	}),
@@ -375,11 +375,9 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'event_list',
 		kind: 'read',
-		description:
-			'Calendar events between two dates (YYYY-MM-DD, Manila). Events from Google may hold text other people wrote, so they are marked untrusted.',
+		description: 'Calendar events between two dates (YYYY-MM-DD, Manila).',
 		input: eventListInput,
-		run: (ctx, a) => listEvents(ctx, a),
-		taints: true
+		run: (ctx, a) => listEvents(ctx, a)
 	}),
 	verb({
 		name: 'routine_list',
@@ -392,24 +390,13 @@ export const VERBS: readonly Verb[] = [
 		name: 'reminder_list',
 		kind: 'read',
 		description: 'The reminders that are scheduled.',
-		// Titles of reminders made from Google events are written by other people
-		taints: true,
 		input: emptyInput,
 		run: (ctx) => listReminders(ctx)
 	}),
 	verb({
-		name: 'calendar_status',
-		kind: 'read',
-		description: 'Whether Google Calendar sync is on, and if it stopped, why.',
-		input: emptyInput,
-		run: (ctx) => calendarStatus(ctx)
-	}),
-	verb({
 		name: 'sync_get',
 		kind: 'read',
-		description: 'What the phone should have: reminders, the summary card, the calendar state.',
-		// Carries event titles from Google, which other people can write
-		taints: true,
+		description: 'What the phone should have: reminders, the summary card.',
 		input: syncInput,
 		run: (ctx, a) => syncGet(ctx, a)
 	}),
@@ -433,7 +420,7 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'event_create',
 		kind: 'free',
-		description: 'Add a calendar event. It appears in Google Calendar when sync is on.',
+		description: 'Add a calendar event.',
 		input: eventCreateInput,
 		run: (ctx, a) => createEvent(ctx, a)
 	}),
@@ -739,6 +726,22 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => resetData(ctx, a)
 	}),
 	verb({
+		name: 'chat_history',
+		kind: 'person',
+		description:
+			'The recent conversation shown when the app opens. Never handed to the assistant, which has its own short bounded history.',
+		input: chatHistoryInput,
+		run: (ctx, a) => chatHistory(ctx, a)
+	}),
+	verb({
+		name: 'chat_clear',
+		kind: 'person',
+		description:
+			'Start a new chat: the earlier conversation is set aside, not deleted. Only the person can do this.',
+		input: emptyInput,
+		run: (ctx) => chatClear(ctx)
+	}),
+	verb({
 		name: 'audit_export',
 		kind: 'person',
 		description:
@@ -766,20 +769,6 @@ export const VERBS: readonly Verb[] = [
 		description: 'Take a rule out of force.',
 		input: ruleIdInput,
 		run: (ctx, a) => retireRule(ctx, a)
-	}),
-	verb({
-		name: 'calendar_enable',
-		kind: 'person',
-		description: 'Turn Google Calendar sync on.',
-		input: emptyInput,
-		run: (ctx, a) => enableCalendar(ctx, a)
-	}),
-	verb({
-		name: 'calendar_disable',
-		kind: 'person',
-		description: 'Turn Google Calendar sync off.',
-		input: emptyInput,
-		run: (ctx, a) => disableCalendar(ctx, a)
 	}),
 	verb({
 		name: 'memory_wipe',

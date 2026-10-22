@@ -59,6 +59,8 @@ export const chatTurn = userTable(
 		/** The events sent to the app (tool results, cards, fallback), replayed as they were. */
 		events: jsonb('events').notNull().default([]),
 		finishedAt: timestamp('finished_at', { withTimezone: true }),
+		/** Set when the person starts a new chat: the turn is no longer shown or handed to the assistant, but it stays for memory. */
+		clearedAt: timestamp('cleared_at', { withTimezone: true }),
 		...stamps()
 	},
 	(t) => [

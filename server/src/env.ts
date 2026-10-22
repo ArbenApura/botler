@@ -1,5 +1,5 @@
 // ENVIRONMENT VARIABLES, VALIDATED WHEN THE APP STARTS. A MISSING OR BAD VALUE FAILS LOUDLY, NEVER SILENTLY.
-// More variables are added with the step that needs them (Calendar sync in P5, push in P6).
+// More variables are added with the step that needs them (push in P6).
 
 // -- DEP-MODULES -- //
 import { defineEnvVars } from '@sveltejs/kit/env';

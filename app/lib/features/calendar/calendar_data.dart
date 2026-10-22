@@ -29,7 +29,6 @@ class CalItem {
       paid = boolOf(j['paid']) || boolOf(j['done']),
       overdue = boolOf(j['overdue']),
       allDay = boolOf(j['allDay']),
-      untrusted = boolOf(j['untrusted']),
       source = str(j['source']),
       accountId = str(j['accountId']),
       at = str(j['startsAt'], str(j['at'], str(j['dueAt'])));
@@ -47,7 +46,6 @@ class CalItem {
   final bool paid;
   final bool overdue;
   final bool allDay;
-  final bool untrusted;
   final String source;
   final String accountId;
 

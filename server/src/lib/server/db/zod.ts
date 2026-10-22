@@ -150,6 +150,13 @@ export const incomeUpdateInput = incomeCreateInput.partial().extend({
 	expectVersion: versionField.optional()
 });
 
+// -- CHAT HISTORY -- //
+
+/** The recent conversation: how many turns to return. The default (20) is applied by the operation, not here. */
+export const chatHistoryInput = z.strictObject({
+	limit: z.number().int().min(1).max(30).optional()
+});
+
 // -- AUDIT -- //
 
 /** The history of one account: filters are all optional, and the page is cut by the sequence number of the last row seen. */
@@ -592,6 +599,7 @@ export type BillOccurrenceUpdateInput = z.infer<typeof billOccurrenceUpdateInput
 export type BillOccurrenceResetInput = z.infer<typeof billOccurrenceResetInput>;
 export type SchedulePreviewInput = z.infer<typeof schedulePreviewInput>;
 export type AccountHistoryInput = z.infer<typeof accountHistoryInput>;
+export type ChatHistoryInput = z.infer<typeof chatHistoryInput>;
 export type AuditExportInput = z.infer<typeof auditExportInput>;
 export type CalendarRangeInput = z.infer<typeof calendarRangeInput>;
 export type DataResetInput = z.infer<typeof dataResetInput>;

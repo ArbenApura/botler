@@ -1,7 +1,7 @@
 {
   "menuTitle": "Menu",
   "menuAccounts": "Mga account",
-  "menuAccountsLine": "Ang laman ng RCBC, GCash, Maya at cash",
+  "menuAccountsLine": "Ang laman ng bawat account mo",
   "menuBills": "Mga bill",
   "menuBillsLine": "Ang mga due, at i-mark na bayad na",
   "menuPayday": "Sweldo",
@@ -15,7 +15,7 @@
   "menuMemory": "Alaala",
   "menuMemoryLine": "Ang natatandaan ni Botler, at kung paano siya magsalita",
   "menuSettings": "Mga setting",
-  "menuSettingsLine": "Wika, pera, lock, notification, kalendaryo, itsura",
+  "menuSettingsLine": "Wika, pera, lock, notification, itsura",
 
   "signInTagline": "Ang pera at oras mo, sa isang tahimik na chat.",
   "signInButton": "Mag-sign in gamit ang Google",
@@ -72,16 +72,6 @@
   "settingsListenFor": "Pakinggan ang",
   "settingsListenEn": "English (Pilipinas)",
   "settingsListenFil": "Filipino at Taglish",
-
-  "settingsGoogleCalendar": "Google Calendar",
-  "settingsCalSyncing": "Nagsi-sync sa dalawang direksyon",
-  "settingsCalError": "Huminto: kailangan ng Google na mag-connect ka ulit",
-  "settingsCalOff": "Naka-off",
-  "settingsCalBody": "Lumalabas sa Google Calendar ang mga event na ginawa sa Botler, at lumalabas dito ang mga ginawa roon. Idinaragdag din ang mga bill at sweldo na kailangan ng aksyon, nang walang halaga.",
-  "settingsCalFinish": "Tapusin sa browser, tapos bumalik at pindutin ang “Nakakonekta na ako”.",
-  "settingsCalConnect": "I-connect ang Google Calendar",
-  "settingsCalIConnected": "Nakakonekta na ako",
-  "settingsCalTurnOff": "I-off",
 
   "settingsLook": "Itsura",
   "settingsLookPhone": "Phone",

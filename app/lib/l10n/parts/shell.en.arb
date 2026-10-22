@@ -1,7 +1,7 @@
 {
   "menuTitle": "Menu",
   "menuAccounts": "Accounts",
-  "menuAccountsLine": "What is in RCBC, GCash, Maya and cash",
+  "menuAccountsLine": "What is in each of your accounts",
   "menuBills": "Bills",
   "menuBillsLine": "What is due, and mark it paid",
   "menuPayday": "Payday",
@@ -15,7 +15,7 @@
   "menuMemory": "Memory",
   "menuMemoryLine": "What Botler remembers, and how it talks",
   "menuSettings": "Settings",
-  "menuSettingsLine": "Language, money, lock, notifications, calendar, look",
+  "menuSettingsLine": "Language, money, lock, notifications, look",
 
   "signInTagline": "Your money and your time, in one quiet chat.",
   "signInButton": "Sign in with Google",
@@ -75,16 +75,6 @@
   "settingsListenFor": "Listen for",
   "settingsListenEn": "English (Philippines)",
   "settingsListenFil": "Filipino and Taglish",
-
-  "settingsGoogleCalendar": "Google Calendar",
-  "settingsCalSyncing": "Syncing both ways",
-  "settingsCalError": "Stopped: Google needs you to connect again",
-  "settingsCalOff": "Off",
-  "settingsCalBody": "Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.",
-  "settingsCalFinish": "Finish in the browser, then come back and tap “I connected”.",
-  "settingsCalConnect": "Connect Google Calendar",
-  "settingsCalIConnected": "I connected",
-  "settingsCalTurnOff": "Turn off",
 
   "settingsLook": "Look",
   "settingsLookPhone": "Phone",

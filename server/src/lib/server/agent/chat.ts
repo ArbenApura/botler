@@ -10,7 +10,7 @@ import type { Embedder } from '../memory/embed';
 import type { ChatMessage } from '../proxy/deepseek';
 import type { TurnEvent, TurnModel, TurnParams } from './turn';
 // -- DEP-MODULES -- //
-import { and, desc, eq, lt, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
 import { chatTurn } from '../db/schema';
@@ -103,6 +103,7 @@ async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 				and(
 					eq(chatTurn.userId, userId),
 					eq(chatTurn.status, 'done'),
+					isNull(chatTurn.clearedAt),
 					lt(chatTurn.createdAt, self.at)
 				)
 			)

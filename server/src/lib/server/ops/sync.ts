@@ -2,7 +2,7 @@
 // REPLACES its whole set of scheduled alarms with the answer. It never patches: a server that cancels a reminder simply stops listing it, and the
 // phone drops it. Writes the phone made while offline wait in its own outbox and are sent to /api/v1/do/<verb> with their request ids.
 // `cursor` is a cheap fingerprint of the reminder set; when it matches, the reminder list is left out and the phone keeps what it has.
-// The summary card is always fresh. If calendar sync broke (Google refused us), the answer says so, so the app can show a banner.
+// The summary card is always fresh.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
@@ -10,7 +10,7 @@ import type { Ctx } from './context';
 import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
-import { account, calendarEvent, calendarSync, reminder } from '../db/schema';
+import { account, calendarEvent, reminder } from '../db/schema';
 import { syncInput } from '../db/zod';
 import { reconcileReminders } from '../schedule/reminders';
 import { dueBills } from './bills';
@@ -33,7 +33,7 @@ export type SummaryCard = {
 	/** Centavos, across the accounts. */
 	total: number;
 	nextBill: { name: string; dueDate: string; windowStart: string; windowEnd: string } | null;
-	firstEventToday: { title: string; startsAt: string; untrusted: boolean } | null;
+	firstEventToday: { title: string; startsAt: string } | null;
 };
 
 export type SyncAnswer = {
@@ -42,7 +42,6 @@ export type SyncAnswer = {
 	/** Left out when the cursor matched. */
 	reminders?: SyncReminder[];
 	summary: SummaryCard;
-	calendar: { status: string; errorCode: string | null; lastSyncAt: string | null };
 	serverTime: string;
 };
 
@@ -113,7 +112,6 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 			)
 			.orderBy(asc(calendarEvent.startsAt))
 			.limit(1);
-		const [cal] = await tx.select().from(calendarSync).where(eq(calendarSync.userId, userId));
 		return {
 			cursor,
 			changed,
@@ -131,15 +129,9 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 				firstEventToday: first
 					? {
 							title: first.title,
-							startsAt: first.startsAt.toISOString(),
-							untrusted: first.source === 'google'
+							startsAt: first.startsAt.toISOString()
 						}
 					: null
-			},
-			calendar: {
-				status: cal?.status ?? 'off',
-				errorCode: cal?.errorCode ?? null,
-				lastSyncAt: cal?.lastSyncAt?.toISOString() ?? null
 			},
 			serverTime: now.toISOString()
 		};

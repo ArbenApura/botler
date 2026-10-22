@@ -19,7 +19,6 @@ import {
 	billOverride,
 	billPayment,
 	calendarEvent,
-	calendarSync,
 	chatTurn,
 	device,
 	goal,
@@ -140,7 +139,6 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 			title: 'Hello',
 			remindAt: new Date('2026-10-22T04:00:00Z')
 		}),
-	calendar_sync: (tx, userId) => tx.insert(calendarSync).values({ userId }),
 	memory_profile: (tx, userId) => tx.insert(memoryProfile).values({ userId, persona: 'Be brief.' }),
 	user_setting: (tx, userId) => tx.insert(userSetting).values({ userId, currency: 'USD' }),
 	audit_event: (tx, userId) =>

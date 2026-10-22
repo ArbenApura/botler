@@ -206,23 +206,6 @@ export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date
 	}
 }
 
-/**
- * Queues a calendar sync for everyone, keyed by the ten minute slot. The job itself does nothing for a person who has not turned sync on,
- * so nobody needs to be listed here (the per-person sync state is not readable without a person's context).
- */
-export async function scheduleCalendarSync(
-	handle: DbHandle,
-	now: Date = new Date()
-): Promise<void> {
-	const people = await handle.db.select({ id: user.id }).from(user);
-	const slot = Math.floor(now.getTime() / 600_000).toString();
-	for (const p of people)
-		await handle.db
-			.insert(job)
-			.values({ userId: p.id, kind: 'calendar.sync', key: slot })
-			.onConflictDoNothing();
-}
-
 /** Runs batches on a timer until stopped, and the housekeeping about once an hour. A failure is logged, never silent. */
 export function startWorker(
 	handle: DbHandle,
@@ -235,13 +218,11 @@ export function startWorker(
 		if (busy) return;
 		busy = true;
 		ticks += 1;
-		// Hourly: purge old jobs and queue the daily work. Every ten minutes: the calendar sync
+		// Hourly: purge old jobs and queue the daily work
 		const hourly = ticks % Math.round(3_600_000 / intervalMs) === 1;
-		const tenMinutes = ticks % Math.round(600_000 / intervalMs) === 2;
-		const housekeeping = Promise.all([
-			hourly ? purgeFinished(handle).then(() => scheduleMaintenance(handle)) : undefined,
-			tenMinutes ? scheduleCalendarSync(handle) : undefined
-		]);
+		const housekeeping = hourly
+			? purgeFinished(handle).then(() => scheduleMaintenance(handle))
+			: Promise.resolve();
 		housekeeping
 			.then(() => runBatch(handle, handlers))
 			.catch((e: unknown) => logError('job_worker_error', e))

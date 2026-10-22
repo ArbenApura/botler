@@ -1,5 +1,4 @@
 // THE AGENDA: TASKS, EVENTS, ROUTINES AND REMINDERS IN FOUR QUIET TABS. EVERYTHING HERE CAN ALSO BE SAID TO BOTLER IN CHAT.
-// Events show up in Google Calendar when sync is on, and events that came from Google are marked, because their words may have been written by someone else.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
@@ -111,7 +110,7 @@ class _TasksTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: pagePadding(context),
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_tasks),
@@ -228,7 +227,7 @@ class _EventsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: pagePadding(context),
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_events),
@@ -241,7 +240,17 @@ class _EventsTab extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   title: Text(str(e['title'])),
                   subtitle: Text(
-                    '${boolOf(e['allDay']) ? DateFormat('EEE, MMM d', Localizations.localeOf(context).toString()).format(dateOf(e['startsAt'])?.toLocal() ?? DateTime.now()) : _stamp(context, dateOf(e['startsAt']) ?? DateTime.now())}${boolOf(e['untrusted']) ? ' · ${context.t.agendaFromGoogle}' : ''}',
+                    boolOf(e['allDay'])
+                        ? DateFormat(
+                            'EEE, MMM d',
+                            Localizations.localeOf(context).toString(),
+                          ).format(
+                            dateOf(e['startsAt'])?.toLocal() ?? DateTime.now(),
+                          )
+                        : _stamp(
+                            context,
+                            dateOf(e['startsAt']) ?? DateTime.now(),
+                          ),
                     style: TextStyle(color: c.muted),
                   ),
                   trailing: IconButton(
@@ -335,7 +344,7 @@ class _RoutinesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: pagePadding(context),
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_routines),
@@ -502,7 +511,7 @@ class _RemindersTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: pagePadding(context),
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_reminders),

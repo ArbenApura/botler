@@ -134,6 +134,20 @@
       "when": 1792652416122,
       "tag": "0018_bill_override",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792674772093,
+      "tag": "0019_calendar_local_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792676137977,
+      "tag": "0020_chat_turn_cleared",
+      "breakpoints": true
     }
   ]
 }

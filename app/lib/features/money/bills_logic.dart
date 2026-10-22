@@ -32,6 +32,22 @@ class DueGroup {
   to: addDaysTo(today, billsAheadDays),
 );
 
+/// Leaves out unpaid due dates from before the month a bill was added: nobody owes what Botler did not know about. A bill added on
+/// the 22nd still shows its 5th as late, but not the months before. [bills] are the rows of `bills_list` (they carry `createdAt`).
+List<Json> withoutBeforeAdded(List<Json> rows, List<Json> bills) {
+  final added = <String, String>{};
+  for (final b in bills) {
+    final at = DateTime.tryParse(str(b['createdAt']));
+    if (at != null) added[str(b['id'])] = manilaToday(at).substring(0, 7);
+  }
+  return rows.where((r) {
+    final month = added[str(r['billId'])];
+    return month == null ||
+        boolOf(r['paid']) ||
+        str(r['dueDate']).substring(0, 7).compareTo(month) >= 0;
+  }).toList();
+}
+
 /// Splits the due rows (from `bills_due`) into the late ones and one group per month, in date order. A late bill is one that is unpaid
 /// and due before [today]; a paid bill from before this month is left out, and an empty month is not shown.
 List<DueGroup> groupDue(List<Json> rows, String today) {

@@ -4,6 +4,7 @@
 // -- DEP-MODULES -- //
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -55,6 +56,14 @@ class SecureSessionStore implements SessionStore {
 
   @override
   Future<Session?> read() async {
+    // Debug builds on the emulator against a local server may carry a dev session instead of a Google sign in
+    if (kDebugMode && apiIsLocal && devSessionToken.isNotEmpty) {
+      return const Session(
+        token: devSessionToken,
+        email: devSessionEmail,
+        name: devSessionName,
+      );
+    }
     final raw = await _storage.read(key: _key);
     if (raw == null) return null;
     final s = Session.fromJson(decodeJson(raw));

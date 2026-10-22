@@ -10,6 +10,7 @@ import type { Masker } from './mask';
 import { createHash } from 'node:crypto';
 // -- MODULES -- //
 import { OpsError, run } from '../ops/context';
+import { createDsmlGuard, splitDsml } from './dsml';
 import { assertBudget, createRateLimiter, recordUsage } from './limits';
 import { createMasker } from './mask';
 
@@ -250,6 +251,29 @@ export function createModelClient(config: ModelConfig) {
 		}
 	}
 
+	/**
+	 * A call the model wrote as text (DSML) is read into a real call, and the markup never stays in the content. Real calls win: the text is
+	 * only read when the model sent none. A cut-off answer is left to the "length" path, which never runs a call.
+	 */
+	function readWrittenCalls(
+		content: string,
+		calls: ToolCall[],
+		finishReason: string,
+		toolsOffered: boolean
+	) {
+		const split = splitDsml(content);
+		// With no tools offered (the limit was reached) the markup is only removed: reading it would loop on refused calls
+		if (
+			!toolsOffered ||
+			calls.length > 0 ||
+			finishReason === 'length' ||
+			split.calls.length === 0
+		) {
+			return { content: split.text, calls, finishReason };
+		}
+		return { content: split.text, calls: split.calls, finishReason: 'tool_calls' };
+	}
+
 	function finish(
 		masker: Masker,
 		content: string,
@@ -292,13 +316,13 @@ export function createModelClient(config: ModelConfig) {
 			};
 			await record(ctx, req.bucket, usage);
 			log(ctx, req, Date.now() - started, usage, true);
-			return finish(
-				masker,
+			const written = readWrittenCalls(
 				content,
 				choice?.message?.tool_calls ?? [],
 				choice?.finish_reason ?? 'stop',
-				usage
+				(req.tools?.length ?? 0) > 0
 			);
+			return finish(masker, written.content, written.calls, written.finishReason, usage);
 		},
 
 		/** A streamed answer: text pieces as they arrive, then one final event with the whole completion. */
@@ -306,6 +330,8 @@ export function createModelClient(config: ModelConfig) {
 			await admit(ctx, req.bucket);
 			const masker = req.masker ?? createMasker(req.names);
 			const unmasker = masker.streamUnmasker();
+			// A tool call the model wrote as text is held back here, so no piece of it is shown
+			const guard = createDsmlGuard();
 			// The thinking has its own unmasker, so a placeholder split inside it is never mixed with the answer's
 			const thinkUnmasker = masker.streamUnmasker();
 			const body = buildBody(req, masker, true);
@@ -373,7 +399,7 @@ export function createModelClient(config: ModelConfig) {
 						}
 						if (text) {
 							content += text;
-							const out = unmasker.push(text);
+							const out = unmasker.push(guard.push(text));
 							if (out) yield { type: 'delta', text: out };
 						}
 						for (const d of choice?.delta?.tool_calls ?? []) {
@@ -392,7 +418,7 @@ export function createModelClient(config: ModelConfig) {
 					const left = thinkUnmasker.flush();
 					if (left) yield { type: 'reasoning', text: left };
 				}
-				const rest = unmasker.flush();
+				const rest = unmasker.push(guard.flush()) + unmasker.flush();
 				if (rest) yield { type: 'delta', text: rest };
 				completed = true;
 			} finally {
@@ -405,10 +431,16 @@ export function createModelClient(config: ModelConfig) {
 				await record(ctx, req.bucket, final);
 				log(ctx, req, Date.now() - started, final, completed);
 			}
+			const written = readWrittenCalls(
+				content,
+				calls.filter(Boolean),
+				finishReason,
+				(req.tools?.length ?? 0) > 0
+			);
 			yield {
 				type: 'done',
 				completion: {
-					...finish(masker, content, calls.filter(Boolean), finishReason, final),
+					...finish(masker, written.content, written.calls, written.finishReason, final),
 					...(reasoning ? { reasoningRaw: masker.unmask(reasoning) } : {})
 				}
 			};

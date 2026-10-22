@@ -217,8 +217,7 @@ export const EXEMPT_FROM_AUDIT: Record<string, string> = {
 	chat_turn: 'the chat transcript, which holds message text and is never copied elsewhere',
 	memory_fact: 'memory has its own provenance, editing and wipe',
 	memory_profile: 'memory has its own provenance, editing and wipe',
-	memory_summary: 'memory has its own provenance, editing and wipe',
-	calendar_sync: 'sync state and a cursor, no plan data'
+	memory_summary: 'memory has its own provenance, editing and wipe'
 };
 
 // -- AUDIT -- //

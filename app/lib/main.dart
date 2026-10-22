@@ -17,8 +17,11 @@ import 'state/providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Month and weekday names for every language the app has
-  await initializeDateFormatting();
+  // Month and weekday names for the two languages the app has, not every language intl knows: that is a slow start for nothing
+  await Future.wait<void>(<Future<void>>[
+    initializeDateFormatting('en'),
+    initializeDateFormatting('fil'),
+  ]);
   final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(

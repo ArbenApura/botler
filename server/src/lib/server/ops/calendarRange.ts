@@ -1,6 +1,6 @@
 // THE CALENDAR READ MODEL (BTL-20261022-0218, ADR 4): EVERYTHING DATED IN A RANGE OF DAYS, AND AN ESTIMATE OF WHAT EACH ACCOUNT WILL HOLD
 // One verb for the app's month, week and agenda views and for the assistant. It reads and changes nothing. Bills come as payment windows, paydays
-// as single days, routines as their next moments, events as they are (a Google event's title is outside text and is marked untrusted).
+// as single days, routines as their next moments, events as they are.
 // The forecast starts from today's real balances, takes off the unpaid bills on the last day of their window and adds the expected pay on
 // payday. It is an estimate and says so: a variable bill with no estimate yet counts as zero and is reported.
 
@@ -58,8 +58,6 @@ export type CalendarItem =
 			endsAt: string;
 			allDay: boolean;
 			source: string;
-			/** The title came from outside (Google), so it is data and never an instruction. */
-			untrusted: boolean;
 	  })
 	| (Base & { type: 'routine'; at: string })
 	| (Base & { type: 'task'; dueAt: string; priority: number })
@@ -202,8 +200,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					startsAt: e.startsAt.toISOString(),
 					endsAt: e.endsAt.toISOString(),
 					allDay: e.allDay,
-					source: e.source,
-					untrusted: e.source === 'google'
+					source: e.source
 				});
 			}
 		}

@@ -28,12 +28,18 @@ final FutureProvider<List<Json>> _billsProvider =
 
 // Late bills from the last month, and what is due over the next four months
 final FutureProvider<List<Json>> _dueProvider =
-    FutureProvider.autoDispose<List<Json>>((ref) {
+    FutureProvider.autoDispose<List<Json>>((ref) async {
       final range = billsRange(manilaToday());
-      return ref.watch(apiProvider).verbList('bills_due', <String, Object?>{
-        'from': range.from,
-        'to': range.to,
-      });
+      final api = ref.watch(apiProvider);
+      // Both are asked together, so the list never flashes months a new bill never owed
+      final results = await Future.wait<List<Json>>(<Future<List<Json>>>[
+        api.verbList('bills_due', <String, Object?>{
+          'from': range.from,
+          'to': range.to,
+        }),
+        ref.watch(_billsProvider.future),
+      ]);
+      return withoutBeforeAdded(results[0], results[1]);
     });
 
 // -- TYPES -- //
@@ -56,7 +62,7 @@ class BillsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(context.t.billsTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           SectionTitle(context.t.billsComingUp),
           AsyncBody<List<Json>>(

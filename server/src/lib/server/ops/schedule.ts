@@ -1,7 +1,6 @@
 // SCHEDULING VERBS: TASKS, EVENTS, ROUTINES, REMINDERS, ALARMS AND TIMERS.
 // Every write ends by bringing the reminders in line (src/lib/server/schedule/reminders.ts) and asking the phone to look again, so what
-// the person sees on the phone is what the server believes. Events that came from Google carry text someone else may have written:
-// they are marked untrusted in every answer, and the assistant treats a read of them like a read of a web page.
+// the person sees on the phone is what the server believes.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
@@ -35,10 +34,7 @@ import { checkVersion, mapped, parse, plain } from './shared';
 // -- TYPES -- //
 
 export type TaskView = Plain<typeof task.$inferSelect>;
-export type EventView = Plain<typeof calendarEvent.$inferSelect> & {
-	/** Text that came from Google may have been written by someone else. */
-	untrusted: boolean;
-};
+export type EventView = Plain<typeof calendarEvent.$inferSelect>;
 export type RoutineView = Plain<typeof routine.$inferSelect>;
 export type ReminderView = Plain<typeof reminder.$inferSelect>;
 
@@ -48,10 +44,7 @@ const HOUR = 3_600_000;
 
 // -- FUNCTIONS -- //
 
-const eventView = (e: typeof calendarEvent.$inferSelect): EventView => ({
-	...plain(e),
-	untrusted: e.source === 'google'
-});
+const eventView = (e: typeof calendarEvent.$inferSelect): EventView => plain(e);
 
 /** After a change: reminders in line, and the phone asked to look again (at most once a minute). */
 export async function afterScheduleChange(
@@ -218,7 +211,7 @@ export async function updateEvent(ctx: Ctx, raw: unknown): Promise<EventView> {
 	);
 }
 
-/** Removes an event. One that Google knows about is kept, marked, until the removal has reached Google. */
+/** Removes an event. */
 export async function deleteEvent(ctx: Ctx, raw: unknown) {
 	const { eventId } = parse(eventIdInput, raw);
 	return mapped(() =>
@@ -234,19 +227,9 @@ export async function deleteEvent(ctx: Ctx, raw: unknown) {
 					)
 				);
 			if (!cur) throw new OpsError('NOT_FOUND', 'That event does not exist.');
-			if (cur.googleEventId)
-				await tx
-					.update(calendarEvent)
-					.set({
-						deletedAt: sql`now()`,
-						version: sql`${calendarEvent.version} + 1`,
-						updatedAt: sql`now()`
-					})
-					.where(and(eq(calendarEvent.userId, userId), eq(calendarEvent.id, eventId)));
-			else
-				await tx
-					.delete(calendarEvent)
-					.where(and(eq(calendarEvent.userId, userId), eq(calendarEvent.id, eventId)));
+			await tx
+				.delete(calendarEvent)
+				.where(and(eq(calendarEvent.userId, userId), eq(calendarEvent.id, eventId)));
 			await afterScheduleChange(tx, userId);
 			return { deleted: true };
 		})

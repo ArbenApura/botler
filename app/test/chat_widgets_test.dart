@@ -3,8 +3,10 @@
 
 // -- DEP-MODULES -- //
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:botler/core/api.dart';
+import 'package:botler/core/json.dart';
 import 'package:botler/features/chat/chat_items.dart';
 import 'package:botler/features/chat/chat_screen.dart';
 import 'package:botler/features/chat/chat_state.dart';
@@ -249,6 +251,158 @@ void main() {
     });
   });
 
+  group('the earlier conversation', () {
+    Future<Widget> inApp(Widget child) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      return ProviderScope(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          // The account names are not the point here, and the real call would open a network request
+          balancesProvider.overrideWith((ref) async => const <Json>[]),
+        ],
+        child: host(child),
+      );
+    }
+
+    testWidgets('an expired request says so and has no buttons', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        await inApp(
+          const ChatItemView(
+            CardItem(
+              1,
+              actionId: 'a',
+              summary: 'Add the bill "Gym".',
+              state: CardState.expired,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('This request has expired.'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets(
+      'a restored result with no stored figures never shows an amount',
+      (tester) async {
+        await tester.pumpWidget(
+          await inApp(
+            const ChatItemView(
+              ToolItem(
+                1,
+                name: 'expense_log',
+                status: 'ok',
+                restored: true,
+                // The stored data was dropped for size
+              ),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.textContaining('₱'), findsNothing);
+        expect(find.textContaining('Checked'), findsOneWidget);
+        expect(find.text('Undo'), findsNothing);
+      },
+    );
+
+    testWidgets('a restored logged expense shows its line with no Undo', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        await inApp(
+          const ChatItemView(
+            ToolItem(
+              1,
+              name: 'expense_log',
+              status: 'ok',
+              restored: true,
+              data: <String, Object?>{
+                'status': 'saved',
+                'txn': <String, Object?>{'amount': 18000, 'id': 't1'},
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.textContaining('₱180.00'), findsOneWidget);
+      expect(find.text('Undo'), findsNothing);
+    });
+
+    testWidgets(
+      'approving a request that has since expired shows expired, never done',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        final client = MockClient.streaming((req, body) async {
+          await body.drain<void>();
+          final answer = req.url.path.endsWith('/do/chat_history')
+              ? '{"result":{"turns":[{"id":"r1","clientMessageId":"m1","text":"add gym","reply":"","status":"done","at":"2026-10-22T01:00:00.000Z","events":[{"type":"card","actionId":"a","summary":"Add the bill Gym.","status":"pending"}]}]}}'
+              : '{"action":{"status":"expired"}}';
+          return http.StreamedResponse(
+            Stream<List<int>>.value(utf8.encode(answer)),
+            200,
+          );
+        });
+        final container = ProviderContainer(
+          overrides: [
+            prefsProvider.overrideWithValue(prefs),
+            apiProvider.overrideWithValue(
+              ApiClient(
+                base: 'https://botler.test',
+                token: () async => 'tok',
+                client: client,
+              ),
+            ),
+            balancesProvider.overrideWith((ref) async => const <Json>[]),
+            syncProvider.overrideWith((ref) => Completer<Never>().future),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.runAsync(
+          () => container.read(chatProvider.notifier).restore(),
+        );
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: host(
+              Consumer(
+                builder: (context, ref, _) => Column(
+                  children: <Widget>[
+                    for (final i in ref.watch(chatProvider).restored)
+                      ChatItemView(i, key: ValueKey<int>(i.id)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text('Approve'), findsOneWidget);
+        await tester.runAsync(() async {
+          await tester.tap(find.text('Approve'));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.text('This request has expired.'), findsOneWidget);
+        expect(find.text('Done'), findsNothing);
+        expect(find.text('Approve'), findsNothing);
+      },
+    );
+
+    testWidgets('the divider is a labelled line', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(await inApp(const ChatItemView(DividerItem())));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Earlier'), findsOneWidget);
+      expect(find.bySemanticsLabel('Earlier'), findsOneWidget);
+      handle.dispose();
+    });
+  });
+
   group('the chat screen', () {
     testWidgets(
       'the send button becomes stop while a turn runs, and stopping ends it',
@@ -258,6 +412,13 @@ void main() {
         final streams = <StreamController<List<int>>>[];
         final client = MockClient.streaming((req, body) async {
           await body.drain<void>();
+          // The earlier conversation: answered at once with nothing in it
+          if (req.url.path.endsWith('/do/chat_history')) {
+            return http.StreamedResponse(
+              Stream<List<int>>.value(utf8.encode('{"result":{"turns":[]}}')),
+              200,
+            );
+          }
           final controller = StreamController<List<int>>();
           streams.add(controller);
           if (req is http.Abortable) {

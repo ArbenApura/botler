@@ -155,7 +155,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.t.memoryTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           AsyncBody<List<Json>>(
             value: pending,

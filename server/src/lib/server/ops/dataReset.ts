@@ -1,7 +1,7 @@
 // DATA RESET VERBS: SEE WHAT A SCOPE WOULD ERASE, THEN ERASE IT WITH A CONFIRMATION THAT WORKS ONCE (BTL-20261022-0218, ADR 6)
 // Both verbs are the person's alone: the assistant has no way to reach them, and an approval card cannot run them. The erase is one database
 // function (db/dataResetSql.ts) inside one transaction, so a failure halfway leaves everything as it was. What stays: the sign-in, the
-// settings, the phones, the Google connection and the model budget counters. Backups taken before a reset keep the old data until they rotate.
+// settings, the phones and the model budget counters. Backups taken before a reset keep the old data until they rotate.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
@@ -22,8 +22,7 @@ import { mapped, parse, requirePerson } from './shared';
 /** What the person types to confirm. */
 export const RESET_WORD = 'RESET';
 const TOKEN_MINUTES = 5;
-const NOTE =
-	'Backups made before the reset keep the old data until they are replaced. Google Calendar events stay in Google: turn the sync off first if you do not want them back.';
+const NOTE = 'Backups made before the reset keep the old data until they are replaced.';
 
 // -- FUNCTIONS -- //
 
@@ -70,7 +69,7 @@ export async function previewDataReset(ctx: Ctx, raw: DataResetPreviewInput) {
 			word: RESET_WORD,
 			note: NOTE,
 			// A reset can only be started on this word, so a tap by mistake never reaches the database
-			keeps: ['sign-in', 'settings', 'phones', 'Google connection']
+			keeps: ['sign-in', 'settings', 'phones']
 		};
 	});
 }

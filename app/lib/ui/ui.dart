@@ -16,6 +16,14 @@ import '../theme/tokens.dart';
 
 // -- FUNCTIONS -- //
 
+/// The padding of a scrolling page: 16 on every side, plus the system bar at the bottom so the last row can scroll clear of it.
+EdgeInsets pagePadding(BuildContext context) => EdgeInsets.fromLTRB(
+  16,
+  16,
+  16,
+  16 + MediaQuery.viewPaddingOf(context).bottom,
+);
+
 /// The words to show for a failure. Pass the [context] to get the app's language; without one the phone's language is used.
 String errorWords(Object e, [BuildContext? context]) {
   if (e is ApiException) return e.message;
@@ -138,7 +146,9 @@ class AsyncBody<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A reload keeps the old rows on screen instead of flashing a spinner
     return value.when(
+      skipLoadingOnReload: true,
       data: data,
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Padding(

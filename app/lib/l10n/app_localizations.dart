@@ -518,12 +518,6 @@ abstract class AppLocalizations {
   /// **'On some days'**
   String get agendaFreqWeekly;
 
-  /// No description provided for @agendaFromGoogle.
-  ///
-  /// In en, this message translates to:
-  /// **'from Google Calendar'**
-  String get agendaFromGoogle;
-
   /// No description provided for @agendaMonthlyAt.
   ///
   /// In en, this message translates to:
@@ -785,7 +779,7 @@ abstract class AppLocalizations {
   /// No description provided for @auditChCalendar.
   ///
   /// In en, this message translates to:
-  /// **'Google Calendar'**
+  /// **'Calendar sync (retired)'**
   String get auditChCalendar;
 
   /// No description provided for @auditChChat.
@@ -1465,12 +1459,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 bill has no amount yet, so it counts as nothing} other{{count} bills have no amount yet, so they count as nothing}}'**
   String calForecastUnknown(int count);
 
-  /// No description provided for @calFromGoogle.
-  ///
-  /// In en, this message translates to:
-  /// **'From Google Calendar'**
-  String get calFromGoogle;
-
   /// No description provided for @calLayerBills.
   ///
   /// In en, this message translates to:
@@ -1705,11 +1693,11 @@ abstract class AppLocalizations {
   /// **'The assistant is not available right now.'**
   String get chatAssistantDown;
 
-  /// No description provided for @chatCalendarStopped.
+  /// No description provided for @chatCardExpired.
   ///
   /// In en, this message translates to:
-  /// **'Google Calendar stopped syncing. Tap to reconnect.'**
-  String get chatCalendarStopped;
+  /// **'This request has expired.'**
+  String get chatCardExpired;
 
   /// No description provided for @chatCardFailed.
   ///
@@ -1722,6 +1710,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checked {what}'**
   String chatChecked(String what);
+
+  /// No description provided for @chatCheckedMany.
+  ///
+  /// In en, this message translates to:
+  /// **'{what}, {count, plural, =1{1 more time} other{{count} more times}}'**
+  String chatCheckedMany(String what, int count);
+
+  /// No description provided for @chatCheckedMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count}'**
+  String chatCheckedMore(int count);
 
   /// No description provided for @chatChecking.
   ///
@@ -1741,6 +1741,12 @@ abstract class AppLocalizations {
   /// **'Is it {amount} on {account}?'**
   String chatConfirmQuestion(String amount, String account);
 
+  /// No description provided for @chatEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get chatEarlier;
+
   /// No description provided for @chatHintMessage.
   ///
   /// In en, this message translates to:
@@ -1758,6 +1764,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In force'**
   String get chatInForce;
+
+  /// No description provided for @chatJumpLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to the latest message'**
+  String get chatJumpLatest;
 
   /// No description provided for @chatLogged.
   ///
@@ -1789,11 +1801,41 @@ abstract class AppLocalizations {
   /// **'How much is usually {names}? I need an amount to make the split.'**
   String chatNeedsAmounts(String names);
 
+  /// No description provided for @chatNewBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.'**
+  String get chatNewBody;
+
+  /// No description provided for @chatNewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new chat?'**
+  String get chatNewTitle;
+
+  /// No description provided for @chatNewTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get chatNewTooltip;
+
+  /// No description provided for @chatNewYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Start new chat'**
+  String get chatNewYes;
+
   /// No description provided for @chatNextBill.
   ///
   /// In en, this message translates to:
   /// **'Next bill: {name}, {day}'**
   String chatNextBill(String name, String day);
+
+  /// No description provided for @chatNoAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'There was no answer to this one.'**
+  String get chatNoAnswer;
 
   /// No description provided for @chatNoBill.
   ///
@@ -1920,6 +1962,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stopped.'**
   String get chatStopped;
+
+  /// No description provided for @chatSummaryOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Money summary'**
+  String get chatSummaryOpen;
 
   /// No description provided for @chatTakePhoto.
   ///
@@ -2512,7 +2560,7 @@ abstract class AppLocalizations {
   /// No description provided for @menuAccountsLine.
   ///
   /// In en, this message translates to:
-  /// **'What is in RCBC, GCash, Maya and cash'**
+  /// **'What is in each of your accounts'**
   String get menuAccountsLine;
 
   /// No description provided for @menuAgenda.
@@ -2608,7 +2656,7 @@ abstract class AppLocalizations {
   /// No description provided for @menuSettingsLine.
   ///
   /// In en, this message translates to:
-  /// **'Language, money, lock, notifications, calendar, look'**
+  /// **'Language, money, lock, notifications, look'**
   String get menuSettingsLine;
 
   /// No description provided for @menuTitle.
@@ -2902,7 +2950,7 @@ abstract class AppLocalizations {
   /// No description provided for @resetLine.
   ///
   /// In en, this message translates to:
-  /// **'Erase some or all of what Botler holds about you. Your sign-in, settings, phones and Google connection stay.'**
+  /// **'Erase some or all of what Botler holds about you. Your sign-in, settings and phones stay.'**
   String get resetLine;
 
   /// No description provided for @resetNothing.
@@ -3510,54 +3558,6 @@ abstract class AppLocalizations {
   /// **'App language'**
   String get settingsAppLanguage;
 
-  /// No description provided for @settingsCalBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.'**
-  String get settingsCalBody;
-
-  /// No description provided for @settingsCalConnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Google Calendar'**
-  String get settingsCalConnect;
-
-  /// No description provided for @settingsCalError.
-  ///
-  /// In en, this message translates to:
-  /// **'Stopped: Google needs you to connect again'**
-  String get settingsCalError;
-
-  /// No description provided for @settingsCalFinish.
-  ///
-  /// In en, this message translates to:
-  /// **'Finish in the browser, then come back and tap “I connected”.'**
-  String get settingsCalFinish;
-
-  /// No description provided for @settingsCalIConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'I connected'**
-  String get settingsCalIConnected;
-
-  /// No description provided for @settingsCalOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Off'**
-  String get settingsCalOff;
-
-  /// No description provided for @settingsCalSyncing.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing both ways'**
-  String get settingsCalSyncing;
-
-  /// No description provided for @settingsCalTurnOff.
-  ///
-  /// In en, this message translates to:
-  /// **'Turn off'**
-  String get settingsCalTurnOff;
-
   /// No description provided for @settingsCurrency.
   ///
   /// In en, this message translates to:
@@ -3599,12 +3599,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search currencies'**
   String get settingsCurrencySearch;
-
-  /// No description provided for @settingsGoogleCalendar.
-  ///
-  /// In en, this message translates to:
-  /// **'Google Calendar'**
-  String get settingsGoogleCalendar;
 
   /// No description provided for @settingsHideBody.
   ///

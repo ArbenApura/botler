@@ -31,7 +31,7 @@ class AccountsScreen extends ConsumerWidget {
         value: accounts,
         onRetry: () => ref.invalidate(balancesProvider),
         data: (list) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: pagePadding(context),
           children: <Widget>[
             if (list.isEmpty) Note(context.t.accountsEmpty),
             for (final a in list)

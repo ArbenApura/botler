@@ -29,6 +29,14 @@
   "chatNeedsAmounts": "Magkano karaniwan ang {names}? Kailangan ko ng halaga para magawa ang hati.",
   "chatMarkedPaid": "Namarkahang bayad · {amount}",
   "chatChecked": "Sinuri: {what}",
+  "chatCheckedMore": "+{count}",
+  "chatCheckedMany": "{what}, {count, plural, =1{1 pa} other{{count} pa}}",
+  "chatSummaryOpen": "Buod ng pera",
+  "chatNewTooltip": "Bagong chat",
+  "chatNewTitle": "Magsimula ng bagong chat?",
+  "chatNewBody": "Mabubura sa screen ang usapan at magsisimula si Botler nang wala ito. Mananatili ang pera, paalala at alaala mo.",
+  "chatNewYes": "Magsimula ng bagong chat",
+  "chatJumpLatest": "Pumunta sa pinakabagong mensahe",
   "chatUndoneLine": "Naibalik",
   "chatUndoneSnack": "Naibalik.",
   "chatUndoGone": "Hindi na maibabalik ang entry na iyon.",
@@ -46,7 +54,6 @@
   "chatNoBill": "Walang paparating na bill",
   "chatNextBill": "Susunod na bill: {name}, {day}",
   "chatNoEvent": "Walang nakatakda sa kalendaryo mo ngayon",
-  "chatCalendarStopped": "Huminto ang pag-sync ng Google Calendar. I-tap para kumonekta ulit.",
   "uiError": "May nangyaring mali. Subukan ulit.",
   "uiNotNow": "Mamaya na",
   "chatWaiting": "Inaasikaso na",
@@ -56,5 +63,8 @@
   "chatThoughtFor": "Nag-isip nang {seconds} s",
   "chatThoughtToggle": "Ipakita o itago ang naisip ng assistant",
   "chatStop": "Ihinto",
-  "chatStopped": "Itinigil."
+  "chatStopped": "Itinigil.",
+  "chatEarlier": "Mas maaga",
+  "chatNoAnswer": "Walang naging sagot dito.",
+  "chatCardExpired": "Nag-expire na ang hiling na ito."
 }

@@ -14,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'chat_group.dart';
 import 'chat_items.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
@@ -31,7 +32,11 @@ class ChatScreen extends ConsumerStatefulWidget {
 /// Within this many logical pixels of the end counts as "at the bottom".
 const double _nearBottom = 48;
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
+/// Scrolled this far above the newest words, a button brings the person back to them.
+const double _farFromEnd = 320;
+
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _text = TextEditingController();
   final ScrollController _scroll = ScrollController();
   final VoiceListener _listener = VoiceListener();
@@ -41,8 +46,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Keep following the newest words (the person is at the bottom).
   bool _stick = true;
 
+  /// The person has scrolled well above the newest words, so the jump button shows.
+  final ValueNotifier<bool> _away = ValueNotifier<bool>(false);
+
+  /// The keyboard height last seen, to tell when it opens.
+  double _keyboard = 0;
+
+  /// The keyboard shrinks the list from the bottom, so when it opens the newest words are brought back above it.
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final view = View.of(context);
+    final height = view.viewInsets.bottom / view.devicePixelRatio;
+    final opened = height > _keyboard;
+    _keyboard = height;
+    if (opened) {
+      // Typing a message means the person wants the end of the conversation in view
+      _stick = true;
+      _toEnd();
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Bring back the recent conversation once the first frame is up. The notifier remembers it did, so a rebuild of this screen
+    // (the lock screen, coming back from the menu) never asks again
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(ref.read(chatProvider.notifier).restore());
+    });
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _away.dispose();
     // Release the microphone if the screen goes away while listening
     unawaited(_listener.stop());
     _text.dispose();
@@ -51,18 +90,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Follows the newest words, but only while the person is at the bottom: scrolling up to read stays where it is.
-  void _toEnd() {
+  void _toEnd([int passes = 3]) {
     if (!_stick) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_stick && _scroll.hasClients) {
         // A jump, not an animation: many small ones a second would pile up and fight the person's finger
-        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        final end = _scroll.position.maxScrollExtent;
+        _scroll.jumpTo(end);
+        // The rows below the screen are measured only once they are reached, so the end moves: look again until it settles
+        if (passes > 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scroll.hasClients && _scroll.position.maxScrollExtent != end) {
+              _toEnd(passes - 1);
+            }
+          });
+        }
       }
+    });
+  }
+
+  /// The earlier conversation arrived above what the person is looking at: keep their place instead of letting the page jump.
+  void _keepPlaceAfterRestore() {
+    if (_stick || !_scroll.hasClients) return;
+    final before = _scroll.position.maxScrollExtent;
+    final at = _scroll.position.pixels;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients || _stick) return;
+      _scroll.jumpTo(at + (_scroll.position.maxScrollExtent - before));
     });
   }
 
   /// Decides from the person's own scrolling whether to keep following.
   bool _onScroll(ScrollNotification n) {
+    // Only the conversation's own list, and only real movement (not a layout measurement), says whether the end is far away
+    if ((n is ScrollUpdateNotification || n is ScrollEndNotification) &&
+        n.depth == 0 &&
+        n.metrics.axis == Axis.vertical) {
+      _away.value = n.metrics.maxScrollExtent - n.metrics.pixels > _farFromEnd;
+    }
     final byPerson =
         (n is ScrollUpdateNotification && n.dragDetails != null) ||
         n is ScrollEndNotification;
@@ -71,6 +136,48 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _stick = n.metrics.maxScrollExtent - n.metrics.pixels < _nearBottom;
     }
     return false;
+  }
+
+  /// Brings the newest words back into view and follows them again.
+  Future<void> _jumpToLatest() async {
+    if (!_scroll.hasClients) return;
+    _stick = true;
+    await _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    // The rows below were only measured on the way down, so the end moved: settle on the true end
+    if (mounted) _toEnd();
+  }
+
+  /// Whether the person is well above the newest words, read from the list itself: an answer that grows the list moves the end without
+  /// any scroll notification.
+  void _syncAway() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final p = _scroll.position;
+      _away.value = p.maxScrollExtent - p.pixels > _farFromEnd;
+    });
+  }
+
+  /// Asks, then clears the conversation so the next message starts fresh.
+  Future<void> _newChat() async {
+    final t = context.t;
+    final yes = await confirm(
+      context,
+      title: t.chatNewTitle,
+      body: t.chatNewBody,
+      yes: t.chatNewYes,
+    );
+    if (!yes || !mounted) return;
+    try {
+      await ref.read(chatProvider.notifier).startNew();
+      _stick = true;
+      _away.value = false;
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
   }
 
   Future<void> _send() async {
@@ -145,9 +252,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final c = context.colors;
     final chat = ref.watch(chatProvider);
     final pending = ref.watch(outboxCountProvider);
-    ref.listen<ChatState>(chatProvider, (_, _) => _toEnd());
+    ref.listen<ChatState>(chatProvider, (prev, next) {
+      if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
+        _keepPlaceAfterRestore();
+      }
+      _toEnd();
+      _syncAway();
+    });
+    // The earlier conversation, then a line, then what is happening now. The line shows only when there is something after it
+    final shown = <ChatItem>[
+      ...chat.restored,
+      if (chat.restored.isNotEmpty && chat.items.isNotEmpty)
+        const DividerItem(),
+      ...chat.items,
+    ];
     // "Working on it" shows until the answer starts; the thinking panel and a running tool row say it themselves once they exist
-    final last = chat.items.isEmpty ? null : chat.items.last;
+    final last = shown.isEmpty ? null : shown.last;
+    // A run of identical quiet "Checked ..." lines is one line with a count
+    final rows = groupQuietTools(shown);
     final working =
         chat.busy &&
         (chat.phase == TurnPhase.waiting ||
@@ -181,6 +303,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           IconButton(
+            tooltip: context.t.chatSummaryOpen,
+            onPressed: () => showSummarySheet(context),
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+          ),
+          // Only when there is a conversation to clear
+          if (shown.isNotEmpty && !chat.busy)
+            IconButton(
+              tooltip: context.t.chatNewTooltip,
+              onPressed: _newChat,
+              icon: const Icon(Icons.add_comment_outlined),
+            ),
+          IconButton(
             tooltip: context.t.chatMenu,
             onPressed: () => context.push('/menu'),
             icon: const Icon(Icons.menu),
@@ -191,36 +325,81 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: <Widget>[
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(syncProvider);
-                  await ref.read(syncProvider.future);
-                },
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _onScroll,
-                  child: ListView.separated(
-                    controller: _scroll,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: chat.items.length + 1 + (working ? 1 : 0),
-                    separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (context, i) {
-                      if (i == 0) return const SummaryCard();
-                      if (i - 1 == chat.items.length) {
-                        return WorkingRow(
-                          phase: chat.phase,
-                          tool: chat.toolName,
-                        );
-                      }
-                      return ChatItemView(
-                        chat.items[i - 1],
-                        key: ValueKey<int>(chat.items[i - 1].id),
-                      );
+              child: Stack(
+                children: <Widget>[
+                  RefreshIndicator(
+                    onRefresh: () async {
+                      ref.invalidate(syncProvider);
+                      await ref.read(syncProvider.future);
                     },
+                    child: NotificationListener<ScrollNotification>(
+                      onNotification: _onScroll,
+                      child: ListView.separated(
+                        controller: _scroll,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        itemCount: rows.length + 1 + (working ? 1 : 0),
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
+                        itemBuilder: (context, i) {
+                          if (i == 0) return const SummaryCard();
+                          if (i - 1 == rows.length) {
+                            return WorkingRow(
+                              phase: chat.phase,
+                              tool: chat.toolName,
+                            );
+                          }
+                          final row = rows[i - 1];
+                          return ChatItemView(
+                            row.item,
+                            more: row.more,
+                            key: ValueKey<int>(row.item.id),
+                          );
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  // Back to the newest words, there only while the person has scrolled well above them
+                  Positioned(
+                    bottom: 12,
+                    right: 16,
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _away,
+                      builder: (context, away, button) => IgnorePointer(
+                        ignoring: !away,
+                        child: AnimatedOpacity(
+                          opacity: away ? 1 : 0,
+                          duration: const Duration(milliseconds: 150),
+                          child: button,
+                        ),
+                      ),
+                      child: Semantics(
+                        key: const ValueKey<String>('jumpLatest'),
+                        button: true,
+                        label: context.t.chatJumpLatest,
+                        excludeSemantics: true,
+                        child: Material(
+                          color: c.chip,
+                          shape: CircleBorder(side: BorderSide(color: c.line)),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: _jumpToLatest,
+                            child: SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: Icon(
+                                Icons.arrow_downward,
+                                size: 20,
+                                color: c.ink,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             if (_photoText != null)

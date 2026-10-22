@@ -47,9 +47,12 @@ Future<void> undoEntry(
 }
 
 class ChatItemView extends ConsumerWidget {
-  const ChatItemView(this.item, {super.key});
+  const ChatItemView(this.item, {this.more = 0, super.key});
 
   final ChatItem item;
+
+  /// How many identical quiet tool lines were folded into this one.
+  final int more;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -85,7 +88,7 @@ class ChatItemView extends ConsumerWidget {
         ),
       ),
       ThinkingItem() => ThinkingPanel(item as ThinkingItem),
-      ToolItem() => _ToolView(item as ToolItem),
+      ToolItem() => _ToolView(item as ToolItem, more: more),
       CardItem() => _CardView(item as CardItem),
       FallbackItem() => PaperCard(
         child: Column(
@@ -106,20 +109,24 @@ class ChatItemView extends ConsumerWidget {
         ),
       ),
       NoticeItem(:final text) => Text(text, style: TextStyle(color: c.muted)),
+      DividerItem() => const _EarlierDivider(),
     };
   }
 }
 
 class _ToolView extends ConsumerWidget {
-  const _ToolView(this.item);
+  const _ToolView(this.item, {this.more = 0});
 
   final ToolItem item;
+  final int more;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     // Started and not answered yet: a spinner and what it is doing, never the "failed" words below
     if (item.running) return RunningToolRow(item.name);
+    // From an earlier session: one quiet read-only line, never a chip or Undo
+    if (item.restored) return _RestoredToolLine(item, more: more);
     if (item.status == 'needs_approval') return const SizedBox.shrink();
     if (item.status != 'ok') {
       return Text(
@@ -230,19 +237,11 @@ class _ToolView extends ConsumerWidget {
         );
       default:
         // A read the assistant did: one small quiet line, never a block
-        return Row(
-          children: <Widget>[
-            Icon(Icons.search, size: 14, color: c.muted),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                _humanize(context, item.name),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: c.muted, fontSize: 12),
-              ),
-            ),
-          ],
+        return _QuietRow(
+          icon: Icons.search,
+          text: _humanize(context, item.name),
+          style: TextStyle(color: c.muted, fontSize: 12),
+          more: more,
         );
     }
   }
@@ -272,6 +271,131 @@ class _ToolView extends ConsumerWidget {
 String _humanize(BuildContext context, String name) {
   final words = name.replaceAll('_', ' ');
   return context.t.chatChecked(words);
+}
+
+/// One quiet line for something the assistant looked up. [more] is how many identical lines were folded into it: it shows as "+5" and is read out in words.
+class _QuietRow extends StatelessWidget {
+  const _QuietRow({
+    required this.icon,
+    required this.text,
+    required this.style,
+    this.more = 0,
+    this.maxLines = 1,
+  });
+
+  final IconData icon;
+  final String text;
+  final TextStyle style;
+  final int more;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
+      children: <Widget>[
+        Icon(icon, size: 14, color: style.color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ),
+        if (more > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              context.t.chatCheckedMore(more),
+              // Tabular figures so the count does not shift as it grows
+              style: style.copyWith(
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+      ],
+    );
+    if (more == 0) return row;
+    return Semantics(
+      label: context.t.chatCheckedMany(text, more),
+      excludeSemantics: true,
+      child: row,
+    );
+  }
+}
+
+/// A tool result from an earlier session as one quiet line. It shows an amount only when the stored answer really holds it, never a made up one.
+class _RestoredToolLine extends ConsumerWidget {
+  const _RestoredToolLine(this.item, {this.more = 0});
+
+  final ToolItem item;
+  final int more;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final muted = TextStyle(color: c.muted, fontSize: 13);
+    if (item.status != 'ok') {
+      return Text(item.message ?? context.t.chatToolFailed, style: muted);
+    }
+    final data = asJson(item.data);
+    String? line;
+    switch (item.name) {
+      case 'expense_from_text' || 'expense_log':
+        final txn = asJson(data['txn']);
+        if (str(data['status']) == 'saved' && txn['amount'] is int) {
+          final accounts = ref.watch(balancesProvider).value;
+          line = context.t.chatLogged(
+            context.money(intOf(txn['amount'])),
+            _name(context, accounts, str(txn['accountId'])),
+          );
+        }
+      case 'income_record' || 'refund_record' || 'transfer_record':
+        if (data['amount'] is int) {
+          line = context.t.chatRecorded(context.money(intOf(data['amount'])));
+        }
+      case 'bill_mark_paid':
+        if (data['amount'] is int) {
+          line = context.t.chatMarkedPaid(context.money(intOf(data['amount'])));
+        }
+    }
+    return _QuietRow(
+      icon: line == null ? Icons.search : Icons.check_circle_outline,
+      text: line ?? _humanize(context, item.name),
+      style: muted,
+      more: more,
+      maxLines: 2,
+    );
+  }
+}
+
+/// The line between the conversation from before and the one happening now.
+class _EarlierDivider extends StatelessWidget {
+  const _EarlierDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      label: context.t.chatEarlier,
+      child: ExcludeSemantics(
+        child: Row(
+          children: <Widget>[
+            Expanded(child: Divider(color: c.line, height: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                context.t.chatEarlier,
+                style: TextStyle(color: c.muted, fontSize: 12),
+              ),
+            ),
+            Expanded(child: Divider(color: c.line, height: 1)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Logged extends StatelessWidget {
@@ -460,11 +584,16 @@ class _CardView extends ConsumerWidget {
           .decideCard(item.actionId, approve: approve);
       final status = str(asJson(r['action'])['status']);
       final failed = status == 'failed';
+      // Only an action that was really applied is "done": an expired or any other answer is never shown as approved
       notifier.setCard(
         item.id,
-        approve
-            ? (failed ? CardState.failed : CardState.approved)
-            : CardState.declined,
+        !approve
+            ? CardState.declined
+            : switch (status) {
+                'applied' => CardState.approved,
+                'expired' => CardState.expired,
+                _ => CardState.failed,
+              },
         note: failed
             ? str(asJson(asJson(r['action'])['result'])['error'])
             : null,
@@ -513,6 +642,10 @@ class _CardView extends ConsumerWidget {
             CardState.failed => Text(
               item.note ?? context.t.chatCardFailed,
               style: TextStyle(color: c.danger),
+            ),
+            CardState.expired => Text(
+              context.t.chatCardExpired,
+              style: TextStyle(color: c.muted),
             ),
           },
         ],

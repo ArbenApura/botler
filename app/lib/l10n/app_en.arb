@@ -207,7 +207,6 @@
   },
   "agendaFreqDaily": "Every day",
   "agendaFreqWeekly": "On some days",
-  "agendaFromGoogle": "from Google Calendar",
   "agendaMonthlyAt": "Every month on the {day}th at {time}",
   "@agendaMonthlyAt": {
     "placeholders": {
@@ -268,7 +267,7 @@
   "auditBotler": "Botler",
   "auditBotlerApproved": "Botler, approved by you",
   "auditChApp": "in the app",
-  "auditChCalendar": "Google Calendar",
+  "auditChCalendar": "Calendar sync (retired)",
   "auditChChat": "in chat",
   "auditChJob": "a job",
   "auditChOutbox": "offline, sent later",
@@ -620,7 +619,6 @@
       }
     }
   },
-  "calFromGoogle": "From Google Calendar",
   "calLayerBills": "Bills",
   "calLayerEvents": "Events",
   "calLayerPaydays": "Paydays",
@@ -688,13 +686,32 @@
   "chatApprove": "Approve",
   "chatApproveRule": "Approve rule",
   "chatAssistantDown": "The assistant is not available right now.",
-  "chatCalendarStopped": "Google Calendar stopped syncing. Tap to reconnect.",
+  "chatCardExpired": "This request has expired.",
   "chatCardFailed": "That could not be done.",
   "chatChecked": "Checked {what}",
   "@chatChecked": {
     "placeholders": {
       "what": {
         "type": "String"
+      }
+    }
+  },
+  "chatCheckedMany": "{what}, {count, plural, =1{1 more time} other{{count} more times}}",
+  "@chatCheckedMany": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatCheckedMore": "+{count}",
+  "@chatCheckedMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
       }
     }
   },
@@ -718,9 +735,11 @@
       }
     }
   },
+  "chatEarlier": "Earlier",
   "chatHintMessage": "Message Botler",
   "chatHowMuch": "How much was it?",
   "chatInForce": "In force",
+  "chatJumpLatest": "Jump to the latest message",
   "chatLogged": "Logged {amount} on {account}",
   "@chatLogged": {
     "placeholders": {
@@ -750,6 +769,10 @@
       }
     }
   },
+  "chatNewBody": "The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.",
+  "chatNewTitle": "Start a new chat?",
+  "chatNewTooltip": "New chat",
+  "chatNewYes": "Start new chat",
   "chatNextBill": "Next bill: {name}, {day}",
   "@chatNextBill": {
     "placeholders": {
@@ -761,6 +784,7 @@
       }
     }
   },
+  "chatNoAnswer": "There was no answer to this one.",
   "chatNoBill": "No bill coming up",
   "chatNoEvent": "Nothing on your calendar today",
   "chatNotDone": "Not done",
@@ -810,6 +834,7 @@
   "chatStop": "Stop",
   "chatStopListening": "Stop listening",
   "chatStopped": "Stopped.",
+  "chatSummaryOpen": "Money summary",
   "chatTakePhoto": "Take a photo",
   "chatThinking": "Thinking",
   "chatThoughtFor": "Thought for {seconds} s",
@@ -1023,7 +1048,7 @@
   "memoryYouSaid": "You said",
   "memoryYourData": "Your data",
   "menuAccounts": "Accounts",
-  "menuAccountsLine": "What is in RCBC, GCash, Maya and cash",
+  "menuAccountsLine": "What is in each of your accounts",
   "menuAgenda": "Agenda",
   "menuAgendaLine": "Tasks, events, routines and reminders",
   "menuBills": "Bills",
@@ -1039,7 +1064,7 @@
   "menuPayday": "Payday",
   "menuPaydayLine": "Split your pay, and the rules for it",
   "menuSettings": "Settings",
-  "menuSettingsLine": "Language, money, lock, notifications, calendar, look",
+  "menuSettingsLine": "Language, money, lock, notifications, look",
   "menuTitle": "Menu",
   "no": "No",
   "notifChannel": "Reminders",
@@ -1140,7 +1165,7 @@
       }
     }
   },
-  "resetLine": "Erase some or all of what Botler holds about you. Your sign-in, settings, phones and Google connection stay.",
+  "resetLine": "Erase some or all of what Botler holds about you. Your sign-in, settings and phones stay.",
   "resetNothing": "There is nothing to erase in this part.",
   "resetOnlineOnly": "Resetting needs a connection.",
   "resetScopeAudit": "Audit history",
@@ -1469,14 +1494,6 @@
     }
   },
   "settingsAppLanguage": "App language",
-  "settingsCalBody": "Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.",
-  "settingsCalConnect": "Connect Google Calendar",
-  "settingsCalError": "Stopped: Google needs you to connect again",
-  "settingsCalFinish": "Finish in the browser, then come back and tap “I connected”.",
-  "settingsCalIConnected": "I connected",
-  "settingsCalOff": "Off",
-  "settingsCalSyncing": "Syncing both ways",
-  "settingsCalTurnOff": "Turn off",
   "settingsCurrency": "Currency",
   "settingsCurrencyChange": "Change",
   "settingsCurrencyConfirmBody": "Your amounts will read in {name}. Nothing is converted: 100.00 stays 100.00, only the currency changes.",
@@ -1505,7 +1522,6 @@
   },
   "settingsCurrencyNone": "No currency matches that.",
   "settingsCurrencySearch": "Search currencies",
-  "settingsGoogleCalendar": "Google Calendar",
   "settingsHideBody": "A reminder says only “Botler”, so nobody sees it on your lock screen.",
   "settingsHideTitle": "Hide the details in notifications",
   "settingsLanguageEn": "English",

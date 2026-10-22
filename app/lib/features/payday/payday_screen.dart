@@ -14,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../money/bills_parts.dart' show niceDate;
 import '../money/schedule_picker.dart';
 import 'split_card.dart';
 
@@ -59,7 +60,7 @@ class PaydayScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(context.t.paydayTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           SectionTitle(context.t.paydayYours),
           AsyncBody<List<Json>>(
@@ -111,7 +112,7 @@ class PaydayScreen extends ConsumerWidget {
                                       .titleMedium,
                                 ),
                                 Text(
-                                  str(u['payday']),
+                                  niceDate(context, str(u['payday'])),
                                   style: TextStyle(color: c.muted),
                                 ),
                               ],

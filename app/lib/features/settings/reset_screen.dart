@@ -1,6 +1,6 @@
 // RESET DATA: CHOOSE A PART, SEE HOW MANY ROWS IT WOULD ERASE, COPY THE HISTORY FIRST IF WANTED, THEN CONFIRM WITH THE PHONE'S LOCK AND A TYPED WORD.
-// Only this screen can erase. The assistant is never offered the action. It needs a connection and is never queued. Sign-in, settings, phones and the
-// Google connection are always kept, so the person stays signed in.
+// Only this screen can erase. The assistant is never offered the action. It needs a connection and is never queued. Sign-in, settings and phones
+// are always kept, so the person stays signed in.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
@@ -168,7 +168,7 @@ class _State extends ConsumerState<ResetScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(t.resetTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           Text(t.resetLine, style: TextStyle(color: c.muted)),
           if (preview == null) ...<Widget>[

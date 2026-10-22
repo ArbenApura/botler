@@ -9,7 +9,7 @@ import type { Tx } from '../db/client';
 import type { Recurrence } from '../../schedule/recurrence';
 import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { occurrencesBetween } from '../../finance/schedule';
@@ -156,7 +156,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 			and(
 				eq(calendarEvent.userId, userId),
 				sql`${calendarEvent.deletedAt} is null`,
-				inArray(calendarEvent.source, ['botler', 'google'])
+				eq(calendarEvent.source, 'botler')
 			)
 		);
 	for (const e of events) {

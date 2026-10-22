@@ -187,6 +187,32 @@ void main() {
       expect(g.single.month, '2026-11');
     });
 
+    test('leave out late dates from before the month a bill was added', () {
+      Json row(String bill, String date, {bool paid = false}) =>
+          <String, Object?>{
+            'billId': bill,
+            'dueDate': date,
+            'paid': paid,
+            'name': bill,
+          };
+      final bills = <Json>[
+        <String, Object?>{'id': 'new', 'createdAt': '2026-10-22T05:00:00.000Z'},
+      ];
+      final kept = withoutBeforeAdded(<Json>[
+        row('new', '2026-08-05'),
+        row('new', '2026-09-05'),
+        row('new', '2026-10-05'),
+        row('new', '2026-08-25', paid: true),
+        row('old', '2026-08-05'),
+      ], bills);
+      // The month it was added still counts (a bill added late), earlier months do not, a paid one and an unknown bill stay
+      expect(kept.map((r) => str(r['dueDate'])), <String>[
+        '2026-10-05',
+        '2026-08-25',
+        '2026-08-05',
+      ]);
+    });
+
     test('count Manila days whatever the phone says', () {
       expect(manilaToday(DateTime.utc(2026, 10, 22, 17)), '2026-10-23');
       expect(addDaysTo('2026-12-31', 1), '2027-01-01');

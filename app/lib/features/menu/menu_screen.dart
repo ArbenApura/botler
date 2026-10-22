@@ -51,7 +51,7 @@ class MenuScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(context.t.menuTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           for (final (path, title, line, icon) in _items(context))
             Padding(

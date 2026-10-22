@@ -93,7 +93,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.t.historyTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: pagePadding(context),
         children: <Widget>[
           AsyncBody<Json>(
             value: ref.watch(_monthProvider),
@@ -224,9 +224,13 @@ class _Row extends StatelessWidget {
                 : sign < 0
                 ? '-'
                 : ''}${context.money(amount)}',
-            style: style.copyWith(
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.merge(style)
+                .copyWith(
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
           ),
           if (!voided && type != 'adjustment')
             PopupMenuButton<String>(

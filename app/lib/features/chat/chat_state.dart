@@ -17,7 +17,7 @@ import '../../state/providers.dart';
 
 // -- TYPES -- //
 
-enum CardState { waiting, approved, declined, failed }
+enum CardState { waiting, approved, declined, failed, expired }
 
 /// What the assistant is doing right now, for the status row under the conversation.
 enum TurnPhase { idle, waiting, thinking, writing, tool }
@@ -75,6 +75,7 @@ final class ToolItem extends ChatItem {
     this.resolved = false,
     this.callId,
     this.running = false,
+    this.restored = false,
   });
 
   final String name;
@@ -92,6 +93,9 @@ final class ToolItem extends ChatItem {
 
   /// The tool has started and has not answered yet.
   final bool running;
+
+  /// Brought back from an earlier session: drawn as a plain read-only line, never with Undo or a chip to answer.
+  final bool restored;
 
   ToolItem answered({Object? data}) => ToolItem(
     id,
@@ -135,14 +139,23 @@ final class NoticeItem extends ChatItem {
   final String text;
 }
 
+/// A quiet line between the conversation brought back from before and the one happening now.
+final class DividerItem extends ChatItem {
+  const DividerItem() : super(-1);
+}
+
 class ChatState {
   const ChatState({
+    this.restored = const <ChatItem>[],
     this.items = const <ChatItem>[],
     this.busy = false,
     this.phase = TurnPhase.idle,
     this.toolName,
   });
 
+  /// The earlier conversation brought back from the server. Kept apart from [items] so it can arrive at any moment without
+  /// moving anything the live turn counts on.
+  final List<ChatItem> restored;
   final List<ChatItem> items;
   final bool busy;
   final TurnPhase phase;
@@ -151,12 +164,14 @@ class ChatState {
   final String? toolName;
 
   ChatState copyWith({
+    List<ChatItem>? restored,
     List<ChatItem>? items,
     bool? busy,
     TurnPhase? phase,
     String? toolName,
     bool clearTool = false,
   }) => ChatState(
+    restored: restored ?? this.restored,
     items: items ?? this.items,
     busy: busy ?? this.busy,
     phase: phase ?? this.phase,
@@ -193,9 +208,22 @@ class ChatNotifier extends Notifier<ChatState> {
   bool _stopped = false;
   Completer<void>? _abort;
 
+  // Bringing back the earlier conversation: once per run of the app (and per signed-in person), and never twice for the same turn.
+  bool _restoreStarted = false;
+
+  /// Counts fresh starts. An answer that comes back after another person signed in belongs to the old start and is thrown away.
+  int _generation = 0;
+  final Set<String> _sentIds = <String>{};
+
   @override
   ChatState build() {
     ref.onDispose(() => _flushTimer?.cancel());
+    // A fresh start (the app opening, or another person signing in): nothing from before carries over, whether or not Riverpod
+    // keeps this same object
+    _restoreStarted = false;
+    _generation++;
+    _sentIds.clear();
+    _resetTurn();
     return const ChatState();
   }
 
@@ -207,8 +235,12 @@ class ChatNotifier extends Notifier<ChatState> {
   void _add(ChatItem item) =>
       state = state.copyWith(items: <ChatItem>[...state.items, item]);
 
+  /// Changes one item wherever it is: a card that came back from before can still be answered, and then it has to change on screen.
   void _replace(int id, ChatItem Function(ChatItem old) change) {
     state = state.copyWith(
+      restored: <ChatItem>[
+        for (final i in state.restored) i.id == id ? change(i) : i,
+      ],
       items: <ChatItem>[
         for (final i in state.items) i.id == id ? change(i) : i,
       ],
@@ -229,6 +261,92 @@ class ChatNotifier extends Notifier<ChatState> {
     _stopped = true;
     final abort = _abort;
     if (abort != null && !abort.isCompleted) abort.complete();
+  }
+
+  // -- NEW CHAT -- //
+
+  /// Starts a new chat: the server sets the earlier conversation aside (so the assistant starts without it too), and the screen empties.
+  /// Needs a connection. A turn being answered is not interrupted.
+  Future<void> startNew() async {
+    if (state.busy) return;
+    await ref.read(apiProvider).verb('chat_clear');
+    // A message sent while the request was on its way is a live turn: it is not wiped
+    if (state.busy) return;
+    // Anything still on its way back from before belongs to the old conversation
+    _generation++;
+    _sentIds.clear();
+    _resetTurn();
+    state = const ChatState();
+  }
+
+  // -- RESTORE -- //
+
+  /// Brings back the recent conversation, once. It is a plain read from the server (no model, no tokens). Without a connection, or on
+  /// any error, nothing is shown and nothing is said: the chat just starts empty and a later visit may try again.
+  Future<void> restore() async {
+    if (_restoreStarted) return;
+    _restoreStarted = true;
+    final generation = _generation;
+    try {
+      final answer = await ref.read(apiProvider).verbJson('chat_history');
+      if (generation != _generation) return;
+      final turns = asJsonList(answer['turns']);
+      final items = <ChatItem>[];
+      for (final t in turns) {
+        // A turn already sent in this run is on screen as it happened
+        if (_sentIds.contains(str(t['clientMessageId']))) continue;
+        items.addAll(_restoredTurn(t));
+      }
+      state = state.copyWith(restored: items);
+    } on Object {
+      if (generation == _generation) _restoreStarted = false;
+    }
+  }
+
+  /// One earlier turn as read-only items: what was said, what was done, what was answered.
+  List<ChatItem> _restoredTurn(Json t) {
+    final out = <ChatItem>[UserItem(_id(), str(t['text']))];
+    for (final e in asJsonList(t['events'])) {
+      switch (str(e['type'])) {
+        case 'tool':
+          // A request for approval draws nothing of its own: its card follows
+          if (str(e['status']) == 'needs_approval') break;
+          out.add(
+            ToolItem(
+              _id(),
+              name: str(e['name']),
+              status: str(e['status']),
+              message: e['message'] is String ? str(e['message']) : null,
+              data: e['data'],
+              restored: true,
+            ),
+          );
+        case 'card':
+          out.add(
+            CardItem(
+              _id(),
+              actionId: str(e['actionId']),
+              summary: str(e['summary']),
+              state: switch (str(e['status'])) {
+                'pending' => CardState.waiting,
+                'applied' => CardState.approved,
+                'rejected' => CardState.declined,
+                'failed' => CardState.failed,
+                _ => CardState.expired,
+              },
+            ),
+          );
+        case 'fallback':
+          out.add(NoticeItem(_id(), _words.chatAssistantDown));
+      }
+    }
+    final reply = str(t['reply']);
+    if (reply.trim().isNotEmpty) {
+      out.add(AgentItem(_id(), reply));
+    } else if (str(t['status']) == 'failed' && out.length == 1) {
+      out.add(NoticeItem(_id(), _words.chatNoAnswer));
+    }
+    return out;
   }
 
   // -- BATCHING -- //
@@ -328,15 +446,21 @@ class ChatNotifier extends Notifier<ChatState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return;
     final messageId = newRequestId();
+    // The retry below cuts the screen back to this message by its id, not by a position, so nothing arriving meanwhile can move it
+    final userItemId = _id();
+    _sentIds.add(messageId);
     _add(
-      UserItem(_id(), trimmed, photo: ocrText != null && ocrText.isNotEmpty),
+      UserItem(
+        userItemId,
+        trimmed,
+        photo: ocrText != null && ocrText.isNotEmpty,
+      ),
     );
     state = state.copyWith(busy: true, phase: TurnPhase.waiting);
     _stopped = false;
     final abort = Completer<void>();
     _abort = abort;
     _resetTurn();
-    final turnStart = state.items.length;
     try {
       for (var attempt = 0; attempt <= _retries; attempt++) {
         try {
@@ -364,8 +488,9 @@ class ChatNotifier extends Notifier<ChatState> {
               (e.isNetwork || e.code == 'CONFLICT') && attempt < _retries;
           if (again) {
             _resetTurn();
+            final cut = state.items.indexWhere((i) => i.id == userItemId);
             state = state.copyWith(
-              items: state.items.sublist(0, turnStart),
+              items: cut < 0 ? state.items : state.items.sublist(0, cut + 1),
               phase: TurnPhase.waiting,
               clearTool: true,
             );

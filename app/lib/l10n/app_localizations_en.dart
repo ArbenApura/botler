@@ -261,9 +261,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agendaFreqWeekly => 'On some days';
 
   @override
-  String get agendaFromGoogle => 'from Google Calendar';
-
-  @override
   String agendaMonthlyAt(String day, String time) {
     return 'Every month on the ${day}th at $time';
   }
@@ -399,7 +396,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auditChApp => 'in the app';
 
   @override
-  String get auditChCalendar => 'Google Calendar';
+  String get auditChCalendar => 'Calendar sync (retired)';
 
   @override
   String get auditChChat => 'in chat';
@@ -849,9 +846,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get calFromGoogle => 'From Google Calendar';
-
-  @override
   String get calLayerBills => 'Bills';
 
   @override
@@ -977,8 +971,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatAssistantDown => 'The assistant is not available right now.';
 
   @override
-  String get chatCalendarStopped =>
-      'Google Calendar stopped syncing. Tap to reconnect.';
+  String get chatCardExpired => 'This request has expired.';
 
   @override
   String get chatCardFailed => 'That could not be done.';
@@ -986,6 +979,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chatChecked(String what) {
     return 'Checked $what';
+  }
+
+  @override
+  String chatCheckedMany(String what, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more times',
+      one: '1 more time',
+    );
+    return '$what, $_temp0';
+  }
+
+  @override
+  String chatCheckedMore(int count) {
+    return '+$count';
   }
 
   @override
@@ -1002,6 +1011,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatEarlier => 'Earlier';
+
+  @override
   String get chatHintMessage => 'Message Botler';
 
   @override
@@ -1009,6 +1021,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatInForce => 'In force';
+
+  @override
+  String get chatJumpLatest => 'Jump to the latest message';
 
   @override
   String chatLogged(String amount, String account) {
@@ -1033,9 +1048,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatNewBody =>
+      'The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.';
+
+  @override
+  String get chatNewTitle => 'Start a new chat?';
+
+  @override
+  String get chatNewTooltip => 'New chat';
+
+  @override
+  String get chatNewYes => 'Start new chat';
+
+  @override
   String chatNextBill(String name, String day) {
     return 'Next bill: $name, $day';
   }
+
+  @override
+  String get chatNoAnswer => 'There was no answer to this one.';
 
   @override
   String get chatNoBill => 'No bill coming up';
@@ -1121,6 +1152,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatStopped => 'Stopped.';
+
+  @override
+  String get chatSummaryOpen => 'Money summary';
 
   @override
   String get chatTakePhoto => 'Take a photo';
@@ -1455,7 +1489,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuAccounts => 'Accounts';
 
   @override
-  String get menuAccountsLine => 'What is in RCBC, GCash, Maya and cash';
+  String get menuAccountsLine => 'What is in each of your accounts';
 
   @override
   String get menuAgenda => 'Agenda';
@@ -1503,8 +1537,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuSettings => 'Settings';
 
   @override
-  String get menuSettingsLine =>
-      'Language, money, lock, notifications, calendar, look';
+  String get menuSettingsLine => 'Language, money, lock, notifications, look';
 
   @override
   String get menuTitle => 'Menu';
@@ -1671,7 +1704,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetLine =>
-      'Erase some or all of what Botler holds about you. Your sign-in, settings, phones and Google connection stay.';
+      'Erase some or all of what Botler holds about you. Your sign-in, settings and phones stay.';
 
   @override
   String get resetNothing => 'There is nothing to erase in this part.';
@@ -2033,32 +2066,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppLanguage => 'App language';
 
   @override
-  String get settingsCalBody =>
-      'Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.';
-
-  @override
-  String get settingsCalConnect => 'Connect Google Calendar';
-
-  @override
-  String get settingsCalError => 'Stopped: Google needs you to connect again';
-
-  @override
-  String get settingsCalFinish =>
-      'Finish in the browser, then come back and tap “I connected”.';
-
-  @override
-  String get settingsCalIConnected => 'I connected';
-
-  @override
-  String get settingsCalOff => 'Off';
-
-  @override
-  String get settingsCalSyncing => 'Syncing both ways';
-
-  @override
-  String get settingsCalTurnOff => 'Turn off';
-
-  @override
   String get settingsCurrency => 'Currency';
 
   @override
@@ -2084,9 +2091,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsCurrencySearch => 'Search currencies';
-
-  @override
-  String get settingsGoogleCalendar => 'Google Calendar';
 
   @override
   String get settingsHideBody =>
