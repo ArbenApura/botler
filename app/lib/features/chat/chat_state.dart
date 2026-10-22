@@ -144,8 +144,13 @@ final class DividerItem extends ChatItem {
   const DividerItem() : super(-1);
 }
 
+/// Where bringing back the earlier conversation is: not asked yet, on its way, brought back (even when there was nothing), or failed.
+/// The empty-chat greeting shows only on [done], so it never flashes while the history is still coming, or offline.
+enum RestoreStatus { idle, loading, done, failed }
+
 class ChatState {
   const ChatState({
+    this.restore = RestoreStatus.idle,
     this.restored = const <ChatItem>[],
     this.items = const <ChatItem>[],
     this.busy = false,
@@ -159,11 +164,13 @@ class ChatState {
   final List<ChatItem> items;
   final bool busy;
   final TurnPhase phase;
+  final RestoreStatus restore;
 
   /// The tool in use while [phase] is [TurnPhase.tool].
   final String? toolName;
 
   ChatState copyWith({
+    RestoreStatus? restore,
     List<ChatItem>? restored,
     List<ChatItem>? items,
     bool? busy,
@@ -171,6 +178,7 @@ class ChatState {
     String? toolName,
     bool clearTool = false,
   }) => ChatState(
+    restore: restore ?? this.restore,
     restored: restored ?? this.restored,
     items: items ?? this.items,
     busy: busy ?? this.busy,
@@ -276,17 +284,20 @@ class ChatNotifier extends Notifier<ChatState> {
     _generation++;
     _sentIds.clear();
     _resetTurn();
-    state = const ChatState();
+    // Cleared on the server too, so there is nothing to bring back (a later screen mount must not ask again): the empty chat may greet
+    _restoreStarted = true;
+    state = const ChatState(restore: RestoreStatus.done);
   }
 
   // -- RESTORE -- //
 
   /// Brings back the recent conversation, once. It is a plain read from the server (no model, no tokens). Without a connection, or on
-  /// any error, nothing is shown and nothing is said: the chat just starts empty and a later visit may try again.
+  /// any error, the status says it failed (the chat shows a quiet retry line, never the greeting) and a later visit may try again.
   Future<void> restore() async {
     if (_restoreStarted) return;
     _restoreStarted = true;
     final generation = _generation;
+    state = state.copyWith(restore: RestoreStatus.loading);
     try {
       final answer = await ref.read(apiProvider).verbJson('chat_history');
       if (generation != _generation) return;
@@ -297,9 +308,12 @@ class ChatNotifier extends Notifier<ChatState> {
         if (_sentIds.contains(str(t['clientMessageId']))) continue;
         items.addAll(_restoredTurn(t));
       }
-      state = state.copyWith(restored: items);
+      state = state.copyWith(restored: items, restore: RestoreStatus.done);
     } on Object {
-      if (generation == _generation) _restoreStarted = false;
+      if (generation == _generation) {
+        _restoreStarted = false;
+        state = state.copyWith(restore: RestoreStatus.failed);
+      }
     }
   }
 

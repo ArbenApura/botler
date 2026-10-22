@@ -1014,6 +1014,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatEarlier => 'Earlier';
 
   @override
+  String get chatGreeting => 'What can I help with?';
+
+  @override
   String get chatHintMessage => 'Message Botler';
 
   @override
@@ -1139,6 +1142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatRestoreFailed => 'Could not load your earlier chat.';
+
+  @override
   String get chatSend => 'Send';
 
   @override
@@ -1152,6 +1158,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatStopped => 'Stopped.';
+
+  @override
+  String get chatSuggestDue => 'What is due this week?';
+
+  @override
+  String get chatSuggestExpense => 'Log an expense';
+
+  @override
+  String get chatSuggestExpenseText => 'I spent ';
+
+  @override
+  String get chatSuggestToday => 'What is on my calendar today?';
 
   @override
   String get chatSummaryOpen => 'Money summary';
@@ -2258,6 +2276,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uiError => 'Something went wrong. Try again.';
+
+  @override
+  String get uiLoading => 'Loading';
 
   @override
   String get uiNotNow => 'Not now';

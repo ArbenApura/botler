@@ -112,11 +112,6 @@ ThemeData buildTheme(Brightness brightness) {
       backgroundColor: c.ink,
       contentTextStyle: TextStyle(color: c.paper),
     ),
-    // A short, gentle motion
-    pageTransitionsTheme: const PageTransitionsTheme(
-      builders: <TargetPlatform, PageTransitionsBuilder>{
-        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-      },
-    ),
+    // Screens arrive through botlerPage (ui/transitions.dart), so the theme sets no page transition of its own
   );
 }

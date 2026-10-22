@@ -67,6 +67,7 @@ class BillsScreen extends ConsumerWidget {
           SectionTitle(context.t.billsComingUp),
           AsyncBody<List<Json>>(
             value: due,
+            skeleton: const SkeletonRows(),
             onRetry: () => ref.invalidate(_dueProvider),
             data: (list) {
               final groups = groupDue(list, manilaToday());
@@ -90,6 +91,7 @@ class BillsScreen extends ConsumerWidget {
           SectionTitle(context.t.billsAll),
           AsyncBody<List<Json>>(
             value: bills,
+            skeleton: const SkeletonRows(),
             onRetry: () => ref.invalidate(_billsProvider),
             data: (list) => Column(
               children: <Widget>[

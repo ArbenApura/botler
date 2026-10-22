@@ -117,6 +117,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     Expanded(
                       child: AsyncBody<CalLoad>(
                         value: load,
+                        skeleton: const SkeletonPage(
+                          child: SkeletonRows(count: 6),
+                        ),
                         onRetry: () => _refresh(key),
                         data: (data) => Column(
                           children: <Widget>[

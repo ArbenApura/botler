@@ -16,6 +16,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'chat_group.dart';
 import 'chat_items.dart';
+import 'chat_start.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
 import 'summary_card.dart';
@@ -39,6 +40,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     with WidgetsBindingObserver {
   final TextEditingController _text = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  final FocusNode _focus = FocusNode();
   final VoiceListener _listener = VoiceListener();
   String? _photoText;
   bool _hearing = false;
@@ -85,8 +87,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // Release the microphone if the screen goes away while listening
     unawaited(_listener.stop());
     _text.dispose();
+    _focus.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// A suggestion fills the message box and puts the cursor at its end. It never sends: that stays the person's own press.
+  void _fill(String words) {
+    _text.value = TextEditingValue(
+      text: words,
+      selection: TextSelection.collapsed(offset: words.length),
+    );
+    _focus.requestFocus();
   }
 
   /// Follows the newest words, but only while the person is at the bottom: scrolling up to read stays where it is.
@@ -278,6 +290,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             (chat.phase == TurnPhase.writing &&
                 !(last is AgentItem && last.streaming))) &&
         !(last is ThinkingItem && last.open);
+    // Before anyone has said anything: the earlier chat coming, its retry line, or the greeting
+    final showStart = shown.isEmpty && !working;
     return Scaffold(
       appBar: AppBar(
         title: Text.rich(
@@ -340,10 +354,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             ScrollViewKeyboardDismissBehavior.onDrag,
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        itemCount: rows.length + 1 + (working ? 1 : 0),
+                        itemCount:
+                            rows.length + 1 + (working || showStart ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 14),
                         itemBuilder: (context, i) {
                           if (i == 0) return const SummaryCard();
+                          if (i - 1 == rows.length && showStart) {
+                            return ChatStart(
+                              status: chat.restore,
+                              onPick: _fill,
+                              onRetry: () => unawaited(
+                                ref.read(chatProvider.notifier).restore(),
+                              ),
+                            );
+                          }
                           if (i - 1 == rows.length) {
                             return WorkingRow(
                               phase: chat.phase,
@@ -412,6 +436,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             _Composer(
               controller: _text,
+              focus: _focus,
               busy: chat.busy,
               hearing: _hearing,
               onSend: _send,
@@ -453,6 +478,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 class _Composer extends StatelessWidget {
   const _Composer({
     required this.controller,
+    required this.focus,
     required this.busy,
     required this.hearing,
     required this.onSend,
@@ -462,6 +488,7 @@ class _Composer extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focus;
   final bool busy;
   final bool hearing;
   final VoidCallback onSend;
@@ -493,6 +520,7 @@ class _Composer extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: TextField(
                   controller: controller,
+                  focusNode: focus,
                   minLines: 1,
                   maxLines: 5,
                   textInputAction: TextInputAction.send,

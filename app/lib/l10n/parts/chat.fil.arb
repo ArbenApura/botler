@@ -66,5 +66,11 @@
   "chatStopped": "Itinigil.",
   "chatEarlier": "Mas maaga",
   "chatNoAnswer": "Walang naging sagot dito.",
-  "chatCardExpired": "Nag-expire na ang hiling na ito."
+  "chatCardExpired": "Nag-expire na ang hiling na ito.",
+  "chatGreeting": "Ano ang maitutulong ko?",
+  "chatSuggestExpense": "Mag-log ng gastos",
+  "chatSuggestExpenseText": "Gumastos ako ng ",
+  "chatSuggestDue": "Ano ang due ngayong linggo?",
+  "chatSuggestToday": "Ano ang nasa kalendaryo ko ngayon?",
+  "chatRestoreFailed": "Hindi ma-load ang dati mong chat."
 }

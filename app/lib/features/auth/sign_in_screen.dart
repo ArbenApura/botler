@@ -19,6 +19,11 @@ class SignInScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final session = ref.watch(sessionProvider);
+    // The first read of the saved sign-in (the app opening): show only the name, so a signed-in person is not shown a button and a
+    // spinner for a blink before the chat opens. A real sign-in in progress (also a retry after a failure) keeps its busy button.
+    final starting =
+        session.isLoading && !session.hasValue && !session.hasError;
+    final busy = session.isLoading && !starting;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -39,22 +44,39 @@ class SignInScreen extends ConsumerWidget {
                 ),
                 style: Theme.of(context).textTheme.displaySmall,
               ),
-              const SizedBox(height: 8),
-              Text(context.t.signInTagline, style: TextStyle(color: c.muted)),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: session.isLoading
-                      ? null
-                      : () => ref.read(sessionProvider.notifier).signIn(),
-                  child: session.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(context.t.signInButton),
+              // The tagline and button keep their space while hidden, so the name does not move
+              Visibility(
+                visible: !starting,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const SizedBox(height: 8),
+                    Text(
+                      context.t.signInTagline,
+                      style: TextStyle(color: c.muted),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: session.isLoading
+                            ? null
+                            : () => ref.read(sessionProvider.notifier).signIn(),
+                        child: busy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(context.t.signInButton),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               if (session.hasError)

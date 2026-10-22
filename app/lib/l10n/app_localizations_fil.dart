@@ -1019,6 +1019,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatEarlier => 'Mas maaga';
 
   @override
+  String get chatGreeting => 'Ano ang maitutulong ko?';
+
+  @override
   String get chatHintMessage => 'Mag-message kay Botler';
 
   @override
@@ -1144,6 +1147,9 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get chatRestoreFailed => 'Hindi ma-load ang dati mong chat.';
+
+  @override
   String get chatSend => 'Ipadala';
 
   @override
@@ -1157,6 +1163,18 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatStopped => 'Itinigil.';
+
+  @override
+  String get chatSuggestDue => 'Ano ang due ngayong linggo?';
+
+  @override
+  String get chatSuggestExpense => 'Mag-log ng gastos';
+
+  @override
+  String get chatSuggestExpenseText => 'Gumastos ako ng ';
+
+  @override
+  String get chatSuggestToday => 'Ano ang nasa kalendaryo ko ngayon?';
 
   @override
   String get chatSummaryOpen => 'Buod ng pera';
@@ -2271,6 +2289,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get uiError => 'May nangyaring mali. Subukan ulit.';
+
+  @override
+  String get uiLoading => 'Naglo-load';
 
   @override
   String get uiNotNow => 'Mamaya na';

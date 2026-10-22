@@ -30,6 +30,7 @@ import 'features/settings/reset_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'state/providers.dart';
 import 'theme/theme.dart';
+import 'ui/transitions.dart';
 
 // -- FUNCTIONS -- //
 
@@ -46,40 +47,86 @@ GoRouter buildRouter(WidgetRef ref) {
       return null;
     },
     routes: <RouteBase>[
-      GoRoute(path: '/', builder: (_, _) => const ChatScreen()),
-      GoRoute(path: '/sign-in', builder: (_, _) => const SignInScreen()),
-      GoRoute(path: '/menu', builder: (_, _) => const MenuScreen()),
+      GoRoute(
+        path: '/',
+        pageBuilder: (_, state) =>
+            botlerPage(state, const ChatScreen(), fadeOnly: true),
+      ),
+      GoRoute(
+        path: '/sign-in',
+        pageBuilder: (_, state) =>
+            botlerPage(state, const SignInScreen(), fadeOnly: true),
+      ),
+      GoRoute(
+        path: '/menu',
+        pageBuilder: (_, state) => botlerPage(state, const MenuScreen()),
+      ),
       GoRoute(
         path: '/expense',
-        builder: (_, state) {
+        pageBuilder: (_, state) {
           // "Fix this" in the history opens the form with the entry's values
           final extra = state.extra;
           final values = extra is Map<String, Object?>
               ? extra
               : const <String, Object?>{};
-          return ExpenseScreen(
-            amount: values['amount'] is String
-                ? values['amount']! as String
-                : null,
-            note: values['note'] is String ? values['note']! as String : null,
+          return botlerPage(
+            state,
+            ExpenseScreen(
+              amount: values['amount'] is String
+                  ? values['amount']! as String
+                  : null,
+              note: values['note'] is String ? values['note']! as String : null,
+            ),
           );
         },
       ),
-      GoRoute(path: '/accounts', builder: (_, _) => const AccountsScreen()),
+      GoRoute(
+        path: '/accounts',
+        pageBuilder: (_, state) => botlerPage(state, const AccountsScreen()),
+      ),
       GoRoute(
         path: '/account/:id',
-        builder: (_, state) =>
-            AccountDetailScreen(accountId: state.pathParameters['id'] ?? ''),
+        pageBuilder: (_, state) => botlerPage(
+          state,
+          AccountDetailScreen(accountId: state.pathParameters['id'] ?? ''),
+        ),
       ),
-      GoRoute(path: '/bills', builder: (_, _) => const BillsScreen()),
-      GoRoute(path: '/goals', builder: (_, _) => const GoalsScreen()),
-      GoRoute(path: '/payday', builder: (_, _) => const PaydayScreen()),
-      GoRoute(path: '/history', builder: (_, _) => const HistoryScreen()),
-      GoRoute(path: '/calendar', builder: (_, _) => const CalendarScreen()),
-      GoRoute(path: '/agenda', builder: (_, _) => const AgendaScreen()),
-      GoRoute(path: '/memory', builder: (_, _) => const MemoryScreen()),
-      GoRoute(path: '/settings/reset', builder: (_, _) => const ResetScreen()),
-      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+      GoRoute(
+        path: '/bills',
+        pageBuilder: (_, state) => botlerPage(state, const BillsScreen()),
+      ),
+      GoRoute(
+        path: '/goals',
+        pageBuilder: (_, state) => botlerPage(state, const GoalsScreen()),
+      ),
+      GoRoute(
+        path: '/payday',
+        pageBuilder: (_, state) => botlerPage(state, const PaydayScreen()),
+      ),
+      GoRoute(
+        path: '/history',
+        pageBuilder: (_, state) => botlerPage(state, const HistoryScreen()),
+      ),
+      GoRoute(
+        path: '/calendar',
+        pageBuilder: (_, state) => botlerPage(state, const CalendarScreen()),
+      ),
+      GoRoute(
+        path: '/agenda',
+        pageBuilder: (_, state) => botlerPage(state, const AgendaScreen()),
+      ),
+      GoRoute(
+        path: '/memory',
+        pageBuilder: (_, state) => botlerPage(state, const MemoryScreen()),
+      ),
+      GoRoute(
+        path: '/settings/reset',
+        pageBuilder: (_, state) => botlerPage(state, const ResetScreen()),
+      ),
+      GoRoute(
+        path: '/settings',
+        pageBuilder: (_, state) => botlerPage(state, const SettingsScreen()),
+      ),
     ],
   );
 }

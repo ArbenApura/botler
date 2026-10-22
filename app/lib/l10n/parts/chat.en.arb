@@ -82,5 +82,11 @@
   "chatStopped": "Stopped.",
   "chatEarlier": "Earlier",
   "chatNoAnswer": "There was no answer to this one.",
-  "chatCardExpired": "This request has expired."
+  "chatCardExpired": "This request has expired.",
+  "chatGreeting": "What can I help with?",
+  "chatSuggestExpense": "Log an expense",
+  "chatSuggestExpenseText": "I spent ",
+  "chatSuggestDue": "What is due this week?",
+  "chatSuggestToday": "What is on my calendar today?",
+  "chatRestoreFailed": "Could not load your earlier chat."
 }

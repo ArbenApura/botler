@@ -159,6 +159,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
         children: <Widget>[
           AsyncBody<List<Json>>(
             value: pending,
+            skeleton: const SizedBox.shrink(),
             data: (list) {
               if (list.isEmpty) return const SizedBox.shrink();
               final active = facts.value ?? <Json>[];
@@ -227,6 +228,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
           const SizedBox(height: 8),
           AsyncBody<List<Json>>(
             value: facts,
+            skeleton: const SkeletonRows(count: 4),
             onRetry: () => ref.invalidate(_facts),
             data: (all) {
               final list = all
@@ -307,6 +309,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
           SectionTitle(context.t.memoryTalks),
           AsyncBody<Json>(
             value: ref.watch(_profile),
+            skeleton: const SkeletonRows(count: 2, kind: SkeletonKind.form),
             onRetry: () => ref.invalidate(_profile),
             data: (p) => _ProfileForm(profile: p, onSaved: _refresh),
           ),

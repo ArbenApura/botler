@@ -736,6 +736,7 @@
     }
   },
   "chatEarlier": "Earlier",
+  "chatGreeting": "What can I help with?",
   "chatHintMessage": "Message Botler",
   "chatHowMuch": "How much was it?",
   "chatInForce": "In force",
@@ -829,11 +830,16 @@
       }
     }
   },
+  "chatRestoreFailed": "Could not load your earlier chat.",
   "chatSend": "Send",
   "chatSpeak": "Speak",
   "chatStop": "Stop",
   "chatStopListening": "Stop listening",
   "chatStopped": "Stopped.",
+  "chatSuggestDue": "What is due this week?",
+  "chatSuggestExpense": "Log an expense",
+  "chatSuggestExpenseText": "I spent ",
+  "chatSuggestToday": "What is on my calendar today?",
   "chatSummaryOpen": "Money summary",
   "chatTakePhoto": "Take a photo",
   "chatThinking": "Thinking",
@@ -1595,6 +1601,7 @@
   },
   "splitTransfers": "Transfers to make",
   "uiError": "Something went wrong. Try again.",
+  "uiLoading": "Loading",
   "uiNotNow": "Not now",
   "undo": "Undo",
   "yes": "Yes"

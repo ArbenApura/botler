@@ -9,5 +9,6 @@
   "close": "Close",
   "yes": "Yes",
   "no": "No",
-  "done": "Done"
+  "done": "Done",
+  "uiLoading": "Loading"
 }

@@ -29,6 +29,9 @@ class AccountsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.t.accountsTitle)),
       body: AsyncBody<List<Json>>(
         value: accounts,
+        skeleton: const SkeletonPage(
+          child: SkeletonRows(count: 4, kind: SkeletonKind.tile),
+        ),
         onRetry: () => ref.invalidate(balancesProvider),
         data: (list) => ListView(
           padding: pagePadding(context),

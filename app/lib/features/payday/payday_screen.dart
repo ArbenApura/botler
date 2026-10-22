@@ -65,6 +65,7 @@ class PaydayScreen extends ConsumerWidget {
           SectionTitle(context.t.paydayYours),
           AsyncBody<List<Json>>(
             value: ref.watch(_incomeProvider),
+            skeleton: const SkeletonRows(count: 2),
             onRetry: () => ref.invalidate(_incomeProvider),
             data: (list) => Column(
               children: <Widget>[
@@ -91,6 +92,7 @@ class PaydayScreen extends ConsumerWidget {
           SectionTitle(context.t.paydayComingUp),
           AsyncBody<List<Json>>(
             value: ref.watch(_upcomingProvider),
+            skeleton: const SkeletonRows(count: 2),
             onRetry: () => ref.invalidate(_upcomingProvider),
             data: (list) => Column(
               children: <Widget>[
@@ -132,6 +134,7 @@ class PaydayScreen extends ConsumerWidget {
           SectionTitle(context.t.paydayRulesTitle),
           AsyncBody<List<Json>>(
             value: ref.watch(_rulesProvider),
+            skeleton: const SkeletonRows(count: 2),
             onRetry: () => ref.invalidate(_rulesProvider),
             data: (list) => Column(
               children: <Widget>[
@@ -186,6 +189,7 @@ class PaydayScreen extends ConsumerWidget {
           SectionTitle(context.t.paydayEarlier),
           AsyncBody<List<Json>>(
             value: ref.watch(_splitsProvider),
+            skeleton: const SkeletonRows(count: 2),
             onRetry: () => ref.invalidate(_splitsProvider),
             data: (list) => Column(
               children: <Widget>[

@@ -114,6 +114,7 @@ class _TasksTab extends ConsumerWidget {
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_tasks),
+          skeleton: const SkeletonRows(),
           onRetry: () => ref.invalidate(_tasks),
           data: (list) => Column(
             children: <Widget>[
@@ -231,6 +232,7 @@ class _EventsTab extends ConsumerWidget {
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_events),
+          skeleton: const SkeletonRows(),
           onRetry: () => ref.invalidate(_events),
           data: (list) => Column(
             children: <Widget>[
@@ -348,6 +350,7 @@ class _RoutinesTab extends ConsumerWidget {
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_routines),
+          skeleton: const SkeletonRows(),
           onRetry: () => ref.invalidate(_routines),
           data: (list) => Column(
             children: <Widget>[
@@ -515,6 +518,7 @@ class _RemindersTab extends ConsumerWidget {
       children: <Widget>[
         AsyncBody<List<Json>>(
           value: ref.watch(_reminders),
+          skeleton: const SkeletonRows(),
           onRetry: () => ref.invalidate(_reminders),
           data: (list) => Column(
             children: <Widget>[

@@ -97,6 +97,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         children: <Widget>[
           AsyncBody<Json>(
             value: ref.watch(_monthProvider),
+            skeleton: const SkeletonRows(count: 1, kind: SkeletonKind.card),
             onRetry: () => ref.invalidate(_monthProvider),
             data: (m) => PaperCard(
               child: Column(
@@ -132,6 +133,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           const SizedBox(height: 8),
           AsyncBody<List<Json>>(
             value: ref.watch(_entriesProvider),
+            skeleton: const SkeletonRows(count: 4),
             onRetry: () => ref.invalidate(_entriesProvider),
             data: (all) {
               final list = all

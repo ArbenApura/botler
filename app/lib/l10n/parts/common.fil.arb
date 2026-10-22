@@ -9,5 +9,6 @@
   "close": "Isara",
   "yes": "Oo",
   "no": "Hindi",
-  "done": "Tapos na"
+  "done": "Tapos na",
+  "uiLoading": "Naglo-load"
 }

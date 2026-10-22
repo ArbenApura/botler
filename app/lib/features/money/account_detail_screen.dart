@@ -430,7 +430,12 @@ class _State extends ConsumerState<AccountDetailScreen> {
       );
     }
     if (_loading && _entries.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      // The same padding as the loaded list, so the rows do not move when they arrive
+      return const SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 32),
+        child: SkeletonRows(count: 7),
+      );
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),

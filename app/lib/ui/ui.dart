@@ -13,6 +13,11 @@ import '../core/money_scope.dart';
 import '../l10n/l10n.dart';
 import '../theme/theme.dart';
 import '../theme/tokens.dart';
+import 'skeleton.dart';
+
+// -- EXPORTS -- //
+// Screens get the skeleton pieces with the rest of the kit
+export 'skeleton.dart';
 
 // -- FUNCTIONS -- //
 
@@ -131,12 +136,21 @@ class Note extends StatelessWidget {
   );
 }
 
-/// Shows a future's loading, failure (with a retry) or data. The one place that knows how those three look.
+/// Fixed keys for the three looks, so loading to data fades once and a reload never remounts the data (a form keeps what was typed).
+const ValueKey<String> _loadingKey = ValueKey<String>('async.loading');
+const ValueKey<String> _dataKey = ValueKey<String>('async.data');
+const ValueKey<String> _errorKey = ValueKey<String>('async.error');
+
+/// How long loading, data and failure fade into one another.
+const Duration _fade = Duration(milliseconds: 180);
+
+/// Shows a future's loading (a skeleton of the real content), failure (with a retry) or data. The one place that knows how those three look.
 class AsyncBody<T> extends StatelessWidget {
   const AsyncBody({
     required this.value,
     required this.data,
     this.onRetry,
+    this.skeleton = const SkeletonRows(),
     super.key,
   });
 
@@ -144,26 +158,59 @@ class AsyncBody<T> extends StatelessWidget {
   final Widget Function(T data) data;
   final VoidCallback? onRetry;
 
+  /// What stands in for the data while it loads. Make it the same shape and size as the loaded content so nothing jumps.
+  final Widget skeleton;
+
   @override
   Widget build(BuildContext context) {
-    // A reload keeps the old rows on screen instead of flashing a spinner
-    return value.when(
+    // A reload keeps the old rows on screen instead of flashing a skeleton
+    final Widget body = value.when(
       skipLoadingOnReload: true,
-      data: data,
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(errorWords(e, context), textAlign: TextAlign.center),
-            if (onRetry != null)
-              TextButton(onPressed: onRetry, child: Text(context.t.retry)),
-          ],
+      data: (d) => KeyedSubtree(key: _dataKey, child: data(d)),
+      loading: () => KeyedSubtree(key: _loadingKey, child: skeleton),
+      error: (e, _) => KeyedSubtree(
+        key: _errorKey,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(errorWords(e, context), textAlign: TextAlign.center),
+              if (onRetry != null)
+                TextButton(onPressed: onRetry, child: Text(context.t.retry)),
+            ],
+          ),
         ),
       ),
     );
+    return AnimatedSwitcher(
+      duration: _fade,
+      // Pinned to the top, with the parent's constraints passed on, so a tall page keeps its height and a list keeps its place
+      layoutBuilder: (current, previous) => Stack(
+        fit: StackFit.passthrough,
+        alignment: Alignment.topCenter,
+        children: <Widget>[...previous, ?current],
+      ),
+      child: body,
+    );
   }
+}
+
+/// A loading page: the skeleton inside the same padding a loaded scrolling page has, and not scrollable.
+class SkeletonPage extends StatelessWidget {
+  const SkeletonPage({required this.child, this.padding, super.key});
+
+  final Widget child;
+
+  /// Defaults to the padding of a scrolling page. A screen with its own padding passes the same.
+  final EdgeInsets? padding;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    physics: const NeverScrollableScrollPhysics(),
+    padding: padding ?? pagePadding(context),
+    child: child,
+  );
 }
 
 /// A bottom sheet with a title, content, and one primary action.

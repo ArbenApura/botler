@@ -1747,6 +1747,12 @@ abstract class AppLocalizations {
   /// **'Earlier'**
   String get chatEarlier;
 
+  /// No description provided for @chatGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'What can I help with?'**
+  String get chatGreeting;
+
   /// No description provided for @chatHintMessage.
   ///
   /// In en, this message translates to:
@@ -1933,6 +1939,12 @@ abstract class AppLocalizations {
   /// **'Recorded {amount}'**
   String chatRecorded(String amount);
 
+  /// No description provided for @chatRestoreFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load your earlier chat.'**
+  String get chatRestoreFailed;
+
   /// No description provided for @chatSend.
   ///
   /// In en, this message translates to:
@@ -1962,6 +1974,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stopped.'**
   String get chatStopped;
+
+  /// No description provided for @chatSuggestDue.
+  ///
+  /// In en, this message translates to:
+  /// **'What is due this week?'**
+  String get chatSuggestDue;
+
+  /// No description provided for @chatSuggestExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Log an expense'**
+  String get chatSuggestExpense;
+
+  /// No description provided for @chatSuggestExpenseText.
+  ///
+  /// In en, this message translates to:
+  /// **'I spent '**
+  String get chatSuggestExpenseText;
+
+  /// No description provided for @chatSuggestToday.
+  ///
+  /// In en, this message translates to:
+  /// **'What is on my calendar today?'**
+  String get chatSuggestToday;
 
   /// No description provided for @chatSummaryOpen.
   ///
@@ -3911,6 +3947,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Try again.'**
   String get uiError;
+
+  /// No description provided for @uiLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading'**
+  String get uiLoading;
 
   /// No description provided for @uiNotNow.
   ///

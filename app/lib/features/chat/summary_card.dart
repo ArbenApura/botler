@@ -24,11 +24,10 @@ class SummaryCard extends ConsumerWidget {
     final c = context.colors;
     final sync = ref.watch(syncProvider);
     return PaperCard(
+      // A refresh keeps the last answer on screen instead of flashing the card empty
       child: sync.when(
-        loading: () => const SizedBox(
-          height: 96,
-          child: Center(child: CircularProgressIndicator()),
-        ),
+        skipLoadingOnReload: true,
+        loading: () => const _SummarySkeleton(),
         error: (e, _) =>
             Text(errorWords(e, context), style: TextStyle(color: c.muted)),
         data: (s) {
@@ -44,20 +43,19 @@ class SummaryCard extends ConsumerWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Text(
-                    context.t.chatAcrossAccounts,
-                    style: TextStyle(color: c.muted),
-                  ),
-                  const Spacer(),
-                  if (boolOf(s['offline']))
-                    Text(
-                      context.t.chatOffline,
-                      style: TextStyle(color: c.warning),
+                  Expanded(
+                    child: Text(
+                      context.t.chatAcrossAccounts,
+                      style: TextStyle(color: c.muted),
                     ),
+                  ),
+                  if (boolOf(s['offline'])) const _OfflineChip(),
                 ],
               ),
+              const SizedBox(height: 2),
+              // The same light figure as every other balance in the app
               Amount(intOf(summary['total'])),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               _Line(
                 icon: Icons.receipt_long_outlined,
                 text: bill == null
@@ -67,7 +65,7 @@ class SummaryCard extends ConsumerWidget {
                         _day(context, str(bill['dueDate'])),
                       ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               _Line(
                 icon: Icons.event_outlined,
                 text: event == null
@@ -77,6 +75,48 @@ class SummaryCard extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// The card while it loads: the same lines in the same places, so it does not change height when the answer comes.
+class _SummarySkeleton extends StatelessWidget {
+  const _SummarySkeleton();
+
+  @override
+  Widget build(BuildContext context) => const SkeletonGroup(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SkeletonLine(widthFactor: 0.4, height: 20),
+        SizedBox(height: 2),
+        SkeletonLine(widthFactor: 0.55, height: 36),
+        SizedBox(height: 14),
+        SkeletonLine(widthFactor: 0.75, height: 20),
+        SizedBox(height: 8),
+        SkeletonLine(widthFactor: 0.65, height: 20),
+      ],
+    ),
+  );
+}
+
+/// "Offline" as a small outlined chip in the warning colour (outlined, so no tinted background is needed in either mode).
+class _OfflineChip extends StatelessWidget {
+  const _OfflineChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.warning),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        context.t.chatOffline,
+        style: TextStyle(color: c.warning, fontSize: 12),
       ),
     );
   }

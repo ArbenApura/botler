@@ -32,6 +32,9 @@ class GoalsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.t.goalsTitle)),
       body: AsyncBody<List<Json>>(
         value: goals,
+        skeleton: const SkeletonPage(
+          child: SkeletonRows(count: 3, kind: SkeletonKind.tile),
+        ),
         onRetry: () => ref.invalidate(_goalsProvider),
         data: (list) => ListView(
           padding: pagePadding(context),

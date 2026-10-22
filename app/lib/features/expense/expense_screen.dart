@@ -105,6 +105,10 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       appBar: AppBar(title: Text(context.t.expenseTitle)),
       body: AsyncBody<List<Json>>(
         value: accounts,
+        skeleton: const SkeletonPage(
+          padding: EdgeInsets.all(20),
+          child: SkeletonRows(count: 3, kind: SkeletonKind.form),
+        ),
         onRetry: () => ref.invalidate(balancesProvider),
         data: (list) {
           final last = ref.read(prefsProvider).getString(_lastAccountKey);
