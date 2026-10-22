@@ -1,0 +1,39 @@
+/* CALM PAPER TOKENS. THE ONLY PLACE COLOUR VALUES LIVE FOR THE SERVER PAGES. THE MODE IS data-mode="light|dark" ON <html>. THE FLUTTER APP MIRRORS THESE IN ITS BotlerColors THEME EXTENSION */
+
+:root,
+:root[data-mode='light'] {
+	--bg: #f7f3ec;
+	--surface: #fffdf8;
+	--raised: #ffffff;
+	--ink: #2b2823;
+	--muted: #6a6356;
+	--line: #e6dfd2;
+	--accent: #4f7357;
+	--accent-ink: #ffffff;
+	--accent-soft: #e3ece3;
+	--accent-text: #2f4d36;
+	--danger: #b3382c;
+	--warning: #8a5a00;
+	--success: #2f7d4a;
+	--info: #2f6da3;
+	--font-sans:
+		ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+:root[data-mode='dark'] {
+	--bg: #1c1a17;
+	--surface: #24211d;
+	--raised: #2d2923;
+	--ink: #efe9de;
+	--muted: #a79f90;
+	--line: #3a352e;
+	--accent: #8fb397;
+	--accent-ink: #14201a;
+	--accent-soft: #2a3a2e;
+	--accent-text: #bfddc6;
+	--danger: #f08a7e;
+	--warning: #e0b04f;
+	--success: #6fc48d;
+	--info: #7db2e3;
+}

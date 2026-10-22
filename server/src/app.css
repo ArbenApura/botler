@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+@import './lib/theme/tokens.css';
+
+/* BASE PAGE: THE PAPER COLOUR AND INK COME FROM TOKENS, THE FONT FROM --font-sans */
+html {
+	background: var(--bg);
+	color: var(--ink);
+	font-family: var(--font-sans);
+}
+
+body {
+	min-height: 100dvh;
+	font-variant-numeric: tabular-nums;
+}

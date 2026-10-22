@@ -1,0 +1,311 @@
+// THE SPLIT ENGINE (P2.6) AND RULE VALIDATION (P2.9): FIXED, PERCENT, REST, SHORTFALL, ROUNDING TO CENTAVOS AND THE SUM INVARIANT
+
+// -- TYPES -- //
+import type { Rule } from '../../src/lib/finance/rules';
+import type { Commitment, SplitInput } from '../../src/lib/finance/split';
+// -- DEP-MODULES -- //
+import { describe, expect, it } from 'vitest';
+// -- MODULES -- //
+import { validateRules } from '../../src/lib/finance/rules';
+import { proposeSplit } from '../../src/lib/finance/split';
+
+// -- CONSTANTS -- //
+
+const rule = (r: Partial<Rule> & Pick<Rule, 'id' | 'mode'>): Rule => ({
+	position: 1,
+	target: { kind: 'account', id: 'gcash' },
+	amount: null,
+	basisPoints: null,
+	base: 'pay',
+	effectiveFrom: '2026-01-01',
+	version: 1,
+	...r
+});
+
+const bill = (id: string, amount: number, accountId = 'rcbc', deferrable = false): Commitment => ({
+	kind: 'bill',
+	refId: id,
+	label: id,
+	amount,
+	accountId,
+	deferrable
+});
+
+const base = (over: Partial<SplitInput> = {}): SplitInput => ({
+	payday: '2026-10-30',
+	pay: 2_000_000,
+	incomeAccountId: 'rcbc',
+	commitments: [],
+	rules: [],
+	goalAccounts: { goal1: 'maya' },
+	...over
+});
+
+const total = (r: ReturnType<typeof proposeSplit>) => r.lines.reduce((s, l) => s + l.amount, 0);
+
+// -- TESTS -- //
+
+describe('split engine', () => {
+	it('pays bills first, then fixed, then the rest, and lists the transfers', () => {
+		const r = proposeSplit(
+			base({
+				commitments: [bill('rent', 500_000), bill('internet', 150_000, 'gcash')],
+				rules: [
+					rule({
+						id: 'r1',
+						mode: 'fixed',
+						amount: 300_000,
+						position: 1,
+						target: { kind: 'goal', id: 'goal1' }
+					}),
+					rule({ id: 'r2', mode: 'rest', position: 2, target: { kind: 'account', id: 'maya' } })
+				]
+			})
+		);
+		expect(r.status).toBe('ok');
+		expect(total(r)).toBe(2_000_000);
+		expect(r.transfers).toEqual([
+			{ fromAccountId: 'rcbc', toAccountId: 'gcash', amount: 150_000, labels: ['internet'] },
+			{
+				fromAccountId: 'rcbc',
+				toAccountId: 'maya',
+				amount: 300_000 + 1_050_000,
+				labels: ['Rule', 'Rule']
+			}
+		]);
+		// The rent is paid from the income account, so it stays there
+		expect(r.status === 'ok' && r.staysInIncomeAccount).toBe(500_000);
+	});
+
+	it('floors percentages and puts the leftover centavos on the rest rule', () => {
+		const r = proposeSplit(
+			base({
+				pay: 1_000_001,
+				rules: [
+					rule({
+						id: 'p1',
+						mode: 'percent',
+						basisPoints: 3333,
+						position: 1,
+						target: { kind: 'account', id: 'maya' }
+					}),
+					rule({
+						id: 'p2',
+						mode: 'percent',
+						basisPoints: 3333,
+						position: 2,
+						target: { kind: 'account', id: 'gcash' }
+					}),
+					rule({ id: 'rest', mode: 'rest', position: 3, target: { kind: 'account', id: 'rcbc' } })
+				]
+			})
+		);
+		expect(r.lines.map((l) => l.amount)).toEqual([333_300, 333_300, 333_401]);
+		expect(total(r)).toBe(1_000_001);
+	});
+
+	it('puts the remainder on the first rule when there is no rest rule', () => {
+		const r = proposeSplit(
+			base({
+				pay: 1_000_001,
+				rules: [
+					rule({ id: 'p1', mode: 'percent', basisPoints: 5000, position: 1 }),
+					rule({
+						id: 'p2',
+						mode: 'percent',
+						basisPoints: 2500,
+						position: 2,
+						target: { kind: 'account', id: 'maya' }
+					})
+				]
+			})
+		);
+		expect(r.lines.map((l) => l.amount)).toEqual([500_000 + 250_001, 250_000]);
+		expect(total(r)).toBe(1_000_001);
+	});
+
+	it('sends everything unclaimed to the default account when there are no rules', () => {
+		const r = proposeSplit(
+			base({ commitments: [bill('rent', 500_000)], defaultAccountId: 'maya' })
+		);
+		expect(r.lines.at(-1)).toMatchObject({
+			kind: 'leftover',
+			amount: 1_500_000,
+			accountId: 'maya'
+		});
+		expect(total(r)).toBe(2_000_000);
+	});
+
+	it('takes a percentage of what is left after commitments and fixed amounts', () => {
+		const r = proposeSplit(
+			base({
+				commitments: [bill('rent', 500_000)],
+				rules: [
+					rule({ id: 'f', mode: 'fixed', amount: 500_000, position: 1 }),
+					rule({
+						id: 'p',
+						mode: 'percent',
+						basisPoints: 5000,
+						base: 'remaining',
+						position: 2,
+						target: { kind: 'account', id: 'maya' }
+					})
+				]
+			})
+		);
+		const p = r.lines.find((l) => l.refId === 'p');
+		expect(p?.amount).toBe(500_000);
+		expect(total(r)).toBe(2_000_000);
+	});
+
+	it('applies only the rules that are effective by the payday', () => {
+		const r = proposeSplit(
+			base({
+				rules: [
+					rule({ id: 'later', mode: 'fixed', amount: 100_000, effectiveFrom: '2026-12-01' }),
+					rule({
+						id: 'now',
+						mode: 'fixed',
+						amount: 200_000,
+						position: 2,
+						target: { kind: 'account', id: 'maya' }
+					})
+				]
+			})
+		);
+		expect(r.lines.some((l) => l.refId === 'later')).toBe(false);
+		expect(total(r)).toBe(2_000_000);
+	});
+
+	it('returns the gap and what could be cut when the pay is too small', () => {
+		const r = proposeSplit(
+			base({
+				pay: 600_000,
+				commitments: [
+					bill('rent', 500_000),
+					bill('streaming', 30_000, 'rcbc', true),
+					{
+						kind: 'goal',
+						refId: 'goal1',
+						label: 'Emergency fund',
+						amount: 150_000,
+						accountId: 'maya',
+						deferrable: false
+					}
+				]
+			})
+		);
+		expect(r.status).toBe('shortfall');
+		if (r.status !== 'shortfall') return;
+		expect(r.gap).toBe(80_000);
+		expect(r.transfers).toEqual([]);
+		expect(r.cutOptions.map((c) => c.label)).toEqual(['Emergency fund', 'streaming']);
+	});
+
+	it('is a shortfall when fixed amounts do not fit after the bills', () => {
+		const r = proposeSplit(
+			base({
+				pay: 600_000,
+				commitments: [bill('rent', 500_000)],
+				rules: [rule({ id: 'f', mode: 'fixed', amount: 200_000 })]
+			})
+		);
+		expect(r.status).toBe('shortfall');
+		expect(r.status === 'shortfall' && r.gap).toBe(100_000);
+	});
+
+	it('refuses input that is not valid', () => {
+		expect(() => proposeSplit(base({ pay: 0 }))).toThrow();
+		expect(() => proposeSplit(base({ commitments: [bill('x', -5)] }))).toThrow();
+		expect(() =>
+			proposeSplit(
+				base({
+					rules: [
+						rule({ id: 'g', mode: 'fixed', amount: 100, target: { kind: 'goal', id: 'nope' } })
+					]
+				})
+			)
+		).toThrow(/goal/);
+	});
+
+	it('always adds up to the pay, for many pays and rule sets', () => {
+		// A seeded generator keeps the property test repeatable
+		let seed = 42;
+		const rnd = (n: number) => {
+			seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+			return seed % n;
+		};
+		for (let i = 0; i < 300; i++) {
+			const pay = 100_000 + rnd(9_000_000);
+			const commitments = Array.from({ length: rnd(4) }, (_, k) => bill(`b${k}`, 1 + rnd(200_000)));
+			const rules: Rule[] = [];
+			let share = 10_000;
+			for (let k = 0; k < rnd(4); k++) {
+				if (share <= 0) break;
+				const bp = 1 + rnd(Math.max(1, Math.min(share, 4000)));
+				share -= bp;
+				rules.push(
+					rule({
+						id: `p${k}`,
+						mode: 'percent',
+						basisPoints: bp,
+						position: k + 1,
+						target: { kind: 'account', id: k % 2 ? 'maya' : 'gcash' }
+					})
+				);
+			}
+			if (rnd(2))
+				rules.push(
+					rule({ id: 'rest', mode: 'rest', position: 9, target: { kind: 'account', id: 'rcbc' } })
+				);
+			const r = proposeSplit(base({ pay, commitments, rules }));
+			if (r.status === 'ok') {
+				expect(total(r)).toBe(pay);
+				expect(r.lines.every((l) => Number.isInteger(l.amount) && l.amount > 0)).toBe(true);
+			} else {
+				expect(r.gap).toBeGreaterThan(0);
+			}
+		}
+	});
+});
+
+describe('rule validation', () => {
+	it('accepts a sensible set', () => {
+		expect(
+			validateRules([
+				rule({ id: 'a', mode: 'fixed', amount: 100 }),
+				rule({ id: 'b', mode: 'percent', basisPoints: 5000 }),
+				rule({ id: 'c', mode: 'rest' })
+			])
+		).toEqual([]);
+	});
+
+	it('refuses percentages above 100%, a second rest and a fixed amount above the pay', () => {
+		const over = validateRules([
+			rule({ id: 'a', mode: 'percent', basisPoints: 6000 }),
+			rule({ id: 'b', mode: 'percent', basisPoints: 5000 })
+		]);
+		expect(over.join(' ')).toMatch(/more than 100%/);
+		// Percentages of different bases are counted apart
+		expect(
+			validateRules([
+				rule({ id: 'a', mode: 'percent', basisPoints: 6000 }),
+				rule({ id: 'b', mode: 'percent', basisPoints: 6000, base: 'remaining' })
+			])
+		).toEqual([]);
+		expect(
+			validateRules([rule({ id: 'a', mode: 'rest' }), rule({ id: 'b', mode: 'rest' })]).join(' ')
+		).toMatch(/Only one/);
+		expect(validateRules([rule({ id: 'a', mode: 'fixed', amount: 500 })], 400).join(' ')).toMatch(
+			/more than the pay/
+		);
+	});
+
+	it('refuses a fixed rule without an amount and a percentage without a share', () => {
+		expect(validateRules([rule({ id: 'a', mode: 'fixed' })])).toHaveLength(1);
+		expect(validateRules([rule({ id: 'a', mode: 'percent', basisPoints: 0 })])).toHaveLength(1);
+		expect(validateRules([rule({ id: 'a', mode: 'percent', basisPoints: 10_001 })])).toHaveLength(
+			1
+		);
+	});
+});

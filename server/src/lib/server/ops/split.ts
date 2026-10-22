@@ -1,0 +1,305 @@
+// PAYDAY SPLIT VERBS: PROPOSE A SPLIT FROM THE BILLS, THE PARENTS' SHARE, THE GOALS AND THE RULES; THE PERSON APPROVES IT AND TAPS THROUGH THE TRANSFERS
+// The engine (src/lib/finance/split.ts) decides the numbers. A shortfall is never approved: the person decides what to cut and asks again.
+// Approving is for a person only. The split reads approved rules only (status active), so a rule the agent proposed changes nothing until approved.
+
+// -- TYPES -- //
+import type { Ctx } from './context';
+import type { Plain } from './shared';
+import type { Schedule } from '../../finance/schedule';
+import type { SplitResult } from '../../finance/split';
+import type { SplitProposeInput } from '../db/zod';
+// -- DEP-MODULES -- //
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+// -- MODULES -- //
+import { addDays, toManilaDate } from '../../finance/dates';
+import { occurrencesBetween } from '../../finance/schedule';
+import { proposeSplit } from '../../finance/split';
+import { account, allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
+import { splitApproveInput, splitProposeInput, splitSentInput } from '../db/zod';
+import { OpsError, run, runWrite } from './context';
+import { dueBills } from './bills';
+import { insertTxn } from './ledger';
+import { toRule } from './rules';
+import { mapped, parse, plain, requireIncome, requirePerson } from './shared';
+
+// -- TYPES -- //
+
+/** What is stored with a plan: the engine result plus what the screen needs to show it. */
+export type StoredSplit = SplitResult & {
+	payday: string;
+	/** The last day the pay has to last, the day before the next payday. */
+	periodEnd: string;
+	incomeAccountId: string;
+	accountNames: Record<string, string>;
+};
+
+export type SplitPlanView = Omit<Plain<typeof splitPlan.$inferSelect>, 'result'> & {
+	result: StoredSplit;
+};
+
+/** A bill with no amount yet: the person is asked before a split can be made. */
+export type NeedsAmounts = {
+	status: 'needs_amounts';
+	bills: { billId: string; name: string; dueDate: string }[];
+};
+
+// -- FUNCTIONS -- //
+
+const view = (row: typeof splitPlan.$inferSelect): SplitPlanView =>
+	plain(row) as unknown as SplitPlanView;
+
+/**
+ * Proposes the split for a payday. Nothing is allocated when the pay cannot cover everything: the plan then has status shortfall,
+ * with the gap and what could be cut. A bill with no amount yet comes back as needs_amounts and nothing is saved.
+ */
+export async function proposeSplitPlan(
+	ctx: Ctx,
+	raw: SplitProposeInput
+): Promise<SplitPlanView | NeedsAmounts> {
+	const input = parse(splitProposeInput, raw);
+	const gathered = await run(ctx, async (tx, userId) => {
+		const inc = await requireIncome(tx, userId, input.incomeScheduleId);
+		if (!inc.active) throw new OpsError('INVALID', `"${inc.label}" is switched off.`);
+		const schedule = inc.schedule as Schedule;
+		const opts = { weekend: inc.weekendRule };
+		const today = toManilaDate(new Date());
+		const payday =
+			input.payday ?? occurrencesBetween(schedule, today, addDays(today, 800), opts)[0];
+		if (!payday) throw new OpsError('INVALID', 'There is no payday ahead for that income.');
+		if (input.payday && occurrencesBetween(schedule, payday, payday, opts).length === 0)
+			throw new OpsError('INVALID', `${payday} is not a payday of "${inc.label}".`);
+		const pay = input.pay ?? inc.expectedAmount;
+		if (!pay) throw new OpsError('INVALID', 'Say what the pay is this time.');
+		const next = occurrencesBetween(schedule, addDays(payday, 1), addDays(payday, 800), opts)[0];
+		const periodEnd = addDays(next ?? addDays(payday, 15), -1);
+
+		const due = (await dueBills(tx, userId, payday, periodEnd)).filter((b) => !b.paid);
+		const unknown = due.filter((b) => b.unknownAmount);
+		const accounts = await tx
+			.select({ id: account.id, name: account.name })
+			.from(account)
+			.where(eq(account.userId, userId));
+		const goals = await tx
+			.select()
+			.from(goal)
+			.where(and(eq(goal.userId, userId), eq(goal.active, true)));
+		const rules = await tx
+			.select()
+			.from(allocationRule)
+			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')));
+		return { inc, payday, pay, periodEnd, due, unknown, accounts, goals, rules };
+	});
+
+	if (gathered.unknown.length > 0)
+		return {
+			status: 'needs_amounts',
+			bills: gathered.unknown.map((b) => ({ billId: b.billId, name: b.name, dueDate: b.dueDate }))
+		};
+
+	const names: Record<string, string> = {};
+	for (const a of gathered.accounts) names[a.id] = a.name;
+	for (const g of gathered.goals) names[g.id] = g.name;
+	const counts = new Map<string, number>();
+	for (const b of gathered.due) counts.set(b.billId, (counts.get(b.billId) ?? 0) + 1);
+
+	let result: SplitResult;
+	try {
+		result = proposeSplit({
+			payday: gathered.payday,
+			pay: gathered.pay,
+			incomeAccountId: gathered.inc.accountId,
+			commitments: [
+				...gathered.due.map((b) => ({
+					kind: b.category === 'parents' ? ('parents' as const) : ('bill' as const),
+					refId: b.billId,
+					// A bill that falls twice in one period shows its date, so the two lines can be told apart
+					label: (counts.get(b.billId) ?? 0) > 1 ? `${b.name} (${b.dueDate})` : b.name,
+					amount: b.amount ?? 0,
+					accountId: b.accountId,
+					deferrable: b.deferrable
+				})),
+				...gathered.goals
+					.filter((g) => g.perPayday > 0)
+					.map((g) => ({
+						kind: 'goal' as const,
+						refId: g.id,
+						label: g.name,
+						amount: g.perPayday,
+						accountId: g.accountId,
+						deferrable: false
+					}))
+			],
+			rules: gathered.rules.map((r) => toRule(r, names[r.targetAccountId ?? r.targetGoalId ?? ''])),
+			goalAccounts: Object.fromEntries(gathered.goals.map((g) => [g.id, g.accountId]))
+		});
+	} catch (e) {
+		if (e instanceof RangeError) throw new OpsError('INVALID', e.message);
+		throw e;
+	}
+
+	const stored: StoredSplit = {
+		...result,
+		payday: gathered.payday,
+		periodEnd: gathered.periodEnd,
+		incomeAccountId: gathered.inc.accountId,
+		accountNames: names
+	};
+	return mapped(() =>
+		runWrite(ctx, 'split.propose', input, async (tx, userId) => {
+			// A newer proposal for the same payday replaces the open ones
+			await tx
+				.update(splitPlan)
+				.set({ status: 'superseded', updatedAt: sql`now()` })
+				.where(
+					and(
+						eq(splitPlan.userId, userId),
+						eq(splitPlan.incomeScheduleId, gathered.inc.id),
+						eq(splitPlan.payday, gathered.payday),
+						inArray(splitPlan.status, ['proposed', 'shortfall'])
+					)
+				);
+			const [row] = await tx
+				.insert(splitPlan)
+				.values({
+					userId,
+					incomeScheduleId: gathered.inc.id,
+					payday: gathered.payday,
+					pay: gathered.pay,
+					status: result.status === 'ok' ? 'proposed' : 'shortfall',
+					gap: result.status === 'shortfall' ? result.gap : 0,
+					result: stored
+				})
+				.returning();
+			if (!row) throw new OpsError('CONFLICT', 'The split could not be saved.');
+			return view(row);
+		})
+	);
+}
+
+/** The person approves a split. A shortfall cannot be approved. Only a person can. */
+export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncome?: boolean }) {
+	requirePerson(ctx.actor.kind, 'approve a split');
+	const input = parse(splitApproveInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'split.approve', input, async (tx, userId) => {
+			const [plan] = await tx
+				.select()
+				.from(splitPlan)
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, input.splitId)));
+			if (!plan) throw new OpsError('NOT_FOUND', 'That split does not exist.');
+			if (plan.status === 'shortfall')
+				throw new OpsError(
+					'INVALID',
+					'The pay does not cover this. Decide what to cut, then ask for a new split.'
+				);
+			if (plan.status !== 'proposed')
+				throw new OpsError('CONFLICT', 'That split is not waiting for approval.');
+			const stored = plan.result as StoredSplit;
+			const today = toManilaDate(new Date());
+			const [done] = await tx
+				.update(splitPlan)
+				.set({
+					status: 'approved',
+					approvedAt: sql`now()`,
+					approvedBy: `${ctx.actor.kind}:${userId}`,
+					updatedAt: sql`now()`
+				})
+				.where(
+					and(
+						eq(splitPlan.userId, userId),
+						eq(splitPlan.id, plan.id),
+						eq(splitPlan.status, 'proposed')
+					)
+				)
+				.returning();
+			if (!done) throw new OpsError('CONFLICT', 'That split changed while you approved it.');
+			if (input.recordIncome ?? plan.payday <= today)
+				await insertTxn(
+					tx,
+					userId,
+					ctx.requestId,
+					{
+						type: 'income',
+						accountId: stored.incomeAccountId,
+						amount: plan.pay,
+						category: 'income',
+						note: 'Pay',
+						source: 'split',
+						splitId: plan.id
+					},
+					{ journal: false }
+				);
+			return view(done);
+		})
+	);
+}
+
+/** Records that the person made one transfer of the approved split. It becomes a transfer in the ledger, so it is never spending. */
+export async function markTransferSent(ctx: Ctx, raw: { splitId: string; index: number }) {
+	const input = parse(splitSentInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'split.markSent', input, async (tx, userId) => {
+			const [plan] = await tx
+				.select()
+				.from(splitPlan)
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, input.splitId)));
+			if (!plan) throw new OpsError('NOT_FOUND', 'That split does not exist.');
+			if (plan.status !== 'approved') throw new OpsError('INVALID', 'Approve the split first.');
+			const stored = plan.result as StoredSplit;
+			const t = stored.transfers[input.index];
+			if (!t) throw new OpsError('NOT_FOUND', 'There is no such transfer in this split.');
+			const sent = Array.isArray(plan.sentTransfers)
+				? (plan.sentTransfers as { index: number; txnId: string }[])
+				: [];
+			if (sent.some((s) => s.index === input.index))
+				throw new OpsError('CONFLICT', 'That transfer is already marked sent.');
+			const txn = await insertTxn(tx, userId, ctx.requestId, {
+				type: 'transfer',
+				accountId: t.fromAccountId,
+				toAccountId: t.toAccountId,
+				amount: t.amount,
+				note: t.labels.join(', ').slice(0, 200),
+				source: 'split',
+				splitId: plan.id
+			});
+			await tx
+				.update(splitPlan)
+				.set({
+					sentTransfers: [...sent, { index: input.index, txnId: txn.id }],
+					updatedAt: sql`now()`
+				})
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, plan.id)));
+			return { txnId: txn.id, index: input.index };
+		})
+	);
+}
+
+export async function listSplits(ctx: Ctx, limit = 10): Promise<SplitPlanView[]> {
+	const rows = await run(ctx, (tx, userId) =>
+		tx
+			.select()
+			.from(splitPlan)
+			.where(eq(splitPlan.userId, userId))
+			.orderBy(desc(splitPlan.createdAt))
+			.limit(Math.min(Math.max(limit, 1), 50))
+	);
+	return rows.map(view);
+}
+
+/** The paydays ahead, with the open (proposed or approved) plan of each, for the home screen. */
+export async function upcomingPaydays(ctx: Ctx, count = 3) {
+	return run(ctx, async (tx, userId) => {
+		const incomes = await tx
+			.select()
+			.from(incomeSchedule)
+			.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.active, true)));
+		const today = toManilaDate(new Date());
+		const out: { incomeId: string; label: string; payday: string }[] = [];
+		for (const inc of incomes)
+			for (const d of occurrencesBetween(inc.schedule as Schedule, today, addDays(today, 800), {
+				weekend: inc.weekendRule
+			}).slice(0, count))
+				out.push({ incomeId: inc.id, label: inc.label, payday: d });
+		return out.sort((a, b) => (a.payday < b.payday ? -1 : 1)).slice(0, count);
+	});
+}

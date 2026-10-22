@@ -1,0 +1,9 @@
+.svelte-kit
+build
+node_modules
+yarn.lock
+.yarn
+static
+coverage
+test-results
+cli

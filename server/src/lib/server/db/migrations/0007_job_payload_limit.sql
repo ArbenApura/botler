@@ -1,0 +1,1 @@
+ALTER TABLE "job" ADD CONSTRAINT "job_payload_size_chk" CHECK (pg_column_size("job"."payload") <= 2048);

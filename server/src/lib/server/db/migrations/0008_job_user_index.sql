@@ -1,0 +1,1 @@
+CREATE INDEX "job_user_status_idx" ON "job" USING btree ("user_id","status");
