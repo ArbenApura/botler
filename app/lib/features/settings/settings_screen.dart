@@ -1,18 +1,26 @@
-// SETTINGS: WHO IS SIGNED IN, THE APP LOCK, WHAT NOTIFICATIONS SHOW, HOW EARLY REMINDERS COME, WHICH LANGUAGE TO LISTEN FOR, GOOGLE CALENDAR, AND THE LOOK.
+// SETTINGS: WHO IS SIGNED IN, THE LANGUAGE AND CURRENCY, THE APP LOCK, WHAT NOTIFICATIONS SHOW, HOW EARLY REMINDERS COME, WHICH LANGUAGE TO LISTEN FOR, GOOGLE CALENDAR, AND THE LOOK.
 // The lock is only turned on after it has worked once, so a phone with no fingerprint set up cannot lock the person out.
+// The language, the assistant's replies, the currency and the first day of the week are kept on the server too (the assistant needs them),
+// so they are saved there first and only then shown here. Changing the currency never converts an amount, and the screen says so before it does.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/money.dart';
 import '../../core/reminders.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
+import '../money/account_detail_screen.dart';
 
 // -- TYPES -- //
 
@@ -22,14 +30,16 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    final t = context.t;
     final s = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final session = ref.watch(sessionProvider).value;
     final sync = ref.watch(syncProvider);
     final cal = asJson(sync.value?['calendar']);
     final status = str(cal['status'], 'off');
+    final currency = currencyOf(s.currency);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(t.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
@@ -43,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
                       Text(
                         session?.name.isNotEmpty ?? false
                             ? session!.name
-                            : 'Signed in',
+                            : t.settingsSignedIn,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
@@ -57,30 +67,115 @@ class SettingsScreen extends ConsumerWidget {
                   onPressed: () async {
                     if (await confirm(
                       context,
-                      title: 'Sign out?',
-                      body: 'Botler stays on the server. You can sign in again any time.',
-                      yes: 'Sign out',
+                      title: t.settingsSignOutTitle,
+                      body: t.settingsSignOutBody,
+                      yes: t.settingsSignOut,
                     )) {
                       await ref.read(sessionProvider.notifier).signOut();
                     }
                   },
-                  child: const Text('Sign out'),
+                  child: Text(t.settingsSignOut),
                 ),
               ],
             ),
           ),
-          const SectionTitle('Privacy'),
+
+          // -- LANGUAGE AND MONEY -- //
+          SectionTitle(t.settingsSectionLanguageMoney),
+          DropdownButtonFormField<String>(
+            // ignore: deprecated_member_use
+            value: s.language,
+            decoration: InputDecoration(labelText: t.settingsAppLanguage),
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: 'en',
+                child: Text(t.settingsLanguageEn),
+              ),
+              DropdownMenuItem<String>(
+                value: 'fil',
+                child: Text(t.settingsLanguageFil),
+              ),
+            ],
+            onChanged: (l) =>
+                l == null ? null : _save(context, ref, language: l),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            // ignore: deprecated_member_use
+            value: s.replyLanguage,
+            decoration: InputDecoration(labelText: t.settingsReplies),
+            isExpanded: true,
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: 'auto',
+                child: Text(t.settingsRepliesAuto),
+              ),
+              DropdownMenuItem<String>(
+                value: 'en',
+                child: Text(t.settingsRepliesEn),
+              ),
+              DropdownMenuItem<String>(
+                value: 'fil',
+                child: Text(t.settingsRepliesFil),
+              ),
+              DropdownMenuItem<String>(
+                value: 'taglish',
+                child: Text(t.settingsRepliesTaglish),
+              ),
+            ],
+            onChanged: (r) =>
+                r == null ? null : _save(context, ref, replyLanguage: r),
+          ),
+          const SizedBox(height: 12),
+          PaperCard(
+            onTap: () => _pickCurrency(context, ref, s.currency),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        t.settingsCurrency,
+                        style: TextStyle(color: c.muted),
+                      ),
+                      Text(
+                        '${currency.code} · ${currency.name}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  formatMoney(123456, currency.code),
+                  style: TextStyle(color: c.muted, fontFeatures: tabular),
+                ),
+                Icon(Icons.chevron_right, color: c.muted),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(t.settingsWeekStarts, style: TextStyle(color: c.muted)),
+          const SizedBox(height: 6),
+          SegmentedButton<int>(
+            segments: <ButtonSegment<int>>[
+              ButtonSegment<int>(value: 1, label: Text(t.settingsMonday)),
+              ButtonSegment<int>(value: 0, label: Text(t.settingsSunday)),
+            ],
+            selected: <int>{s.weekStartsOn},
+            onSelectionChanged: (w) =>
+                _save(context, ref, weekStartsOn: w.first),
+          ),
+
+          // -- PRIVACY -- //
+          SectionTitle(t.settingsPrivacy),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Ask for my fingerprint or face to open Botler'),
+            title: Text(t.settingsLockTitle),
             value: s.lockOn,
             onChanged: (on) async {
               if (on && !await ref.read(authenticateProvider)()) {
-                if (context.mounted)
-                  say(
-                    context,
-                    'The lock needs a fingerprint or face set up on this phone.',
-                  );
+                if (context.mounted) say(context, t.settingsLockNeeds);
                 return;
               }
               await notifier.update(s.copyWith(lockOn: on));
@@ -88,9 +183,9 @@ class SettingsScreen extends ConsumerWidget {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Hide the details in notifications'),
+            title: Text(t.settingsHideTitle),
             subtitle: Text(
-              'A reminder says only “Botler”, so nobody sees it on your lock screen.',
+              t.settingsHideBody,
               style: TextStyle(color: c.muted),
             ),
             value: s.hideDetails,
@@ -99,22 +194,28 @@ class SettingsScreen extends ConsumerWidget {
               await flushAndSync(ref.container);
             },
           ),
-          const SectionTitle('Reminders'),
+
+          // -- AUDIT TRAIL -- //
+          const _AuditRow(),
+
+          // -- REMINDERS -- //
+          SectionTitle(t.settingsReminders),
           DropdownButtonFormField<int>(
             // ignore: deprecated_member_use
             value: s.leadMinutes,
-            decoration: const InputDecoration(
-              labelText: 'Remind me this long before',
-            ),
-            items: const <DropdownMenuItem<int>>[
-              DropdownMenuItem<int>(value: 0, child: Text('At the time')),
+            decoration: InputDecoration(labelText: t.settingsLeadLabel),
+            items: <DropdownMenuItem<int>>[
               DropdownMenuItem<int>(
-                value: 15,
-                child: Text('15 minutes before'),
+                value: 0,
+                child: Text(t.settingsLeadAtTime),
               ),
-              DropdownMenuItem<int>(value: 60, child: Text('1 hour before')),
-              DropdownMenuItem<int>(value: 180, child: Text('3 hours before')),
-              DropdownMenuItem<int>(value: 1440, child: Text('1 day before')),
+              DropdownMenuItem<int>(value: 15, child: Text(t.settingsLead15)),
+              DropdownMenuItem<int>(value: 60, child: Text(t.settingsLead60)),
+              DropdownMenuItem<int>(value: 180, child: Text(t.settingsLead180)),
+              DropdownMenuItem<int>(
+                value: 1440,
+                child: Text(t.settingsLead1440),
+              ),
             ],
             onChanged: (m) async {
               if (m == null) return;
@@ -122,50 +223,53 @@ class SettingsScreen extends ConsumerWidget {
               await flushAndSync(ref.container);
             },
           ),
-          const SectionTitle('Voice'),
+
+          // -- VOICE -- //
+          SectionTitle(t.settingsVoice),
           DropdownButtonFormField<String>(
             // ignore: deprecated_member_use
             value: s.speechLocale,
-            decoration: const InputDecoration(labelText: 'Listen for'),
-            items: const <DropdownMenuItem<String>>[
+            decoration: InputDecoration(labelText: t.settingsListenFor),
+            items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
                 value: 'en_PH',
-                child: Text('English (Philippines)'),
+                child: Text(t.settingsListenEn),
               ),
               DropdownMenuItem<String>(
                 value: 'fil_PH',
-                child: Text('Filipino and Taglish'),
+                child: Text(t.settingsListenFil),
               ),
             ],
             onChanged: (l) =>
                 l == null ? null : notifier.update(s.copyWith(speechLocale: l)),
           ),
-          const SectionTitle('Google Calendar'),
+
+          // -- GOOGLE CALENDAR -- //
+          SectionTitle(t.settingsGoogleCalendar),
           PaperCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
                   switch (status) {
-                    'ok' => 'Syncing both ways',
-                    'error' => 'Stopped: Google needs you to connect again',
-                    _ => 'Off',
+                    'ok' => t.settingsCalSyncing,
+                    'error' => t.settingsCalError,
+                    _ => t.settingsCalOff,
                   },
                   style: TextStyle(
                     color: status == 'error' ? c.warning : c.ink,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.',
-                  style: TextStyle(color: c.muted),
-                ),
+                Text(t.settingsCalBody, style: TextStyle(color: c.muted)),
                 const SizedBox(height: 8),
                 Row(
                   children: <Widget>[
                     if (status != 'ok')
                       FilledButton(
                         onPressed: () async {
+                          // Read before the await: no context is used after one
+                          final finish = t.settingsCalFinish;
                           try {
                             final r = await ref
                                 .read(apiProvider)
@@ -174,62 +278,127 @@ class SettingsScreen extends ConsumerWidget {
                                   <String, Object?>{},
                                 );
                             final url = Uri.tryParse(str(r['url']));
-                            if (url != null)
+                            if (url != null) {
                               await launchUrl(
                                 url,
                                 mode: LaunchMode.externalApplication,
                               );
-                            if (context.mounted)
-                              say(
-                                context,
-                                'Finish in the browser, then come back and tap “I connected”.',
-                              );
+                            }
+                            if (context.mounted) say(context, finish);
                           } catch (e) {
-                            if (context.mounted) say(context, errorWords(e));
+                            if (context.mounted)
+                              say(context, errorWords(e, context));
                           }
                         },
-                        child: const Text('Connect Google Calendar'),
+                        child: Text(t.settingsCalConnect),
                       ),
                     if (status != 'ok')
                       TextButton(
                         onPressed: () =>
                             _switch(context, ref, 'calendar_enable'),
-                        child: const Text('I connected'),
+                        child: Text(t.settingsCalIConnected),
                       ),
                     if (status == 'ok')
                       TextButton(
                         onPressed: () =>
                             _switch(context, ref, 'calendar_disable'),
-                        child: const Text('Turn off'),
+                        child: Text(t.settingsCalTurnOff),
                       ),
                   ],
                 ),
               ],
             ),
           ),
-          const SectionTitle('Look'),
+
+          // -- LOOK -- //
+          SectionTitle(t.settingsLook),
           SegmentedButton<ThemeMode>(
-            segments: const <ButtonSegment<ThemeMode>>[
+            segments: <ButtonSegment<ThemeMode>>[
               ButtonSegment<ThemeMode>(
                 value: ThemeMode.system,
-                label: Text('Phone'),
+                label: Text(t.settingsLookPhone),
               ),
               ButtonSegment<ThemeMode>(
                 value: ThemeMode.light,
-                label: Text('Light'),
+                label: Text(t.settingsLookLight),
               ),
               ButtonSegment<ThemeMode>(
                 value: ThemeMode.dark,
-                label: Text('Dark'),
+                label: Text(t.settingsLookDark),
               ),
             ],
             selected: <ThemeMode>{s.themeMode},
             onSelectionChanged: (m) =>
                 notifier.update(s.copyWith(themeMode: m.first)),
           ),
+
+          // -- DANGER ZONE -- //
+          SectionTitle(t.resetSection),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            minTileHeight: 56,
+            leading: Icon(Icons.delete_outline, color: c.danger),
+            title: Text(t.resetTitle),
+            subtitle: Text(t.resetLine, style: TextStyle(color: c.muted)),
+            onTap: () => context.push('/settings/reset'),
+          ),
         ],
       ),
     );
+  }
+
+  // -- FUNCTIONS -- //
+
+  /// Saves one of the shared choices on the server and then here. A failure is said in words and the old value stays.
+  Future<void> _save(
+    BuildContext context,
+    WidgetRef ref, {
+    String? currency,
+    String? language,
+    String? replyLanguage,
+    int? weekStartsOn,
+  }) async {
+    try {
+      final notice = await ref
+          .read(settingsProvider.notifier)
+          .saveToServer(
+            currency: currency,
+            language: language,
+            replyLanguage: replyLanguage,
+            weekStartsOn: weekStartsOn,
+          );
+      // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language
+      if (notice != null) ref.invalidate(balancesProvider);
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+    }
+  }
+
+  /// A searchable list of currencies. Choosing one asks once, and says that nothing is converted.
+  Future<void> _pickCurrency(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) async {
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: context.colors.paper,
+      builder: (sheet) => _CurrencySheet(current: current),
+    );
+    if (chosen == null || chosen == current || !context.mounted) return;
+    final t = context.t;
+    final picked = currencyOf(chosen);
+    final yes = await confirm(
+      context,
+      title: t.settingsCurrencyConfirmTitle(picked.code),
+      body: t.settingsCurrencyConfirmBody(picked.name),
+      yes: t.settingsCurrencyChange,
+    );
+    if (yes && context.mounted) {
+      await _save(context, ref, currency: chosen);
+    }
   }
 
   Future<void> _switch(BuildContext context, WidgetRef ref, String verb) async {
@@ -237,7 +406,146 @@ class SettingsScreen extends ConsumerWidget {
       await ref.read(apiProvider).verb(verb);
       ref.invalidate(syncProvider);
     } catch (e) {
-      if (context.mounted) say(context, errorWords(e));
+      if (context.mounted) say(context, errorWords(e, context));
     }
+  }
+}
+
+/// The list inside the sheet: a search field and every currency with its symbol and an example amount.
+class _CurrencySheet extends StatefulWidget {
+  const _CurrencySheet({required this.current});
+
+  final String current;
+
+  @override
+  State<_CurrencySheet> createState() => _CurrencySheetState();
+}
+
+class _CurrencySheetState extends State<_CurrencySheet> {
+  // -- STATES -- //
+
+  String _query = '';
+
+  // -- FUNCTIONS -- //
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    final needle = _query.trim().toLowerCase();
+    final shown = currencies
+        .where(
+          (x) =>
+              needle.isEmpty ||
+              x.code.toLowerCase().contains(needle) ||
+              x.name.toLowerCase().contains(needle),
+        )
+        .toList();
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: TextField(
+                  autofocus: false,
+                  decoration: InputDecoration(
+                    hintText: t.settingsCurrencySearch,
+                    prefixIcon: const Icon(Icons.search),
+                  ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
+              Expanded(
+                child: shown.isEmpty
+                    ? Note(t.settingsCurrencyNone)
+                    : ListView.builder(
+                        itemCount: shown.length,
+                        itemBuilder: (_, i) {
+                          final x = shown[i];
+                          final selected = x.code == widget.current;
+                          return ListTile(
+                            minTileHeight: 56,
+                            selected: selected,
+                            leading: SizedBox(
+                              width: 48,
+                              child: Text(
+                                x.code,
+                                style: TextStyle(
+                                  color: c.accentText,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            title: Text(x.name),
+                            subtitle: Text(
+                              t.settingsCurrencyExample(
+                                formatMoney(123456, x.code),
+                              ),
+                              style: TextStyle(
+                                color: c.muted,
+                                fontFeatures: tabular,
+                              ),
+                            ),
+                            trailing: selected
+                                ? Icon(Icons.check, color: c.accent)
+                                : null,
+                            onTap: () => Navigator.of(context).pop(x.code),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -- AUDIT ROW -- //
+
+/// The audit trail's state in one quiet row: checked and in order, or the entry that is not.
+class _AuditRow extends ConsumerWidget {
+  const _AuditRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.t;
+    final c = context.colors;
+    final verify = ref.watch(auditVerifyProvider);
+    final String detail = verify.when(
+      data: (v) {
+        if (boolOf(v['ok'], true)) {
+          final at = dateOf(v['verifiedAt'])?.toLocal() ?? DateTime.now();
+          return t.auditSettingsOk(
+            intOf(v['checked']),
+            DateFormat.MMMd(Localizations.localeOf(context).toString())
+                .add_jm()
+                .format(at),
+          );
+        }
+        final p = asJson(v['problem']);
+        return t.auditSettingsBad(intOf(p['seq']), str(p['kind']));
+      },
+      loading: () => t.auditChecking,
+      error: (_, _) => t.auditChecking,
+    );
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      minTileHeight: 56,
+      leading: Icon(Icons.verified_outlined, color: c.accentText),
+      title: Text(t.auditSettingsTitle),
+      subtitle: Text(
+        '${t.auditSettingsLine}\n$detail',
+        style: TextStyle(color: c.muted),
+      ),
+      onTap: () => ref.invalidate(auditVerifyProvider),
+    );
   }
 }

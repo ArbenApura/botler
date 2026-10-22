@@ -1,0 +1,259 @@
+{
+  "histEntryTitle": "Details",
+  "acctOpen": "See what happened",
+  "acctMenuCount": "I counted this",
+  "acctMenuSet": "Set balance",
+  "acctMenuReset": "Reset to zero",
+  "acctMenuExport": "Export history",
+  "acctBalanceNow": "Balance now",
+  "acctTabAll": "All",
+  "acctTabIn": "Money in",
+  "acctTabOut": "Money out",
+  "acctTabCounts": "Counts and resets",
+  "acctTabUndone": "Undone",
+  "acctEmpty": "Nothing here yet.",
+  "acctLoadMore": "Show older",
+  "acctSearchHint": "Search notes",
+  "acctByAnyone": "Anyone",
+  "acctByYou": "You",
+  "acctByBotler": "Botler",
+  "acctByJob": "Jobs and sync",
+  "acctDateRange": "Dates",
+  "acctDateClear": "Any date",
+  "acctOffline": "The history needs a connection.",
+  "acctExportDone": "Copied {rows} rows as {format}.",
+  "@acctExportDone": {
+    "placeholders": {
+      "rows": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "acctExportCut": "Copied {rows} rows as {format}. {notice}",
+  "@acctExportCut": {
+    "placeholders": {
+      "rows": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      },
+      "notice": {
+        "type": "String"
+      }
+    }
+  },
+  "auditYou": "You",
+  "auditBotler": "Botler",
+  "auditBotlerApproved": "Botler, approved by you",
+  "auditJob": "A scheduled job",
+  "auditSync": "Sync",
+  "auditChApp": "in the app",
+  "auditChChat": "in chat",
+  "auditChWidget": "from the widget",
+  "auditChOutbox": "offline, sent later",
+  "auditChCalendar": "Google Calendar",
+  "auditChJob": "a job",
+  "auditChSystem": "the system",
+  "auditAcCreate": "Added",
+  "auditAcUpdate": "Changed",
+  "auditAcDelete": "Removed",
+  "auditAcUndo": "Undone",
+  "auditAcCount": "Counted",
+  "auditAcReset": "Reset",
+  "auditAcApprove": "Approved",
+  "auditAcReject": "Declined",
+  "auditAcExpire": "Expired",
+  "auditAcDataReset": "Data reset",
+  "auditEnTxn": "transaction",
+  "auditEnSnapshot": "balance count",
+  "auditRowSemantics": "{what}, {who}, {when}, balance after {balance}",
+  "@auditRowSemantics": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "who": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "auditWho": "Who",
+  "auditWhere": "Where",
+  "auditWhen": "When",
+  "auditChanges": "What changed",
+  "auditNote": "Note",
+  "auditRefs": "References",
+  "auditBalanceAfter": "Balance after",
+  "auditChangeLine": "{field}: {before} to {after}",
+  "@auditChangeLine": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "auditNone": "none",
+  "auditCopyRef": "Copy reference",
+  "auditCopied": "Reference copied.",
+  "auditBannerTitle": "The audit trail does not add up",
+  "auditBannerBody": "Entry {seq} no longer matches the one before it. Nothing was lost on this phone. Open Settings, Audit trail, and send the details to whoever runs your server.",
+  "@auditBannerBody": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "auditSettingsTitle": "Audit trail",
+  "auditSettingsOk": "Checked {count} entries, all in order. Last check {when}.",
+  "@auditSettingsOk": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "auditSettingsBad": "Entry {seq} is out of order ({kind}).",
+  "@auditSettingsBad": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "auditSettingsLine": "Every change to your money is written once and can never be edited or deleted.",
+  "auditChecking": "Checking...",
+  "setBalanceTitle": "Set the balance of {name}",
+  "@setBalanceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceBody": "Botler thinks it is {amount}. Nothing is deleted: the history stays and the difference is shown as a reset.",
+  "@setBalanceBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceNew": "New balance ({currency})",
+  "@setBalanceNew": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceReason": "Why? (short)",
+  "setBalanceReasonNeeded": "Say why in a few words.",
+  "setBalanceConfirmTitle": "Set {name} to {amount}?",
+  "@setBalanceConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceConfirmBody": "It was {old}. The difference of {diff} is recorded as a reset, not as spending.",
+  "@setBalanceConfirmBody": {
+    "placeholders": {
+      "old": {
+        "type": "String"
+      },
+      "diff": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceConfirmYes": "Set it",
+  "setBalanceDone": "Balance set. The history keeps the old one.",
+  "setBalanceOffline": "A reset needs a connection, so it is not available offline.",
+  "resetZeroReason": "Starting again from zero",
+  "resetTitle": "Reset data",
+  "resetLine": "Erase some or all of what Botler holds about you. Your sign-in, settings, phones and Google connection stay.",
+  "resetSection": "Danger zone",
+  "resetScopeMoney": "Money",
+  "resetScopeMoneyLine": "Accounts, transactions, bills, goals, rules, paydays and splits",
+  "resetScopeSchedule": "Schedule",
+  "resetScopeScheduleLine": "Tasks, events, routines and reminders",
+  "resetScopeMemory": "Memory and chat",
+  "resetScopeMemoryLine": "What Botler remembers and your conversations",
+  "resetScopeAudit": "Audit history",
+  "resetScopeAuditLine": "The record of who changed what. A single note of the reset stays.",
+  "resetScopeEverything": "Everything",
+  "resetScopeEverythingLine": "All of the above",
+  "resetWillErase": "This will erase {total} rows:",
+  "@resetWillErase": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "resetNothing": "There is nothing to erase in this part.",
+  "resetKeeps": "Kept: {what}.",
+  "@resetKeeps": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "resetExportFirst": "Copy the history first",
+  "resetExported": "History copied. Paste it somewhere safe.",
+  "resetTypeWord": "Type {word} to continue",
+  "@resetTypeWord": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "resetButton": "Erase now",
+  "resetBiometric": "Confirm with your fingerprint or screen lock first.",
+  "resetOnlineOnly": "Resetting needs a connection.",
+  "resetDone": "Done. {total} rows erased.",
+  "@resetDone": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "resetWrongWord": "Type the word exactly as shown.",
+  "resetExpired": "The confirmation ran out. Choose the part again.",
+  "resetChoose": "What do you want to erase?",
+  "resetBack": "Choose another part",
+  "auditUnverified": "The history could not be checked just now.",
+  "auditRefRequest": "request",
+  "auditRefApproval": "approval",
+  "auditRefTurn": "turn"
+}

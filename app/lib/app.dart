@@ -8,19 +8,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import 'core/money_scope.dart';
+import 'l10n/l10n.dart';
 import 'core/reminders.dart';
 import 'features/agenda/agenda_screen.dart';
 import 'features/auth/lock_gate.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/calendar/calendar_screen.dart';
 import 'features/chat/chat_screen.dart';
 import 'features/expense/expense_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/memory/memory_screen.dart';
 import 'features/menu/menu_screen.dart';
+import 'features/money/account_detail_screen.dart';
 import 'features/money/accounts_screen.dart';
 import 'features/money/bills_screen.dart';
 import 'features/money/goals_screen.dart';
 import 'features/payday/payday_screen.dart';
+import 'features/settings/reset_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'state/providers.dart';
 import 'theme/theme.dart';
@@ -60,12 +65,19 @@ GoRouter buildRouter(WidgetRef ref) {
         },
       ),
       GoRoute(path: '/accounts', builder: (_, _) => const AccountsScreen()),
+      GoRoute(
+        path: '/account/:id',
+        builder: (_, state) =>
+            AccountDetailScreen(accountId: state.pathParameters['id'] ?? ''),
+      ),
       GoRoute(path: '/bills', builder: (_, _) => const BillsScreen()),
       GoRoute(path: '/goals', builder: (_, _) => const GoalsScreen()),
       GoRoute(path: '/payday', builder: (_, _) => const PaydayScreen()),
       GoRoute(path: '/history', builder: (_, _) => const HistoryScreen()),
+      GoRoute(path: '/calendar', builder: (_, _) => const CalendarScreen()),
       GoRoute(path: '/agenda', builder: (_, _) => const AgendaScreen()),
       GoRoute(path: '/memory', builder: (_, _) => const MemoryScreen()),
+      GoRoute(path: '/settings/reset', builder: (_, _) => const ResetScreen()),
       GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
     ],
   );
@@ -87,7 +99,16 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Re-evaluate the redirect when the session changes (signing in or out)
-    ref.listenManual(sessionProvider, (_, _) => _router.refresh());
+    ref.listenManual(sessionProvider, (_, next) {
+      _router.refresh();
+      // Signed in: take the currency and languages the server has
+      if (next.value != null) {
+        unawaited(ref.read(settingsProvider.notifier).pullFromServer());
+      }
+    });
+    if (ref.read(sessionProvider).value != null) {
+      unawaited(ref.read(settingsProvider.notifier).pullFromServer());
+    }
   }
 
   @override
@@ -114,9 +135,14 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
       themeMode: settings.themeMode,
+      locale: Locale(settings.language),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: _router,
-      builder: (context, child) =>
-          LockGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => MoneyScope(
+        currency: settings.currency,
+        child: LockGate(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

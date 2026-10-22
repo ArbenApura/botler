@@ -42,6 +42,9 @@ typedef TokenReader = Future<String?> Function();
 const Uuid _uuid = Uuid();
 const Duration _timeout = Duration(seconds: 30);
 
+/// How long a chat stream may stay silent. The server pings every 10 seconds.
+const Duration _idle = Duration(seconds: 45);
+
 // -- FUNCTIONS -- //
 
 /// A fresh request id: 8 to 80 characters, unique.
@@ -55,12 +58,18 @@ class ApiClient {
   final TokenReader token;
   final http.Client _http;
 
-  Future<Map<String, String>> _headers({String? key, bool json = false}) async {
+  Future<Map<String, String>> _headers({
+    String? key,
+    bool json = false,
+    String? channel,
+  }) async {
     final t = await token();
     final headers = <String, String>{};
     if (t != null) headers['authorization'] = 'Bearer $t';
     if (json) headers['content-type'] = 'application/json';
     if (key != null) headers['idempotency-key'] = key;
+    // Says where the call came from (widget or outbox) so the audit trail can show it; the server ignores anything else
+    if (channel != null) headers['x-botler-channel'] = channel;
     return headers;
   }
 
@@ -107,15 +116,16 @@ class ApiClient {
         return decodeJson(r.body);
       });
 
-  Future<Json> post(String path, Json body, {String? key}) => _guard(() async {
-    final r = await _http.post(
-      Uri.parse('$base$path'),
-      headers: await _headers(key: key, json: true),
-      body: jsonEncode(body),
-    );
-    if (r.statusCode >= 400) throw _failure(r);
-    return decodeJson(r.body);
-  });
+  Future<Json> post(String path, Json body, {String? key, String? channel}) =>
+      _guard(() async {
+        final r = await _http.post(
+          Uri.parse('$base$path'),
+          headers: await _headers(key: key, json: true, channel: channel),
+          body: jsonEncode(body),
+        );
+        if (r.statusCode >= 400) throw _failure(r);
+        return decodeJson(r.body);
+      });
 
   /// Runs one operation of the server's registry (POST /api/v1/do/NAME) and returns its result.
   /// Pass [key] to make the call safe to repeat; the outbox does.
@@ -123,11 +133,13 @@ class ApiClient {
     String name, [
     Json args = const <String, Object?>{},
     String? key,
+    String? channel,
   ]) async {
     final answer = await post(
       '/api/v1/do/$name',
       args,
       key: key ?? newRequestId(),
+      channel: channel,
     );
     return answer['result'];
   }
@@ -156,22 +168,36 @@ class ApiClient {
     <String, Object?>{'decision': approve ? 'approve' : 'reject'},
   );
 
-  /// One chat message as a stream of events (delta, tool, card, fallback, done, error). The same [id] sent again replays the stored answer.
+  /// One chat message as a stream of events (start, phase, reasoning, tool_start, delta, tool, card, fallback, done, error).
+  /// The same [id] sent again replays the stored answer. Completing [abort] stops this one request (the stream just ends);
+  /// the shared client stays open for everything else.
   Stream<Json> chat({
     required String id,
     required String text,
     String? ocrText,
+    Future<void>? abort,
+    Duration idle = _idle,
   }) async* {
-    final req = http.Request('POST', Uri.parse('$base/api/v1/agent/chat'))
-      ..headers.addAll(await _headers(json: true))
-      ..body = jsonEncode(<String, Object?>{
-        'clientMessageId': id,
-        'text': text,
-        if (ocrText != null && ocrText.isNotEmpty) 'ocrText': ocrText,
-      });
+    final req =
+        http.AbortableRequest(
+            'POST',
+            Uri.parse('$base/api/v1/agent/chat'),
+            abortTrigger: abort,
+          )
+          ..headers.addAll(await _headers(json: true))
+          // Nothing may compress the stream: compressed pieces are held back and the answer would arrive all at once
+          ..headers['accept-encoding'] = 'identity'
+          ..body = jsonEncode(<String, Object?>{
+            'clientMessageId': id,
+            'text': text,
+            if (ocrText != null && ocrText.isNotEmpty) 'ocrText': ocrText,
+          });
     final http.StreamedResponse res;
     try {
       res = await _http.send(req).timeout(_timeout);
+    } on http.RequestAbortedException {
+      // Stopped by the person before the server answered
+      return;
     } on SocketException {
       throw const ApiException('NETWORK', 'No connection.', 0);
     } on http.ClientException {
@@ -181,13 +207,29 @@ class ApiClient {
     }
     if (res.statusCode >= 400)
       throw _failure(await http.Response.fromStream(res));
+    // The server pings every 10 seconds, so a stream silent for longer than _idle is dead; any line, a ping included, restarts the wait
     final lines = res.stream
         .transform(utf8.decoder)
-        .transform(const LineSplitter());
-    await for (final line in lines) {
-      if (!line.startsWith('data:')) continue;
-      final event = decodeJson(line.substring(5).trim());
-      if (event.isNotEmpty) yield event;
+        .transform(const LineSplitter())
+        .timeout(
+          idle,
+          onTimeout: (sink) => sink.addError(TimeoutException('idle')),
+        );
+    try {
+      await for (final line in lines) {
+        if (!line.startsWith('data:')) continue;
+        final event = decodeJson(line.substring(5).trim());
+        if (event.isNotEmpty) yield event;
+      }
+    } on http.RequestAbortedException {
+      // Stopped by the person: the stream just ends
+      return;
+    } on SocketException {
+      throw const ApiException('NETWORK', 'The connection was lost.', 0);
+    } on http.ClientException {
+      throw const ApiException('NETWORK', 'The connection was lost.', 0);
+    } on TimeoutException {
+      throw const ApiException('NETWORK', 'The connection went quiet.', 0);
     }
   }
 

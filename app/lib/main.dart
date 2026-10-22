@@ -1,7 +1,10 @@
 // START: THE PREFERENCES, THE REMINDER MACHINERY (NOTIFICATIONS AND THE BACKGROUND SYNC), THEN THE APP.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,12 +17,15 @@ import 'state/providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Month and weekday names for every language the app has
+  await initializeDateFormatting();
   final prefs = await SharedPreferences.getInstance();
-  await initReminders();
   runApp(
     ProviderScope(
       overrides: [prefsProvider.overrideWithValue(prefs)],
       child: const BotlerApp(),
     ),
   );
+  // The permission dialog and the background task setup must not hold up the first frame
+  unawaited(initReminders().catchError((Object _) {}));
 }

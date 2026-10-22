@@ -5,10 +5,13 @@
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
-import '../../core/json.dart';
 import '../../core/money.dart';
+import '../../core/money_scope.dart';
+import '../../core/json.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -23,20 +26,19 @@ class AccountsScreen extends ConsumerWidget {
     final c = context.colors;
     final accounts = ref.watch(balancesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Accounts')),
+      appBar: AppBar(title: Text(context.t.accountsTitle)),
       body: AsyncBody<List<Json>>(
         value: accounts,
         onRetry: () => ref.invalidate(balancesProvider),
         data: (list) => ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
-            if (list.isEmpty)
-              const Note('No accounts yet. Add RCBC, GCash, Maya or cash.'),
+            if (list.isEmpty) Note(context.t.accountsEmpty),
             for (final a in list)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: PaperCard(
-                  onTap: () => _count(context, ref, a),
+                  onTap: () => context.push('/account/${str(a['id'])}'),
                   child: Row(
                     children: <Widget>[
                       Expanded(
@@ -49,13 +51,15 @@ class AccountsScreen extends ConsumerWidget {
                             ),
                             Text(
                               a['countedAt'] == null
-                                  ? 'Never counted'
-                                  : 'Counted ${_ago(str(a['countedAt']))}',
+                                  ? context.t.accountsNeverCounted
+                                  : context.t.accountsCounted(
+                                      _ago(context, str(a['countedAt'])),
+                                    ),
                               style: TextStyle(color: c.muted),
                             ),
                             if (boolOf(a['belowMinimum']))
                               Text(
-                                'Below the minimum you set',
+                                context.t.accountsBelowMinimum,
                                 style: TextStyle(color: c.warning),
                               ),
                           ],
@@ -70,7 +74,7 @@ class AccountsScreen extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () => _add(context, ref),
               icon: const Icon(Icons.add),
-              label: const Text('Add an account'),
+              label: Text(context.t.accountsAdd),
             ),
           ],
         ),
@@ -84,20 +88,24 @@ class AccountsScreen extends ConsumerWidget {
     var kind = 'bank';
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add an account',
+      title: context.t.accountsAdd,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: name, label: 'Name', hint: 'GCash'),
+            Field(
+              controller: name,
+              label: context.t.accountsNameLabel,
+              hint: sheet.t.accountsNameHint,
+            ),
             Wrap(
               spacing: 8,
               children: <Widget>[
                 for (final (k, label) in <(String, String)>[
-                  ('bank', 'Bank'),
-                  ('ewallet', 'E-wallet'),
-                  ('cash', 'Cash'),
-                  ('other', 'Other'),
+                  ('bank', sheet.t.accountsKindBank),
+                  ('ewallet', sheet.t.accountsKindEwallet),
+                  ('cash', sheet.t.accountsKindCash),
+                  ('other', sheet.t.accountsKindOther),
                 ])
                   ChoiceChip(
                     label: Text(label),
@@ -109,7 +117,7 @@ class AccountsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Field(
               controller: min,
-              label: 'Keep at least (pesos, optional)',
+              label: sheet.t.accountsMinimumLabel(sheet.currencyCode),
               hint: '500',
               keyboard: TextInputType.number,
             ),
@@ -117,9 +125,9 @@ class AccountsScreen extends ConsumerWidget {
               onPressed: () async {
                 final minimum = min.text.trim().isEmpty
                     ? 0
-                    : parsePesos(min.text);
+                    : context.parseAmount(min.text);
                 if (name.text.trim().isEmpty || minimum == null) {
-                  say(sheet, 'Give it a name, and the minimum as an amount.');
+                  say(sheet, sheet.t.accountsAddInvalid);
                   return;
                 }
                 try {
@@ -133,10 +141,10 @@ class AccountsScreen extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Add'),
+              child: Text(sheet.t.add),
             ),
           ],
         ),
@@ -145,34 +153,41 @@ class AccountsScreen extends ConsumerWidget {
     if (done == true) ref.invalidate(balancesProvider);
   }
 
-  Future<void> _count(BuildContext context, WidgetRef ref, Json account) async {
+  /// The count sheet, also opened from an account's own screen.
+  static Future<void> count(
+    BuildContext context,
+    WidgetRef ref,
+    Json account,
+  ) async {
     final amount = TextEditingController();
     final result = await showFormSheet<String>(
       context,
-      title: 'I counted ${str(account['name'])}',
+      title: context.t.accountsCountTitle(str(account['name'])),
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Botler thinks there is ${formatPhp(intOf(account['balance']))}.',
+            sheet.t.accountsBotlerThinks(
+              sheet.money(intOf(account['balance'])),
+            ),
             style: TextStyle(color: sheet.colors.muted),
           ),
           const SizedBox(height: 12),
           Field(
             controller: amount,
-            label: 'How much is really there? (pesos)',
+            label: sheet.t.accountsCountLabel(sheet.currencyCode),
             keyboard: const TextInputType.numberWithOptions(decimal: true),
           ),
           FilledButton(
             onPressed: () async {
-              final cents = parsePesos(amount.text);
+              final cents = context.parseAmount(amount.text);
               if (cents == null) {
-                say(sheet, 'Type the amount in pesos.');
+                say(sheet, sheet.t.accountsCountInvalid(sheet.currencyCode));
                 return;
               }
               close(await _record(sheet, ref, account, cents));
             },
-            child: const Text('Save the count'),
+            child: Text(sheet.t.accountsSaveCount),
           ),
         ],
       ),
@@ -182,13 +197,16 @@ class AccountsScreen extends ConsumerWidget {
   }
 
   /// Saves a count, asking for a yes (twice for a ten-times difference) when the server wants it.
-  Future<String> _record(
+  static Future<String> _record(
     BuildContext sheet,
     WidgetRef ref,
     Json account,
     int cents,
   ) async {
     final api = ref.read(apiProvider);
+    // The currency is read before any await, so no context is used after one
+    final code = sheet.currencyCode;
+    final t = sheet.t;
     final base = <String, Object?>{
       'accountId': str(account['id']),
       'amount': cents,
@@ -204,12 +222,12 @@ class AccountsScreen extends ConsumerWidget {
         if (!sheet.mounted) return '';
         final yes = await confirm(
           sheet,
-          title: large ? 'That is a big difference' : 'Is this right?',
+          title: large ? t.accountsConfirmBig : t.accountsConfirmRight,
           body:
-              'You counted ${formatPhp(cents)}${expected == null ? '' : ' and Botler expected ${formatPhp(expected)}'}.${large ? ' It is more than ten times different, so please check the digits.' : ''}',
-          yes: 'Yes, that is right',
+              '${expected == null ? t.accountsConfirmCounted(formatMoney(cents, code)) : t.accountsConfirmBoth(formatMoney(cents, code), formatMoney(expected, code))}${large ? ' ${t.accountsConfirmLarge}' : ''}',
+          yes: t.accountsConfirmYes,
         );
-        if (!yes) return 'Not saved.';
+        if (!yes) return t.accountsNotSaved;
         answer = asJson(
           await api.verb('snapshot_record', <String, Object?>{
             ...base,
@@ -220,8 +238,8 @@ class AccountsScreen extends ConsumerWidget {
       }
       final untracked = intOf(answer['untracked']);
       return untracked > 0
-          ? 'Saved. ${formatPhp(untracked)} went untracked since the last count.'
-          : 'Saved.';
+          ? t.accountsSavedUntracked(formatMoney(untracked, code))
+          : t.accountsSaved;
     } catch (e) {
       return errorWords(e);
     }
@@ -230,13 +248,13 @@ class AccountsScreen extends ConsumerWidget {
 
 // -- FUNCTIONS -- //
 
-String _ago(String iso) {
+String _ago(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
   final days = DateTime.now().difference(d).inDays;
   return days <= 0
-      ? 'today'
+      ? context.t.accountsToday
       : days == 1
-      ? 'yesterday'
-      : '$days days ago';
+      ? context.t.accountsYesterday
+      : context.t.accountsDaysAgo(days);
 }

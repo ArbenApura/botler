@@ -1,0 +1,1585 @@
+{
+  "@@locale": "en",
+  "accountsAdd": "Add an account",
+  "accountsAddInvalid": "Give it a name, and the minimum as an amount.",
+  "accountsBelowMinimum": "Below the minimum you set",
+  "accountsBotlerThinks": "Botler thinks there is {amount}.",
+  "@accountsBotlerThinks": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsConfirmBig": "That is a big difference",
+  "accountsConfirmBoth": "You counted {counted} and Botler expected {expected}.",
+  "@accountsConfirmBoth": {
+    "placeholders": {
+      "counted": {
+        "type": "String"
+      },
+      "expected": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsConfirmCounted": "You counted {counted}.",
+  "@accountsConfirmCounted": {
+    "placeholders": {
+      "counted": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsConfirmLarge": "It is more than ten times different, so please check the digits.",
+  "accountsConfirmRight": "Is this right?",
+  "accountsConfirmYes": "Yes, that is right",
+  "accountsCountInvalid": "Type the amount in {currency}.",
+  "@accountsCountInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsCountLabel": "How much is really there? ({currency})",
+  "@accountsCountLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsCountTitle": "I counted {name}",
+  "@accountsCountTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsCounted": "Counted {when}",
+  "@accountsCounted": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsDaysAgo": "{count, plural, other{{count} days ago}}",
+  "@accountsDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "accountsEmpty": "No accounts yet. Add RCBC, GCash, Maya or cash.",
+  "accountsKindBank": "Bank",
+  "accountsKindCash": "Cash",
+  "accountsKindEwallet": "E-wallet",
+  "accountsKindOther": "Other",
+  "accountsMinimumLabel": "Keep at least ({currency}, optional)",
+  "@accountsMinimumLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsNameHint": "GCash",
+  "accountsNameLabel": "Name",
+  "accountsNeverCounted": "Never counted",
+  "accountsNotSaved": "Not saved.",
+  "accountsSaveCount": "Save the count",
+  "accountsSaved": "Saved.",
+  "accountsSavedUntracked": "Saved. {amount} went untracked since the last count.",
+  "@accountsSavedUntracked": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsTitle": "Accounts",
+  "accountsToday": "today",
+  "accountsYesterday": "yesterday",
+  "acctBalanceNow": "Balance now",
+  "acctByAnyone": "Anyone",
+  "acctByBotler": "Botler",
+  "acctByJob": "Jobs and sync",
+  "acctByYou": "You",
+  "acctDateClear": "Any date",
+  "acctDateRange": "Dates",
+  "acctEmpty": "Nothing here yet.",
+  "acctExportCut": "Copied {rows} rows as {format}. {notice}",
+  "@acctExportCut": {
+    "placeholders": {
+      "rows": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      },
+      "notice": {
+        "type": "String"
+      }
+    }
+  },
+  "acctExportDone": "Copied {rows} rows as {format}.",
+  "@acctExportDone": {
+    "placeholders": {
+      "rows": {
+        "type": "int"
+      },
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "acctLoadMore": "Show older",
+  "acctMenuCount": "I counted this",
+  "acctMenuExport": "Export history",
+  "acctMenuReset": "Reset to zero",
+  "acctMenuSet": "Set balance",
+  "acctOffline": "The history needs a connection.",
+  "acctOpen": "See what happened",
+  "acctSearchHint": "Search notes",
+  "acctTabAll": "All",
+  "acctTabCounts": "Counts and resets",
+  "acctTabIn": "Money in",
+  "acctTabOut": "Money out",
+  "acctTabUndone": "Undone",
+  "add": "Add",
+  "agendaAddEvent": "Add an event",
+  "agendaAddRoutine": "Add a routine",
+  "agendaAddTask": "Add a task",
+  "agendaAlarm": "Alarm",
+  "agendaAtTime": "At {time}",
+  "@agendaAtTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaDaysAt": "{days} at {time}",
+  "@agendaDaysAt": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaDue": "Due {when}",
+  "@agendaDue": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaEventNeeds": "Give it a name and a time.",
+  "agendaEventSubmit": "Add the event",
+  "agendaEventWhat": "What is it?",
+  "agendaEventsEmpty": "No events in the next two weeks.",
+  "agendaEveryDayAt": "Every day at {time}",
+  "@agendaEveryDayAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaEveryNDaysAt": "Every {n} days at {time}",
+  "@agendaEveryNDaysAt": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaFreqDaily": "Every day",
+  "agendaFreqWeekly": "On some days",
+  "agendaFromGoogle": "from Google Calendar",
+  "agendaMonthlyAt": "Every month on the {day}th at {time}",
+  "@agendaMonthlyAt": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "agendaPickMoment": "Pick the day and time",
+  "agendaRemindMe": "Remind me",
+  "agendaReminderNeeds": "Say what for, and when.",
+  "agendaReminderWhat": "What for?",
+  "agendaRemindersEmpty": "No reminders waiting.",
+  "agendaRemove": "Remove",
+  "agendaRoutineHint": "Take vitamins",
+  "agendaRoutineNeeds": "Give it a name, and pick at least one day.",
+  "agendaRoutineSubmit": "Add the routine",
+  "agendaRoutinesEmpty": "No routines. Try “gym every Monday, Wednesday and Friday at 6”.",
+  "agendaSetAlarm": "Set an alarm",
+  "agendaStartTimer": "Start a timer",
+  "agendaTabEvents": "Events",
+  "agendaTabReminders": "Reminders",
+  "agendaTabRoutines": "Routines",
+  "agendaTabTasks": "Tasks",
+  "agendaTaskDeadline": "Set a deadline (optional)",
+  "agendaTaskNeedsTitle": "Say what the task is.",
+  "agendaTaskSubmit": "Add the task",
+  "agendaTaskWhat": "What needs doing?",
+  "agendaTasksEmpty": "Nothing open. Add something you want to remember to do.",
+  "agendaTimerMinutes": "How many minutes?",
+  "agendaTimerRange": "Pick between 1 and 1440 minutes.",
+  "agendaTimerStart": "Start",
+  "agendaTitle": "Agenda",
+  "appName": "Botler",
+  "auditAcApprove": "Approved",
+  "auditAcCount": "Counted",
+  "auditAcCreate": "Added",
+  "auditAcDataReset": "Data reset",
+  "auditAcDelete": "Removed",
+  "auditAcExpire": "Expired",
+  "auditAcReject": "Declined",
+  "auditAcReset": "Reset",
+  "auditAcUndo": "Undone",
+  "auditAcUpdate": "Changed",
+  "auditBalanceAfter": "Balance after",
+  "auditBannerBody": "Entry {seq} no longer matches the one before it. Nothing was lost on this phone. Open Settings, Audit trail, and send the details to whoever runs your server.",
+  "@auditBannerBody": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      }
+    }
+  },
+  "auditBannerTitle": "The audit trail does not add up",
+  "auditBotler": "Botler",
+  "auditBotlerApproved": "Botler, approved by you",
+  "auditChApp": "in the app",
+  "auditChCalendar": "Google Calendar",
+  "auditChChat": "in chat",
+  "auditChJob": "a job",
+  "auditChOutbox": "offline, sent later",
+  "auditChSystem": "the system",
+  "auditChWidget": "from the widget",
+  "auditChangeLine": "{field}: {before} to {after}",
+  "@auditChangeLine": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      },
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "auditChanges": "What changed",
+  "auditChecking": "Checking...",
+  "auditCopied": "Reference copied.",
+  "auditCopyRef": "Copy reference",
+  "auditEnSnapshot": "balance count",
+  "auditEnTxn": "transaction",
+  "auditJob": "A scheduled job",
+  "auditNone": "none",
+  "auditNote": "Note",
+  "auditRefApproval": "approval",
+  "auditRefRequest": "request",
+  "auditRefTurn": "turn",
+  "auditRefs": "References",
+  "auditRowSemantics": "{what}, {who}, {when}, balance after {balance}",
+  "@auditRowSemantics": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      },
+      "who": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      },
+      "balance": {
+        "type": "String"
+      }
+    }
+  },
+  "auditSettingsBad": "Entry {seq} is out of order ({kind}).",
+  "@auditSettingsBad": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "auditSettingsLine": "Every change to your money is written once and can never be edited or deleted.",
+  "auditSettingsOk": "Checked {count} entries, all in order. Last check {when}.",
+  "@auditSettingsOk": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "auditSettingsTitle": "Audit trail",
+  "auditSync": "Sync",
+  "auditUnverified": "The history could not be checked just now.",
+  "auditWhen": "When",
+  "auditWhere": "Where",
+  "auditWho": "Who",
+  "auditYou": "You",
+  "billsAboutLabel": "About how much? ({currency})",
+  "@billsAboutLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsAdd": "Add a bill",
+  "billsAddButton": "Add the bill",
+  "billsAddInvalid": "Give it a name, an amount and an account.",
+  "billsAll": "All bills",
+  "billsAmountNotKnown": "amount not known yet",
+  "billsAmountUnknown": "amount?",
+  "billsComingUp": "Coming up",
+  "billsDateLabel": "Due date",
+  "billsDateNote": "This moves only this one. To change every date, change how it repeats below.",
+  "billsEditHint": "Tap to change it",
+  "billsEditTitle": "Change the bill",
+  "billsEmpty": "No bills yet. Add rent, internet, electricity...",
+  "billsHowMuchLabel": "How much? ({currency})",
+  "@billsHowMuchLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMarkPaid": "Mark paid",
+  "billsMarkPaidFor": "Mark {name} paid",
+  "@billsMarkPaidFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMarkedPaid": "Marked paid.",
+  "billsMarkedPaidHint": "Marked paid. It came in {amount} under the usual: you could set that aside.",
+  "@billsMarkedPaidHint": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMovedTag": "moved",
+  "billsNameHint": "Rent",
+  "billsNameLabel": "What is it?",
+  "billsNoChange": "Nothing changed.",
+  "billsNothingDue": "Nothing is due in the next 4 months.",
+  "billsOverdue": "Overdue",
+  "billsPaid": "Paid",
+  "billsPaidFrom": "Paid from",
+  "billsPaidTitle": "{name} paid",
+  "@billsPaidTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billsParentsShare": "This is my parents’ share",
+  "billsParentsTag": "parents’ share",
+  "billsPayInvalid": "Type the amount in {currency}.",
+  "@billsPayInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsPayLabel": "How much was it this time? ({currency})",
+  "@billsPayLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsPutBack": "Put back as scheduled",
+  "billsPutBackDone": "Back to the schedule.",
+  "billsRepeatChangedNote": "You changed how it repeats, so every date follows the new rule.",
+  "billsSave": "Save",
+  "billsSaved": "Saved.",
+  "billsSavedOffline": "No connection. It will be saved when you are back online.",
+  "billsScopeAll": "Every time from now on",
+  "billsScopeThisOne": "Just this one ({date})",
+  "@billsScopeThisOne": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billsScopeTitle": "Just this one, or every time?",
+  "billsSkip": "Skip this date",
+  "billsSkipBody": "It will not show up for that date. Ask Botler to put it back if you change your mind.",
+  "billsSkipTitle": "Skip {name} on {date}?",
+  "@billsSkipTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billsSkipYes": "Skip it",
+  "billsSkipped": "Skipped.",
+  "billsTitle": "Bills",
+  "billsUsualSuffix": "{amount} (usual)",
+  "@billsUsualSuffix": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "billsVaries": "The amount is different every time",
+  "calAdd": "Add",
+  "calAddBill": "A bill",
+  "calAddEvent": "An event",
+  "calAddReminder": "A reminder",
+  "calAddTask": "A task",
+  "calAddTitle": "Add to {date}",
+  "@calAddTitle": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calAgendaDueThisWeek": "Due this week",
+  "calAgendaEmpty": "Nothing in the next 30 days.",
+  "calAgendaMore": "Show 30 more days",
+  "calAllDay": "All day",
+  "calAllDayToggle": "All day",
+  "calAmountUnknown": "amount?",
+  "calBillDue": "Due {date}",
+  "@calBillDue": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calBillOverdue": "Overdue",
+  "calBillPaid": "Paid",
+  "calBillWindow": "Pay any day {start} to {end}",
+  "@calBillWindow": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "calCountBills": "{count, plural, =1{1 bill} other{{count} bills}}",
+  "@calCountBills": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calCountEvents": "{count, plural, =1{1 event} other{{count} events}}",
+  "@calCountEvents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calCountPaydays": "{count, plural, =1{1 payday} other{{count} paydays}}",
+  "@calCountPaydays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calCountReminders": "{count, plural, =1{1 reminder} other{{count} reminders}}",
+  "@calCountReminders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calCountRoutines": "{count, plural, =1{1 routine} other{{count} routines}}",
+  "@calCountRoutines": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calCountTasks": "{count, plural, =1{1 task} other{{count} tasks}}",
+  "@calCountTasks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calDayNothing": "nothing planned",
+  "calDaySemantics": "{date}, {parts}",
+  "@calDaySemantics": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "calError": "The calendar could not load.",
+  "calEstimate": "Estimate",
+  "calForecastLow": "{account} may drop under its minimum",
+  "@calForecastLow": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "calForecastLowDay": "Low on {date}",
+  "@calForecastLowDay": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calForecastNone": "Nothing to estimate yet. Add an account and a bill first.",
+  "calForecastOk": "never under the minimum",
+  "calForecastSemantics": "Estimated money across accounts from {from} to {to}, {low}",
+  "@calForecastSemantics": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "low": {
+        "type": "String"
+      }
+    }
+  },
+  "calForecastTitle": "Where your money is heading",
+  "calForecastTotal": "About {amount}",
+  "@calForecastTotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "calForecastUnknown": "{count, plural, =1{1 bill has no amount yet, so it counts as nothing} other{{count} bills have no amount yet, so they count as nothing}}",
+  "@calForecastUnknown": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calFromGoogle": "From Google Calendar",
+  "calLayerBills": "Bills",
+  "calLayerEvents": "Events",
+  "calLayerPaydays": "Paydays",
+  "calLayerReminders": "Reminders",
+  "calLayerRoutines": "Routines",
+  "calLayerTasks": "Tasks",
+  "calLayersLabel": "Show",
+  "calMarkPaid": "Mark paid",
+  "calMarkPaidBody": "This writes {amount} as an expense.",
+  "@calMarkPaidBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "calMarkPaidTitle": "Mark {name} paid?",
+  "@calMarkPaidTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "calMore": "+{count}",
+  "@calMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calNeedTitle": "Give it a name first.",
+  "calNext": "Next",
+  "calNow": "Now",
+  "calOffline": "Showing the last calendar this phone saw.",
+  "calPaidDone": "Marked paid.",
+  "calPaydayLabel": "Payday",
+  "calPaydaySplit": "Split your pay",
+  "calPaydaySplitDone": "Split done",
+  "calPrev": "Previous",
+  "calReminderLabel": "Reminder",
+  "calRoutineLabel": "Routine",
+  "calSaved": "Saved.",
+  "calTaskLabel": "Task",
+  "calTimeLabel": "Time",
+  "calTitle": "Calendar",
+  "calToday": "Today",
+  "calViewAgenda": "Agenda",
+  "calViewMonth": "Month",
+  "calViewWeek": "Week",
+  "calWeekOf": "Week of {date}",
+  "@calWeekOf": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "calWhatIsIt": "What is it?",
+  "cancel": "Cancel",
+  "chatAcrossAccounts": "Across your accounts",
+  "chatAddExpense": "Add an expense",
+  "chatAddExpenseHint": "You can still add an expense yourself.",
+  "chatApprove": "Approve",
+  "chatApproveRule": "Approve rule",
+  "chatAssistantDown": "The assistant is not available right now.",
+  "chatCalendarStopped": "Google Calendar stopped syncing. Tap to reconnect.",
+  "chatCardFailed": "That could not be done.",
+  "chatChecked": "Checked {what}",
+  "@chatChecked": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatChecking": "Checking {what}",
+  "@chatChecking": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatChooseScreenshot": "Choose a screenshot",
+  "chatConfirmQuestion": "Is it {amount} on {account}?",
+  "@chatConfirmQuestion": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "chatHintMessage": "Message Botler",
+  "chatHowMuch": "How much was it?",
+  "chatInForce": "In force",
+  "chatLogged": "Logged {amount} on {account}",
+  "@chatLogged": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "chatMarkedPaid": "Marked paid · {amount}",
+  "@chatMarkedPaid": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "chatMenu": "Menu",
+  "chatMicBlocked": "This phone cannot listen right now. Check the microphone permission.",
+  "chatNeedsAmounts": "How much is usually {names}? I need an amount to make the split.",
+  "@chatNeedsAmounts": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNextBill": "Next bill: {name}, {day}",
+  "@chatNextBill": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNoBill": "No bill coming up",
+  "chatNoEvent": "Nothing on your calendar today",
+  "chatNotDone": "Not done",
+  "chatNotNow": "Not now",
+  "chatNoticeFailed": "The assistant could not finish that. Try again.",
+  "chatNoticeOffline": "No connection. Saved on your phone. It will be sent once, when you are back online.",
+  "chatOffline": "offline",
+  "chatPendingSnack": "{count, plural, =1{{count} entry is waiting for a connection.} other{{count} entries are waiting for a connection.}}",
+  "@chatPendingSnack": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPendingTooltip": "{count} waiting to be sent",
+  "@chatPendingTooltip": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoEmpty": "I could not read any text on that photo.",
+  "chatPhotoFailed": "The photo could not be read.",
+  "chatPhotoRead": "Photo read ({count, plural, =1{{count} character} other{{count} characters}})",
+  "@chatPhotoRead": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoTooltip": "Photo of a receipt",
+  "chatPleaseCheck": "Please check",
+  "chatReceiptMessage": "Here is a receipt.",
+  "chatRecorded": "Recorded {amount}",
+  "@chatRecorded": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "chatSend": "Send",
+  "chatSpeak": "Speak",
+  "chatStop": "Stop",
+  "chatStopListening": "Stop listening",
+  "chatStopped": "Stopped.",
+  "chatTakePhoto": "Take a photo",
+  "chatThinking": "Thinking",
+  "chatThoughtFor": "Thought for {seconds} s",
+  "@chatThoughtFor": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "chatThoughtToggle": "Show or hide what the assistant thought",
+  "chatToolFailed": "That did not work.",
+  "chatUndoGone": "That entry can no longer be undone.",
+  "chatUndoneLine": "Undone",
+  "chatUndoneSnack": "Undone.",
+  "chatWaiting": "Working on it",
+  "chatWhichAccount": "Which account was {amount} from?",
+  "@chatWhichAccount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "chatWithPhoto": "{text}\n(with a photo)",
+  "@chatWithPhoto": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "chatWriting": "Writing",
+  "chatYesLogIt": "Yes, log it",
+  "chatYourAccount": "your account",
+  "close": "Close",
+  "delete": "Delete",
+  "done": "Done",
+  "expenseAmountError": "Type the amount in {code}, like 180 or 1,250.50.",
+  "@expenseAmountError": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "expenseFromAccount": "From which account?",
+  "expenseHowMuch": "How much? ({code})",
+  "@expenseHowMuch": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "expenseLogIt": "Log it",
+  "expenseLogged": "Logged {amount}.",
+  "@expenseLogged": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "expenseNoteHint": "lunch",
+  "expenseNoteLabel": "What was it for? (optional)",
+  "expenseOffline": "No connection. Saved on your phone, it will be sent once.",
+  "expensePickAccount": "Pick the account it came from.",
+  "expenseTitle": "Add an expense",
+  "goalsAdd": "Add a goal",
+  "goalsAddButton": "Add the goal",
+  "goalsAddInvalid": "Give it a name, a place, and amounts as numbers.",
+  "goalsAim": " · aim {amount}",
+  "@goalsAim": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsEachPayday": "{amount} each payday",
+  "@goalsEachPayday": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsEmpty": "No goals yet. What would you like to save for?",
+  "goalsNameHint": "Emergency fund",
+  "goalsNameLabel": "What are you saving for?",
+  "goalsOnlyRules": "Only what your rules give it",
+  "goalsPerLabel": "Set aside each payday ({currency}, optional)",
+  "@goalsPerLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsTargetLabel": "The amount you want to reach ({currency}, optional)",
+  "@goalsTargetLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsTitle": "Savings goals",
+  "goalsWhere": "Where does it sit?",
+  "goalsYear": "In a year (24 paydays) that is {amount}.",
+  "@goalsYear": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "histEntryTitle": "Details",
+  "historyAccountFallback": "account",
+  "historyEmpty": "Nothing here yet.",
+  "historyFixThis": "Fix this",
+  "historyMore": "More",
+  "historyMoved": "Moved {from} → {to}",
+  "@historyMoved": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "historySearchHint": "Search by note, category or amount",
+  "historySpentThisMonth": "Spent this month",
+  "historyTitle": "History",
+  "historyUndoneSaid": "Undone.",
+  "historyUndoneTag": "undone",
+  "historyUntracked": "{amount} went untracked (found when you counted an account).",
+  "@historyUntracked": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "lockReason": "Open Botler",
+  "lockTitle": "Botler is locked",
+  "lockUnlock": "Unlock",
+  "memoryAboutLabel": "A few lines about you",
+  "memoryBefore": "Before: {text}",
+  "@memoryBefore": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryChange": "Change",
+  "memoryChangeTitle": "Change this memory",
+  "memoryCopied": "Copied everything to the clipboard.",
+  "memoryCopyAll": "Copy everything (memory and money) as text",
+  "memoryEmpty": "Nothing yet. Botler learns as you talk, or tell it: “remember that…”.",
+  "memoryForget": "Forget",
+  "memoryForgetBody": "“{text}” will be deleted and will not come back.",
+  "@memoryForgetBody": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryForgetTitle": "Forget this?",
+  "memoryForgetYes": "Forget it",
+  "memoryForgotten": "Forgotten.",
+  "memoryInSentence": "In a sentence",
+  "memoryKeepOld": "Keep the old one",
+  "memoryLearned": "Learned from chat",
+  "memoryMore": "More",
+  "memoryNotSure": "Botler is not sure",
+  "memoryNow": "Now: {text}",
+  "@memoryNow": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "memoryPeopleHint": "Mama, Ate Liza",
+  "memoryPeopleLabel": "Names to keep private (separate with commas)",
+  "memoryPeopleNote": "Botler hides these names from the AI that writes its replies.",
+  "memoryPersonaHint": "Like a friendly older sister, short answers",
+  "memoryPersonaLabel": "How should Botler talk?",
+  "memoryRememberTitle": "Remember something",
+  "memoryRemembers": "What Botler remembers",
+  "memorySaved": "Saved.",
+  "memorySearchHint": "Search the memories",
+  "memoryTalks": "How Botler talks to you",
+  "memoryTellSomething": "Tell Botler something to remember",
+  "memoryTitle": "Memory",
+  "memoryUseNew": "Use the new one",
+  "memoryWhichRight": "Which is right?",
+  "memoryWipe": "Wipe",
+  "memoryWipeBody": "This deletes all memories, summaries and your conversations with Botler. Your accounts, bills and money records stay. It cannot be undone.",
+  "memoryWipeButton": "Wipe what Botler remembers",
+  "memoryWipeTitle": "Wipe everything Botler remembers?",
+  "memoryWipeType": "Type WIPE to confirm",
+  "memoryWipeWord": "WIPE",
+  "memoryWiped": "Wiped.",
+  "memoryYouSaid": "You said",
+  "memoryYourData": "Your data",
+  "menuAccounts": "Accounts",
+  "menuAccountsLine": "What is in RCBC, GCash, Maya and cash",
+  "menuAgenda": "Agenda",
+  "menuAgendaLine": "Tasks, events, routines and reminders",
+  "menuBills": "Bills",
+  "menuBillsLine": "What is due, and mark it paid",
+  "menuCalendar": "Calendar",
+  "menuCalendarLine": "Bills, paydays, events and routines by day",
+  "menuGoals": "Savings goals",
+  "menuGoalsLine": "What you are saving for",
+  "menuHistory": "History",
+  "menuHistoryLine": "Everything you spent, and undo",
+  "menuMemory": "Memory",
+  "menuMemoryLine": "What Botler remembers, and how it talks",
+  "menuPayday": "Payday",
+  "menuPaydayLine": "Split your pay, and the rules for it",
+  "menuSettings": "Settings",
+  "menuSettingsLine": "Language, money, lock, notifications, calendar, look",
+  "menuTitle": "Menu",
+  "no": "No",
+  "notifChannel": "Reminders",
+  "notifChannelDescription": "Bills, paydays, tasks and events",
+  "notifHiddenBody": "You have a reminder",
+  "paydayAdd": "Add a payday",
+  "paydayAddRule": "Add a rule",
+  "paydayApprove": "Approve",
+  "paydayComingUp": "Coming up",
+  "paydayDecline": "Decline",
+  "paydayDifferent": "Different every time",
+  "paydayEarlier": "Earlier splits",
+  "paydayEmpty": "Tell Botler when you get paid.",
+  "paydayIncomeAmountLabel": "How much, usually? ({currency}, optional)",
+  "@paydayIncomeAmountLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayIncomeDefault": "Salary",
+  "paydayIncomeInvalid": "Give it a name, an account and the amount as a number.",
+  "paydayIncomeLabel": "What do you call it?",
+  "paydayIncomeTitle": "When do you get paid?",
+  "paydayLandsIn": "It lands in",
+  "paydayMakeSplit": "Make the split",
+  "paydayNeedsAmounts": "How much is {names} usually? Add the amount to the bill first.",
+  "@paydayNeedsAmounts": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayNoEarlier": "No earlier splits yet.",
+  "paydayNoneAhead": "No payday ahead yet.",
+  "paydayPayInvalid": "Type the pay in {currency}.",
+  "@paydayPayInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayPayLabel": "How much is the pay this time? (leave empty for the usual)",
+  "paydayPlan": "Plan the split",
+  "paydayPlanTitle": "Plan {label} on {date}",
+  "@paydayPlanTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayRuleAddButton": "Add the rule",
+  "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",
+  "paydayRuleHint": "20% to emergency fund",
+  "paydayRuleLabel": "Say it in your own words",
+  "paydayRuleTitle": "Add a rule",
+  "paydayRulesEmpty": "No rules yet. Say what should happen to what is left, like “20% to emergency fund”.",
+  "paydayRulesTitle": "Rules for the rest",
+  "paydayStop": "Stop",
+  "paydayTitle": "Payday",
+  "paydayUsually": "Usually {amount}",
+  "@paydayUsually": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayWaiting": "Waiting for your yes",
+  "paydayYours": "Your paydays",
+  "resetBack": "Choose another part",
+  "resetBiometric": "Confirm with your fingerprint or screen lock first.",
+  "resetButton": "Erase now",
+  "resetChoose": "What do you want to erase?",
+  "resetDone": "Done. {total} rows erased.",
+  "@resetDone": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "resetExpired": "The confirmation ran out. Choose the part again.",
+  "resetExportFirst": "Copy the history first",
+  "resetExported": "History copied. Paste it somewhere safe.",
+  "resetKeeps": "Kept: {what}.",
+  "@resetKeeps": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "resetLine": "Erase some or all of what Botler holds about you. Your sign-in, settings, phones and Google connection stay.",
+  "resetNothing": "There is nothing to erase in this part.",
+  "resetOnlineOnly": "Resetting needs a connection.",
+  "resetScopeAudit": "Audit history",
+  "resetScopeAuditLine": "The record of who changed what. A single note of the reset stays.",
+  "resetScopeEverything": "Everything",
+  "resetScopeEverythingLine": "All of the above",
+  "resetScopeMemory": "Memory and chat",
+  "resetScopeMemoryLine": "What Botler remembers and your conversations",
+  "resetScopeMoney": "Money",
+  "resetScopeMoneyLine": "Accounts, transactions, bills, goals, rules, paydays and splits",
+  "resetScopeSchedule": "Schedule",
+  "resetScopeScheduleLine": "Tasks, events, routines and reminders",
+  "resetSection": "Danger zone",
+  "resetTitle": "Reset data",
+  "resetTypeWord": "Type {word} to continue",
+  "@resetTypeWord": {
+    "placeholders": {
+      "word": {
+        "type": "String"
+      }
+    }
+  },
+  "resetWillErase": "This will erase {total} rows:",
+  "@resetWillErase": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "resetWrongWord": "Type the word exactly as shown.",
+  "resetZeroReason": "Starting again from zero",
+  "retry": "Try again",
+  "save": "Save",
+  "schedBasisCalendar": "Calendar weeks",
+  "schedBasisDays": "Days 1 to 7, 8 to 14 and so on",
+  "schedDay": "Day",
+  "schedEvery1": "Every month",
+  "schedEvery12": "Every 12 months",
+  "schedEvery2": "Every 2 months",
+  "schedEvery3": "Every 3 months",
+  "schedEvery6": "Every 6 months",
+  "schedEveryDays": "Repeat every (days)",
+  "schedEveryWeeks1": "Every week",
+  "schedEveryWeeks2": "Every 2 weeks",
+  "schedEveryWeeks3": "Every 3 weeks",
+  "schedEveryWeeks4": "Every 4 weeks",
+  "schedFirstDay": "First day",
+  "schedFromDay": "From day",
+  "schedHow": "How often?",
+  "schedLast": "last",
+  "schedLastDay": "Last day",
+  "schedMonth": "Month",
+  "schedNth1": "1st",
+  "schedNth2": "2nd",
+  "schedNth3": "3rd",
+  "schedNth4": "4th",
+  "schedNth5": "5th",
+  "schedNthLast": "Last",
+  "schedPatEveryN": "Every few days",
+  "schedPatMonthlyDay": "On a day of the month",
+  "schedPatNthWeekday": "On a weekday of the month (like the 1st Wednesday)",
+  "schedPatRange": "Between two days of the month",
+  "schedPatSemi": "Twice a month",
+  "schedPatWeek": "In a week of the month",
+  "schedPatWeekly": "Every week",
+  "schedPatYearly": "Once a year",
+  "schedPayWindow": "Pay any day {start} to {end}",
+  "@schedPayWindow": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "schedPickWeekday": "One weekday of that week",
+  "schedPickWindow": "Any day in that week",
+  "schedPreviewNone": "No date found in the next two years.",
+  "schedPreviewOffline": "Connect to the internet to see the next dates.",
+  "schedPreviewTitle": "The next dates",
+  "schedPreviewWindow": "{start} to {end}",
+  "@schedPreviewWindow": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "schedRepeat": "Repeat",
+  "schedSayEveryDay": "Every day from {date}",
+  "@schedSayEveryDay": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayEveryMonths": ", every {n} months",
+  "@schedSayEveryMonths": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "schedSayEveryN": "Every {n} days from {date}",
+  "@schedSayEveryN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayMonthlyDay": "On the {day} of the month{every}",
+  "@schedSayMonthlyDay": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayMonthlyLast": "On the last day of the month{every}",
+  "@schedSayMonthlyLast": {
+    "placeholders": {
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayNth": "Every {nth} {weekday} of the month{every}",
+  "@schedSayNth": {
+    "placeholders": {
+      "nth": {
+        "type": "String"
+      },
+      "weekday": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayRange": "Any day between the {from} and the {to}{every}",
+  "@schedSayRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayRangeToLast": "Any day from the {from} to the end of the month{every}",
+  "@schedSayRangeToLast": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSaySemi": "On the {first} and the {second} of each month",
+  "@schedSaySemi": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayWeekWeekday": "The {weekday} of the {nth} week of the month ({span}){every}",
+  "@schedSayWeekWeekday": {
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      },
+      "nth": {
+        "type": "String"
+      },
+      "span": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayWeekWindow": "Any day in the {nth} week of the month ({span}){every}",
+  "@schedSayWeekWindow": {
+    "placeholders": {
+      "nth": {
+        "type": "String"
+      },
+      "span": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayWeekly": "Every {days}",
+  "@schedSayWeekly": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayWeeklyEvery": "Every {n} weeks on {days}",
+  "@schedSayWeeklyEvery": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayYearly": "Once a year on {month} {day}",
+  "@schedSayYearly": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "schedSecondDay": "Second day",
+  "schedSpanCalendar": "calendar week",
+  "schedSpanDays": "days {from} to {to}",
+  "@schedSpanDays": {
+    "placeholders": {
+      "from": {
+        "type": "int"
+      },
+      "to": {
+        "type": "int"
+      }
+    }
+  },
+  "schedSpanLast": "the last 7 days",
+  "schedStartingOn": "Starting on",
+  "schedToDay": "To day",
+  "schedUnknown": "A schedule this version of the app cannot edit",
+  "schedWeekday": "Weekday",
+  "schedWeekendAfter": "Use the working day after",
+  "schedWeekendBefore": "Use the working day before",
+  "schedWeekendLabel": "If it falls on a weekend",
+  "schedWeekendNone": "Keep the date",
+  "schedWhichOne": "Which one?",
+  "schedWhichWeek": "Which week?",
+  "setBalanceBody": "Botler thinks it is {amount}. Nothing is deleted: the history stays and the difference is shown as a reset.",
+  "@setBalanceBody": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceConfirmBody": "It was {old}. The difference of {diff} is recorded as a reset, not as spending.",
+  "@setBalanceConfirmBody": {
+    "placeholders": {
+      "old": {
+        "type": "String"
+      },
+      "diff": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceConfirmTitle": "Set {name} to {amount}?",
+  "@setBalanceConfirmTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceConfirmYes": "Set it",
+  "setBalanceDone": "Balance set. The history keeps the old one.",
+  "setBalanceNew": "New balance ({currency})",
+  "@setBalanceNew": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "setBalanceOffline": "A reset needs a connection, so it is not available offline.",
+  "setBalanceReason": "Why? (short)",
+  "setBalanceReasonNeeded": "Say why in a few words.",
+  "setBalanceTitle": "Set the balance of {name}",
+  "@setBalanceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAppLanguage": "App language",
+  "settingsCalBody": "Events made in Botler appear in Google Calendar, and events made there appear here. Bills and paydays that need action are added too, without amounts.",
+  "settingsCalConnect": "Connect Google Calendar",
+  "settingsCalError": "Stopped: Google needs you to connect again",
+  "settingsCalFinish": "Finish in the browser, then come back and tap “I connected”.",
+  "settingsCalIConnected": "I connected",
+  "settingsCalOff": "Off",
+  "settingsCalSyncing": "Syncing both ways",
+  "settingsCalTurnOff": "Turn off",
+  "settingsCurrency": "Currency",
+  "settingsCurrencyChange": "Change",
+  "settingsCurrencyConfirmBody": "Your amounts will read in {name}. Nothing is converted: 100.00 stays 100.00, only the currency changes.",
+  "@settingsCurrencyConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCurrencyConfirmTitle": "Change the currency to {code}?",
+  "@settingsCurrencyConfirmTitle": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCurrencyExample": "Example {amount}",
+  "@settingsCurrencyExample": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsCurrencyNone": "No currency matches that.",
+  "settingsCurrencySearch": "Search currencies",
+  "settingsGoogleCalendar": "Google Calendar",
+  "settingsHideBody": "A reminder says only “Botler”, so nobody sees it on your lock screen.",
+  "settingsHideTitle": "Hide the details in notifications",
+  "settingsLanguageEn": "English",
+  "settingsLanguageFil": "Filipino",
+  "settingsLead1440": "1 day before",
+  "settingsLead15": "15 minutes before",
+  "settingsLead180": "3 hours before",
+  "settingsLead60": "1 hour before",
+  "settingsLeadAtTime": "At the time",
+  "settingsLeadLabel": "Remind me this long before",
+  "settingsListenEn": "English (Philippines)",
+  "settingsListenFil": "Filipino and Taglish",
+  "settingsListenFor": "Listen for",
+  "settingsLockNeeds": "The lock needs a fingerprint or face set up on this phone.",
+  "settingsLockTitle": "Ask for my fingerprint or face to open Botler",
+  "settingsLook": "Look",
+  "settingsLookDark": "Dark",
+  "settingsLookLight": "Light",
+  "settingsLookPhone": "Phone",
+  "settingsMonday": "Monday",
+  "settingsPrivacy": "Privacy",
+  "settingsReminders": "Reminders",
+  "settingsReplies": "Assistant replies",
+  "settingsRepliesAuto": "Auto: English, and Filipino when you write it",
+  "settingsRepliesEn": "Always English",
+  "settingsRepliesFil": "Always Filipino",
+  "settingsRepliesTaglish": "Taglish",
+  "settingsSectionLanguageMoney": "Language and money",
+  "settingsSignOut": "Sign out",
+  "settingsSignOutBody": "Botler stays on the server. You can sign in again any time.",
+  "settingsSignOutTitle": "Sign out?",
+  "settingsSignedIn": "Signed in",
+  "settingsSunday": "Sunday",
+  "settingsTitle": "Settings",
+  "settingsVoice": "Voice",
+  "settingsWeekStarts": "Week starts on",
+  "signInButton": "Sign in with Google",
+  "signInTagline": "Your money and your time, in one quiet chat.",
+  "splitAccountFallback": "account",
+  "splitApproveButton": "Approve split",
+  "splitApproved": "Approved",
+  "splitApprovedDone": "Split approved.",
+  "splitCopied": "Copied {amount}",
+  "@splitCopied": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "splitCopyTooltip": "Copy the amount",
+  "splitCutOrMove": "You could cut or move:",
+  "splitMarkSent": "Mark sent",
+  "splitMarkedSent": "Marked as sent.",
+  "splitPayday": "Payday {date}",
+  "@splitPayday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "splitSent": "Sent",
+  "splitShort": "This pay is {gap} short of what you set aside.",
+  "@splitShort": {
+    "placeholders": {
+      "gap": {
+        "type": "String"
+      }
+    }
+  },
+  "splitTransfers": "Transfers to make",
+  "uiError": "Something went wrong. Try again.",
+  "uiNotNow": "Not now",
+  "undo": "Undo",
+  "yes": "Yes"
+}

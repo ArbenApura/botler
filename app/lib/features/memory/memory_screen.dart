@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -55,7 +56,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       _refresh();
       if (done != null && mounted) say(context, done);
     } catch (e) {
-      if (mounted) say(context, errorWords(e));
+      if (mounted) say(context, errorWords(e, context));
     }
   }
 
@@ -71,14 +72,18 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Field(controller: controller, label: 'In a sentence', maxLines: 3),
+          Field(
+            controller: controller,
+            label: context.t.memoryInSentence,
+            maxLines: 3,
+          ),
           FilledButton(
             onPressed: () async {
               if (controller.text.trim().isEmpty) return;
               await save(controller.text.trim());
               close(true);
             },
-            child: const Text('Save'),
+            child: Text(context.t.save),
           ),
         ],
       ),
@@ -88,39 +93,37 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
 
   Future<void> _wipe() async {
     final typed = TextEditingController();
+    final wipeWord = context.t.memoryWipeWord;
+    final wiped = context.t.memoryWiped;
     final ok = await showDialog<bool>(
       context: context,
       builder: (d) => AlertDialog(
         backgroundColor: context.colors.surface,
-        title: const Text('Wipe everything Botler remembers?'),
+        title: Text(context.t.memoryWipeTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text(
-              'This deletes all memories, summaries and your conversations with Botler. Your accounts, bills and money records stay. It cannot be undone.',
-            ),
+            Text(context.t.memoryWipeBody),
             const SizedBox(height: 12),
             TextField(
               controller: typed,
-              decoration: const InputDecoration(
-                labelText: 'Type WIPE to confirm',
-              ),
+              decoration: InputDecoration(labelText: context.t.memoryWipeType),
             ),
           ],
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(d).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.t.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: context.colors.danger,
               foregroundColor: context.colors.paper,
             ),
-            onPressed: () => Navigator.of(d).pop(typed.text.trim() == 'WIPE'),
-            child: const Text('Wipe'),
+            onPressed: () => Navigator.of(d).pop(typed.text.trim() == wipeWord),
+            child: Text(context.t.memoryWipe),
           ),
         ],
       ),
@@ -128,18 +131,19 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     if (ok == true)
       await _call('memory_wipe', <String, Object?>{
         'confirm': true,
-      }, done: 'Wiped.');
+      }, done: wiped);
   }
 
   Future<void> _export() async {
+    final copied = context.t.memoryCopied;
     try {
       final all = await ref.read(apiProvider).verb('memory_export');
       await Clipboard.setData(
         ClipboardData(text: const JsonEncoder.withIndent('  ').convert(all)),
       );
-      if (mounted) say(context, 'Copied everything to the clipboard.');
+      if (mounted) say(context, copied);
     } catch (e) {
-      if (mounted) say(context, errorWords(e));
+      if (mounted) say(context, errorWords(e, context));
     }
   }
 
@@ -149,7 +153,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
     final facts = ref.watch(_facts);
     final pending = ref.watch(_pending);
     return Scaffold(
-      appBar: AppBar(title: const Text('Memory')),
+      appBar: AppBar(title: Text(context.t.memoryTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
@@ -161,7 +165,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const SectionTitle('Botler is not sure'),
+                  SectionTitle(context.t.memoryNotSure),
                   for (final p in list)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -170,7 +174,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              'Which is right?',
+                              context.t.memoryWhichRight,
                               style: TextStyle(color: c.muted),
                             ),
                             const SizedBox(height: 4),
@@ -180,8 +184,8 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                                     p['subject'] != null &&
                                     f['subject'] == p['subject'],
                               ))
-                                Text('Before: ${str(old['text'])}'),
-                              Text('Now: ${str(p['text'])}'),
+                                Text(context.t.memoryBefore(str(old['text']))),
+                              Text(context.t.memoryNow(str(p['text']))),
                             ],
                             const SizedBox(height: 8),
                             Row(
@@ -192,7 +196,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                                         'factId': str(p['id']),
                                         'keep': 'new',
                                       }),
-                                  child: const Text('Use the new one'),
+                                  child: Text(context.t.memoryUseNew),
                                 ),
                                 TextButton(
                                   onPressed: () =>
@@ -200,7 +204,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                                         'factId': str(p['id']),
                                         'keep': 'old',
                                       }),
-                                  child: const Text('Keep the old one'),
+                                  child: Text(context.t.memoryKeepOld),
                                 ),
                               ],
                             ),
@@ -212,11 +216,11 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
               );
             },
           ),
-          const SectionTitle('What Botler remembers'),
+          SectionTitle(context.t.memoryRemembers),
           TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search the memories',
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: context.t.memorySearchHint,
             ),
             onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
           ),
@@ -232,10 +236,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                         str(f['text']).toLowerCase().contains(_query),
                   )
                   .toList();
-              if (list.isEmpty)
-                return const Note(
-                  'Nothing yet. Botler learns as you talk, or tell it: “remember that…”.',
-                );
+              if (list.isEmpty) return Note(context.t.memoryEmpty);
               return Column(
                 children: <Widget>[
                   for (final f in list)
@@ -244,16 +245,17 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                       title: Text(str(f['text'])),
                       subtitle: Text(
                         str(f['source']) == 'user'
-                            ? 'You said'
-                            : 'Learned from chat',
+                            ? context.t.memoryYouSaid
+                            : context.t.memoryLearned,
                         style: TextStyle(color: c.muted),
                       ),
                       trailing: PopupMenuButton<String>(
-                        tooltip: 'More',
+                        tooltip: context.t.memoryMore,
                         onSelected: (v) async {
+                          final forgotten = context.t.memoryForgotten;
                           if (v == 'edit') {
                             await _text(
-                              'Change this memory',
+                              context.t.memoryChangeTitle,
                               initial: str(f['text']),
                               save: (t) => ref.read(apiProvider).verb(
                                 'memory_edit',
@@ -265,25 +267,24 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
                             );
                           } else if (await confirm(
                             context,
-                            title: 'Forget this?',
-                            body:
-                                '“${str(f['text'])}” will be deleted and will not come back.',
-                            yes: 'Forget it',
+                            title: context.t.memoryForgetTitle,
+                            body: context.t.memoryForgetBody(str(f['text'])),
+                            yes: context.t.memoryForgetYes,
                             danger: true,
                           )) {
                             await _call('memory_forget', <String, Object?>{
                               'factId': str(f['id']),
-                            }, done: 'Forgotten.');
+                            }, done: forgotten);
                           }
                         },
-                        itemBuilder: (_) => const <PopupMenuEntry<String>>[
+                        itemBuilder: (_) => <PopupMenuEntry<String>>[
                           PopupMenuItem<String>(
                             value: 'edit',
-                            child: Text('Change'),
+                            child: Text(context.t.memoryChange),
                           ),
                           PopupMenuItem<String>(
                             value: 'forget',
-                            child: Text('Forget'),
+                            child: Text(context.t.memoryForget),
                           ),
                         ],
                       ),
@@ -294,33 +295,33 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
           ),
           OutlinedButton.icon(
             onPressed: () => _text(
-              'Remember something',
+              context.t.memoryRememberTitle,
               save: (t) => ref.read(apiProvider).verb(
                 'memory_remember',
                 <String, Object?>{'text': t},
               ),
             ),
             icon: const Icon(Icons.add),
-            label: const Text('Tell Botler something to remember'),
+            label: Text(context.t.memoryTellSomething),
           ),
-          const SectionTitle('How Botler talks to you'),
+          SectionTitle(context.t.memoryTalks),
           AsyncBody<Json>(
             value: ref.watch(_profile),
             onRetry: () => ref.invalidate(_profile),
             data: (p) => _ProfileForm(profile: p, onSaved: _refresh),
           ),
-          const SectionTitle('Your data'),
+          SectionTitle(context.t.memoryYourData),
           OutlinedButton.icon(
             onPressed: _export,
             icon: const Icon(Icons.copy_all_outlined),
-            label: const Text('Copy everything (memory and money) as text'),
+            label: Text(context.t.memoryCopyAll),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(foregroundColor: c.danger),
             onPressed: _wipe,
             icon: const Icon(Icons.delete_outline),
-            label: const Text('Wipe what Botler remembers'),
+            label: Text(context.t.memoryWipeButton),
           ),
         ],
       ),
@@ -364,23 +365,28 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       children: <Widget>[
         Field(
           controller: _persona,
-          label: 'How should Botler talk?',
-          hint: 'Like a friendly older sister, short answers',
+          label: context.t.memoryPersonaLabel,
+          hint: context.t.memoryPersonaHint,
           maxLines: 3,
         ),
-        Field(controller: _about, label: 'A few lines about you', maxLines: 3),
+        Field(
+          controller: _about,
+          label: context.t.memoryAboutLabel,
+          maxLines: 3,
+        ),
         Field(
           controller: _people,
-          label: 'Names to keep private (separate with commas)',
-          hint: 'Mama, Ate Liza',
+          label: context.t.memoryPeopleLabel,
+          hint: context.t.memoryPeopleHint,
         ),
         Text(
-          'Botler hides these names from the AI that writes its replies.',
+          context.t.memoryPeopleNote,
           style: TextStyle(color: context.colors.muted),
         ),
         const SizedBox(height: 8),
         FilledButton(
           onPressed: () async {
+            final saved = context.t.memorySaved;
             try {
               await ref.read(apiProvider).verb('profile_set', <String, Object?>{
                 'persona': _persona.text.trim(),
@@ -391,12 +397,12 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 ],
               });
               widget.onSaved();
-              if (context.mounted) say(context, 'Saved.');
+              if (context.mounted) say(context, saved);
             } catch (e) {
-              if (context.mounted) say(context, errorWords(e));
+              if (context.mounted) say(context, errorWords(e, context));
             }
           },
-          child: const Text('Save'),
+          child: Text(context.t.save),
         ),
       ],
     );

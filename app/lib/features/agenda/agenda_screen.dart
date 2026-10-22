@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -36,15 +37,11 @@ final FutureProvider<List<Json>> _events =
       });
     });
 
-const List<String> _dayNames = <String>[
-  'Sun',
-  'Mon',
-  'Tue',
-  'Wed',
-  'Thu',
-  'Fri',
-  'Sat',
-];
+/// Short weekday name for 0 = Sunday ... 6 = Saturday, in the app's language (1 January 2023 was a Sunday).
+String _dayName(BuildContext context, int d) => DateFormat(
+  'EEE',
+  Localizations.localeOf(context).toString(),
+).format(DateTime(2023, 1, 1 + d));
 
 // -- TYPES -- //
 
@@ -57,15 +54,15 @@ class AgendaScreen extends ConsumerWidget {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Agenda'),
-          bottom: const TabBar(
+          title: Text(context.t.agendaTitle),
+          bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: <Tab>[
-              Tab(text: 'Tasks'),
-              Tab(text: 'Events'),
-              Tab(text: 'Routines'),
-              Tab(text: 'Reminders'),
+              Tab(text: context.t.agendaTabTasks),
+              Tab(text: context.t.agendaTabEvents),
+              Tab(text: context.t.agendaTabRoutines),
+              Tab(text: context.t.agendaTabReminders),
             ],
           ),
         ),
@@ -100,8 +97,10 @@ Future<DateTime?> pickMoment(BuildContext context, {DateTime? initial}) async {
   return DateTime(d.year, d.month, d.day, t.hour, t.minute);
 }
 
-String _stamp(DateTime d) =>
-    DateFormat('EEE, MMM d · h:mm a').format(d.toLocal());
+String _stamp(BuildContext context, DateTime d) => DateFormat(
+  'EEE, MMM d · h:mm a',
+  Localizations.localeOf(context).toString(),
+).format(d.toLocal());
 
 // -- TASKS -- //
 
@@ -119,10 +118,7 @@ class _TasksTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(_tasks),
           data: (list) => Column(
             children: <Widget>[
-              if (list.isEmpty)
-                const Note(
-                  'Nothing open. Add something you want to remember to do.',
-                ),
+              if (list.isEmpty) Note(context.t.agendaTasksEmpty),
               for (final t in list)
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -132,7 +128,12 @@ class _TasksTab extends ConsumerWidget {
                   subtitle: t['dueAt'] == null
                       ? null
                       : Text(
-                          'Due ${_stamp(dateOf(t['dueAt']) ?? DateTime.now())}',
+                          context.t.agendaDue(
+                            _stamp(
+                              context,
+                              dateOf(t['dueAt']) ?? DateTime.now(),
+                            ),
+                          ),
                           style: TextStyle(color: c.muted),
                         ),
                   onChanged: (_) async {
@@ -148,7 +149,7 @@ class _TasksTab extends ConsumerWidget {
                         ..invalidate(_tasks)
                         ..invalidate(syncProvider);
                     } catch (e) {
-                      if (context.mounted) say(context, errorWords(e));
+                      if (context.mounted) say(context, errorWords(e, context));
                     }
                   },
                 ),
@@ -158,7 +159,7 @@ class _TasksTab extends ConsumerWidget {
         OutlinedButton.icon(
           onPressed: () => _add(context, ref),
           icon: const Icon(Icons.add),
-          label: const Text('Add a task'),
+          label: Text(context.t.agendaAddTask),
         ),
       ],
     );
@@ -169,12 +170,12 @@ class _TasksTab extends ConsumerWidget {
     DateTime? due;
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add a task',
+      title: context.t.agendaAddTask,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: title, label: 'What needs doing?'),
+            Field(controller: title, label: sheet.t.agendaTaskWhat),
             OutlinedButton(
               onPressed: () async {
                 final m = await pickMoment(sheet, initial: due);
@@ -182,15 +183,15 @@ class _TasksTab extends ConsumerWidget {
               },
               child: Text(
                 due == null
-                    ? 'Set a deadline (optional)'
-                    : 'Due ${_stamp(due!)}',
+                    ? sheet.t.agendaTaskDeadline
+                    : sheet.t.agendaDue(_stamp(sheet, due!)),
               ),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () async {
                 if (title.text.trim().isEmpty)
-                  return say(sheet, 'Say what the task is.');
+                  return say(sheet, sheet.t.agendaTaskNeedsTitle);
                 try {
                   await ref.read(apiProvider).verb(
                     'task_create',
@@ -201,10 +202,10 @@ class _TasksTab extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Add the task'),
+              child: Text(sheet.t.agendaTaskSubmit),
             ),
           ],
         ),
@@ -234,17 +235,17 @@ class _EventsTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(_events),
           data: (list) => Column(
             children: <Widget>[
-              if (list.isEmpty) const Note('No events in the next two weeks.'),
+              if (list.isEmpty) Note(context.t.agendaEventsEmpty),
               for (final e in list)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(str(e['title'])),
                   subtitle: Text(
-                    '${boolOf(e['allDay']) ? DateFormat('EEE, MMM d').format(dateOf(e['startsAt'])?.toLocal() ?? DateTime.now()) : _stamp(dateOf(e['startsAt']) ?? DateTime.now())}${boolOf(e['untrusted']) ? ' · from Google Calendar' : ''}',
+                    '${boolOf(e['allDay']) ? DateFormat('EEE, MMM d', Localizations.localeOf(context).toString()).format(dateOf(e['startsAt'])?.toLocal() ?? DateTime.now()) : _stamp(context, dateOf(e['startsAt']) ?? DateTime.now())}${boolOf(e['untrusted']) ? ' · ${context.t.agendaFromGoogle}' : ''}',
                     style: TextStyle(color: c.muted),
                   ),
                   trailing: IconButton(
-                    tooltip: 'Remove',
+                    tooltip: context.t.agendaRemove,
                     icon: const Icon(Icons.close),
                     onPressed: () async {
                       try {
@@ -267,7 +268,7 @@ class _EventsTab extends ConsumerWidget {
         OutlinedButton.icon(
           onPressed: () => _add(context, ref),
           icon: const Icon(Icons.add),
-          label: const Text('Add an event'),
+          label: Text(context.t.agendaAddEvent),
         ),
       ],
     );
@@ -278,26 +279,26 @@ class _EventsTab extends ConsumerWidget {
     DateTime? when;
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add an event',
+      title: context.t.agendaAddEvent,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: title, label: 'What is it?'),
+            Field(controller: title, label: sheet.t.agendaEventWhat),
             OutlinedButton(
               onPressed: () async {
                 final m = await pickMoment(sheet, initial: when);
                 if (m != null) setState(() => when = m);
               },
               child: Text(
-                when == null ? 'Pick the day and time' : _stamp(when!),
+                when == null ? sheet.t.agendaPickMoment : _stamp(sheet, when!),
               ),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () async {
                 if (title.text.trim().isEmpty || when == null)
-                  return say(sheet, 'Give it a name and a time.');
+                  return say(sheet, sheet.t.agendaEventNeeds);
                 try {
                   await ref.read(apiProvider).verb(
                     'event_create',
@@ -308,10 +309,10 @@ class _EventsTab extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Add the event'),
+              child: Text(sheet.t.agendaEventSubmit),
             ),
           ],
         ),
@@ -341,16 +342,13 @@ class _RoutinesTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(_routines),
           data: (list) => Column(
             children: <Widget>[
-              if (list.isEmpty)
-                const Note(
-                  'No routines. Try “gym every Monday, Wednesday and Friday at 6”.',
-                ),
+              if (list.isEmpty) Note(context.t.agendaRoutinesEmpty),
               for (final r in list)
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(str(r['title'])),
                   subtitle: Text(
-                    _describe(asJson(r['recurrence'])),
+                    _describe(context, asJson(r['recurrence'])),
                     style: TextStyle(color: c.muted),
                   ),
                   value: boolOf(r['active']),
@@ -367,7 +365,7 @@ class _RoutinesTab extends ConsumerWidget {
                         ..invalidate(_routines)
                         ..invalidate(syncProvider);
                     } catch (e) {
-                      if (context.mounted) say(context, errorWords(e));
+                      if (context.mounted) say(context, errorWords(e, context));
                     }
                   },
                 ),
@@ -377,20 +375,25 @@ class _RoutinesTab extends ConsumerWidget {
         OutlinedButton.icon(
           onPressed: () => _add(context, ref),
           icon: const Icon(Icons.add),
-          label: const Text('Add a routine'),
+          label: Text(context.t.agendaAddRoutine),
         ),
       ],
     );
   }
 
-  static String _describe(Json r) {
+  static String _describe(BuildContext context, Json r) {
     final time = str(r['time']);
     return switch (str(r['freq'])) {
-      'daily' => 'Every day at $time',
-      'weekly' =>
-        '${asList(r['days']).whereType<num>().map((d) => _dayNames[d.toInt() % 7]).join(', ')} at $time',
-      'monthly' => 'Every month on the ${r['day']}th at $time',
-      'every_n_days' => 'Every ${r['n']} days at $time',
+      'daily' => context.t.agendaEveryDayAt(time),
+      'weekly' => context.t.agendaDaysAt(
+        asList(r['days'])
+            .whereType<num>()
+            .map((d) => _dayName(context, d.toInt() % 7))
+            .join(', '),
+        time,
+      ),
+      'monthly' => context.t.agendaMonthlyAt('${r['day']}', time),
+      'every_n_days' => context.t.agendaEveryNDaysAt('${r['n']}', time),
       _ => time,
     };
   }
@@ -402,22 +405,22 @@ class _RoutinesTab extends ConsumerWidget {
     var time = const TimeOfDay(hour: 7, minute: 0);
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add a routine',
+      title: context.t.agendaAddRoutine,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Field(
               controller: title,
-              label: 'What is it?',
-              hint: 'Take vitamins',
+              label: sheet.t.agendaEventWhat,
+              hint: sheet.t.agendaRoutineHint,
             ),
             Wrap(
               spacing: 8,
               children: <Widget>[
                 for (final (k, label) in <(String, String)>[
-                  ('daily', 'Every day'),
-                  ('weekly', 'On some days'),
+                  ('daily', sheet.t.agendaFreqDaily),
+                  ('weekly', sheet.t.agendaFreqWeekly),
                 ])
                   ChoiceChip(
                     label: Text(label),
@@ -432,7 +435,7 @@ class _RoutinesTab extends ConsumerWidget {
                 children: <Widget>[
                   for (var d = 0; d < 7; d++)
                     FilterChip(
-                      label: Text(_dayNames[d]),
+                      label: Text(_dayName(sheet, d)),
                       selected: days.contains(d),
                       onSelected: (on) =>
                           setState(() => on ? days.add(d) : days.remove(d)),
@@ -447,17 +450,14 @@ class _RoutinesTab extends ConsumerWidget {
                 );
                 if (t != null) setState(() => time = t);
               },
-              child: Text('At ${time.format(sheet)}'),
+              child: Text(sheet.t.agendaAtTime(time.format(sheet))),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () async {
                 if (title.text.trim().isEmpty ||
                     (freq == 'weekly' && days.isEmpty))
-                  return say(
-                    sheet,
-                    'Give it a name, and pick at least one day.',
-                  );
+                  return say(sheet, sheet.t.agendaRoutineNeeds);
                 final hhmm =
                     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
                 try {
@@ -476,10 +476,10 @@ class _RoutinesTab extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Add the routine'),
+              child: Text(sheet.t.agendaRoutineSubmit),
             ),
           ],
         ),
@@ -509,7 +509,7 @@ class _RemindersTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(_reminders),
           data: (list) => Column(
             children: <Widget>[
-              if (list.isEmpty) const Note('No reminders waiting.'),
+              if (list.isEmpty) Note(context.t.agendaRemindersEmpty),
               for (final r in list)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -520,11 +520,11 @@ class _RemindersTab extends ConsumerWidget {
                   }, color: c.muted),
                   title: Text(str(r['title'])),
                   subtitle: Text(
-                    _stamp(dateOf(r['remindAt']) ?? DateTime.now()),
+                    _stamp(context, dateOf(r['remindAt']) ?? DateTime.now()),
                     style: TextStyle(color: c.muted),
                   ),
                   trailing: IconButton(
-                    tooltip: 'Cancel',
+                    tooltip: context.t.cancel,
                     icon: const Icon(Icons.close),
                     onPressed: () async {
                       try {
@@ -536,7 +536,8 @@ class _RemindersTab extends ConsumerWidget {
                           ..invalidate(_reminders)
                           ..invalidate(syncProvider);
                       } catch (e) {
-                        if (context.mounted) say(context, errorWords(e));
+                        if (context.mounted)
+                          say(context, errorWords(e, context));
                       }
                     },
                   ),
@@ -548,17 +549,22 @@ class _RemindersTab extends ConsumerWidget {
           spacing: 8,
           children: <Widget>[
             OutlinedButton(
-              onPressed: () =>
-                  _add(context, ref, 'reminder_create', 'Remind me'),
-              child: const Text('Remind me'),
+              onPressed: () => _add(
+                context,
+                ref,
+                'reminder_create',
+                context.t.agendaRemindMe,
+              ),
+              child: Text(context.t.agendaRemindMe),
             ),
             OutlinedButton(
-              onPressed: () => _add(context, ref, 'alarm_create', 'Alarm'),
-              child: const Text('Set an alarm'),
+              onPressed: () =>
+                  _add(context, ref, 'alarm_create', context.t.agendaAlarm),
+              child: Text(context.t.agendaSetAlarm),
             ),
             OutlinedButton(
               onPressed: () => _timer(context, ref),
-              child: const Text('Start a timer'),
+              child: Text(context.t.agendaStartTimer),
             ),
           ],
         ),
@@ -581,21 +587,21 @@ class _RemindersTab extends ConsumerWidget {
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: title, label: 'What for?'),
+            Field(controller: title, label: sheet.t.agendaReminderWhat),
             OutlinedButton(
               onPressed: () async {
                 final m = await pickMoment(sheet, initial: when);
                 if (m != null) setState(() => when = m);
               },
               child: Text(
-                when == null ? 'Pick the day and time' : _stamp(when!),
+                when == null ? sheet.t.agendaPickMoment : _stamp(sheet, when!),
               ),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () async {
                 if (title.text.trim().isEmpty || when == null)
-                  return say(sheet, 'Say what for, and when.');
+                  return say(sheet, sheet.t.agendaReminderNeeds);
                 try {
                   await ref.read(apiProvider).verb(verb, <String, Object?>{
                     'title': title.text.trim(),
@@ -603,10 +609,10 @@ class _RemindersTab extends ConsumerWidget {
                   });
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Save'),
+              child: Text(sheet.t.save),
             ),
           ],
         ),
@@ -623,20 +629,20 @@ class _RemindersTab extends ConsumerWidget {
     final minutes = TextEditingController(text: '10');
     final done = await showFormSheet<bool>(
       context,
-      title: 'Start a timer',
+      title: context.t.agendaStartTimer,
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Field(
             controller: minutes,
-            label: 'How many minutes?',
+            label: sheet.t.agendaTimerMinutes,
             keyboard: TextInputType.number,
           ),
           FilledButton(
             onPressed: () async {
               final m = int.tryParse(minutes.text.trim());
               if (m == null || m < 1 || m > 1440)
-                return say(sheet, 'Pick between 1 and 1440 minutes.');
+                return say(sheet, sheet.t.agendaTimerRange);
               try {
                 await ref.read(apiProvider).verb(
                   'timer_create',
@@ -644,10 +650,10 @@ class _RemindersTab extends ConsumerWidget {
                 );
                 close(true);
               } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e));
+                if (sheet.mounted) say(sheet, errorWords(e, context));
               }
             },
-            child: const Text('Start'),
+            child: Text(sheet.t.agendaTimerStart),
           ),
         ],
       ),

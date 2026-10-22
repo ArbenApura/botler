@@ -47,6 +47,10 @@ android {
 
     buildTypes {
         release {
+            // R8 shrinking breaks the shared_preferences plugin (NoSuchMethodError at start), so the release build is not shrunk
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (keyProps.containsKey("storeFile")) signingConfigs.getByName("release")
                             else signingConfigs.getByName("debug")
         }

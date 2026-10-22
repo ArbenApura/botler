@@ -1,0 +1,369 @@
+{
+  "accountsTitle": "Accounts",
+  "accountsEmpty": "No accounts yet. Add RCBC, GCash, Maya or cash.",
+  "accountsNeverCounted": "Never counted",
+  "accountsCounted": "Counted {when}",
+  "@accountsCounted": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsBelowMinimum": "Below the minimum you set",
+  "accountsAdd": "Add an account",
+  "accountsNameLabel": "Name",
+  "accountsKindBank": "Bank",
+  "accountsKindEwallet": "E-wallet",
+  "accountsKindCash": "Cash",
+  "accountsKindOther": "Other",
+  "accountsMinimumLabel": "Keep at least ({currency}, optional)",
+  "@accountsMinimumLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsAddInvalid": "Give it a name, and the minimum as an amount.",
+  "accountsCountTitle": "I counted {name}",
+  "@accountsCountTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsBotlerThinks": "Botler thinks there is {amount}.",
+  "@accountsBotlerThinks": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsCountLabel": "How much is really there? ({currency})",
+  "@accountsCountLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsCountInvalid": "Type the amount in {currency}.",
+  "@accountsCountInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsSaveCount": "Save the count",
+  "accountsConfirmBig": "That is a big difference",
+  "accountsConfirmRight": "Is this right?",
+  "accountsConfirmBoth": "You counted {counted} and Botler expected {expected}.",
+  "@accountsConfirmBoth": {
+    "placeholders": {
+      "counted": {
+        "type": "String"
+      },
+      "expected": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsConfirmCounted": "You counted {counted}.",
+  "@accountsConfirmCounted": {
+    "placeholders": {
+      "counted": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsConfirmLarge": "It is more than ten times different, so please check the digits.",
+  "accountsConfirmYes": "Yes, that is right",
+  "accountsNotSaved": "Not saved.",
+  "accountsSavedUntracked": "Saved. {amount} went untracked since the last count.",
+  "@accountsSavedUntracked": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsSaved": "Saved.",
+  "accountsToday": "today",
+  "accountsYesterday": "yesterday",
+  "accountsDaysAgo": "{count, plural, other{{count} days ago}}",
+  "@accountsDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "billsTitle": "Bills",
+  "billsComingUp": "Coming up",
+  "billsNothingDue": "Nothing is due in the next 4 months.",
+  "billsAmountUnknown": "amount?",
+  "billsPaid": "Paid",
+  "billsAll": "All bills",
+  "billsEmpty": "No bills yet. Add rent, internet, electricity...",
+  "billsAdd": "Add a bill",
+  "billsPaidTitle": "{name} paid",
+  "@billsPaidTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billsPayLabel": "How much was it this time? ({currency})",
+  "@billsPayLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsPayInvalid": "Type the amount in {currency}.",
+  "@billsPayInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMarkedPaidHint": "Marked paid. It came in {amount} under the usual: you could set that aside.",
+  "@billsMarkedPaidHint": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMarkedPaid": "Marked paid.",
+  "billsMarkPaid": "Mark paid",
+  "billsNameLabel": "What is it?",
+  "billsVaries": "The amount is different every time",
+  "billsAboutLabel": "About how much? ({currency})",
+  "@billsAboutLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsHowMuchLabel": "How much? ({currency})",
+  "@billsHowMuchLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsPaidFrom": "Paid from",
+  "billsParentsShare": "This is my parents’ share",
+  "billsAddInvalid": "Give it a name, an amount and an account.",
+  "billsAddButton": "Add the bill",
+  "goalsTitle": "Savings goals",
+  "goalsEmpty": "No goals yet. What would you like to save for?",
+  "goalsEachPayday": "{amount} each payday",
+  "@goalsEachPayday": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsOnlyRules": "Only what your rules give it",
+  "goalsAim": " · aim {amount}",
+  "@goalsAim": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsAdd": "Add a goal",
+  "goalsNameLabel": "What are you saving for?",
+  "goalsWhere": "Where does it sit?",
+  "goalsPerLabel": "Set aside each payday ({currency}, optional)",
+  "@goalsPerLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsYear": "In a year (24 paydays) that is {amount}.",
+  "@goalsYear": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsTargetLabel": "The amount you want to reach ({currency}, optional)",
+  "@goalsTargetLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "goalsAddInvalid": "Give it a name, a place, and amounts as numbers.",
+  "goalsAddButton": "Add the goal",
+  "paydayTitle": "Payday",
+  "paydayYours": "Your paydays",
+  "paydayEmpty": "Tell Botler when you get paid.",
+  "paydayDifferent": "Different every time",
+  "paydayUsually": "Usually {amount}",
+  "@paydayUsually": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayAdd": "Add a payday",
+  "paydayComingUp": "Coming up",
+  "paydayNoneAhead": "No payday ahead yet.",
+  "paydayPlan": "Plan the split",
+  "paydayRulesTitle": "Rules for the rest",
+  "paydayRulesEmpty": "No rules yet. Say what should happen to what is left, like “20% to emergency fund”.",
+  "paydayWaiting": "Waiting for your yes",
+  "paydayApprove": "Approve",
+  "paydayDecline": "Decline",
+  "paydayStop": "Stop",
+  "paydayAddRule": "Add a rule",
+  "paydayEarlier": "Earlier splits",
+  "paydayNoEarlier": "No earlier splits yet.",
+  "paydayPlanTitle": "Plan {label} on {date}",
+  "@paydayPlanTitle": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayPayLabel": "How much is the pay this time? (leave empty for the usual)",
+  "paydayPayInvalid": "Type the pay in {currency}.",
+  "@paydayPayInvalid": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayMakeSplit": "Make the split",
+  "paydayNeedsAmounts": "How much is {names} usually? Add the amount to the bill first.",
+  "@paydayNeedsAmounts": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayRuleTitle": "Add a rule",
+  "paydayRuleLabel": "Say it in your own words",
+  "paydayRuleHint": "20% to emergency fund",
+  "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",
+  "paydayRuleAddButton": "Add the rule",
+  "paydayIncomeTitle": "When do you get paid?",
+  "paydayIncomeLabel": "What do you call it?",
+  "paydayIncomeDefault": "Salary",
+  "paydayIncomeAmountLabel": "How much, usually? ({currency}, optional)",
+  "@paydayIncomeAmountLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayLandsIn": "It lands in",
+  "paydayIncomeInvalid": "Give it a name, an account and the amount as a number.",
+  "splitPayday": "Payday {date}",
+  "@splitPayday": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "splitShort": "This pay is {gap} short of what you set aside.",
+  "@splitShort": {
+    "placeholders": {
+      "gap": {
+        "type": "String"
+      }
+    }
+  },
+  "splitCutOrMove": "You could cut or move:",
+  "splitAccountFallback": "account",
+  "splitTransfers": "Transfers to make",
+  "splitMarkedSent": "Marked as sent.",
+  "splitApprovedDone": "Split approved.",
+  "splitApproveButton": "Approve split",
+  "splitApproved": "Approved",
+  "splitCopyTooltip": "Copy the amount",
+  "splitCopied": "Copied {amount}",
+  "@splitCopied": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "splitSent": "Sent",
+  "splitMarkSent": "Mark sent",
+  "billsOverdue": "Overdue",
+  "billsMarkPaidFor": "Mark {name} paid",
+  "@billsMarkPaidFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "billsMovedTag": "moved",
+  "billsEditHint": "Tap to change it",
+  "billsEditTitle": "Change the bill",
+  "billsDateLabel": "Due date",
+  "billsDateNote": "This moves only this one. To change every date, change how it repeats below.",
+  "billsRepeatChangedNote": "You changed how it repeats, so every date follows the new rule.",
+  "billsSave": "Save",
+  "billsSaved": "Saved.",
+  "billsSavedOffline": "No connection. It will be saved when you are back online.",
+  "billsNoChange": "Nothing changed.",
+  "billsScopeTitle": "Just this one, or every time?",
+  "billsScopeThisOne": "Just this one ({date})",
+  "@billsScopeThisOne": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billsScopeAll": "Every time from now on",
+  "billsSkip": "Skip this date",
+  "billsSkipTitle": "Skip {name} on {date}?",
+  "@billsSkipTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "billsSkipBody": "It will not show up for that date. Ask Botler to put it back if you change your mind.",
+  "billsSkipYes": "Skip it",
+  "billsSkipped": "Skipped.",
+  "billsPutBack": "Put back as scheduled",
+  "billsPutBackDone": "Back to the schedule."
+}

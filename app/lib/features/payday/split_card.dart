@@ -7,8 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -55,7 +56,7 @@ class _SplitCardState extends ConsumerState<SplitCard> {
       say(context, done);
       widget.onChanged?.call();
     } catch (e) {
-      if (mounted) say(context, errorWords(e));
+      if (mounted) say(context, errorWords(e, context));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -75,7 +76,7 @@ class _SplitCardState extends ConsumerState<SplitCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Payday ${str(_plan['payday'])}',
+            context.t.splitPayday(str(_plan['payday'])),
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
@@ -86,18 +87,18 @@ class _SplitCardState extends ConsumerState<SplitCard> {
           const SizedBox(height: 12),
           if (_short) ...<Widget>[
             Text(
-              'This pay is ${formatPhp(intOf(_plan['gap']))} short of what you set aside.',
+              context.t.splitShort(context.money(intOf(_plan['gap']))),
               style: TextStyle(color: c.warning),
             ),
             const SizedBox(height: 8),
-            Text('You could cut or move:', style: TextStyle(color: c.muted)),
+            Text(context.t.splitCutOrMove, style: TextStyle(color: c.muted)),
             for (final o in asJsonList(_result['cutOptions']))
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Row(
                   children: <Widget>[
                     Expanded(child: Text(str(o['label']))),
-                    Text(formatPhp(intOf(o['amount']))),
+                    Text(context.money(intOf(o['amount']))),
                   ],
                 ),
               ),
@@ -109,27 +110,33 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        '${str(l['label'])}  ·  ${str(names[str(l['accountId'])], 'account')}',
+                        '${str(l['label'])}  ·  ${str(names[str(l['accountId'])], context.t.splitAccountFallback)}',
                       ),
                     ),
-                    Text(formatPhp(intOf(l['amount']))),
+                    Text(context.money(intOf(l['amount']))),
                   ],
                 ),
               ),
           ],
           if (!_short && transfers.isNotEmpty) ...<Widget>[
-            const SectionTitle('Transfers to make'),
+            SectionTitle(context.t.splitTransfers),
             for (final (i, t) in transfers.indexed)
               _TransferRow(
-                from: str(names[str(t['fromAccountId'])], 'account'),
-                to: str(names[str(t['toAccountId'])], 'account'),
+                from: str(
+                  names[str(t['fromAccountId'])],
+                  context.t.splitAccountFallback,
+                ),
+                to: str(
+                  names[str(t['toAccountId'])],
+                  context.t.splitAccountFallback,
+                ),
                 amount: intOf(t['amount']),
                 sent: sent.contains(i),
                 enabled: _approved && !_busy,
                 onSent: () => _call('split_mark_sent', <String, Object?>{
                   'splitId': str(_plan['id']),
                   'index': i,
-                }, done: 'Marked as sent.'),
+                }, done: context.t.splitMarkedSent),
               ),
           ],
           if (!_short && !_approved) ...<Widget>[
@@ -141,15 +148,18 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                     ? null
                     : () => _call('split_approve', <String, Object?>{
                         'splitId': str(_plan['id']),
-                      }, done: 'Split approved.'),
-                child: const Text('Approve split'),
+                      }, done: context.t.splitApprovedDone),
+                child: Text(context.t.splitApproveButton),
               ),
             ),
           ],
           if (_approved)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('Approved', style: TextStyle(color: c.success)),
+              child: Text(
+                context.t.splitApproved,
+                style: TextStyle(color: c.success),
+              ),
             ),
         ],
       ),
@@ -186,26 +196,32 @@ class _TransferRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text('$from → $to'),
-                Text(formatPhp(amount), style: TextStyle(color: c.muted)),
+                Text(context.money(amount), style: TextStyle(color: c.muted)),
               ],
             ),
           ),
           IconButton(
-            tooltip: 'Copy the amount',
+            tooltip: context.t.splitCopyTooltip,
             onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: pesosText(amount)));
-              if (context.mounted) say(context, 'Copied ${pesosText(amount)}');
+              final copied = context.t.splitCopied(context.plainAmount(amount));
+              await Clipboard.setData(
+                ClipboardData(text: context.plainAmount(amount)),
+              );
+              if (context.mounted) say(context, copied);
             },
             icon: const Icon(Icons.copy_outlined),
           ),
           sent
               ? Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('Sent', style: TextStyle(color: c.success)),
+                  child: Text(
+                    context.t.splitSent,
+                    style: TextStyle(color: c.success),
+                  ),
                 )
               : TextButton(
                   onPressed: enabled ? onSent : null,
-                  child: const Text('Mark sent'),
+                  child: Text(context.t.splitMarkSent),
                 ),
         ],
       ),

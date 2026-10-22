@@ -6,8 +6,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // -- MODULES -- //
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 
@@ -26,7 +28,10 @@ Future<bool> deviceAuthenticate() async {
   try {
     if (!await auth.isDeviceSupported()) return false;
     return await auth.authenticate(
-      localizedReason: 'Open Botler',
+      // The prompt of the phone's own dialog is in the language the person chose
+      localizedReason: wordsFor(
+        readSettings(await SharedPreferences.getInstance()).language,
+      ).lockReason,
       persistAcrossBackgrounding: true,
     );
   } on LocalAuthException {
@@ -68,9 +73,13 @@ class _LockGateState extends ConsumerState<LockGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The phone's own fingerprint dialog pauses and resumes the app: those events are not the person leaving, so they are ignored
+    if (_asking) return;
     if (state == AppLifecycleState.paused) _leftAt = DateTime.now();
     if (state == AppLifecycleState.resumed) {
       final left = _leftAt;
+      // Used once: a later resume without a new pause must never lock again from an old time
+      _leftAt = null;
       if (left != null && DateTime.now().difference(left) >= relockAfter) {
         setState(() => _locked = true);
         _ask();
@@ -87,6 +96,8 @@ class _LockGateState extends ConsumerState<LockGate>
     _asking = true;
     final ok = await ref.read(authenticateProvider)();
     _asking = false;
+    // The dialog's own pause does not count as time away
+    _leftAt = null;
     if (mounted) setState(() => _locked = !ok);
   }
 
@@ -103,11 +114,11 @@ class _LockGateState extends ConsumerState<LockGate>
             Icon(Icons.lock_outline, size: 40, color: c.muted),
             const SizedBox(height: 16),
             Text(
-              'Botler is locked',
+              context.t.lockTitle,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: _ask, child: const Text('Unlock')),
+            FilledButton(onPressed: _ask, child: Text(context.t.lockUnlock)),
           ],
         ),
       ),

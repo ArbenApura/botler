@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
+import '../../core/schedule_text.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -55,43 +57,43 @@ class PaydayScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return Scaffold(
-      appBar: AppBar(title: const Text('Payday')),
+      appBar: AppBar(title: Text(context.t.paydayTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          const SectionTitle('Your paydays'),
+          SectionTitle(context.t.paydayYours),
           AsyncBody<List<Json>>(
             value: ref.watch(_incomeProvider),
             onRetry: () => ref.invalidate(_incomeProvider),
             data: (list) => Column(
               children: <Widget>[
-                if (list.isEmpty) const Note('Tell Botler when you get paid.'),
+                if (list.isEmpty) Note(context.t.paydayEmpty),
                 for (final i in list)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(str(i['label'])),
                     subtitle: Text(
                       i['expectedAmount'] == null
-                          ? 'Different every time'
-                          : 'Usually ${formatPhp(intOf(i['expectedAmount']))}',
+                          ? context.t.paydayDifferent
+                          : '${context.t.paydayUsually(context.money(intOf(i['expectedAmount'])))} · ${describeSchedule(context.t, Localizations.localeOf(context).toString(), asJson(i['schedule'])) ?? context.t.schedUnknown}',
                       style: TextStyle(color: c.muted),
                     ),
                   ),
                 OutlinedButton.icon(
                   onPressed: () => _addIncome(context, ref),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add a payday'),
+                  label: Text(context.t.paydayAdd),
                 ),
               ],
             ),
           ),
-          const SectionTitle('Coming up'),
+          SectionTitle(context.t.paydayComingUp),
           AsyncBody<List<Json>>(
             value: ref.watch(_upcomingProvider),
             onRetry: () => ref.invalidate(_upcomingProvider),
             data: (list) => Column(
               children: <Widget>[
-                if (list.isEmpty) const Note('No payday ahead yet.'),
+                if (list.isEmpty) Note(context.t.paydayNoneAhead),
                 for (final u in list)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -117,7 +119,7 @@ class PaydayScreen extends ConsumerWidget {
                           ),
                           FilledButton(
                             onPressed: () => _plan(context, ref, u),
-                            child: const Text('Plan the split'),
+                            child: Text(context.t.paydayPlan),
                           ),
                         ],
                       ),
@@ -126,16 +128,14 @@ class PaydayScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const SectionTitle('Rules for the rest'),
+          SectionTitle(context.t.paydayRulesTitle),
           AsyncBody<List<Json>>(
             value: ref.watch(_rulesProvider),
             onRetry: () => ref.invalidate(_rulesProvider),
             data: (list) => Column(
               children: <Widget>[
                 if (list.where((r) => str(r['status']) != 'retired').isEmpty)
-                  const Note(
-                    'No rules yet. Say what should happen to what is left, like “20% to emergency fund”.',
-                  ),
+                  Note(context.t.paydayRulesEmpty),
                 for (final r in list.where(
                   (r) => str(r['status']) != 'retired',
                 ))
@@ -150,7 +150,7 @@ class PaydayScreen extends ConsumerWidget {
                               Text(str(r['summary'])),
                               if (str(r['status']) == 'proposed')
                                 Text(
-                                  'Waiting for your yes',
+                                  context.t.paydayWaiting,
                                   style: TextStyle(color: c.warning),
                                 ),
                             ],
@@ -160,12 +160,14 @@ class PaydayScreen extends ConsumerWidget {
                           FilledButton(
                             onPressed: () =>
                                 _do(context, ref, 'rule_approve', r),
-                            child: const Text('Approve'),
+                            child: Text(context.t.paydayApprove),
                           ),
                         TextButton(
                           onPressed: () => _do(context, ref, 'rule_retire', r),
                           child: Text(
-                            str(r['status']) == 'proposed' ? 'Decline' : 'Stop',
+                            str(r['status']) == 'proposed'
+                                ? context.t.paydayDecline
+                                : context.t.paydayStop,
                           ),
                         ),
                       ],
@@ -175,17 +177,19 @@ class PaydayScreen extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () => _addRule(context, ref),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add a rule'),
+                  label: Text(context.t.paydayAddRule),
                 ),
               ],
             ),
           ),
-          const SectionTitle('Earlier splits'),
+          SectionTitle(context.t.paydayEarlier),
           AsyncBody<List<Json>>(
             value: ref.watch(_splitsProvider),
             onRetry: () => ref.invalidate(_splitsProvider),
             data: (list) => Column(
               children: <Widget>[
+                if (!list.any((p) => str(p['status']) != 'superseded'))
+                  Note(context.t.paydayNoEarlier),
                 for (final p in list.where(
                   (p) => str(p['status']) != 'superseded',
                 ))
@@ -219,7 +223,7 @@ class PaydayScreen extends ConsumerWidget {
       });
       _refresh(ref);
     } catch (e) {
-      if (context.mounted) say(context, errorWords(e));
+      if (context.mounted) say(context, errorWords(e, context));
     }
   }
 
@@ -227,22 +231,25 @@ class PaydayScreen extends ConsumerWidget {
     final pay = TextEditingController();
     final result = await showFormSheet<Json>(
       context,
-      title: 'Plan ${str(upcoming['label'])} on ${str(upcoming['payday'])}',
+      title: context.t.paydayPlanTitle(
+        str(upcoming['label']),
+        str(upcoming['payday']),
+      ),
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Field(
             controller: pay,
-            label: 'How much is the pay this time? (leave empty for the usual)',
+            label: sheet.t.paydayPayLabel,
             keyboard: const TextInputType.numberWithOptions(decimal: true),
           ),
           FilledButton(
             onPressed: () async {
               final cents = pay.text.trim().isEmpty
                   ? null
-                  : parsePesos(pay.text);
+                  : context.parseAmount(pay.text);
               if (pay.text.trim().isNotEmpty && cents == null) {
-                say(sheet, 'Type the pay in pesos.');
+                say(sheet, sheet.t.paydayPayInvalid(sheet.currencyCode));
                 return;
               }
               try {
@@ -258,10 +265,10 @@ class PaydayScreen extends ConsumerWidget {
                 );
                 close(plan);
               } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e));
+                if (sheet.mounted) say(sheet, errorWords(e, context));
               }
             },
-            child: const Text('Make the split'),
+            child: Text(sheet.t.paydayMakeSplit),
           ),
         ],
       ),
@@ -271,10 +278,7 @@ class PaydayScreen extends ConsumerWidget {
       final names = asJsonList(result['bills'])
           .map((b) => str(b['name']))
           .join(', ');
-      say(
-        context,
-        'How much is $names usually? Add the amount to the bill first.',
-      );
+      say(context, context.t.paydayNeedsAmounts(names));
       return;
     }
     _refresh(ref);
@@ -284,17 +288,17 @@ class PaydayScreen extends ConsumerWidget {
     final words = TextEditingController();
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add a rule',
+      title: context.t.paydayRuleTitle,
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Field(
             controller: words,
-            label: 'Say it in your own words',
-            hint: '20% to emergency fund',
+            label: sheet.t.paydayRuleLabel,
+            hint: sheet.t.paydayRuleHint,
           ),
           Text(
-            'Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.',
+            sheet.t.paydayRuleExamples,
             style: TextStyle(color: sheet.colors.muted),
           ),
           const SizedBox(height: 12),
@@ -307,10 +311,10 @@ class PaydayScreen extends ConsumerWidget {
                 );
                 close(true);
               } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e));
+                if (sheet.mounted) say(sheet, errorWords(e, context));
               }
             },
-            child: const Text('Add the rule'),
+            child: Text(sheet.t.paydayRuleAddButton),
           ),
         ],
       ),
@@ -319,10 +323,10 @@ class PaydayScreen extends ConsumerWidget {
   }
 
   Future<void> _addIncome(BuildContext context, WidgetRef ref) async {
-    final label = TextEditingController(text: 'Salary');
+    final label = TextEditingController(text: context.t.paydayIncomeDefault);
     final amount = TextEditingController();
     final schedule = ScheduleValue(
-      kind: ScheduleKind.semiMonthly,
+      pattern: SchedulePattern.semiMonthly,
       day: 15,
       day2: 30,
     );
@@ -331,18 +335,21 @@ class PaydayScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final done = await showFormSheet<bool>(
       context,
-      title: 'When do you get paid?',
+      title: context.t.paydayIncomeTitle,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: label, label: 'What do you call it?'),
+            Field(controller: label, label: sheet.t.paydayIncomeLabel),
             Field(
               controller: amount,
-              label: 'How much, usually? (pesos, optional)',
+              label: sheet.t.paydayIncomeAmountLabel(sheet.currencyCode),
               keyboard: const TextInputType.numberWithOptions(decimal: true),
             ),
-            Text('It lands in', style: TextStyle(color: sheet.colors.muted)),
+            Text(
+              sheet.t.paydayLandsIn,
+              style: TextStyle(color: sheet.colors.muted),
+            ),
             Wrap(
               spacing: 8,
               children: <Widget>[
@@ -355,20 +362,23 @@ class PaydayScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            SchedulePicker(value: schedule, onChanged: () => setState(() {})),
+            // A payday is one day, so the patterns that give a window of days are not offered
+            SchedulePicker(
+              value: schedule,
+              weekend: 'before',
+              singleDayOnly: true,
+              onChanged: () => setState(() {}),
+            ),
             const SizedBox(height: 8),
             FilledButton(
               onPressed: () async {
                 final cents = amount.text.trim().isEmpty
                     ? null
-                    : parsePesos(amount.text);
+                    : context.parseAmount(amount.text);
                 if (label.text.trim().isEmpty ||
                     accountId.isEmpty ||
                     (amount.text.trim().isNotEmpty && cents == null)) {
-                  say(
-                    sheet,
-                    'Give it a name, an account and the amount as a number.',
-                  );
+                  say(sheet, sheet.t.paydayIncomeInvalid);
                   return;
                 }
                 try {
@@ -384,10 +394,10 @@ class PaydayScreen extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Save'),
+              child: Text(sheet.t.save),
             ),
           ],
         ),

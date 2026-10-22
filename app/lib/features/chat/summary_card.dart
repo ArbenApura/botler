@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -28,7 +29,8 @@ class SummaryCard extends ConsumerWidget {
           height: 96,
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (e, _) => Text(errorWords(e), style: TextStyle(color: c.muted)),
+        error: (e, _) =>
+            Text(errorWords(e, context), style: TextStyle(color: c.muted)),
         data: (s) {
           final summary = asJson(s['summary']);
           final bill = summary['nextBill'] is Map<Object?, Object?>
@@ -44,12 +46,15 @@ class SummaryCard extends ConsumerWidget {
               Row(
                 children: <Widget>[
                   Text(
-                    'Across your accounts',
+                    context.t.chatAcrossAccounts,
                     style: TextStyle(color: c.muted),
                   ),
                   const Spacer(),
                   if (boolOf(s['offline']))
-                    Text('offline', style: TextStyle(color: c.warning)),
+                    Text(
+                      context.t.chatOffline,
+                      style: TextStyle(color: c.warning),
+                    ),
                 ],
               ),
               Amount(intOf(summary['total'])),
@@ -57,15 +62,18 @@ class SummaryCard extends ConsumerWidget {
               _Line(
                 icon: Icons.receipt_long_outlined,
                 text: bill == null
-                    ? 'No bill coming up'
-                    : 'Next bill: ${str(bill['name'])}, ${_day(str(bill['dueDate']))}',
+                    ? context.t.chatNoBill
+                    : context.t.chatNextBill(
+                        str(bill['name']),
+                        _day(context, str(bill['dueDate'])),
+                      ),
               ),
               const SizedBox(height: 6),
               _Line(
                 icon: Icons.event_outlined,
                 text: event == null
-                    ? 'Nothing on your calendar today'
-                    : '${_time(str(event['startsAt']))}  ${str(event['title'])}',
+                    ? context.t.chatNoEvent
+                    : '${_time(context, str(event['startsAt']))}  ${str(event['title'])}',
               ),
               if (str(calendar['status']) == 'error') ...<Widget>[
                 const SizedBox(height: 8),
@@ -74,7 +82,7 @@ class SummaryCard extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                      'Google Calendar stopped syncing. Tap to reconnect.',
+                      context.t.chatCalendarStopped,
                       style: TextStyle(color: c.warning),
                     ),
                   ),
@@ -106,12 +114,22 @@ class _Line extends StatelessWidget {
 
 // -- FUNCTIONS -- //
 
-String _day(String iso) {
+String _day(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
-  return d == null ? iso : DateFormat('MMM d').format(d);
+  return d == null
+      ? iso
+      : DateFormat(
+          'MMM d',
+          Localizations.localeOf(context).toString(),
+        ).format(d);
 }
 
-String _time(String iso) {
+String _time(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
-  return d == null ? '' : DateFormat('h:mm a').format(d.toLocal());
+  return d == null
+      ? ''
+      : DateFormat(
+          'h:mm a',
+          Localizations.localeOf(context).toString(),
+        ).format(d.toLocal());
 }

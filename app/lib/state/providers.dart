@@ -25,6 +25,10 @@ class Settings {
     this.hideDetails = true,
     this.leadMinutes = 0,
     this.speechLocale = 'en_PH',
+    this.currency = 'PHP',
+    this.language = 'en',
+    this.replyLanguage = 'auto',
+    this.weekStartsOn = 1,
   });
 
   final ThemeMode themeMode;
@@ -39,18 +43,39 @@ class Settings {
   final int leadMinutes;
   final String speechLocale;
 
+  /// The next four are the person's choices that the server keeps too (settings_get and settings_set), so the assistant knows them.
+  /// The ISO code of the currency amounts are shown in.
+  final String currency;
+
+  /// The language of the app: en or fil.
+  final String language;
+
+  /// How the assistant replies: auto, en, fil or taglish.
+  final String replyLanguage;
+
+  /// The first day of the week: 0 is Sunday, 1 is Monday.
+  final int weekStartsOn;
+
   Settings copyWith({
     ThemeMode? themeMode,
     bool? lockOn,
     bool? hideDetails,
     int? leadMinutes,
     String? speechLocale,
+    String? currency,
+    String? language,
+    String? replyLanguage,
+    int? weekStartsOn,
   }) => Settings(
     themeMode: themeMode ?? this.themeMode,
     lockOn: lockOn ?? this.lockOn,
     hideDetails: hideDetails ?? this.hideDetails,
     leadMinutes: leadMinutes ?? this.leadMinutes,
     speechLocale: speechLocale ?? this.speechLocale,
+    currency: currency ?? this.currency,
+    language: language ?? this.language,
+    replyLanguage: replyLanguage ?? this.replyLanguage,
+    weekStartsOn: weekStartsOn ?? this.weekStartsOn,
   );
 }
 
@@ -111,6 +136,10 @@ const String _lock = 'settings.lock';
 const String _hide = 'settings.hide';
 const String _lead = 'settings.lead';
 const String _locale = 'settings.locale';
+const String _currency = 'settings.currency';
+const String _language = 'settings.language';
+const String _reply = 'settings.reply';
+const String _week = 'settings.week';
 
 /// The settings as stored. Also read by the background sync, which has no providers.
 Settings readSettings(SharedPreferences p) => Settings(
@@ -122,6 +151,10 @@ Settings readSettings(SharedPreferences p) => Settings(
   hideDetails: p.getBool(_hide) ?? true,
   leadMinutes: p.getInt(_lead) ?? 0,
   speechLocale: p.getString(_locale) ?? 'en_PH',
+  currency: p.getString(_currency) ?? 'PHP',
+  language: p.getString(_language) ?? 'en',
+  replyLanguage: p.getString(_reply) ?? 'auto',
+  weekStartsOn: p.getInt(_week) ?? 1,
 );
 
 class SettingsNotifier extends Notifier<Settings> {
@@ -136,6 +169,61 @@ class SettingsNotifier extends Notifier<Settings> {
     await p.setBool(_hide, next.hideDetails);
     await p.setInt(_lead, next.leadMinutes);
     await p.setString(_locale, next.speechLocale);
+    await p.setString(_currency, next.currency);
+    await p.setString(_language, next.language);
+    await p.setString(_reply, next.replyLanguage);
+    await p.setInt(_week, next.weekStartsOn);
+  }
+
+  /// Takes what the server has for the four shared choices, so a second phone or a reinstall shows the same ones. Offline, nothing changes.
+  Future<void> pullFromServer() async {
+    try {
+      final s = await ref.read(apiProvider).verbJson('settings_get');
+      await update(
+        state.copyWith(
+          currency: str(s['currency'], state.currency),
+          language: str(s['language'], state.language),
+          replyLanguage: str(s['replyLanguage'], state.replyLanguage),
+          weekStartsOn: intOf(s['weekStartsOn'], state.weekStartsOn),
+        ),
+      );
+    } on ApiException {
+      // Keep the stored values: the app starts in the right language and currency without a connection
+    }
+  }
+
+  /// Saves a change of the shared choices on the server first, then here. Returns the server's notice (for a change of currency) or null.
+  /// Throws ApiException when it cannot be saved, so the screen can say so and keep the old value.
+  Future<String?> saveToServer({
+    String? currency,
+    String? language,
+    String? replyLanguage,
+    int? weekStartsOn,
+  }) async {
+    final changes = <String, Object?>{
+      'currency': ?currency,
+      'language': ?language,
+      'replyLanguage': ?replyLanguage,
+      'weekStartsOn': ?weekStartsOn,
+    };
+    final answer = await ref
+        .read(apiProvider)
+        .verbJson('settings_set', changes);
+    final saved = asJson(answer['settings']);
+    await update(
+      state.copyWith(
+        currency: str(saved['currency'], state.currency),
+        language: str(saved['language'], state.language),
+        replyLanguage: str(saved['replyLanguage'], state.replyLanguage),
+        weekStartsOn: intOf(saved['weekStartsOn'], state.weekStartsOn),
+        // The voice follows the app's language unless the person chose another
+        speechLocale: language == null
+            ? state.speechLocale
+            : (language == 'fil' ? 'fil_PH' : 'en_PH'),
+      ),
+    );
+    final notice = answer['notice'];
+    return notice is String ? notice : null;
   }
 }
 

@@ -15,6 +15,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 // -- MODULES -- //
+import '../l10n/l10n.dart';
 import '../state/providers.dart';
 import 'api.dart';
 import 'auth.dart';
@@ -163,11 +164,13 @@ Future<void> applyReminders(
       title: words.title,
       body: words.body,
       scheduledDate: tz.TZDateTime.from(fire, tz.local),
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channelId,
-          'Reminders',
-          channelDescription: 'Bills, paydays, tasks and events',
+          // Made without a screen, so the words come from the stored language
+          wordsFor(settings.language).notifChannel,
+          channelDescription: wordsFor(settings.language)
+              .notifChannelDescription,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -215,5 +218,5 @@ Future<void> _handToClock(
   String title,
   Settings settings,
 ) => settings.hideDetails
-    ? (title: 'Botler', body: 'You have a reminder')
+    ? (title: 'Botler', body: wordsFor(settings.language).notifHiddenBody)
     : (title: title, body: null);

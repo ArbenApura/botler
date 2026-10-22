@@ -1,7 +1,9 @@
-// THE CORE: MONEY IN CENTAVOS, THE SERVER CLIENT (ERRORS, THE CHAT STREAM), THE OUTBOX (ONCE ONLY, IN ORDER, DROP WHAT IS REFUSED) AND NOTIFICATION WORDS.
+// THE CORE: MONEY IN MINOR UNITS, THE SERVER CLIENT (ERRORS, THE CHAT STREAM), THE OUTBOX (ONCE ONLY, IN ORDER, DROP WHAT IS REFUSED) AND NOTIFICATION WORDS.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
@@ -27,27 +29,56 @@ http.Response jsonResponse(Object body, [int status = 200]) => http.Response(
 
 void main() {
   group('money', () {
-    test('shows centavos as pesos, exactly', () {
-      expect(formatPhp(123450), '₱1,234.50');
-      expect(formatPhp(-5), '-₱0.05');
-      expect(formatPhp(0), '₱0.00');
-      expect(formatPhp(100000000), '₱1,000,000.00');
+    test('shows pesos, dollars and yen from integers, exactly', () {
+      expect(formatMoney(123450), '₱1,234.50');
+      expect(formatMoney(-5), '-₱0.05');
+      expect(formatMoney(0), '₱0.00');
+      expect(formatMoney(100000000), '₱1,000,000.00');
+      expect(formatMoney(123456789, 'USD'), r'$1,234,567.89');
+      expect(formatMoney(1234, 'JPY'), '¥1,234');
+      expect(formatMoney(-1500000, 'KRW'), '-₩1,500,000');
+      expect(formatMoney(5, 'EUR'), '€0.05');
+      // An unknown code never breaks a screen: it reads as pesos
+      expect(formatMoney(100, 'XXX'), '₱1.00');
     });
 
     test('reads what a person types', () {
-      expect(parsePesos('180'), 18000);
-      expect(parsePesos('1,250.50'), 125050);
-      expect(parsePesos('₱ 90'), 9000);
-      expect(parsePesos('php 12.5'), 1250);
-      expect(parsePesos('abc'), isNull);
-      expect(parsePesos('12.345'), isNull);
-      expect(parsePesos(''), isNull);
-      expect(parsePesos('99999999'), isNull);
+      expect(parseMoney('180'), 18000);
+      expect(parseMoney('1,250.50'), 125050);
+      expect(parseMoney('₱ 90'), 9000);
+      expect(parseMoney('php 12.5'), 1250);
+      expect(parseMoney('abc'), isNull);
+      expect(parseMoney('12.345'), isNull);
+      expect(parseMoney(''), isNull);
+      expect(parseMoney('99999999'), isNull);
+      expect(parseMoney(r'$5', 'USD'), 500);
+      expect(parseMoney('usd 12.05', 'USD'), 1205);
     });
 
+    test(
+      'a currency with no decimals takes none, and keeps the 32 bit cap',
+      () {
+        expect(parseMoney('1,500', 'JPY'), 1500);
+        expect(parseMoney('¥200', 'JPY'), 200);
+        expect(parseMoney('1500.50', 'JPY'), isNull);
+        expect(parseMoney('2147483647', 'JPY'), 2147483647);
+        expect(parseMoney('2147483648', 'JPY'), isNull);
+      },
+    );
+
     test('puts an amount back in a field', () {
-      expect(pesosText(18000), '180.00');
-      expect(pesosText(125050), '1250.50');
+      expect(plainAmount(18000), '180.00');
+      expect(plainAmount(125050), '1250.50');
+      expect(plainAmount(180, 'JPY'), '180');
+      expect(plainAmount(-5, 'USD'), '-0.05');
+    });
+
+    test('every currency round-trips through plain text', () {
+      for (final c in currencies) {
+        for (final n in <int>[0, 1, 99, 100, 123456]) {
+          expect(parseMoney(plainAmount(n, c.code), c.code), n, reason: c.code);
+        }
+      }
     });
   });
 
@@ -132,6 +163,91 @@ void main() {
         'done',
       ]);
       expect(events.map((e) => str(e['text'])).join(), 'Hello');
+    });
+
+    test('asks for an uncompressed stream and ignores keep-alive pings', () async {
+      String? encoding;
+      final api = clientFor(
+        MockClient.streaming((req, body) async {
+          encoding = req.headers['accept-encoding'];
+          const text =
+              'data: {"type":"start"}\n\n: ping\n\n: ping\n\ndata: {"type":"done","reply":"","toolsRun":[]}\n\n';
+          return http.StreamedResponse(
+            Stream<List<int>>.value(utf8.encode(text)),
+            200,
+          );
+        }),
+      );
+      final events = await api.chat(id: 'msg-00000003', text: 'hi').toList();
+      expect(encoding, 'identity');
+      expect(events.map((e) => str(e['type'])).toList(), <String>[
+        'start',
+        'done',
+      ]);
+    });
+
+    test('a stream that goes silent becomes a network error', () async {
+      final api = clientFor(
+        MockClient.streaming((req, body) async {
+          final controller = StreamController<List<int>>();
+          controller.add(utf8.encode('data: {"type":"start"}\n\n'));
+          return http.StreamedResponse(controller.stream, 200);
+        }),
+      );
+      await expectLater(
+        api
+            .chat(
+              id: 'msg-00000004',
+              text: 'hi',
+              idle: const Duration(milliseconds: 50),
+            )
+            .toList(),
+        throwsA(
+          isA<ApiException>().having((e) => e.isNetwork, 'network', true),
+        ),
+      );
+    });
+
+    test('a connection dropped mid stream becomes a network error', () async {
+      final api = clientFor(
+        MockClient.streaming((req, body) async {
+          Stream<List<int>> broken() async* {
+            yield utf8.encode('data: {"type":"start"}\n\n');
+            throw const SocketException('reset');
+          }
+
+          return http.StreamedResponse(broken(), 200);
+        }),
+      );
+      await expectLater(
+        api.chat(id: 'msg-00000005', text: 'hi').toList(),
+        throwsA(
+          isA<ApiException>().having((e) => e.isNetwork, 'network', true),
+        ),
+      );
+    });
+
+    test('stopping ends the stream quietly and keeps what arrived', () async {
+      final abort = Completer<void>();
+      final api = clientFor(
+        MockClient.streaming((req, body) async {
+          Stream<List<int>> slow() async* {
+            yield utf8.encode('data: {"type":"delta","text":"Hel"}\n\n');
+            await abort.future;
+            throw http.RequestAbortedException();
+          }
+
+          return http.StreamedResponse(slow(), 200);
+        }),
+      );
+      final seen = <String>[];
+      final done = api
+          .chat(id: 'msg-00000006', text: 'hi', abort: abort.future)
+          .forEach((e) => seen.add(str(e['text'])));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      abort.complete();
+      await done;
+      expect(seen, <String>['Hel']);
     });
 
     test('refuses a chat that the server rejects before streaming', () async {

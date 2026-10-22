@@ -2,20 +2,28 @@
 // Every tappable thing is at least 48 dp. Every colour comes from the tokens. One primary button per view: the others are plain.
 
 // -- DEP-MODULES -- //
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../core/api.dart';
-import '../core/money.dart';
+import '../core/money_scope.dart';
+import '../l10n/l10n.dart';
 import '../theme/theme.dart';
 import '../theme/tokens.dart';
 
 // -- FUNCTIONS -- //
 
-/// The words to show for a failure.
-String errorWords(Object e) =>
-    e is ApiException ? e.message : 'Something went wrong. Try again.';
+/// The words to show for a failure. Pass the [context] to get the app's language; without one the phone's language is used.
+String errorWords(Object e, [BuildContext? context]) {
+  if (e is ApiException) return e.message;
+  final words = context != null
+      ? context.t
+      : wordsFor(ui.PlatformDispatcher.instance.locale.languageCode);
+  return words.uiError;
+}
 
 void say(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -87,9 +95,9 @@ class Amount extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = style ?? Theme.of(context).textTheme.headlineMedium;
     return Semantics(
-      label: formatPhp(centavos),
+      label: context.money(centavos),
       child: Text(
-        formatPhp(centavos),
+        context.money(centavos),
         style: base?.copyWith(fontFeatures: tabular),
       ),
     );
@@ -138,9 +146,9 @@ class AsyncBody<T> extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text(errorWords(e), textAlign: TextAlign.center),
+            Text(errorWords(e, context), textAlign: TextAlign.center),
             if (onRetry != null)
-              TextButton(onPressed: onRetry, child: const Text('Try again')),
+              TextButton(onPressed: onRetry, child: Text(context.t.retry)),
           ],
         ),
       ),
@@ -199,7 +207,7 @@ Future<bool> confirm(
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(d).pop(false),
-          child: const Text('Not now'),
+          child: Text(d.t.uiNotNow),
         ),
         FilledButton(
           style: danger

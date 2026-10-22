@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -28,15 +29,14 @@ class GoalsScreen extends ConsumerWidget {
     final c = context.colors;
     final goals = ref.watch(_goalsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Savings goals')),
+      appBar: AppBar(title: Text(context.t.goalsTitle)),
       body: AsyncBody<List<Json>>(
         value: goals,
         onRetry: () => ref.invalidate(_goalsProvider),
         data: (list) => ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
-            if (list.isEmpty)
-              const Note('No goals yet. What would you like to save for?'),
+            if (list.isEmpty) Note(context.t.goalsEmpty),
             for (final g in list)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -52,7 +52,7 @@ class GoalsScreen extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              '${intOf(g['perPayday']) > 0 ? '${formatPhp(intOf(g['perPayday']))} each payday' : 'Only what your rules give it'}${g['targetAmount'] == null ? '' : ' · aim ${formatPhp(intOf(g['targetAmount']))}'}',
+                              '${intOf(g['perPayday']) > 0 ? context.t.goalsEachPayday(context.money(intOf(g['perPayday']))) : context.t.goalsOnlyRules}${g['targetAmount'] == null ? '' : context.t.goalsAim(context.money(intOf(g['targetAmount'])))}',
                               style: TextStyle(color: c.muted),
                             ),
                           ],
@@ -71,7 +71,8 @@ class GoalsScreen extends ConsumerWidget {
                             );
                             ref.invalidate(_goalsProvider);
                           } catch (e) {
-                            if (context.mounted) say(context, errorWords(e));
+                            if (context.mounted)
+                              say(context, errorWords(e, context));
                           }
                         },
                       ),
@@ -82,7 +83,7 @@ class GoalsScreen extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () => _add(context, ref),
               icon: const Icon(Icons.add),
-              label: const Text('Add a goal'),
+              label: Text(context.t.goalsAdd),
             ),
           ],
         ),
@@ -99,18 +100,18 @@ class GoalsScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final done = await showFormSheet<bool>(
       context,
-      title: 'Add a goal',
+      title: context.t.goalsAdd,
       builder: (sheet, close) => StatefulBuilder(
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Field(
               controller: name,
-              label: 'What are you saving for?',
-              hint: 'Emergency fund',
+              label: sheet.t.goalsNameLabel,
+              hint: sheet.t.goalsNameHint,
             ),
             Text(
-              'Where does it sit?',
+              sheet.t.goalsWhere,
               style: TextStyle(color: sheet.colors.muted),
             ),
             Wrap(
@@ -127,38 +128,38 @@ class GoalsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Field(
               controller: per,
-              label: 'Set aside each payday (pesos, optional)',
+              label: sheet.t.goalsPerLabel(sheet.currencyCode),
               keyboard: TextInputType.number,
               onChanged: (_) => setState(() {}),
             ),
-            if (parsePesos(per.text) != null && (parsePesos(per.text) ?? 0) > 0)
+            if (context.parseAmount(per.text) != null &&
+                (context.parseAmount(per.text) ?? 0) > 0)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'In a year (24 paydays) that is ${formatPhp((parsePesos(per.text) ?? 0) * 24)}.',
+                  sheet.t.goalsYear(
+                    context.money((context.parseAmount(per.text) ?? 0) * 24),
+                  ),
                   style: TextStyle(color: sheet.colors.muted),
                 ),
               ),
             Field(
               controller: target,
-              label: 'The amount you want to reach (pesos, optional)',
+              label: sheet.t.goalsTargetLabel(sheet.currencyCode),
               keyboard: TextInputType.number,
             ),
             FilledButton(
               onPressed: () async {
                 final perCents = per.text.trim().isEmpty
                     ? 0
-                    : parsePesos(per.text);
+                    : context.parseAmount(per.text);
                 final aim = target.text.trim().isEmpty
                     ? null
-                    : parsePesos(target.text);
+                    : context.parseAmount(target.text);
                 if (name.text.trim().isEmpty ||
                     accountId.isEmpty ||
                     perCents == null) {
-                  say(
-                    sheet,
-                    'Give it a name, a place, and amounts as numbers.',
-                  );
+                  say(sheet, sheet.t.goalsAddInvalid);
                   return;
                 }
                 try {
@@ -173,10 +174,10 @@ class GoalsScreen extends ConsumerWidget {
                   );
                   close(true);
                 } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e));
+                  if (sheet.mounted) say(sheet, errorWords(e, context));
                 }
               },
-              child: const Text('Add the goal'),
+              child: Text(sheet.t.goalsAddButton),
             ),
           ],
         ),

@@ -8,9 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -53,13 +54,13 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   void _close() => context.canPop() ? context.pop() : context.go('/');
 
   Future<void> _save(String id) async {
-    final cents = parsePesos(_amount.text);
+    final cents = context.parseAmount(_amount.text);
     if (cents == null || cents <= 0) {
-      say(context, 'Type the amount in pesos, like 180 or 1,250.50.');
+      say(context, context.t.expenseAmountError(context.currencyCode));
       return;
     }
     if (id.isEmpty) {
-      say(context, 'Pick the account it came from.');
+      say(context, context.t.expensePickAccount);
       return;
     }
     setState(() => _busy = true);
@@ -78,7 +79,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         ..invalidate(balancesProvider)
         ..invalidate(syncProvider);
       if (!mounted) return;
-      say(context, 'Logged ${formatPhp(cents)}.');
+      say(context, context.t.expenseLogged(context.money(cents)));
       _close();
     } on ApiException catch (e) {
       if (e.isNetwork) {
@@ -86,10 +87,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         await ref.read(outboxProvider).add('expense_log', args, key: key);
         ref.read(outboxCountProvider.notifier).refresh();
         if (!mounted) return;
-        say(
-          context,
-          'No connection. Saved on your phone, it will be sent once.',
-        );
+        say(context, context.t.expenseOffline);
         _close();
       } else if (mounted) {
         say(context, e.message);
@@ -104,7 +102,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     final accounts = ref.watch(balancesProvider);
     final c = context.colors;
     return Scaffold(
-      appBar: AppBar(title: const Text('Add an expense')),
+      appBar: AppBar(title: Text(context.t.expenseTitle)),
       body: AsyncBody<List<Json>>(
         value: accounts,
         onRetry: () => ref.invalidate(balancesProvider),
@@ -120,11 +118,14 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
             children: <Widget>[
               Field(
                 controller: _amount,
-                label: 'How much? (pesos)',
+                label: context.t.expenseHowMuch(context.currencyCode),
                 hint: '180',
                 keyboard: const TextInputType.numberWithOptions(decimal: true),
               ),
-              Text('From which account?', style: TextStyle(color: c.muted)),
+              Text(
+                context.t.expenseFromAccount,
+                style: TextStyle(color: c.muted),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -142,13 +143,13 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
               const SizedBox(height: 16),
               Field(
                 controller: _note,
-                label: 'What was it for? (optional)',
-                hint: 'lunch',
+                label: context.t.expenseNoteLabel,
+                hint: context.t.expenseNoteHint,
               ),
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: _busy ? null : () => _save(selected),
-                child: const Text('Log it'),
+                child: Text(context.t.expenseLogIt),
               ),
             ],
           );

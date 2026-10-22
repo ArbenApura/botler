@@ -1,0 +1,13 @@
+{
+  "appName": "Botler",
+  "retry": "Try again",
+  "cancel": "Cancel",
+  "save": "Save",
+  "add": "Add",
+  "delete": "Delete",
+  "undo": "Undo",
+  "close": "Close",
+  "yes": "Yes",
+  "no": "No",
+  "done": "Done"
+}

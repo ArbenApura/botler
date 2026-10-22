@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -39,10 +40,7 @@ class SignInScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 8),
-              Text(
-                'Your money and your time, in one quiet chat.',
-                style: TextStyle(color: c.muted),
-              ),
+              Text(context.t.signInTagline, style: TextStyle(color: c.muted)),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -56,7 +54,7 @@ class SignInScreen extends ConsumerWidget {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Sign in with Google'),
+                      : Text(context.t.signInButton),
                 ),
               ),
               if (session.hasError)

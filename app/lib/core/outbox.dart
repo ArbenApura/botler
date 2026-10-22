@@ -99,6 +99,9 @@ class Outbox {
     jsonEncode(list.map((i) => i.toJson()).toList()),
   );
 
+  /// Drops everything waiting to be sent. Used after a data reset, so old writes never replay onto the empty account.
+  Future<void> clear() => _save(<OutboxItem>[]);
+
   /// Keeps a write for later. Returns its request id. Pass [key] when the write was already tried once under that id, so the server
   /// recognises a repeat if the first try did get through but its answer was lost.
   Future<String> add(String verb, Json args, {String? key}) async {
@@ -125,7 +128,7 @@ class Outbox {
         continue;
       }
       try {
-        await api.verb(item.verb, item.args, item.key);
+        await api.verb(item.verb, item.args, item.key, 'outbox');
         sent++;
       } on ApiException catch (e) {
         if (e.isRetryable && item.attempts < _maxAttempts) {

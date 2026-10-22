@@ -1,0 +1,6 @@
+# THE APP'S TEXT. app_en.arb AND app_fil.arb ARE BUILT FROM lib/l10n/parts/*.arb BY tool/l10n.dart (dart run tool/l10n.dart), THEN flutter gen-l10n MAKES THE CODE.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

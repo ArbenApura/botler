@@ -7,26 +7,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../payday/split_card.dart';
+import 'agent_text.dart';
 import 'chat_state.dart';
+import 'live_parts.dart';
 
 // -- FUNCTIONS -- //
 
-String _name(Object? accounts, String id) {
+String _name(BuildContext context, Object? accounts, String id) {
   for (final a in asJsonList(accounts)) {
     if (str(a['id']) == id) return str(a['name']);
   }
-  return 'your account';
+  return context.t.chatYourAccount;
 }
 
 /// Undoes a created entry: finds its place in the recent changes, then undoes it.
-Future<void> undoEntry(ApiClient api, String entityId) async {
+Future<void> undoEntry(
+  ApiClient api,
+  String entityId, {
+  String gone = 'That entry can no longer be undone.',
+}) async {
   final recent = await api.verbList('ledger_undoable', <String, Object?>{
     'limit': 20,
   });
@@ -36,11 +43,7 @@ Future<void> undoEntry(ApiClient api, String entityId) async {
       return;
     }
   }
-  throw const ApiException(
-    'NOT_FOUND',
-    'That entry can no longer be undone.',
-    404,
-  );
+  throw ApiException('NOT_FOUND', gone, 404);
 }
 
 class ChatItemView extends ConsumerWidget {
@@ -66,37 +69,38 @@ class ChatItemView extends ConsumerWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Text(photo ? '$text\n(with a photo)' : text),
+              child: Text(photo ? context.t.chatWithPhoto(text) : text),
             ),
           ),
         ),
       ),
-      AgentItem(:final text) => Padding(
+      AgentItem(:final text, :final streaming) => Padding(
         padding: const EdgeInsets.only(right: 24),
-        child: SelectableText(
-          text,
-          style: Theme.of(context).textTheme.bodyLarge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            AgentText(text),
+            if (streaming) const StreamCaret(),
+          ],
         ),
       ),
+      ThinkingItem() => ThinkingPanel(item as ThinkingItem),
       ToolItem() => _ToolView(item as ToolItem),
       CardItem() => _CardView(item as CardItem),
       FallbackItem() => PaperCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'The assistant is not available right now.',
-              style: text.titleSmall,
-            ),
+            Text(context.t.chatAssistantDown, style: text.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'You can still add an expense yourself.',
+              context.t.chatAddExpenseHint,
               style: TextStyle(color: c.muted),
             ),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => context.push('/expense'),
-              child: const Text('Add an expense'),
+              child: Text(context.t.chatAddExpense),
             ),
           ],
         ),
@@ -114,10 +118,12 @@ class _ToolView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    // Started and not answered yet: a spinner and what it is doing, never the "failed" words below
+    if (item.running) return RunningToolRow(item.name);
     if (item.status == 'needs_approval') return const SizedBox.shrink();
     if (item.status != 'ok') {
       return Text(
-        item.message ?? 'That did not work.',
+        item.message ?? context.t.chatToolFailed,
         style: TextStyle(color: c.muted),
       );
     }
@@ -132,8 +138,10 @@ class _ToolView extends ConsumerWidget {
           case 'saved':
             final txn = asJson(data['txn']);
             return _Logged(
-              line:
-                  'Logged ${formatPhp(intOf(txn['amount']))} on ${_name(accounts, str(txn['accountId']))}',
+              line: context.t.chatLogged(
+                context.money(intOf(txn['amount'])),
+                _name(context, accounts, str(txn['accountId'])),
+              ),
               undoable: !item.resolved,
               undone: item.resolved,
               onUndo: () => _undo(context, ref, str(txn['id'])),
@@ -141,10 +149,12 @@ class _ToolView extends ConsumerWidget {
           case 'needs_confirmation':
             final chip = asJson(data['chip']);
             return _Ask(
-              question:
-                  'Is it ${formatPhp(intOf(chip['amount']))} on ${str(chip['accountName'])}?',
+              question: context.t.chatConfirmQuestion(
+                context.money(intOf(chip['amount'])),
+                str(chip['accountName']),
+              ),
               resolved: item.resolved,
-              yes: 'Yes, log it',
+              yes: context.t.chatYesLogIt,
               onYes: () async {
                 await api.verb('expense_log', <String, Object?>{
                   'accountId': str(chip['accountId']),
@@ -153,14 +163,17 @@ class _ToolView extends ConsumerWidget {
                   'confirmed': true,
                 });
                 notifier.answer(item.id);
-                ref.invalidate(balancesProvider);
+                ref
+                  ..invalidate(balancesProvider)
+                  ..invalidate(syncProvider);
               },
               onNo: () async => notifier.answer(item.id),
             );
           case 'needs_account':
             return _Choose(
-              question:
-                  'Which account was ${formatPhp(intOf(data['amount']))} from?',
+              question: context.t.chatWhichAccount(
+                context.money(intOf(data['amount'])),
+              ),
               names: asList(data['accounts']).whereType<String>().toList(),
               resolved: item.resolved,
               onPick: (name) async {
@@ -173,16 +186,21 @@ class _ToolView extends ConsumerWidget {
                   'note': str(data['note']),
                 });
                 notifier.answer(item.id);
-                ref.invalidate(balancesProvider);
+                ref
+                  ..invalidate(balancesProvider)
+                  ..invalidate(syncProvider);
               },
             );
           case 'needs_amount':
-            return Text('How much was it?', style: TextStyle(color: c.muted));
+            return Text(
+              context.t.chatHowMuch,
+              style: TextStyle(color: c.muted),
+            );
         }
         return const SizedBox.shrink();
       case 'income_record' || 'refund_record' || 'transfer_record':
         return _Logged(
-          line: 'Recorded ${formatPhp(intOf(data['amount']))}',
+          line: context.t.chatRecorded(context.money(intOf(data['amount']))),
           undoable: !item.resolved,
           undone: item.resolved,
           onUndo: () => _undo(context, ref, str(data['id'])),
@@ -193,25 +211,38 @@ class _ToolView extends ConsumerWidget {
               .map((b) => str(b['name']))
               .join(', ');
           return Text(
-            'How much is usually $names? I need an amount to make the split.',
+            context.t.chatNeedsAmounts(names),
             style: TextStyle(color: c.muted),
           );
         }
         return SplitCard(
           plan: data,
-          onChanged: () => ref.invalidate(balancesProvider),
+          onChanged: () => ref
+            ..invalidate(balancesProvider)
+            ..invalidate(syncProvider),
         );
       case 'rule_from_text' || 'rule_propose':
         return _RuleCard(rule: data);
       case 'bill_mark_paid':
         return Text(
-          'Marked paid · ${formatPhp(intOf(data['amount']))}',
+          context.t.chatMarkedPaid(context.money(intOf(data['amount']))),
           style: TextStyle(color: c.muted),
         );
       default:
-        return Text(
-          _humanize(item.name),
-          style: TextStyle(color: c.muted, fontSize: 13),
+        // A read the assistant did: one small quiet line, never a block
+        return Row(
+          children: <Widget>[
+            Icon(Icons.search, size: 14, color: c.muted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                _humanize(context, item.name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: c.muted, fontSize: 12),
+              ),
+            ),
+          ],
         );
     }
   }
@@ -222,19 +253,25 @@ class _ToolView extends ConsumerWidget {
     String entityId,
   ) async {
     try {
-      await undoEntry(ref.read(apiProvider), entityId);
+      await undoEntry(
+        ref.read(apiProvider),
+        entityId,
+        gone: context.t.chatUndoGone,
+      );
       ref.read(chatProvider.notifier).answer(item.id, data: item.data);
-      ref.invalidate(balancesProvider);
-      if (context.mounted) say(context, 'Undone.');
+      ref
+        ..invalidate(balancesProvider)
+        ..invalidate(syncProvider);
+      if (context.mounted) say(context, context.t.chatUndoneSnack);
     } catch (e) {
-      if (context.mounted) say(context, errorWords(e));
+      if (context.mounted) say(context, errorWords(e, context));
     }
   }
 }
 
-String _humanize(String name) {
+String _humanize(BuildContext context, String name) {
   final words = name.replaceAll('_', ' ');
-  return 'Checked: $words';
+  return context.t.chatChecked(words);
 }
 
 class _Logged extends StatelessWidget {
@@ -257,17 +294,22 @@ class _Logged extends StatelessWidget {
       children: <Widget>[
         Icon(
           undone ? Icons.undo : Icons.check_circle_outline,
-          size: 18,
+          size: 16,
           color: undone ? c.muted : c.success,
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            undone ? 'Undone' : line,
-            style: TextStyle(color: c.muted),
+            undone ? context.t.chatUndoneLine : line,
+            style: TextStyle(color: c.muted, fontSize: 14),
           ),
         ),
-        if (undoable) TextButton(onPressed: onUndo, child: const Text('Undo')),
+        if (undoable)
+          TextButton(
+            onPressed: onUndo,
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            child: Text(context.t.undo),
+          ),
       ],
     );
   }
@@ -302,7 +344,7 @@ class _Ask extends StatelessWidget {
             children: <Widget>[
               FilledButton(onPressed: onYes, child: Text(yes)),
               const SizedBox(width: 8),
-              TextButton(onPressed: onNo, child: const Text('No')),
+              TextButton(onPressed: onNo, child: Text(context.t.no)),
             ],
           ),
         ],
@@ -382,16 +424,17 @@ class _RuleCardState extends ConsumerState<_RuleCard> {
                         );
                         if (mounted) setState(() => _status = 'active');
                       } catch (e) {
-                        if (context.mounted) say(context, errorWords(e));
+                        if (context.mounted)
+                          say(context, errorWords(e, context));
                       } finally {
                         if (mounted) setState(() => _busy = false);
                       }
                     },
-              child: const Text('Approve rule'),
+              child: Text(context.t.chatApproveRule),
             )
           else
             Text(
-              status == 'active' ? 'In force' : status,
+              status == 'active' ? context.t.chatInForce : status,
               style: TextStyle(color: context.colors.success),
             ),
         ],
@@ -430,7 +473,7 @@ class _CardView extends ConsumerWidget {
         ..invalidate(balancesProvider)
         ..invalidate(syncProvider);
     } catch (e) {
-      if (context.mounted) say(context, errorWords(e));
+      if (context.mounted) say(context, errorWords(e, context));
     }
   }
 
@@ -441,7 +484,7 @@ class _CardView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Please check', style: TextStyle(color: c.muted)),
+          Text(context.t.chatPleaseCheck, style: TextStyle(color: c.muted)),
           const SizedBox(height: 4),
           Text(item.summary, style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 12),
@@ -450,25 +493,25 @@ class _CardView extends ConsumerWidget {
               children: <Widget>[
                 FilledButton(
                   onPressed: () => _decide(context, ref, approve: true),
-                  child: const Text('Approve'),
+                  child: Text(context.t.chatApprove),
                 ),
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: () => _decide(context, ref, approve: false),
-                  child: const Text('Not now'),
+                  child: Text(context.t.chatNotNow),
                 ),
               ],
             ),
             CardState.approved => Text(
-              'Done',
+              context.t.done,
               style: TextStyle(color: c.success),
             ),
             CardState.declined => Text(
-              'Not done',
+              context.t.chatNotDone,
               style: TextStyle(color: c.muted),
             ),
             CardState.failed => Text(
-              item.note ?? 'That could not be done.',
+              item.note ?? context.t.chatCardFailed,
               style: TextStyle(color: c.danger),
             ),
           },

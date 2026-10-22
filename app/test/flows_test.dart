@@ -2,6 +2,7 @@
 // DOWN OFFLINE, AND THE APP LOCK. THE SERVER IS A STAND-IN THAT ANSWERS LIKE THE REAL ONE.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:botler/core/api.dart';
@@ -11,6 +12,7 @@ import 'package:botler/features/chat/chat_items.dart';
 import 'package:botler/features/chat/chat_state.dart';
 import 'package:botler/features/expense/expense_screen.dart';
 import 'package:botler/features/payday/split_card.dart';
+import 'package:botler/l10n/l10n.dart';
 import 'package:botler/state/providers.dart';
 import 'package:botler/theme/theme.dart';
 import 'package:flutter/material.dart';
@@ -222,6 +224,9 @@ void main() {
     Widget app(ProviderContainer c, Widget home) => UncontrolledProviderScope(
       container: c,
       child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: buildTheme(Brightness.light),
         home: Scaffold(body: SingleChildScrollView(child: home)),
       ),
@@ -339,6 +344,9 @@ void main() {
           UncontrolledProviderScope(
             container: c,
             child: MaterialApp.router(
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
               theme: buildTheme(Brightness.light),
               routerConfig: router,
             ),
@@ -347,7 +355,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('GCash'), findsOneWidget);
         await tester.enterText(
-          find.widgetWithText(TextField, 'How much? (pesos)'),
+          find.widgetWithText(TextField, 'How much? (PHP)'),
           '180',
         );
         await tester.tap(find.text('Log it'));
@@ -364,6 +372,9 @@ void main() {
     Widget gate(ProviderContainer c) => UncontrolledProviderScope(
       container: c,
       child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: buildTheme(Brightness.light),
         home: const LockGate(child: Text('Secret balance ₱1,000')),
       ),
@@ -399,6 +410,56 @@ void main() {
         ok = true;
         await tester.tap(find.text('Unlock'));
         await tester.pumpAndSettle();
+        expect(find.textContaining('Secret balance'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'asks once: the fingerprint dialog pausing the app does not ask again',
+      (tester) async {
+        var asked = 0;
+        final answer = Completer<bool>();
+        final s = FakeServer();
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'settings.lock': true,
+        });
+        final p = await SharedPreferences.getInstance();
+        final c = ProviderContainer(
+          overrides: [
+            prefsProvider.overrideWithValue(p),
+            apiProvider.overrideWithValue(
+              ApiClient(
+                base: 'https://botler.test',
+                token: () async => 'tok',
+                client: s.client,
+              ),
+            ),
+            authenticateProvider.overrideWithValue(() {
+              asked++;
+              return answer.future;
+            }),
+          ],
+        );
+        addTearDown(c.dispose);
+        await tester.pumpWidget(gate(c));
+        await tester.pump();
+        expect(asked, 1);
+        // The dialog is up: the app is paused and resumed by it
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+        expect(asked, 1);
+        answer.complete(true);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Secret balance'), findsOneWidget);
+        // A resume with no new pause is not a return after time away
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pumpAndSettle();
+        expect(asked, 1);
         expect(find.textContaining('Secret balance'), findsOneWidget);
       },
     );

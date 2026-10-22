@@ -43,16 +43,37 @@ Future<String?> readPhotoText(PhotoSource source) async {
 class VoiceListener {
   final SpeechToText _speech = SpeechToText();
   bool _ready = false;
+  // Told when the phone stops listening by itself (a pause, the time limit, an error), so the screen never keeps showing a live mic
+  void Function()? _onEnded;
 
   bool get listening => _speech.isListening;
 
   /// Starts listening. [onText] gets the words so far; [finished] is true for the last one. Returns false when the phone cannot listen.
-  Future<bool> start(String locale, HeardCallback onText) async {
-    _ready = _ready || await _speech.initialize();
+  Future<bool> start(
+    String locale,
+    HeardCallback onText, {
+    required void Function() onEnded,
+  }) async {
+    _onEnded = onEnded;
+    _ready =
+        _ready ||
+        await _speech.initialize(
+          // The phone often ends a dictation with a status and no final result, so the status is what closes the mic
+          onStatus: (status) {
+            if (status == SpeechToText.doneStatus ||
+                status == SpeechToText.notListeningStatus) {
+              _onEnded?.call();
+            }
+          },
+          onError: (_) => _onEnded?.call(),
+        );
     if (!_ready) return false;
     await _speech.listen(
       onResult: (r) => onText(r.recognizedWords, finished: r.finalResult),
       listenOptions: SpeechListenOptions(
+        // A dictation never runs on for ever: it ends after three seconds of quiet or a minute in all
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 3),
         localeId: locale,
         partialResults: true,
         listenMode: ListenMode.dictation,
@@ -61,5 +82,10 @@ class VoiceListener {
     return true;
   }
 
-  Future<void> stop() => _speech.stop();
+  /// Stops and cancels, so the microphone is released and no late result comes in after the person pressed stop.
+  Future<void> stop() async {
+    _onEnded = null;
+    await _speech.stop();
+    await _speech.cancel();
+  }
 }

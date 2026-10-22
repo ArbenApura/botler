@@ -8,8 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../core/json.dart';
-import '../../core/money.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -59,7 +60,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     try {
       await undoEntry(ref.read(apiProvider), str(e['id']));
       _refresh();
-      if (mounted) say(context, 'Undone.');
+      if (mounted) say(context, context.t.historyUndoneSaid);
     } catch (err) {
       if (mounted) say(context, errorWords(err));
     }
@@ -73,7 +74,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       await context.push(
         '/expense',
         extra: <String, Object?>{
-          'amount': pesosText(intOf(e['amount'])),
+          'amount': context.plainAmount(intOf(e['amount'])),
           'note': str(e['note']),
         },
       );
@@ -90,7 +91,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         str(a['id']): str(a['name']),
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(title: Text(context.t.historyTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
@@ -101,13 +102,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('Spent this month', style: TextStyle(color: c.muted)),
+                  Text(
+                    context.t.historySpentThisMonth,
+                    style: TextStyle(color: c.muted),
+                  ),
                   Amount(intOf(m['spending'])),
                   if (intOf(m['untracked']) > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
-                        '${formatPhp(intOf(m['untracked']))} went untracked (found when you counted an account).',
+                        context.t.historyUntracked(
+                          context.money(intOf(m['untracked'])),
+                        ),
                         style: TextStyle(color: c.warning),
                       ),
                     ),
@@ -117,9 +123,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 12),
           TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search by note, category or amount',
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: context.t.historySearchHint,
             ),
             onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
           ),
@@ -132,18 +138,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   .where(
                     (e) =>
                         _query.isEmpty ||
-                        '${str(e['note'])} ${str(e['category'])} ${pesosText(intOf(e['amount']))} ${str(e['type'])}'
+                        '${str(e['note'])} ${str(e['category'])} ${context.plainAmount(intOf(e['amount']))} ${str(e['type'])}'
                             .toLowerCase()
                             .contains(_query),
                   )
                   .toList();
-              if (list.isEmpty) return const Note('Nothing here yet.');
+              if (list.isEmpty) return Note(context.t.historyEmpty);
               return Column(
                 children: <Widget>[
                   for (final e in list)
                     _Row(
                       entry: e,
-                      account: names[str(e['accountId'])] ?? 'account',
+                      account:
+                          names[str(e['accountId'])] ??
+                          context.t.historyAccountFallback,
                       to: names[str(e['toAccountId'])],
                       onUndo: () => _undo(e),
                       onFix: () => _fix(e),
@@ -195,11 +203,16 @@ class _Row extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
-        type == 'transfer' ? 'Moved $account → ${to ?? 'account'}' : title,
+        type == 'transfer'
+            ? context.t.historyMoved(
+                account,
+                to ?? context.t.historyAccountFallback,
+              )
+            : title,
         style: style,
       ),
       subtitle: Text(
-        '${type == 'transfer' ? '' : '$account · '}${when == null ? '' : DateFormat('MMM d, h:mm a').format(when)}${voided ? ' · undone' : ''}',
+        '${type == 'transfer' ? '' : '$account · '}${when == null ? '' : DateFormat('MMM d, h:mm a', Localizations.localeOf(context).toString()).format(when)}${voided ? ' · ${context.t.historyUndoneTag}' : ''}',
         style: TextStyle(color: c.muted),
       ),
       trailing: Row(
@@ -210,21 +223,24 @@ class _Row extends StatelessWidget {
                 ? '+'
                 : sign < 0
                 ? '-'
-                : ''}${formatPhp(amount)}',
+                : ''}${context.money(amount)}',
             style: style.copyWith(
               fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
             ),
           ),
           if (!voided && type != 'adjustment')
             PopupMenuButton<String>(
-              tooltip: 'More',
+              tooltip: context.t.historyMore,
               onSelected: (v) => v == 'undo' ? onUndo() : onFix(),
               itemBuilder: (_) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(value: 'undo', child: Text('Undo')),
+                PopupMenuItem<String>(
+                  value: 'undo',
+                  child: Text(context.t.undo),
+                ),
                 if (type == 'expense')
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'fix',
-                    child: Text('Fix this'),
+                    child: Text(context.t.historyFixThis),
                   ),
               ],
             ),

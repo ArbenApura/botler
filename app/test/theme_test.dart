@@ -42,6 +42,12 @@ void main() {
         'success on paper': (c.success, c.paper),
         'success on surface': (c.success, c.surface),
         'info on paper': (c.info, c.paper),
+        // The calendar draws marks over a payment-window band
+        'ink on accent soft': (c.ink, c.accentSoft),
+        'danger on accent soft': (c.danger, c.accentSoft),
+        'warning on accent soft': (c.warning, c.accentSoft),
+        'success on accent soft': (c.success, c.accentSoft),
+        'info on accent soft': (c.info, c.accentSoft),
       };
       for (final p in pairs.entries) {
         test('${p.key} is readable', () {
