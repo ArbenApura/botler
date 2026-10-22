@@ -228,7 +228,7 @@ describe('model client', () => {
 			messages: [{ role: 'user', content: 'Hello Maria' }]
 		})) {
 			if (ev.type === 'delta') text += ev.text;
-			else done = ev.completion;
+			else if (ev.type === 'done') done = ev.completion;
 		}
 		expect(JSON.parse(f.calls[0]!.body).stream).toBe(true);
 		expect(text).toBe('Hi Maria!');

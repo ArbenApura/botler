@@ -16,6 +16,7 @@ import {
 	allocationRule,
 	balanceSnapshot,
 	bill,
+	billOverride,
 	billPayment,
 	calendarEvent,
 	calendarSync,
@@ -26,6 +27,8 @@ import {
 	ledgerTxn,
 	memoryFact,
 	memoryProfile,
+	userSetting,
+	auditEvent,
 	memorySummary,
 	modelUsage,
 	reminder,
@@ -98,6 +101,13 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		tx
 			.insert(billPayment)
 			.values({ userId, billId: BILL_ID, dueDate: '2026-10-01', amount: 100, txnId: TXN_ID }),
+	bill_override: (tx, userId) =>
+		tx.insert(billOverride).values({
+			userId,
+			billId: BILL_ID,
+			originalDueDate: '2026-10-01',
+			newDueDate: '2026-10-03'
+		}),
 	balance_snapshot: (tx, userId) =>
 		tx.insert(balanceSnapshot).values({ userId, accountId: ACCOUNT_ID, amount: 100 }),
 	split_plan: (tx, userId) =>
@@ -132,6 +142,18 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		}),
 	calendar_sync: (tx, userId) => tx.insert(calendarSync).values({ userId }),
 	memory_profile: (tx, userId) => tx.insert(memoryProfile).values({ userId, persona: 'Be brief.' }),
+	user_setting: (tx, userId) => tx.insert(userSetting).values({ userId, currency: 'USD' }),
+	audit_event: (tx, userId) =>
+		tx.insert(auditEvent).values({
+			userId,
+			seq: 1_000_000,
+			actorKind: 'person',
+			channel: 'app',
+			entity: 'account',
+			entityId: 'x',
+			action: 'create',
+			hash: 'h'
+		}),
 	memory_fact: (tx, userId) =>
 		tx.insert(memoryFact).values({ userId, text: 'I like tea.', textHash: 'h-isolation' }),
 	memory_summary: (tx, userId) =>
@@ -161,6 +183,9 @@ afterAll(async () => {
 	await t.close();
 });
 
+/** Tables whose rows can be added and read but never changed or removed. */
+const APPEND_ONLY = new Set(USER_TABLES.filter((u) => u.appendOnly).map((u) => u.name));
+
 const count = (tx: Tx, table: string) =>
 	tx.execute(sql.raw(`select count(*)::int as n from "${table}"`)).then((r) => {
 		const rows = (r as unknown as { rows: { n: number }[] }).rows;
@@ -172,7 +197,10 @@ const count = (tx: Tx, table: string) =>
 describe('user table isolation', () => {
 	for (const name of Object.keys(CASES)) {
 		it(`${name}: the owner sees the row, another person and no context see nothing`, async () => {
-			expect(await withUser(t.handle, ANNA, (tx) => count(tx, name))).toBe(1);
+			const mine = await withUser(t.handle, ANNA, (tx) => count(tx, name));
+			// The trail has a row for every change the other cases made, the rest have the one row made here
+			if (APPEND_ONLY.has(name)) expect(mine).toBeGreaterThanOrEqual(1);
+			else expect(mine).toBe(1);
 			expect(await withUser(t.handle, BEN, (tx) => count(tx, name))).toBe(0);
 			// No user set at all: the same connection role, but no context
 			const bare = await t.handle.db.transaction((tx) => count(tx, name));
@@ -193,11 +221,21 @@ describe('user table isolation', () => {
 		});
 
 		it(`${name}: another person cannot delete the row`, async () => {
-			const changed = await withUser(t.handle, BEN, (tx) =>
+			const before = await withUser(t.handle, ANNA, (tx) => count(tx, name));
+			const attempt = withUser(t.handle, BEN, (tx) =>
 				tx.execute(sql.raw(`delete from "${name}" returning 1`))
 			);
-			expect((changed as unknown as { rows: unknown[] }).rows).toHaveLength(0);
-			expect(await withUser(t.handle, ANNA, (tx) => count(tx, name))).toBe(1);
+			if (APPEND_ONLY.has(name)) {
+				// An append-only table refuses a delete to everyone: the role has no right to it
+				const error = await attempt.then(
+					() => null,
+					(e: unknown) => e as Error & { cause?: Error }
+				);
+				expect(String(error?.cause?.message ?? error?.message)).toMatch(/permission denied/i);
+			} else {
+				expect(((await attempt) as unknown as { rows: unknown[] }).rows).toHaveLength(0);
+			}
+			expect(await withUser(t.handle, ANNA, (tx) => count(tx, name))).toBe(before);
 		});
 	}
 

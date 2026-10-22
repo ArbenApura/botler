@@ -17,6 +17,7 @@ import { chatTurn } from '../db/schema';
 import { enqueue } from '../jobs/queue';
 import { activeEmbedder } from '../memory/embed';
 import { loadMemoryContext } from '../memory/retrieve';
+import { recentCardLines } from '../ops/actions';
 import { OpsError, run } from '../ops/context';
 import { parse } from '../ops/shared';
 import { runTurn } from './turn';
@@ -50,6 +51,8 @@ export const chatInput = z.strictObject({
 const HISTORY_TURNS = 10;
 const HISTORY_CHARS = 1500;
 const STALE_RUNNING_MS = 120_000;
+/** The only events kept with a finished message. Thinking, phases and start are live only: never stored, never replayed. */
+const STORED = new Set<TurnEvent['type']>(['tool', 'card', 'fallback']);
 
 // -- FUNCTIONS -- //
 
@@ -120,9 +123,11 @@ export async function* handleChat(
 ): AsyncGenerator<TurnEvent> {
 	const input = parse(chatInput, raw);
 	const claimed = await claim(ctx, input);
+	// The message is accepted: the screen starts showing that the assistant is working before memory, history or the model are touched
+	yield { type: 'start' };
 	if (claimed.mode === 'replay') {
 		const stored = Array.isArray(claimed.row.events) ? (claimed.row.events as TurnEvent[]) : [];
-		for (const e of stored) yield e;
+		for (const e of stored) if (STORED.has(e.type)) yield e;
 		yield { type: 'delta', text: claimed.row.reply };
 		yield { type: 'done', reply: claimed.row.reply, toolsRun: [] };
 		return;
@@ -157,6 +162,8 @@ export async function* handleChat(
 			persona:
 				[deps.persona, memory?.persona, memory?.tone].filter(Boolean).join('\n') || undefined,
 			memories: [...(deps.memories ?? []), ...(memory?.lines ?? [])],
+			// Which cards the person approved or turned down since the last message. A read that fails never stops a chat
+			cards: await recentCardLines(ctx).catch(() => []),
 			signal: deps.signal,
 			now: deps.now?.(),
 			tools: deps.tools,
@@ -170,7 +177,7 @@ export async function* handleChat(
 					tx
 						.update(chatTurn)
 						.set({
-							status: e.stopped === 'cancelled' ? 'failed' : 'done',
+							status: e.stopped === 'cancelled' || e.stopped === 'length' ? 'failed' : 'done',
 							reply,
 							events: kept,
 							finishedAt: sql`now()`,
@@ -179,7 +186,7 @@ export async function* handleChat(
 						.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, claimed.id)))
 				);
 				// What the person said is read for lasting facts later, by a job that carries only the turn id
-				if (e.stopped !== 'cancelled' && !deps.noMemory)
+				if (e.stopped !== 'cancelled' && e.stopped !== 'length' && !deps.noMemory)
 					await run(ctx, (tx, userId) =>
 						enqueue(tx, {
 							userId,
@@ -188,7 +195,7 @@ export async function* handleChat(
 							payload: { turnId: claimed.id }
 						})
 					).catch(() => undefined);
-			} else if (e.type !== 'delta') kept.push(e);
+			} else if (STORED.has(e.type)) kept.push(e);
 			yield e;
 		}
 	} catch (e) {

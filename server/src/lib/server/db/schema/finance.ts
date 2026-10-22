@@ -289,8 +289,11 @@ export const billPayment = userTable(
 	{
 		id: id(),
 		billId: uuid('bill_id').notNull(),
-		/** The due date this payment is for. */
+		/** The due date this payment is for: the last day of the window it settled. */
 		dueDate: date('due_date', { mode: 'string' }).notNull(),
+		/** The window the payment settled, so a later change to the schedule or the weekend rule still finds it. Null on older rows (due date only). */
+		windowStart: date('window_start', { mode: 'string' }),
+		windowEnd: date('window_end', { mode: 'string' }),
 		amount: centavos('amount').notNull(),
 		paidAt: timestamp('paid_at', { withTimezone: true }).notNull().defaultNow(),
 		/** The expense this payment wrote in the ledger. */
@@ -311,6 +314,58 @@ export const billPayment = userTable(
 			foreignColumns: [ledgerTxn.userId, ledgerTxn.id]
 		}),
 		check('bill_payment_amount_chk', sql`${t.amount} > 0`)
+	]
+);
+
+// -- BILL OVERRIDES -- //
+
+/**
+ * A change to ONE due date of a bill, keyed by the date the schedule gives it (original_due_date): moved to another day, a different
+ * amount, paid from another account, or skipped. The bill itself is not touched, so its payments and its other dates stay as they are.
+ * A row always changes something, and a skipped row changes nothing else.
+ */
+export const billOverride = userTable(
+	'bill_override',
+	() => user.id,
+	{
+		id: id(),
+		billId: uuid('bill_id').notNull(),
+		/** The due date as the bill's schedule gives it, not the moved one. */
+		originalDueDate: date('original_due_date', { mode: 'string' }).notNull(),
+		newDueDate: date('new_due_date', { mode: 'string' }),
+		/** Centavos for this date only, or null to keep the bill's own amount. */
+		amount: centavos('amount'),
+		accountId: uuid('account_id'),
+		skipped: boolean('skipped').notNull().default(false),
+		version: version(),
+		...stamps()
+	},
+	(t) => [
+		unique('bill_override_user_id_uq').on(t.userId, t.id),
+		unique('bill_override_occurrence_uq').on(t.userId, t.billId, t.originalDueDate),
+		foreignKey({
+			name: 'bill_override_bill_fk',
+			columns: [t.userId, t.billId],
+			foreignColumns: [bill.userId, bill.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'bill_override_account_fk',
+			columns: [t.userId, t.accountId],
+			foreignColumns: [account.userId, account.id]
+		}),
+		check('bill_override_amount_chk', sql`${t.amount} is null or ${t.amount} > 0`),
+		check(
+			'bill_override_move_chk',
+			sql`${t.newDueDate} is null or ${t.newDueDate} <> ${t.originalDueDate}`
+		),
+		check(
+			'bill_override_skip_chk',
+			sql`not ${t.skipped} or (${t.newDueDate} is null and ${t.amount} is null and ${t.accountId} is null)`
+		),
+		check(
+			'bill_override_effect_chk',
+			sql`${t.skipped} or ${t.newDueDate} is not null or ${t.amount} is not null or ${t.accountId} is not null`
+		)
 	]
 );
 

@@ -44,7 +44,6 @@ export async function createAccount(ctx: Ctx, raw: AccountCreateInput): Promise<
 }
 
 export async function updateAccount(ctx: Ctx, raw: AccountUpdateInput): Promise<AccountView> {
-	requirePerson(ctx.actor.kind, 'change an account');
 	const { accountId, expectVersion, ...changes } = parse(accountUpdateInput, raw);
 	return mapped(() =>
 		runWrite(

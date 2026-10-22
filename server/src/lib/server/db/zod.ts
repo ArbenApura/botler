@@ -5,6 +5,7 @@
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 // -- MODULES -- //
+import { CURRENCY_CODES } from '../../finance/currency';
 import { isDate } from '../../finance/dates';
 import { validateRecurrence } from '../../schedule/recurrence';
 import { MAX_CENTAVOS } from '../../finance/money';
@@ -13,11 +14,13 @@ import {
 	account,
 	allocationRule,
 	bill,
+	billOverride,
 	device,
 	FACT_KINDS,
 	goal,
 	incomeSchedule,
-	ledgerTxn
+	ledgerTxn,
+	userSetting
 } from './schema';
 
 // -- CONSTANTS -- //
@@ -59,12 +62,57 @@ export const scheduleInput = z
 			days: z.tuple([z.number().int(), z.number().int()])
 		}),
 		z.object({ kind: z.literal('every_n_days'), anchor: z.string(), n: z.number().int() }),
-		z.object({ kind: z.literal('monthly'), day: z.number().int() })
+		z.object({
+			kind: z.literal('monthly'),
+			day: z.number().int(),
+			everyMonths: z.number().int().optional(),
+			anchorMonth: z.string().optional()
+		}),
+		z.object({
+			kind: z.literal('weekly'),
+			days: z.array(z.number().int()).max(7),
+			everyWeeks: z.number().int().optional(),
+			anchor: z.string().optional()
+		}),
+		z.object({
+			kind: z.literal('nth_weekday'),
+			n: z.number().int(),
+			weekday: z.number().int(),
+			everyMonths: z.number().int().optional(),
+			anchorMonth: z.string().optional()
+		}),
+		z.object({
+			kind: z.literal('week_of_month'),
+			n: z.number().int(),
+			basis: z.enum(['days', 'calendar']),
+			weekStartsOn: z.number().int().optional(),
+			pick: z.enum(['window', 'weekday']),
+			weekday: z.number().int().optional(),
+			everyMonths: z.number().int().optional(),
+			anchorMonth: z.string().optional()
+		}),
+		z.object({
+			kind: z.literal('day_range'),
+			from: z.number().int(),
+			to: z.number().int(),
+			everyMonths: z.number().int().optional(),
+			anchorMonth: z.string().optional()
+		}),
+		z.object({ kind: z.literal('yearly'), month: z.number().int(), day: z.number().int() })
 	])
 	.superRefine((s, ctx) => {
 		const problem = validateSchedule(s);
 		if (problem) ctx.addIssue({ code: 'custom', message: problem });
 	});
+
+/** A payday is one day: a range of days or a week window would leave the date of the split unknown. */
+export const paydayScheduleInput = scheduleInput.superRefine((s, ctx) => {
+	if (s.kind === 'day_range' || (s.kind === 'week_of_month' && s.pick === 'window'))
+		ctx.addIssue({
+			code: 'custom',
+			message: 'A payday is one day. Pick a day or a weekday, not a range of days or a whole week.'
+		});
+});
 
 // -- ACCOUNTS -- //
 
@@ -87,7 +135,7 @@ export const incomeCreateInput = createInsertSchema(incomeSchedule, {
 	label: nameField,
 	accountId: idField,
 	expectedAmount: amountField.nullable().optional(),
-	schedule: scheduleInput
+	schedule: paydayScheduleInput
 }).pick({
 	label: true,
 	accountId: true,
@@ -101,6 +149,78 @@ export const incomeUpdateInput = incomeCreateInput.partial().extend({
 	active: z.boolean().optional(),
 	expectVersion: versionField.optional()
 });
+
+// -- AUDIT -- //
+
+/** The history of one account: filters are all optional, and the page is cut by the sequence number of the last row seen. */
+export const accountHistoryInput = z.object({
+	accountId: idField,
+	from: dayField.optional(),
+	to: dayField.optional(),
+	/** Who did it: the person, the assistant, a job or sync. */
+	by: z.enum(['person', 'agent', 'job', 'system']).optional(),
+	action: z
+		.enum([
+			'create',
+			'update',
+			'delete',
+			'undo',
+			'count',
+			'reset',
+			'approve',
+			'reject',
+			'expire',
+			'data_reset'
+		])
+		.optional(),
+	search: z.string().trim().max(60).optional(),
+	/** The sequence number of the last row of the previous page: the next page is older. */
+	cursor: z.number().int().min(1).optional(),
+	limit: z.number().int().min(1).max(100).optional()
+});
+
+export const auditExportInput = z.object({
+	accountId: idField.optional(),
+	from: dayField.optional(),
+	to: dayField.optional(),
+	format: z.enum(['csv', 'json'])
+});
+
+// -- CALENDAR -- //
+
+/** Everything dated between two days (at most 92), and the forecast of the balances. */
+export const calendarRangeInput = z.object({
+	from: dayField,
+	to: dayField,
+	layers: z
+		.array(z.enum(['bills', 'paydays', 'events', 'routines', 'tasks', 'reminders']))
+		.max(6)
+		.optional()
+});
+
+// -- DATA RESET -- //
+
+const resetScope = z.enum(['money', 'schedule', 'memory_and_chat', 'audit', 'everything']);
+
+/** Counts what a scope would erase and mints a confirmation that works once, for five minutes. Changes nothing. */
+export const dataResetPreviewInput = z.object({ scope: resetScope });
+
+/** The erase itself: the confirmation from the preview and the word the person typed. */
+export const dataResetInput = z.object({
+	scope: resetScope,
+	token: z.string().regex(/^[0-9a-f]{32}$/, 'The confirmation is not valid'),
+	typed: z.string()
+});
+
+// -- SETTINGS -- //
+
+/** The settings a person can change. Left out, a field keeps its value; defaults live on the database columns. */
+export const settingsSetInput = createInsertSchema(userSetting, {
+	currency: z.enum(CURRENCY_CODES as [string, ...string[]]),
+	weekStartsOn: z.number().int().min(0).max(1)
+})
+	.pick({ currency: true, language: true, replyLanguage: true, weekStartsOn: true })
+	.partial();
 
 // -- BILLS -- //
 
@@ -137,6 +257,22 @@ export const billMarkPaidInput = z.object({
 });
 
 export const billIdInput = z.object({ billId: idField });
+
+/**
+ * One due date of a bill changed on its own: moved, a different amount, another account, or skipped. `dueDate` is the date the
+ * occurrence has now (the schedule's date or the one it was moved to). A field left out keeps what it has, a null clears it.
+ */
+export const billOccurrenceUpdateInput = createInsertSchema(billOverride, {
+	newDueDate: dayField.nullable().optional(),
+	amount: amountField.nullable().optional(),
+	accountId: idField.nullable().optional()
+})
+	.pick({ newDueDate: true, amount: true, accountId: true, skipped: true })
+	.partial()
+	.extend({ billId: idField, dueDate: dayField, expectVersion: versionField.optional() });
+
+/** Puts one due date of a bill back to what the schedule says. */
+export const billOccurrenceResetInput = z.object({ billId: idField, dueDate: dayField });
 
 // -- GOALS -- //
 
@@ -243,7 +379,10 @@ export const snapshotRecordInput = z.object({
 	source: z.enum(['manual', 'chat', 'ocr', 'screenshot']).optional(),
 	confirmed: z.boolean().optional(),
 	/** A second yes for a count that is ten times more or less than the last one. */
-	acknowledgeLarge: z.boolean().optional()
+	acknowledgeLarge: z.boolean().optional(),
+	/** 'reset' sets the account to this amount on purpose: the difference is a reset, not spending, and it needs a reason. */
+	mode: z.enum(['count', 'reset']).optional(),
+	reason: z.string().trim().min(1).max(120).optional()
 });
 
 export const undoInput = z.object({ journalId: idField });
@@ -273,6 +412,15 @@ export const limitInput = z.object({ limit: z.number().int().min(1).max(50).opti
 
 export const rangeInput = z.object({ from: dayField, to: dayField });
 
+/** A schedule to preview: the sentence that says what it means and the next windows it would produce. */
+export const schedulePreviewInput = z.object({
+	schedule: scheduleInput,
+	weekend: z.enum(['none', 'before', 'after']).optional(),
+	/** The date to look from. Left out, today in Manila. */
+	from: dayField.optional(),
+	count: z.number().int().min(1).max(12).optional()
+});
+
 // -- SCHEDULING -- //
 
 /** A repeat with a clock time, checked the same way the engine checks it. */
@@ -290,7 +438,8 @@ export const recurrenceInput = z
 			anchor: z.string().refine(isDate, 'Use a real date'),
 			n: z.number().int(),
 			time: z.string()
-		})
+		}),
+		z.object({ freq: z.literal('schedule'), schedule: scheduleInput, time: z.string() })
 	])
 	.superRefine((r, ctx) => {
 		const problem = validateRecurrence(r);
@@ -439,6 +588,15 @@ export type IncomeCreateInput = z.infer<typeof incomeCreateInput>;
 export type IncomeUpdateInput = z.infer<typeof incomeUpdateInput>;
 export type BillCreateInput = z.infer<typeof billCreateInput>;
 export type BillUpdateInput = z.infer<typeof billUpdateInput>;
+export type BillOccurrenceUpdateInput = z.infer<typeof billOccurrenceUpdateInput>;
+export type BillOccurrenceResetInput = z.infer<typeof billOccurrenceResetInput>;
+export type SchedulePreviewInput = z.infer<typeof schedulePreviewInput>;
+export type AccountHistoryInput = z.infer<typeof accountHistoryInput>;
+export type AuditExportInput = z.infer<typeof auditExportInput>;
+export type CalendarRangeInput = z.infer<typeof calendarRangeInput>;
+export type DataResetInput = z.infer<typeof dataResetInput>;
+export type DataResetPreviewInput = z.infer<typeof dataResetPreviewInput>;
+export type SettingsSetInput = z.infer<typeof settingsSetInput>;
 export type BillMarkPaidInput = z.infer<typeof billMarkPaidInput>;
 export type GoalCreateInput = z.infer<typeof goalCreateInput>;
 export type GoalUpdateInput = z.infer<typeof goalUpdateInput>;

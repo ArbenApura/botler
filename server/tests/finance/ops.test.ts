@@ -16,7 +16,13 @@ import {
 	listAccounts,
 	updateAccount
 } from '../../src/lib/server/ops/accounts';
-import { createBill, listBills, listDueBills, markBillPaid } from '../../src/lib/server/ops/bills';
+import {
+	createBill,
+	listBills,
+	listDueBills,
+	markBillPaid,
+	updateBill
+} from '../../src/lib/server/ops/bills';
 import {
 	accountBalances,
 	listTransactions,
@@ -37,6 +43,7 @@ import {
 	proposeRuleFromText
 } from '../../src/lib/server/ops/rules';
 import { approveSplit, markTransferSent, proposeSplitPlan } from '../../src/lib/server/ops/split';
+import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { createTestDb } from '../support/testDb';
 
 // -- STATES -- //
@@ -64,7 +71,9 @@ beforeAll(async () => {
 	await t.handle.db.insert(user).values([
 		{ id: 'user_anna_0001', name: 'Anna', email: 'anna@example.com' },
 		{ id: 'user_ben_00001', name: 'Ben', email: 'ben@example.com' },
-		{ id: 'user_carl_0001', name: 'Carl', email: 'carl@example.com' }
+		{ id: 'user_carl_0001', name: 'Carl', email: 'carl@example.com' },
+		{ id: 'user_dina_0001', name: 'Dina', email: 'dina@example.com' },
+		{ id: 'user_eli_00001', name: 'Eli', email: 'eli@example.com' }
 	]);
 });
 
@@ -611,5 +620,223 @@ describe('no model needed', () => {
 		expect(files.length).toBe(7);
 		for (const f of files)
 			expect(readFileSync(join(dir, f), 'utf8')).not.toMatch(/proxy|deepseek/i);
+	});
+});
+
+describe('bills on flexible schedules (BTL-20261022-0218, O.1 and O.2)', () => {
+	const dina = () => person('user_dina_0001');
+	let account: string;
+	const add = (name: string, schedule: Parameters<typeof createBill>[1]['schedule'], extra = {}) =>
+		createBill(as(dina()), {
+			name,
+			category: 'other',
+			accountId: account,
+			kind: 'fixed',
+			amount: 150_000,
+			schedule,
+			weekendRule: 'none',
+			deferrable: false,
+			...extra
+		});
+
+	it('keeps an old stored shape working', async () => {
+		account = (await createAccount(as(dina()), { name: 'BDO', kind: 'bank', minBalance: 0 })).id;
+		const old = await add('Old rent', { kind: 'monthly', day: 31 });
+		const due = (await listDueBills(dina(), '2026-02-01', '2026-04-30')).filter(
+			(d) => d.billId === old.id
+		);
+		expect(due.map((d) => [d.windowStart, d.windowEnd, d.dueDate])).toEqual([
+			['2026-02-28', '2026-02-28', '2026-02-28'],
+			['2026-03-31', '2026-03-31', '2026-03-31'],
+			['2026-04-30', '2026-04-30', '2026-04-30']
+		]);
+	});
+
+	it('is due on the 1st Wednesday and pays that day once', async () => {
+		const b = await add('Water', { kind: 'nth_weekday', n: 1, weekday: 3 });
+		const due = (await listDueBills(dina(), '2026-10-01', '2026-12-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(due.map((d) => d.dueDate)).toEqual(['2026-10-07', '2026-11-04', '2026-12-02']);
+		await markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-11-04' });
+		await expect(
+			markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-11-04' })
+		).rejects.toMatchObject({ code: 'CONFLICT' });
+		const after = (await listDueBills(dina(), '2026-10-01', '2026-12-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(after.map((d) => d.paid)).toEqual([false, true, false]);
+		await expect(
+			markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-11-05' })
+		).rejects.toMatchObject({ code: 'INVALID' });
+	});
+
+	it('settles a whole week window from any day inside it, and only once', async () => {
+		const b = await add('Internet', { kind: 'week_of_month', n: 1, basis: 'days', pick: 'window' });
+		const week = (await listDueBills(dina(), '2026-12-01', '2026-12-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(week.map((d) => [d.windowStart, d.windowEnd])).toEqual([['2026-12-01', '2026-12-07']]);
+		const paid = await markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-12-03' });
+		expect(paid.amount).toBe(150_000);
+		// A second payment on any other day of the same window is refused; the next month is a new window
+		await expect(
+			markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-12-06' })
+		).rejects.toMatchObject({ code: 'CONFLICT' });
+		await expect(
+			markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-12-08' })
+		).rejects.toMatchObject({ code: 'INVALID' });
+		const both = (await listDueBills(dina(), '2026-12-01', '2027-01-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(both.map((d) => [d.windowEnd, d.paid])).toEqual([
+			['2026-12-07', true],
+			['2027-01-07', false]
+		]);
+		await markBillPaid(as(dina()), { billId: b.id, dueDate: '2027-01-01' });
+	});
+
+	it('still sees a payment after the weekend rule or the schedule is edited', async () => {
+		const b = await add('Cable', { kind: 'day_range', from: 5, to: 11 });
+		await markBillPaid(as(dina()), { billId: b.id, dueDate: '2026-10-08' });
+		// 2026-10-11 is a Sunday: the due date moves to Friday the 9th, which is before the payment's recorded due date
+		await updateBill(as(dina()), { billId: b.id, weekendRule: 'before' });
+		const moved = (await listDueBills(dina(), '2026-10-01', '2026-10-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(moved.map((d) => [d.windowStart, d.windowEnd, d.paid])).toEqual([
+			['2026-10-05', '2026-10-09', true]
+		]);
+		// A different window is not hidden by the old payment
+		await updateBill(as(dina()), {
+			billId: b.id,
+			schedule: { kind: 'week_of_month', n: 2, basis: 'calendar', pick: 'window' }
+		});
+		const reshaped = (await listDueBills(dina(), '2026-10-01', '2026-10-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(reshaped.map((d) => [d.windowStart, d.windowEnd, d.paid])).toEqual([
+			['2026-10-05', '2026-10-09', true]
+		]);
+		const nov = (await listDueBills(dina(), '2026-11-01', '2026-11-30')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(nov.every((d) => !d.paid)).toBe(true);
+	});
+
+	it('uses one read for all the variable bills, with the learned estimate', async () => {
+		const b = await add(
+			'Electric',
+			{ kind: 'monthly', day: 20 },
+			{ kind: 'variable', amount: 200_000 }
+		);
+		const due = (await listDueBills(dina(), '2026-10-01', '2026-10-31')).filter(
+			(d) => d.billId === b.id
+		);
+		expect(due[0]).toMatchObject({ amount: 200_000, unknownAmount: false, paid: false });
+	});
+});
+
+describe('schedule_preview (BTL-20261022-0218, O.3)', () => {
+	const dina = () => person('user_dina_0001');
+	type Preview = { text: string; key: string; windows: { start: string; end: string }[] };
+
+	it('says what a schedule means and lists the next windows, for the person and the assistant', async () => {
+		const input = {
+			schedule: { kind: 'nth_weekday', n: 1, weekday: 3 },
+			from: '2026-10-08',
+			count: 3
+		};
+		for (const who of [dina(), agent('user_dina_0001')]) {
+			const out = (await invokeVerb(who, 'schedule_preview', input)) as Preview;
+			expect(out.text).toBe('Every 1st Wednesday of the month');
+			expect(out.key).toBe('schedule.nth_weekday');
+			expect(out.windows.map((w) => w.end)).toEqual(['2026-11-04', '2026-12-02', '2027-01-06']);
+		}
+	});
+
+	it('shows a window and moves only its end for the weekend rule', async () => {
+		const out = (await invokeVerb(dina(), 'schedule_preview', {
+			schedule: { kind: 'day_range', from: 5, to: 11 },
+			weekend: 'before',
+			from: '2026-10-01',
+			count: 1
+		})) as Preview;
+		expect(out.windows).toEqual([{ start: '2026-10-05', end: '2026-10-09' }]);
+	});
+
+	it('explains a wrong schedule in words and refuses unknown fields', async () => {
+		await expect(
+			invokeVerb(dina(), 'schedule_preview', {
+				schedule: { kind: 'nth_weekday', n: 9, weekday: 3 }
+			})
+		).rejects.toMatchObject({ code: 'INVALID', message: expect.stringMatching(/1st to the 5th/) });
+		await expect(
+			invokeVerb(dina(), 'schedule_preview', {
+				schedule: { kind: 'monthly', day: 5 },
+				userId: 'someone-else'
+			})
+		).rejects.toMatchObject({ code: 'INVALID' });
+	});
+});
+
+describe('payment windows and paydays (BTL-20261022-0218, O.5)', () => {
+	const eli = () => person('user_eli_00001');
+	let bank: string;
+	let incomeId: string;
+	const bill = (name: string, from: number, to: number) =>
+		createBill(as(eli()), {
+			name,
+			category: 'bills',
+			accountId: bank,
+			kind: 'fixed',
+			amount: 800_000,
+			schedule: { kind: 'day_range', from, to },
+			weekendRule: 'none',
+			deferrable: false
+		});
+
+	it('refuses a payday that is a range of days or a whole week', async () => {
+		bank = (await createAccount(as(eli()), { name: 'Bank', kind: 'bank', minBalance: 0 })).id;
+		for (const schedule of [
+			{ kind: 'day_range', from: 5, to: 10 },
+			{ kind: 'week_of_month', n: 1, basis: 'days', pick: 'window' }
+		] as const)
+			await expect(
+				createIncome(as(eli()), {
+					label: 'Salary',
+					accountId: bank,
+					expectedAmount: 5_000_000,
+					schedule,
+					weekendRule: 'none'
+				})
+			).rejects.toMatchObject({ code: 'INVALID', message: expect.stringMatching(/one day/) });
+		// A weekday of the week is one day
+		const ok = await createIncome(as(eli()), {
+			label: 'Salary',
+			accountId: bank,
+			expectedAmount: 5_000_000,
+			schedule: { kind: 'semi_monthly', days: [15, 30] },
+			weekendRule: 'none'
+		});
+		incomeId = ok.id;
+	});
+
+	it('plans a window that closes inside the pay period, and leaves the ones that close outside it', async () => {
+		await bill('Window rent', 10, 20);
+		await bill('Early window', 1, 14);
+		await bill('Late window', 25, -1);
+		const plan = await proposeSplitPlan(as(eli()), {
+			incomeScheduleId: incomeId,
+			payday: '2030-03-15',
+			pay: 5_000_000
+		});
+		if (plan.status === 'needs_amounts') throw new Error('unexpected');
+		// The window starts before the payday but its deadline, the 20th, is in this period
+		const labels = plan.result.lines.map((l) => l.label);
+		expect(labels).toContain('Window rent');
+		expect(labels).not.toContain('Early window');
+		expect(labels).not.toContain('Late window');
+		expect(plan.result.periodEnd).toBe('2030-03-29');
 	});
 });

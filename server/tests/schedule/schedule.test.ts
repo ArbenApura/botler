@@ -106,6 +106,39 @@ describe('reminders follow what needs action', () => {
 		expect((await byPrefix(f, `bill:${bill.id}`))[0]?.status).toBe('cancelled');
 	});
 
+	it('reminds when a payment window opens and two days before it closes, and drops both once paid', async () => {
+		const f = await seedPerson(t);
+		const bill = await createBill(as(f.ctx), {
+			name: 'Internet',
+			category: 'bills',
+			accountId: f.rcbc,
+			kind: 'fixed',
+			amount: 120_000,
+			schedule: { kind: 'day_range', from: 5, to: 11 },
+			weekendRule: 'none',
+			deferrable: false
+		});
+		// 10:00 in Manila on 2030-03-03; the window is the 5th to the 11th
+		await reconcile(f, new Date('2030-03-03T02:00:00Z'));
+		const all = await byPrefix(f, `bill:${bill.id}`);
+		const open = all.find((r) => r.refKey.endsWith(':open'));
+		const soon = all.find((r) => r.refKey.endsWith(':soon'));
+		expect(open?.remindAt.toISOString()).toBe(atManilaTime('2030-03-05', '08:00').toISOString());
+		expect(open?.title).toBe('Internet can be paid from today until 2030-03-11');
+		expect(soon?.remindAt.toISOString()).toBe(atManilaTime('2030-03-09', '09:00').toISOString());
+		expect(soon?.title).toBe('Internet is due in 2 days');
+		// No amount in the words (the date is fine)
+		for (const r of all) expect(r.title).not.toMatch(/1200|1,200|120000|₱/);
+
+		// Paying on any day inside the window settles it: every reminder of that window goes
+		await markBillPaid(as(f.ctx), { billId: bill.id, dueDate: '2030-03-07' });
+		await reconcile(f, new Date('2030-03-03T02:00:00Z'));
+		const left = (await byPrefix(f, `bill:${bill.id}:2030-03-11`)).filter(
+			(r) => r.status === 'scheduled'
+		);
+		expect(left).toEqual([]);
+	});
+
 	it('nudges about an overdue unpaid bill at the next 9 in the morning', async () => {
 		const f = await seedPerson(t);
 		const overdue = inDays(-2);
@@ -383,7 +416,14 @@ describe('the sync contract', () => {
 		await createEvent(as(f.ctx), { title: 'Standup', startsAt: soon.toISOString() });
 		const s = (await syncGet(f.ctx)).summary;
 		expect(s.total).toBe(124_400);
-		expect(s.nextBill).toEqual({ name: expect.any(String), dueDate: expect.any(String) });
+		expect(s.nextBill).toEqual({
+			name: expect.any(String),
+			dueDate: expect.any(String),
+			windowStart: expect.any(String),
+			windowEnd: expect.any(String)
+		});
+		// A single day opens and closes on its due date
+		expect(s.nextBill?.windowStart).toBe(s.nextBill?.dueDate);
 		expect(s.firstEventToday?.title).toBe('Standup');
 		expect(s.firstEventToday?.untrusted).toBe(false);
 	});

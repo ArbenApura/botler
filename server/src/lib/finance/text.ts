@@ -3,6 +3,8 @@
 
 // -- TYPES -- //
 import type { RuleBase, RuleMode } from './rules';
+// -- MODULES -- //
+import { CURRENCIES, currencyOf, DEFAULT_CURRENCY } from './currency';
 
 // -- TYPES -- //
 
@@ -73,17 +75,32 @@ const CATEGORY_WORDS: Record<string, string[]> = {
 	fun: ['movie', 'sinehan', 'game', 'netflix', 'spotify', 'inom', 'bar']
 };
 
-// Peso sign, "php" or "p", digits with optional thousands commas and centavos, and an optional "k"
-const AMOUNT_RE = /(?:₱|php\s?|\bp(?=\d))?\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?\s?(k\b)?/gi;
+// A currency symbol or code of the catalogue (₱, $, usd, S$ ...) or a "p" before the digits, then digits with optional thousands commas and
+// decimals, and an optional "k". A name such as "firm" never counts as the RM of ringgit: a word-like prefix may not follow a letter.
+const AMOUNT_PREFIXES = [
+	...new Set(CURRENCIES.flatMap((c) => [c.symbol.trim(), c.code]).filter((t) => t.length > 0))
+]
+	.sort((x, y) => y.length - x.length)
+	.map(
+		(t) => (/^[A-Za-z]/.test(t) ? '(?<![A-Za-z])' : '') + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	);
+const AMOUNT_RE = new RegExp(
+	'(?:' +
+		AMOUNT_PREFIXES.join('|') +
+		'|\\bp(?=\\d))?\\s?(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?\\s?(k\\b)?',
+	'gi'
+);
 
 // -- FUNCTIONS -- //
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-function toCentavos(whole: string, frac: string | undefined, k: boolean): number {
-	const pesos = Number(whole.replaceAll(',', ''));
-	const cents = frac ? Number(frac.padEnd(2, '0')) : 0;
-	return (pesos * 100 + cents) * (k ? 1000 : 1);
+/** Minor units of what was read. A zero digit currency (yen) has no fraction, so a decimal part is dropped. */
+function toMinor(whole: string, frac: string | undefined, k: boolean, digits: 0 | 2): number {
+	const major = Number(whole.replaceAll(',', ''));
+	if (digits === 0) return major * (k ? 1000 : 1);
+	const minor = frac ? Number(frac.padEnd(2, '0')) : 0;
+	return (major * 100 + minor) * (k ? 1000 : 1);
 }
 
 /** The category a note most likely belongs to. */
@@ -104,10 +121,15 @@ function findName<T extends { name: string }>(text: string, names: readonly T[])
 }
 
 /** Reads a message like "lunch 180 gcash" or "grab ₱1,250.50 from rcbc". */
-export function parseExpenseText(text: string, accountNames: readonly string[]): ParsedExpense {
+export function parseExpenseText(
+	text: string,
+	accountNames: readonly string[],
+	currency: string = DEFAULT_CURRENCY
+): ParsedExpense {
+	const digits = currencyOf(currency).digits;
 	const matches = [...text.matchAll(AMOUNT_RE)];
 	const last = matches.at(-1);
-	const amount = last ? toCentavos(last[1] as string, last[2], Boolean(last[3])) : null;
+	const amount = last ? toMinor(last[1] as string, last[2], Boolean(last[3]), digits) : null;
 	const account = findName(
 		text,
 		accountNames.map((name) => ({ name }))
@@ -128,7 +150,12 @@ export function parseExpenseText(text: string, accountNames: readonly string[]):
 }
 
 /** Reads a rule said in plain words: "500 to gcash", "20% to emergency fund", "the rest to rcbc". */
-export function parseRuleText(text: string, targets: readonly RuleTargetName[]): ParsedRule {
+export function parseRuleText(
+	text: string,
+	targets: readonly RuleTargetName[],
+	currency: string = DEFAULT_CURRENCY
+): ParsedRule {
+	const digits = currencyOf(currency).digits;
 	const said = text.trim();
 	const rest = /\b(the )?rest\b|\beverything else\b|\bwhatever is left\b/i.test(said);
 	const pct = /(\d+(?:\.\d+)?)\s?(%|percent\b)/i.exec(said);
@@ -169,7 +196,7 @@ export function parseRuleText(text: string, targets: readonly RuleTargetName[]):
 			ok: false,
 			reason: 'Say it as an amount, a percentage or "the rest", then where it goes.'
 		};
-	const amount = toCentavos(a[1] as string, a[2], Boolean(a[3]));
+	const amount = toMinor(a[1] as string, a[2], Boolean(a[3]), digits);
 	if (amount <= 0) return { ok: false, reason: 'The amount must be above zero.' };
 	return {
 		ok: true,

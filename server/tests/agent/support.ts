@@ -16,7 +16,14 @@ import { createGoal, createIncome } from '../../src/lib/server/ops/planning';
 // -- TYPES -- //
 
 /** What the stand-in model does on one call: some text, some tool calls, or both. */
-export type Step = { say?: string; calls?: [name: string, args: unknown][] };
+export type Step = {
+	say?: string;
+	calls?: [name: string, args: unknown][];
+	/** Thinking shown before the answer. */
+	think?: string;
+	/** Overrides the finish reason (for example 'length'). */
+	finish?: string;
+};
 export type ScriptFn = (req: CompletionRequest, n: number) => Step;
 
 export type StubModel = TurnModel & { requests: CompletionRequest[] };
@@ -46,6 +53,7 @@ export function stubModel(script: Step[] | ScriptFn): StubModel {
 			const n = requests.length;
 			requests.push({ ...req, messages: [...req.messages] });
 			const step = typeof script === 'function' ? script(req, n) : (script[n] ?? { say: 'ok' });
+			if (step.think) yield { type: 'reasoning', text: step.think };
 			if (step.say) yield { type: 'delta', text: step.say };
 			yield {
 				type: 'done',
@@ -56,8 +64,9 @@ export function stubModel(script: Step[] | ScriptFn): StubModel {
 						type: 'function' as const,
 						function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) }
 					})),
-					finishReason: step.calls?.length ? 'tool_calls' : 'stop',
-					usage: { promptTokens: 10, completionTokens: 5 }
+					finishReason: step.finish ?? (step.calls?.length ? 'tool_calls' : 'stop'),
+					usage: { promptTokens: 10, completionTokens: 5 },
+					...(step.think ? { reasoningRaw: step.think } : {})
 				}
 			};
 		}

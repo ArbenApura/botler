@@ -1,7 +1,8 @@
 // THE VERB REGISTRY: EVERY OPERATION THE APP, THE API AND THE ASSISTANT CAN RUN, EACH CLASSIFIED ONCE.
 // - read:   returns data, changes nothing.
-// - free:   records something (an expense, a transfer, a proposal). The assistant may run it on its own; every one can be undone or ignored.
-// - gated:  changes the money plan (accounts, bills, goals, income, balance counts). The assistant can only ask: it becomes an approval
+// - free:   records something (an expense, a transfer, a proposal) or edits what the person already set up (an account, a bill, a goal, a
+//           payday: name, amount, linked account). The assistant runs it on its own; the audit trail names the assistant as the actor.
+// - gated:  adds to or removes from the money plan (a new account, bill, goal or payday, hiding an account) or counts a balance. The assistant can only ask: it becomes an approval
 //           card and runs, as the person, after they approve. The ops verb itself also refuses an assistant caller.
 // - person: approving or retiring. Never offered to the assistant at all.
 // Inputs are strict objects: a key that is not in the schema (a forged user_id, say) is refused, and the caller is never read from input.
@@ -16,6 +17,8 @@ import {
 	accountUpdateInput,
 	billCreateInput,
 	billMarkPaidInput,
+	billOccurrenceResetInput,
+	billOccurrenceUpdateInput,
 	billUpdateInput,
 	dueRangeInput,
 	emptyInput,
@@ -47,6 +50,13 @@ import {
 	memoryResolveInput,
 	memorySearchInput,
 	paydaysInput,
+	schedulePreviewInput,
+	settingsSetInput,
+	accountHistoryInput,
+	auditExportInput,
+	calendarRangeInput,
+	dataResetInput,
+	dataResetPreviewInput,
 	profileSetInput,
 	rangeInput,
 	ruleFromTextInput,
@@ -62,8 +72,20 @@ import {
 	undoInput,
 	wipeInput
 } from '../db/zod';
+import { accountHistory, exportAudit, verifyAudit } from './audit';
+import { calendarRange } from './calendarRange';
+import { previewDataReset, resetData } from './dataReset';
+import { getSettings, setSettings } from './settings';
 import { archiveAccount, createAccount, listAccounts, updateAccount } from './accounts';
-import { createBill, listBills, listDueBills, markBillPaid, updateBill } from './bills';
+import {
+	createBill,
+	listBills,
+	listDueBills,
+	markBillPaid,
+	resetBillOccurrence,
+	updateBill,
+	updateBillOccurrence
+} from './bills';
 import { OpsError, run } from './context';
 import {
 	accountBalances,
@@ -85,6 +107,7 @@ import {
 	listGoals,
 	listIncome,
 	nextPaydays,
+	schedulePreview,
 	updateGoal,
 	updateIncome
 } from './planning';
@@ -202,7 +225,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'bills_due',
 		kind: 'read',
-		description: 'Bills falling due between two dates (YYYY-MM-DD, Manila), paid or not.',
+		description:
+			'Bills falling due between two dates (YYYY-MM-DD, Manila), paid or not. Each row has dueDate (the day it is due now), originalDueDate (the day the schedule gave it; different when that one date was moved), overridden, the amount and the accountId for that date. Use billId with dueDate to change one date.',
 		input: dueRangeInput,
 		run: (ctx, a) => listDueBills(ctx, a.from, a.to)
 	}),
@@ -226,6 +250,47 @@ export const VERBS: readonly Verb[] = [
 		description: 'The next paydays of one income.',
 		input: paydaysInput,
 		run: (ctx, a) => nextPaydays(ctx, a.incomeId, a.count)
+	}),
+	verb({
+		name: 'schedule_preview',
+		kind: 'read',
+		description:
+			'Say what a repeat schedule means and when it falls next, before it is saved. Schedule kinds: monthly (day, or -1 for the last day), semi_monthly, every_n_days, weekly (days, and for every few weeks everyWeeks plus anchor, a YYYY-MM-DD date that falls on one of those weekdays), nth_weekday (n 1-5 or -1, weekday 0 Sunday to 6 Saturday), week_of_month (n, basis days or calendar, pick window or weekday), day_range (from, to), yearly. Add everyMonths and anchorMonth (YYYY-MM) for every few months. Every field of the rule, anchor included, goes inside the "schedule" object, never beside it. Example every other Wednesday: {"schedule":{"kind":"weekly","days":[3],"everyWeeks":2,"anchor":"2026-10-28"}}.',
+		input: schedulePreviewInput,
+		run: (ctx, a) => schedulePreview(ctx, a)
+	}),
+	verb({
+		name: 'settings_get',
+		kind: 'read',
+		description: 'The currency, language and week start the person has chosen.',
+		input: emptyInput,
+		run: (ctx) => getSettings(ctx)
+	}),
+	verb({
+		name: 'calendar_range',
+		kind: 'read',
+		taints: true,
+		description:
+			'Everything dated between two days (at most 92): bills as payment windows, paydays, events, routines, tasks and reminders, with an estimate of what the accounts will hold. Event titles may come from outside.',
+		input: calendarRangeInput,
+		run: (ctx, a) => calendarRange(ctx, a)
+	}),
+	verb({
+		name: 'audit_verify',
+		kind: 'read',
+		description:
+			'Check that the trail of everything done to the money and plan is whole and unchanged.',
+		input: emptyInput,
+		run: (ctx) => verifyAudit(ctx)
+	}),
+	verb({
+		name: 'account_history',
+		kind: 'read',
+		taints: true,
+		description:
+			'Everything that happened to one account, newest first: who did it (the person, the assistant, a job, sync), through which way in, the amount and the balance after each entry. Filter by actor, action, dates or a word. Answer from these fields only.',
+		input: accountHistoryInput,
+		run: (ctx, a) => accountHistory(ctx, a)
 	}),
 	verb({
 		name: 'rules_list',
@@ -553,6 +618,65 @@ export const VERBS: readonly Verb[] = [
 				}
 			})
 	}),
+	verb({
+		name: 'account_update',
+		kind: 'free',
+		description:
+			'Change an account: its name, kind, minimum balance or order. Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
+		input: accountUpdateInput,
+		run: (ctx, a) => updateAccount(ctx, a)
+	}),
+	verb({
+		name: 'income_update',
+		kind: 'free',
+		description:
+			'Change a payday schedule: label, expected amount, the account it lands in, the repeat rule, the weekend rule, or switch it off with active false. Done at once, no card.',
+		input: incomeUpdateInput,
+		run: (ctx, a) => updateIncome(ctx, a)
+	}),
+	verb({
+		name: 'bill_update',
+		kind: 'free',
+		description:
+			'Change a bill for ALL its dates: name, category, amount, the account it is paid from (accountId), the repeat rule, the weekend rule, or switch it off with active false. Only send the fields that change. Done at once, no card. The schedule is a whole rule, see schedule_preview for its fields. A new schedule, weekend rule, amount or account also drops the changes made to single dates from today on (clearedOverrides says how many). To change just ONE date, use bill_occurrence_update.',
+		input: billUpdateInput,
+		run: (ctx, a) => updateBill(ctx, a)
+	}),
+	verb({
+		name: 'bill_occurrence_update',
+		kind: 'free',
+		description:
+			'Change just ONE due date of a bill and leave its other dates alone: move it to another day (newDueDate, up to 31 days either way), give it another amount or paying account (accountId), or skip it (skipped true). dueDate is the date it has now, taken from bills_due. Only send the fields that change; null clears one. Not for a date already paid. A custom amount on a bill whose amount varies needs a card; the rest is done at once.',
+		input: billOccurrenceUpdateInput,
+		run: (ctx, a) => updateBillOccurrence(ctx, a),
+		gatedWhen: async (ctx, a) =>
+			a.amount == null
+				? false
+				: run(ctx, async (tx, userId) => {
+						try {
+							return (await requireBill(tx, userId, a.billId)).kind === 'variable';
+						} catch (e) {
+							if (e instanceof OpsError && e.code === 'NOT_FOUND') return false;
+							throw e;
+						}
+					})
+	}),
+	verb({
+		name: 'bill_occurrence_reset',
+		kind: 'free',
+		description:
+			'Put one due date of a bill back to what its schedule says (undo a move, a custom amount, another account or a skip). dueDate is the date it has now or the one the schedule gave. Done at once, no card.',
+		input: billOccurrenceResetInput,
+		run: (ctx, a) => resetBillOccurrence(ctx, a)
+	}),
+	verb({
+		name: 'goal_update',
+		kind: 'free',
+		description:
+			'Change a savings goal: name, the account it sits in, the target, the amount set aside each payday, or switch it off with active false. Done at once, no card.',
+		input: goalUpdateInput,
+		run: (ctx, a) => updateGoal(ctx, a)
+	}),
 
 	// -- GATED -- //
 	verb({
@@ -561,13 +685,6 @@ export const VERBS: readonly Verb[] = [
 		description: 'Add an account.',
 		input: accountCreateInput,
 		run: (ctx, a) => createAccount(ctx, a)
-	}),
-	verb({
-		name: 'account_update',
-		kind: 'gated',
-		description: 'Rename an account or change its minimum balance.',
-		input: accountUpdateInput,
-		run: (ctx, a) => updateAccount(ctx, a)
 	}),
 	verb({
 		name: 'account_archive',
@@ -584,25 +701,11 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => createIncome(ctx, a)
 	}),
 	verb({
-		name: 'income_update',
-		kind: 'gated',
-		description: 'Change a payday schedule.',
-		input: incomeUpdateInput,
-		run: (ctx, a) => updateIncome(ctx, a)
-	}),
-	verb({
 		name: 'bill_create',
 		kind: 'gated',
 		description: 'Add a bill.',
 		input: billCreateInput,
 		run: (ctx, a) => createBill(ctx, a)
-	}),
-	verb({
-		name: 'bill_update',
-		kind: 'gated',
-		description: 'Change a bill.',
-		input: billUpdateInput,
-		run: (ctx, a) => updateBill(ctx, a)
 	}),
 	verb({
 		name: 'goal_create',
@@ -612,21 +715,44 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => createGoal(ctx, a)
 	}),
 	verb({
-		name: 'goal_update',
-		kind: 'gated',
-		description: 'Change a savings goal.',
-		input: goalUpdateInput,
-		run: (ctx, a) => updateGoal(ctx, a)
-	}),
-	verb({
 		name: 'snapshot_record',
 		kind: 'gated',
-		description: 'Record what an account really holds right now.',
+		description:
+			'Record what an account really holds right now. To reset an account (for example to 0) use mode reset with a short reason: it makes a card for the person to approve and keeps the history. Amounts are in the smallest unit of the currency.',
 		input: snapshotRecordInput,
 		run: (ctx, a) => recordSnapshot(ctx, a)
 	}),
 
 	// -- PERSON ONLY -- //
+	verb({
+		name: 'data_reset_preview',
+		kind: 'person',
+		description: 'Count what a reset would erase and get a confirmation that works once.',
+		input: dataResetPreviewInput,
+		run: (ctx, a) => previewDataReset(ctx, a)
+	}),
+	verb({
+		name: 'data_reset',
+		kind: 'person',
+		description: 'Erase a scope of the person own data, after the confirmation and the typed word.',
+		input: dataResetInput,
+		run: (ctx, a) => resetData(ctx, a)
+	}),
+	verb({
+		name: 'audit_export',
+		kind: 'person',
+		description:
+			'Export the trail as a CSV or JSON text. A bulk export is never handed to the assistant.',
+		input: auditExportInput,
+		run: (ctx, a) => exportAudit(ctx, a)
+	}),
+	verb({
+		name: 'settings_set',
+		kind: 'person',
+		description: 'Change the currency, the languages or the first day of the week.',
+		input: settingsSetInput,
+		run: (ctx, a) => setSettings(ctx, a)
+	}),
 	verb({
 		name: 'rule_approve',
 		kind: 'person',

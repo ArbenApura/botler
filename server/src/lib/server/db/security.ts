@@ -34,12 +34,32 @@ export function securityStatements(): string[] {
 		out.push(
 			`CREATE POLICY user_isolation ON ${q(t.name)} FOR ALL TO ${RUNTIME_ROLE} USING (${col} = ${USER}) WITH CHECK (${col} = ${USER})`
 		);
+		// An append-only table is also stripped of any wider grant it may have had before
+		if (t.appendOnly)
+			out.push(`REVOKE UPDATE, DELETE, TRUNCATE ON ${q(t.name)} FROM ${RUNTIME_ROLE}`);
 		out.push(
 			t.appendOnly
 				? `GRANT SELECT, INSERT ON ${q(t.name)} TO ${RUNTIME_ROLE}`
 				: `GRANT SELECT, INSERT, UPDATE, DELETE ON ${q(t.name)} TO ${RUNTIME_ROLE}`
 		);
 	}
+	// The owner runs the erase function (data_reset). Forced row level security binds the owner too, so it gets narrow policies of its own:
+	// it can read and delete only the rows of the person set in the session, and add the one tombstone row to the trail. Nothing else.
+	for (const t of USER_TABLES) {
+		const col = t.userColumn;
+		const own = `${col} = nullif(current_setting(''app.user_id'', true), '''')`;
+		for (const [name, command, clause] of [
+			['owner_reset_read', 'SELECT', `USING (${own})`],
+			['owner_reset_delete', 'DELETE', `USING (${own})`],
+			...(t.name === 'audit_event' ? [['owner_reset_insert', 'INSERT', `WITH CHECK (${own})`]] : [])
+		] as const)
+			out.push(
+				`DO $$ BEGIN EXECUTE 'DROP POLICY IF EXISTS ${name} ON ${q(t.name)}'; EXECUTE format('CREATE POLICY ${name} ON ${q(t.name)} FOR ${command} TO %I ${clause}', current_user); END $$`
+			);
+	}
+	out.push(
+		`DO $$ BEGIN IF to_regprocedure('data_reset(text, text)') IS NOT NULL THEN REVOKE ALL ON FUNCTION data_reset(text, text) FROM PUBLIC; GRANT EXECUTE ON FUNCTION data_reset(text, text) TO ${RUNTIME_ROLE}; END IF; END $$`
+	);
 	out.push(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${RUNTIME_ROLE}`);
 	return out;
 }

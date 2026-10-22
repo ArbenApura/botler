@@ -130,3 +130,55 @@ describe('windows and next', () => {
 		).toThrow();
 	});
 });
+
+describe('routines on the flexible schedules (BTL-20261022-0218, S.5)', () => {
+	it('fires on the 1st Wednesday of the month at the clock time', () => {
+		const r = {
+			freq: 'schedule',
+			schedule: { kind: 'nth_weekday', n: 1, weekday: 3 },
+			time: '07:30'
+		} as const;
+		expect(validateRecurrence(r)).toBeNull();
+		// 07:30 Manila is 23:30 UTC the evening before
+		expect(
+			iso(recurrenceOccurrences(r, at('2026-10-01T00:00:00Z'), at('2026-12-31T00:00:00Z')))
+		).toEqual(['2026-10-06T23:30:00.000Z', '2026-11-03T23:30:00.000Z', '2026-12-01T23:30:00.000Z']);
+	});
+
+	it('fires a week window on its first day, and finds it from inside the window', () => {
+		const r = {
+			freq: 'schedule',
+			schedule: { kind: 'week_of_month', n: 1, basis: 'days', pick: 'window' },
+			time: '09:00'
+		} as const;
+		expect(
+			iso(recurrenceOccurrences(r, at('2026-10-01T00:00:00Z'), at('2026-11-30T00:00:00Z')))
+		).toEqual(['2026-10-01T01:00:00.000Z', '2026-11-01T01:00:00.000Z']);
+		// A range that starts in the middle of the window does not fire it again
+		expect(
+			recurrenceOccurrences(r, at('2026-10-03T00:00:00Z'), at('2026-10-20T00:00:00Z'))
+		).toEqual([]);
+	});
+
+	it('refuses a bad schedule or time in words, and finds the next moment', () => {
+		expect(
+			validateRecurrence({
+				freq: 'schedule',
+				schedule: { kind: 'nth_weekday', n: 9, weekday: 3 },
+				time: '07:30'
+			})
+		).toMatch(/1st to the 5th/);
+		expect(
+			validateRecurrence({
+				freq: 'schedule',
+				schedule: { kind: 'nth_weekday', n: 1, weekday: 3 },
+				time: '7:30'
+			})
+		).toMatch(/06:30/);
+		const next = nextOccurrence(
+			{ freq: 'schedule', schedule: { kind: 'day_range', from: 5, to: 10 }, time: '08:00' },
+			at('2026-10-05T01:00:00Z')
+		);
+		expect(next?.toISOString()).toBe('2026-11-05T00:00:00.000Z');
+	});
+});

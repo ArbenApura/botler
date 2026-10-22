@@ -21,9 +21,13 @@ import { addDays, toManilaDate, manilaStart } from '../../finance/dates';
 import { checkBalanceChange, needsAmountConfirmation } from '../../finance/confirm';
 import { balanceOf, spendingOf, untrackedSpendingOf } from '../../finance/ledger';
 import { parseExpenseText } from '../../finance/text';
+import { balanceConfirmThreshold } from '../../finance/currency';
+import { setAuditContext } from '../db/tenant';
+import { readSettings } from './settings';
 import {
 	account,
 	balanceSnapshot,
+	billOverride,
 	billPayment,
 	ledgerTxn,
 	splitPlan,
@@ -71,6 +75,7 @@ export type SnapshotResult =
 			expected: number | null;
 			drift: number;
 			untracked: number;
+			mode: 'count' | 'reset';
 	  }
 	| { status: 'needs_confirmation'; chip: Chip };
 
@@ -206,16 +211,19 @@ export async function logExpenseFromText(
 	raw: ExpenseFromTextInput
 ): Promise<ExpenseResult> {
 	const input = parse(expenseFromTextInput, raw);
-	const accounts = await run(ctx, (tx, userId) =>
-		tx
+	const { accounts, currency } = await run(ctx, async (tx, userId) => ({
+		accounts: await tx
 			.select({ id: account.id, name: account.name })
 			.from(account)
 			.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
-			.orderBy(account.sortOrder, account.name)
-	);
+			.orderBy(account.sortOrder, account.name),
+		// "lunch 5" is five of the person's own currency
+		currency: (await readSettings(tx, userId)).currency
+	}));
 	const parsed = parseExpenseText(
 		input.text,
-		accounts.map((a) => a.name)
+		accounts.map((a) => a.name),
+		currency
 	);
 	if (parsed.amount === null || parsed.amount < 1)
 		return { status: 'needs_amount', note: parsed.note };
@@ -325,7 +333,10 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 	// A balance count moves the base every balance is computed from, so it is the person's call
 	requirePerson(ctx.actor.kind, 'record a balance count');
 	const input = parse(snapshotRecordInput, raw);
-	const takenAt = instant(input.takenAt, 'The date');
+	const reset = input.mode === 'reset';
+	if (reset && !input.reason) throw new OpsError('INVALID', 'Say why you are resetting it.');
+	// A reset is dated by the server clock, never by a time the caller chose
+	const takenAt = reset ? new Date() : instant(input.takenAt, 'The date');
 	const source = input.source ?? 'manual';
 	const state = await run(ctx, async (tx, userId) => {
 		const acc = await requireActiveAccount(tx, userId, input.accountId);
@@ -335,14 +346,26 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 			.where(and(eq(balanceSnapshot.userId, userId), eq(balanceSnapshot.accountId, acc.id)))
 			.orderBy(desc(balanceSnapshot.takenAt))
 			.limit(1);
-		return { acc, last, now: await balanceFor(tx, userId, acc.id, takenAt) };
+		return {
+			acc,
+			last,
+			now: await balanceFor(tx, userId, acc.id, takenAt),
+			currency: (await readSettings(tx, userId)).currency
+		};
 	});
+	// A count dated in the future would block every later count, so it is refused (a few minutes of clock difference is allowed)
+	if (takenAt.getTime() > Date.now() + 5 * 60_000)
+		throw new OpsError('INVALID', 'A count cannot be dated in the future.');
 	if (state.last && takenAt.getTime() <= state.last.takenAt.getTime())
 		throw new OpsError('INVALID', 'That count is older than the last one for this account.');
 	const expected = state.now.hasData ? state.now.balance : null;
-	const check = checkBalanceChange(expected, input.amount);
+	// The size that needs a yes follows the currency: about 2,000 pesos worth
+	// A reset is the person's own explicit act, so the typo guard (ten times off) does not apply to it, but it is always confirmed
+	const check = reset
+		? 'ok'
+		: checkBalanceChange(expected, input.amount, balanceConfirmThreshold(state.currency));
 	const fromPicture = needsAmountConfirmation(source);
-	if ((check !== 'ok' || fromPicture) && !input.confirmed)
+	if ((check !== 'ok' || fromPicture || reset) && !input.confirmed)
 		return {
 			status: 'needs_confirmation',
 			chip: {
@@ -370,6 +393,18 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 		};
 	return mapped(() =>
 		runWrite(ctx, 'snapshot.record', input, async (tx, userId) => {
+			// Lock the account and look again: a count or an expense that landed while this was being confirmed changes the base
+			await tx
+				.select({ id: account.id })
+				.from(account)
+				.where(and(eq(account.userId, userId), eq(account.id, input.accountId)))
+				.for('update');
+			const again = await balanceFor(tx, userId, input.accountId, takenAt);
+			if ((again.hasData ? again.balance : null) !== expected)
+				throw new OpsError(
+					'CONFLICT',
+					'The balance changed while you were confirming. Look at it again.'
+				);
 			const [snap] = await tx
 				.insert(balanceSnapshot)
 				.values({
@@ -393,8 +428,13 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 						type: 'adjustment',
 						accountId: input.accountId,
 						amount: drift,
-						category: drift < 0 ? 'untracked' : null,
-						note: 'Balance count',
+						// A reset is not spending, so it never counts as untracked
+						category: reset ? 'reset' : drift < 0 ? 'untracked' : null,
+						note: reset
+							? `Balance reset: ${input.reason}`
+							: input.reason
+								? `Balance count: ${input.reason}`
+								: 'Balance count',
 						occurredAt: takenAt,
 						source: 'drift'
 					})
@@ -414,7 +454,8 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				counted: input.amount,
 				expected,
 				drift,
-				untracked: drift < 0 ? -drift : 0
+				untracked: drift < 0 && !reset ? -drift : 0,
+				mode: reset ? ('reset' as const) : ('count' as const)
 			};
 		})
 	);
@@ -500,7 +541,7 @@ export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string 
 		to,
 		spending: spendingOf(rows.map(toTxn)),
 		untracked: untrackedSpendingOf(
-			rows.filter((r) => r.type === 'adjustment').map((r) => r.amount)
+			rows.filter((r) => r.type === 'adjustment' && r.category !== 'reset').map((r) => r.amount)
 		),
 		byCategory
 	};
@@ -532,7 +573,7 @@ export async function weeklyCheckin(ctx: Ctx) {
 			});
 		}
 		const drifts = await tx
-			.select({ amount: ledgerTxn.amount })
+			.select({ amount: ledgerTxn.amount, category: ledgerTxn.category })
 			.from(ledgerTxn)
 			.where(
 				and(
@@ -544,7 +585,9 @@ export async function weeklyCheckin(ctx: Ctx) {
 			);
 		return {
 			accounts: list,
-			untrackedLast7Days: untrackedSpendingOf(drifts.map((d) => d.amount))
+			untrackedLast7Days: untrackedSpendingOf(
+				drifts.filter((d) => d.category !== 'reset').map((d) => d.amount)
+			)
 		};
 	});
 }
@@ -581,6 +624,8 @@ export async function undo(ctx: Ctx, raw: { journalId: string }) {
 	const { journalId } = parse(undoInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'undo', { journalId }, async (tx, userId) => {
+			// The audit rows of an undo point back at the journal entry they undo
+			await setAuditContext(tx, { undoOf: journalId });
 			const [entry] = await tx
 				.select()
 				.from(undoJournal)
@@ -624,6 +669,33 @@ export async function undo(ctx: Ctx, raw: { journalId: string }) {
 						.where(and(eq(billPayment.userId, userId), eq(billPayment.id, entry.entityId)));
 					if (typeof after.txnId === 'string') await voidTxn(after.txnId);
 					break;
+				case 'bill_override': {
+					// A date that was moved and then paid keeps its change: removing it would show the date unpaid on its old day
+					const [row] = await tx
+						.select()
+						.from(billOverride)
+						.where(and(eq(billOverride.userId, userId), eq(billOverride.id, entry.entityId)));
+					if (row?.newDueDate) {
+						const paid = await tx
+							.select({ id: billPayment.id })
+							.from(billPayment)
+							.where(
+								and(
+									eq(billPayment.userId, userId),
+									eq(billPayment.billId, row.billId),
+									sql`coalesce(${billPayment.windowStart}, ${billPayment.dueDate}) <= ${row.newDueDate}`,
+									sql`coalesce(${billPayment.windowEnd}, ${billPayment.dueDate}) >= ${row.newDueDate}`
+								)
+							)
+							.limit(1);
+						if (paid.length > 0)
+							throw new OpsError('CONFLICT', 'That date is already paid, so the change stays.');
+					}
+					await tx
+						.delete(billOverride)
+						.where(and(eq(billOverride.userId, userId), eq(billOverride.id, entry.entityId)));
+					break;
+				}
 				case 'balance_snapshot':
 					await tx
 						.delete(balanceSnapshot)

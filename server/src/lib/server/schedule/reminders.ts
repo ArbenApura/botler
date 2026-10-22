@@ -75,6 +75,25 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 			out.push({ kind: 'bill', refKey, title: `${b.name} is overdue`, remindAt: nextNudge(now) });
 			continue;
 		}
+		// A payment window gets a heads-up when it opens and another two days before it closes, while it is still unpaid
+		if (b.windowStart < b.windowEnd) {
+			const opens = atManilaTime(b.windowStart, '08:00');
+			if (opens.getTime() > now.getTime())
+				out.push({
+					kind: 'bill',
+					refKey: `${refKey}:open`,
+					title: `${b.name} can be paid from today until ${b.windowEnd}`,
+					remindAt: opens
+				});
+			const soon = atManilaTime(addDays(b.windowEnd, -2), '09:00');
+			if (addDays(b.windowEnd, -2) > b.windowStart && soon.getTime() > now.getTime())
+				out.push({
+					kind: 'bill',
+					refKey: `${refKey}:soon`,
+					title: `${b.name} is due in 2 days`,
+					remindAt: soon
+				});
+		}
 		const eve = atManilaTime(addDays(b.dueDate, -1), '18:00');
 		const morning = atManilaTime(b.dueDate, '08:00');
 		if (eve.getTime() > now.getTime())

@@ -6,6 +6,10 @@ import { chatStatus, handleChat } from '#lib/server/agent/chat.js';
 import { OpsError } from '#lib/server/ops/context.js';
 import { getModelClient } from '#lib/server/proxy/index.js';
 
+// -- CONSTANTS -- //
+
+const PING_MS = 10_000;
+
 // -- FUNCTIONS -- //
 
 /**
@@ -27,27 +31,50 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 	const enc = new TextEncoder();
 	const line = (e: unknown) => enc.encode(`data: ${JSON.stringify(e)}\n\n`);
+	// A comment line the app ignores: it only shows the connection is alive while the model or a tool is slow
+	const ping = enc.encode(': ping\n\n');
+	let pinger: ReturnType<typeof setInterval> | undefined;
+	let closed = false;
+	const stop = () => {
+		closed = true;
+		clearInterval(pinger);
+	};
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
+			// Never writes to a stream that has closed or been cancelled
+			const send = (bytes: Uint8Array) => {
+				if (closed) return;
+				try {
+					controller.enqueue(bytes);
+				} catch {
+					stop();
+				}
+			};
+			pinger = setInterval(() => send(ping), PING_MS);
 			try {
-				if (!first.done) controller.enqueue(line(first.value));
-				for await (const e of events) controller.enqueue(line(e));
+				if (!first.done) send(line(first.value));
+				for await (const e of events) send(line(e));
 			} catch (e) {
 				// The stream has begun, so a failure is an event, not a status code. It says nothing about the cause
 				const code = e instanceof OpsError ? e.code : 'INTERNAL';
-				controller.enqueue(line({ type: 'error', code }));
+				send(line({ type: 'error', code }));
 			} finally {
-				controller.close();
+				const wasOpen = !closed;
+				stop();
+				if (wasOpen) controller.close();
 			}
 		},
 		cancel() {
+			stop();
 			void events.return(undefined);
 		}
 	});
 	return new Response(stream, {
 		headers: {
 			'content-type': 'text/event-stream',
-			'cache-control': 'no-store',
+			// No cache and no transform: nothing between the server and the phone may hold the stream back or compress it
+			'cache-control': 'no-store, no-transform',
+			'content-encoding': 'identity',
 			'x-accel-buffering': 'no'
 		}
 	});

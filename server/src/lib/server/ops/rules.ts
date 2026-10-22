@@ -12,11 +12,12 @@ import type { Plain } from './shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { toManilaDate } from '../../finance/dates';
-import { formatPhp } from '../../finance/money';
+import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
 import { account, allocationRule, goal } from '../db/schema';
 import { ruleFromTextInput, ruleIdInput, ruleProposeInput } from '../db/zod';
+import { readSettings } from './settings';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, plain, requireAccount, requireGoal, requirePerson } from './shared';
 
@@ -34,10 +35,12 @@ export type RuleView = Plain<RuleRow> & {
 /** The sentence shown on an approval card, from the saved fields only. */
 export function describeRule(
 	r: Pick<RuleRow, 'mode' | 'amount' | 'basisPoints' | 'base' | 'effectiveFrom'>,
-	targetName: string
+	targetName: string,
+	currency: string = DEFAULT_CURRENCY
 ): string {
 	const from = `from ${r.effectiveFrom}`;
-	if (r.mode === 'fixed') return `Put ${formatPhp(r.amount ?? 0)} into ${targetName}, ${from}.`;
+	if (r.mode === 'fixed')
+		return `Put ${formatMoney(r.amount ?? 0, currency)} into ${targetName}, ${from}.`;
 	if (r.mode === 'rest') return `Put whatever is left into ${targetName}, ${from}.`;
 	const pct = `${(r.basisPoints ?? 0) / 100}%`;
 	return r.base === 'pay'
@@ -61,7 +64,10 @@ export const toRule = (r: RuleRow, label?: string): Rule => ({
 	version: r.version
 });
 
-async function targetNames(tx: Tx, userId: string) {
+/** The names a rule's sentence uses, and the currency its amounts read in. */
+type Targets = { names: Map<string, string>; currency: string };
+
+async function targetNames(tx: Tx, userId: string): Promise<Targets> {
 	const accounts = await tx
 		.select({ id: account.id, name: account.name })
 		.from(account)
@@ -73,12 +79,12 @@ async function targetNames(tx: Tx, userId: string) {
 	const names = new Map<string, string>();
 	for (const a of accounts) names.set(a.id, a.name);
 	for (const g of goals) names.set(g.id, g.name);
-	return names;
+	return { names, currency: (await readSettings(tx, userId)).currency };
 }
 
-const view = (r: RuleRow, names: Map<string, string>): RuleView => {
-	const targetName = names.get(r.targetAccountId ?? r.targetGoalId ?? '') ?? 'an account';
-	return { ...plain(r), summary: describeRule(r, targetName), targetName };
+const view = (r: RuleRow, t: Targets): RuleView => {
+	const targetName = t.names.get(r.targetAccountId ?? r.targetGoalId ?? '') ?? 'an account';
+	return { ...plain(r), summary: describeRule(r, targetName, t.currency), targetName };
 };
 
 async function activeRules(tx: Tx, userId: string) {
@@ -133,7 +139,7 @@ export async function proposeRule(
 /** Reads a rule said in plain words ("20% to emergency fund") and proposes it. What cannot be read is refused with the reason. */
 export async function proposeRuleFromText(ctx: Ctx, raw: RuleFromTextInput): Promise<RuleView> {
 	const input = parse(ruleFromTextInput, raw);
-	const targets = await run(ctx, async (tx, userId) => {
+	const { targets, currency } = await run(ctx, async (tx, userId) => {
 		const accounts = await tx
 			.select({ id: account.id, name: account.name })
 			.from(account)
@@ -142,12 +148,16 @@ export async function proposeRuleFromText(ctx: Ctx, raw: RuleFromTextInput): Pro
 			.select({ id: goal.id, name: goal.name })
 			.from(goal)
 			.where(eq(goal.userId, userId));
-		return [
-			...accounts.map((a) => ({ kind: 'account' as const, id: a.id, name: a.name })),
-			...goals.map((g) => ({ kind: 'goal' as const, id: g.id, name: g.name }))
-		];
+		return {
+			targets: [
+				...accounts.map((a) => ({ kind: 'account' as const, id: a.id, name: a.name })),
+				...goals.map((g) => ({ kind: 'goal' as const, id: g.id, name: g.name }))
+			],
+			// "500 to cash" is 500 of the person's own currency
+			currency: (await readSettings(tx, userId)).currency
+		};
 	});
-	const parsed = parseRuleText(input.text, targets);
+	const parsed = parseRuleText(input.text, targets, currency);
 	if (!parsed.ok) throw new OpsError('INVALID', parsed.reason);
 	return proposeRule(
 		ctx,

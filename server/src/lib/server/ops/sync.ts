@@ -32,7 +32,7 @@ export type SyncReminder = {
 export type SummaryCard = {
 	/** Centavos, across the accounts. */
 	total: number;
-	nextBill: { name: string; dueDate: string } | null;
+	nextBill: { name: string; dueDate: string; windowStart: string; windowEnd: string } | null;
 	firstEventToday: { title: string; startsAt: string; untrusted: boolean } | null;
 };
 
@@ -120,7 +120,14 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 			...(reminders ? { reminders } : {}),
 			summary: {
 				total,
-				nextBill: next ? { name: next.name, dueDate: next.dueDate } : null,
+				nextBill: next
+					? {
+							name: next.name,
+							dueDate: next.dueDate,
+							windowStart: next.windowStart,
+							windowEnd: next.windowEnd
+						}
+					: null,
 				firstEventToday: first
 					? {
 							title: first.title,

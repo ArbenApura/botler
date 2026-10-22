@@ -19,6 +19,7 @@ import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { occurrencesBetween } from '../../finance/schedule';
 import { calendarEvent, calendarSync, incomeSchedule, splitPlan } from '../db/schema';
 import { dueBills } from '../ops/bills';
+import { lockPerson, setAuditContext } from '../db/tenant';
 import { GoogleAuthError, GoogleGone } from './google';
 
 // -- TYPES -- //
@@ -124,9 +125,14 @@ async function saveState(tx: Tx, userId: string, patch: Partial<typeof calendarS
 export async function syncDerivedEvents(tx: Tx, userId: string, now: Date): Promise<void> {
 	const today = day(now);
 	const end = addDays(today, DERIVED_DAYS);
-	const wanted = new Map<string, { title: string; date: string }>();
+	// A payment window is one all-day event over its days; a single day is as before
+	const wanted = new Map<string, { title: string; date: string; endDate: string }>();
 	for (const b of (await dueBills(tx, userId, today, end)).filter((x) => !x.paid))
-		wanted.set(`bill:${b.billId}:${b.dueDate}`, { title: `Bill due: ${b.name}`, date: b.dueDate });
+		wanted.set(`bill:${b.billId}:${b.dueDate}`, {
+			title: `Bill due: ${b.name}`,
+			date: b.windowStart,
+			endDate: b.windowEnd
+		});
 	const approved = await tx
 		.select({ p: splitPlan.payday, i: splitPlan.incomeScheduleId })
 		.from(splitPlan)
@@ -140,7 +146,7 @@ export async function syncDerivedEvents(tx: Tx, userId: string, now: Date): Prom
 			weekend: inc.weekendRule
 		}))
 			if (!done.has(`${inc.id}|${d}`))
-				wanted.set(`payday:${inc.id}:${d}`, { title: `Payday: ${inc.label}`, date: d });
+				wanted.set(`payday:${inc.id}:${d}`, { title: `Payday: ${inc.label}`, date: d, endDate: d });
 
 	const have = await tx
 		.select()
@@ -170,6 +176,8 @@ export async function syncDerivedEvents(tx: Tx, userId: string, now: Date): Prom
 	);
 	for (const [refKey, w] of wanted) {
 		const startsAt = manilaStart(w.date);
+		// All-day events end the day after their last day
+		const endsAt = manilaStart(addDays(w.endDate, 1));
 		const ex = haveByKey.get(refKey);
 		if (!ex && removed.has(refKey)) continue;
 		if (!ex)
@@ -177,18 +185,22 @@ export async function syncDerivedEvents(tx: Tx, userId: string, now: Date): Prom
 				userId,
 				title: w.title,
 				startsAt,
-				endsAt: new Date(startsAt.getTime() + 86_400_000),
+				endsAt,
 				allDay: true,
 				source: refKey.startsWith('bill') ? 'bill' : 'payday',
 				refKey
 			});
-		else if (ex.title !== w.title || ex.startsAt.getTime() !== startsAt.getTime())
+		else if (
+			ex.title !== w.title ||
+			ex.startsAt.getTime() !== startsAt.getTime() ||
+			ex.endsAt.getTime() !== endsAt.getTime()
+		)
 			await tx
 				.update(calendarEvent)
 				.set({
 					title: w.title,
 					startsAt,
-					endsAt: new Date(startsAt.getTime() + 86_400_000),
+					endsAt,
 					version: sql`${calendarEvent.version} + 1`,
 					updatedAt: sql`now()`
 				})
@@ -217,9 +229,12 @@ export async function syncCalendar(
 	api: GoogleCalendarApi,
 	now: Date = new Date()
 ): Promise<SyncReport> {
+	await lockPerson(tx, userId);
 	const state = await stateOf(tx, userId);
 	if (!state || state.status === 'off')
 		return { status: 'off', pulled: 0, pushed: 0, deleted: 0, fullResync: false };
+	// Everything this pass writes is calendar sync in the audit trail
+	await setAuditContext(tx, { channel: 'calendar_sync' });
 	const report: SyncReport = { status: 'ok', pulled: 0, pushed: 0, deleted: 0, fullResync: false };
 	try {
 		await pull(tx, userId, api, state.syncToken, now, report);

@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { requestLog, undoJournal } from '../db/schema';
-import { assertUserId, withUser } from '../db/tenant';
+import { assertUserId, lockPerson, setAuditContext, withUser } from '../db/tenant';
+import type { AuditContext } from '../db/tenant';
 
 // -- TYPES -- //
 
@@ -22,11 +23,23 @@ export type Actor = {
 	tool?: string;
 };
 
+/** Where a change came from, for the audit trail. */
+export type Channel = 'app' | 'chat' | 'widget' | 'outbox' | 'calendar_sync' | 'job' | 'system';
+
 export type Ctx = {
 	handle: DbHandle;
 	actor: Actor;
 	/** Chosen by the client for each write (8 to 80 characters). Repeating a write with the same id returns the stored result and writes nothing twice. */
 	requestId?: string;
+	/** The way in: set by the HTTP edge from a checked header, by the assistant's loop, by a job or by sync. Left out it follows the actor. */
+	channel?: Channel;
+	/** The chat turn an assistant action belongs to, and the approval card a person answered. Short ids, never text. */
+	turnId?: string;
+	approvalId?: string;
+	/** 'agent' when a person approved something the assistant proposed: the assistant asked, the person did it. */
+	onBehalfOf?: 'agent';
+	/** A background job or sync acts as itself, not as a person or a tool call. */
+	via?: 'job' | 'system';
 };
 
 /** What a write changed, for the undo journal. `before` is null for a create, `after` is null for a delete. */
@@ -61,7 +74,24 @@ export class OpsError extends Error {
 /** Runs a verb body in the actor's user context. A body can only see and change the actor's own rows. */
 export function run<T>(ctx: Ctx, fn: (tx: Tx, userId: string) => Promise<T>): Promise<T> {
 	const userId = assertUserId(ctx.actor.userId);
-	return withUser(ctx.handle, userId, (tx) => fn(tx, userId));
+	return withUser(ctx.handle, userId, async (tx) => {
+		await setAuditContext(tx, auditOf(ctx));
+		return fn(tx, userId);
+	});
+}
+
+/** The audit context of a caller: who acted, on whose behalf, through which way in. */
+export function auditOf(ctx: Ctx): AuditContext {
+	const actorKind = ctx.via ?? ctx.actor.kind;
+	return {
+		actorKind,
+		onBehalf: ctx.onBehalfOf ?? '',
+		actorRef: ctx.actor.tool ?? '',
+		channel: ctx.channel ?? ctx.via ?? (ctx.actor.kind === 'agent' ? 'chat' : 'app'),
+		turnId: ctx.turnId ?? '',
+		approvalId: ctx.approvalId ?? '',
+		requestId: ctx.requestId ?? ''
+	};
 }
 
 /** JSON with sorted keys, so the same input always gives the same fingerprint. */
@@ -99,6 +129,10 @@ export async function runWrite<T>(
 		.update(`${verb}\n${stable(input)}`)
 		.digest('hex');
 	return run(ctx, async (tx, userId) => {
+		// Line up with this person's other writes before touching any row, so the audit trigger never deadlocks them
+		await lockPerson(tx, userId);
+		// The verb's name, for the audit rows this write causes
+		await setAuditContext(tx, { verb });
 		const claimed = await tx
 			.insert(requestLog)
 			.values({ userId, requestId, verb, fingerprint })

@@ -37,6 +37,12 @@ export function fail(e: unknown): Response {
 	return json({ error: { code: 'INTERNAL', message: 'Something went wrong' } }, 500);
 }
 
+/** Which way in the app says it came: the screens, the home-screen widget or the offline outbox. Anything else is the screens. */
+export function channelOf(request: Request): 'app' | 'widget' | 'outbox' {
+	const said = request.headers.get('x-botler-channel');
+	return said === 'widget' || said === 'outbox' ? said : 'app';
+}
+
 /** The context of the signed in person, or an UNAUTHENTICATED response. The user id comes from the session only. */
 export async function callerCtx(
 	locals: App.Locals,
@@ -57,7 +63,14 @@ export async function callerCtx(
 	// Loaded here, after the checks above, so a refused request never touches the database and the helpers can be tested alone
 	const { getDb } = await import('../db');
 	const handle = await getDb();
-	return { ctx: { handle, actor: { userId: locals.user.id, kind: 'person' }, requestId } };
+	return {
+		ctx: {
+			handle,
+			actor: { userId: locals.user.id, kind: 'person' },
+			requestId,
+			channel: channelOf(request)
+		}
+	};
 }
 
 /** Reads a JSON body of at most 64 KB. Anything else is INVALID. */

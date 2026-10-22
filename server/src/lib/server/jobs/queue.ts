@@ -9,7 +9,8 @@ import { sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { job, user } from '../db/schema';
-import { withUser } from '../db/tenant';
+import { lockPerson, setAuditContext, withUser } from '../db/tenant';
+import { auditOf } from '../ops/context';
 
 // -- TYPES -- //
 
@@ -152,10 +153,16 @@ export async function runBatch(
 				if (!handler) throw new Error('NoHandler');
 				const ctx: Ctx = {
 					handle,
-					actor: { userId: row.userId, kind: 'agent', tool: `job:${row.kind}` }
+					actor: { userId: row.userId, kind: 'agent', tool: `job:${row.kind}` },
+					via: 'job',
+					channel: 'job'
 				};
-				// The handler's transaction sets the owner's user id before its first query
-				await withUser(handle, row.userId, (tx) => handler(row, tx, ctx));
+				// The handler's transaction sets the owner's user id before its first query, then who is acting for the audit trail
+				await withUser(handle, row.userId, async (tx) => {
+					await lockPerson(tx, row.userId);
+					await setAuditContext(tx, { ...auditOf(ctx) });
+					return handler(row, tx, ctx);
+				});
 				outcome = 'done';
 			} catch (e) {
 				logError('job_failed', e, { kind: row.kind });

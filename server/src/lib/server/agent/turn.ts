@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto';
 import { createAction } from '../ops/actions';
 import { OpsError } from '../ops/context';
 import { invokeVerb } from '../ops/registry';
+import { getSettings, SETTING_DEFAULTS } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { buildMessages } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
@@ -31,9 +32,16 @@ import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
 // -- TYPES -- //
 
 export type TurnEvent =
+	// Live only: start, phase, reasoning and tool_start are shown while the turn runs and are never stored or replayed
+	| { type: 'start' }
+	| { type: 'phase'; phase: 'thinking' | 'writing' }
+	| { type: 'reasoning'; text: string }
+	| { type: 'tool_start'; id: string; name: string }
 	| { type: 'delta'; text: string }
 	| {
 			type: 'tool';
+			/** The model's call id, so the screen can match this to its tool_start. Missing on events stored before it existed. */
+			id?: string;
 			name: string;
 			status: 'ok' | 'error' | 'needs_approval' | 'blocked';
 			data?: unknown;
@@ -41,7 +49,12 @@ export type TurnEvent =
 	  }
 	| { type: 'card'; actionId: string; summary: string }
 	| { type: 'fallback'; reason: 'down' | 'capped' | 'rate'; form: 'expense' }
-	| { type: 'done'; reply: string; stopped?: 'depth' | 'tools' | 'cancelled'; toolsRun: string[] };
+	| {
+			type: 'done';
+			reply: string;
+			stopped?: 'depth' | 'tools' | 'cancelled' | 'length';
+			toolsRun: string[];
+	  };
 
 export type TurnModel = { stream(ctx: Ctx, req: CompletionRequest): AsyncGenerator<StreamEvent> };
 
@@ -58,6 +71,11 @@ export type TurnParams = {
 	names?: string[];
 	persona?: string;
 	memories?: string[];
+	/** Recent approval cards and how each was answered, so the assistant knows what was approved, rejected or is still waiting. */
+	cards?: string[];
+	/** The person's currency and how the assistant replies, read from their settings. */
+	currency?: string;
+	replyLanguage?: 'auto' | 'en' | 'fil' | 'taglish';
 	signal?: AbortSignal;
 	now?: Date;
 	tools?: AgentTool[];
@@ -164,6 +182,8 @@ async function executeTool(
 	const agentCtx: Ctx = {
 		handle: p.ctx.handle,
 		actor: { userId: p.ctx.actor.userId, kind: 'agent', tool: tool.name },
+		channel: 'chat',
+		turnId: createHash('sha256').update(p.turnKey).digest('hex').slice(0, 32),
 		// Hashed so a long client message id cannot cut the sequence number off and make every write of a turn share one id
 		requestId: `t-${createHash('sha256').update(p.turnKey).digest('hex').slice(0, 40)}-${seq}`
 	};
@@ -279,18 +299,26 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const state = new TurnState(urlsIn(p.userText));
 	if (p.ocrText) state.taint('photo');
 	const masker = createMasker(p.names);
+	// The person's currency and reply language. A settings read that fails never stops a chat: it falls back to the defaults
+	const settings =
+		p.currency && p.replyLanguage
+			? { currency: p.currency, replyLanguage: p.replyLanguage }
+			: await getSettings(p.ctx).catch(() => SETTING_DEFAULTS);
 	const messages = buildMessages({
 		now: p.now ?? new Date(),
 		persona: p.persona,
 		memories: p.memories,
+		cards: p.cards,
 		history: p.history,
 		userText: p.userText,
-		ocrText: p.ocrText
+		ocrText: p.ocrText,
+		currency: settings.currency,
+		replyLanguage: settings.replyLanguage
 	});
 	const toolsRun: string[] = [];
 	let reply = '';
 	let seq = 0;
-	let stopped: 'depth' | 'tools' | 'cancelled' | undefined;
+	let stopped: 'depth' | 'tools' | 'cancelled' | 'length' | undefined;
 	let toolsOff = false;
 
 	for (let call = 0; call < limits.maxModelCalls; call++) {
@@ -299,6 +327,9 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			break;
 		}
 		let completion: Completion | null = null;
+		// The model is working; the screen shows it until the first word of the answer arrives
+		yield { type: 'phase', phase: 'thinking' };
+		let writing = false;
 		try {
 			const req: CompletionRequest = {
 				bucket: 'chat',
@@ -309,8 +340,15 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			};
 			for await (const ev of p.model.stream(p.ctx, req)) {
 				if (ev.type === 'delta') {
+					if (!writing) {
+						writing = true;
+						yield { type: 'phase', phase: 'writing' };
+					}
 					reply += ev.text;
 					yield { type: 'delta', text: ev.text };
+				} else if (ev.type === 'reasoning') {
+					// Shown as it comes. It is not part of the reply and is never kept
+					yield { type: 'reasoning', text: ev.text };
 				} else completion = ev.completion;
 			}
 		} catch (e) {
@@ -327,7 +365,27 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			throw e;
 		}
 		if (!completion) throw new Error('The model ended without an answer.');
+		// The model ran out of room (its thinking shares the limit with the answer). Cut-off tool arguments are never run, and a
+		// cut-off answer says so and is not read for memory
+		if (completion.finishReason === 'length') {
+			const note =
+				'That took more thinking than I had room for. Please ask again, maybe a little simpler.';
+			const tail = reply.trim()
+				? `
+
+${note}`
+				: note;
+			reply += tail;
+			yield { type: 'delta', text: tail };
+			yield { type: 'done', reply, stopped: 'length', toolsRun };
+			return;
+		}
 		if (completion.toolCalls.length === 0) {
+			// Thinking alone is not an answer: never end on a blank reply
+			if (!reply.trim() && !completion.content.trim()) {
+				reply = 'I did not come up with an answer. Please ask me again.';
+				yield { type: 'delta', text: reply };
+			}
 			yield {
 				type: 'done',
 				reply: reply || completion.content,
@@ -339,7 +397,9 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		messages.push({
 			role: 'assistant',
 			content: completion.content || null,
-			tool_calls: completion.toolCalls
+			tool_calls: completion.toolCalls,
+			// DeepSeek wants the thinking back while a tool round continues. It is the masked text it sent
+			...(completion.reasoningRaw ? { reasoning_content: completion.reasoningRaw } : {})
 		});
 		for (const tc of completion.toolCalls) {
 			if (p.signal?.aborted) {
@@ -360,10 +420,14 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 				continue;
 			}
 			seq++;
+			// Only the call id and the tool's name: the arguments may hold text from the web or from memory
+			if (byName.has(tc.function.name))
+				yield { type: 'tool_start', id: tc.id, name: tc.function.name };
 			const out = await executeTool(p, limits, state, byName, tc, seq);
 			toolsRun.push(tc.function.name);
 			yield {
 				type: 'tool',
+				id: tc.id,
 				name: tc.function.name,
 				status: out.status,
 				...(out.message ? { message: out.message } : {}),

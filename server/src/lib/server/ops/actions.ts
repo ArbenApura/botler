@@ -5,14 +5,18 @@
 // -- TYPES -- //
 import type { Plain } from './shared';
 import type { Ctx } from './context';
+import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { formatPhp } from '../../finance/money';
+import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
+import { describeSchedule, validateSchedule } from '../../finance/schedule';
 import { account, agentAction, bill, goal } from '../db/schema';
 import { OpsError, run } from './context';
+import { balanceFor } from './ledger';
+import { readSettings } from './settings';
 import { invokeVerb, verbByName } from './registry';
-import { mapped, plain, requirePerson } from './shared';
+import { firstProblem, mapped, plain, requirePerson } from './shared';
 
 // -- TYPES -- //
 
@@ -32,14 +36,15 @@ const CONFIRMING_VERBS = new Set(['expense_log', 'expense_from_text', 'snapshot_
 
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 const text = (v: unknown, max = 60): string => (typeof v === 'string' ? v.slice(0, max) : '');
-const money = (v: unknown) => (num(v) === null ? 'an amount' : formatPhp(num(v) as number));
+const moneyIn = (currency: string, v: unknown) =>
+	num(v) === null ? 'an amount' : formatMoney(num(v) as number, currency);
 
 function when(schedule: unknown): string {
-	const s = schedule as { kind?: string; day?: number; days?: number[]; n?: number } | null;
-	if (s?.kind === 'monthly') return `on day ${s.day} of each month`;
-	if (s?.kind === 'semi_monthly') return `on days ${s.days?.join(' and ')} of each month`;
-	if (s?.kind === 'every_n_days') return `every ${s.n} days`;
-	return 'on a schedule';
+	// The card says what the schedule means in words, built from the validated fields, whatever the kind
+	const s = schedule as Schedule | null;
+	if (!s || validateSchedule(s) !== null) return 'on a schedule';
+	const text = describeSchedule(s).text;
+	return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 /** Looks up the names a card shows (accounts, goals, bills), from the person's own rows. */
@@ -70,9 +75,14 @@ async function namesFor(ctx: Ctx, args: Args): Promise<Map<string, string>> {
 export function describeAction(
 	verbName: string,
 	args: Args,
-	names: ReadonlyMap<string, string>
+	names: ReadonlyMap<string, string>,
+	currency: string = DEFAULT_CURRENCY,
+	/** What the account holds now, for a balance count: a card that changes a balance says the old and the new one. */
+	currentBalance: number | null = null
 ): string {
 	const nm = (id: unknown) => names.get(typeof id === 'string' ? id : '') ?? 'an account';
+	// Amounts on a card read in the person's own currency
+	const money = (v: unknown) => moneyIn(currency, v);
 	switch (verbName) {
 		case 'account_create':
 			return `Add the account "${text(args.name)}".`;
@@ -91,14 +101,24 @@ export function describeAction(
 				' .',
 				'.'
 			);
+		case 'bill_occurrence_update':
+			return `Change one date of the bill ${names.get(typeof args.billId === 'string' ? args.billId : '') ?? ''} (${text(args.dueDate, 10)})${args.newDueDate ? `: move it to ${text(args.newDueDate, 10)}` : ''}${args.amount ? `, ${money(args.amount)} this time` : ''}${args.accountId ? `, paid from ${nm(args.accountId)}` : ''}${args.skipped === true ? ', skip it' : ''}.`;
 		case 'bill_mark_paid':
 			return `Mark "${names.get(typeof args.billId === 'string' ? args.billId : '') ?? 'the bill'}" paid for ${text(args.dueDate, 10)}${args.amount ? `, ${money(args.amount)}` : ''}.`;
 		case 'goal_create':
 			return `Add the goal "${text(args.name)}" in ${nm(args.accountId)}${num(args.perPayday) ? `, setting aside ${money(args.perPayday)} each payday` : ''}.`;
 		case 'goal_update':
 			return `Change the goal ${nm(args.goalId)}${args.name ? ` ("${text(args.name)}")` : ''}${num(args.perPayday) !== null ? `, ${money(args.perPayday)} each payday` : ''}.`;
-		case 'snapshot_record':
-			return `Record that ${nm(args.accountId)} holds ${money(args.amount)}.`;
+		case 'snapshot_record': {
+			const target = num(args.amount);
+			const diff =
+				target !== null && currentBalance !== null
+					? ` It shows ${money(currentBalance)} now, a difference of ${target - currentBalance > 0 ? '+' : ''}${moneyIn(currency, target - currentBalance)}.`
+					: '';
+			return args.mode === 'reset'
+				? `Reset ${nm(args.accountId)} to ${money(args.amount)}.${diff} Reason given by Botler: "${text(args.reason, 120)}". Your history is kept.`
+				: `Record that ${nm(args.accountId)} holds ${money(args.amount)}.${diff}`;
+		}
 		case 'expense_log':
 			return `Log an expense of ${money(args.amount)} on ${nm(args.accountId)}${args.note ? `: "${text(args.note, 80)}"` : ''}.`;
 		case 'expense_from_text':
@@ -127,11 +147,7 @@ export async function createAction(
 		throw new OpsError('INVALID', 'That cannot be turned into an approval card.');
 	const parsed = v.input.safeParse(opts.args);
 	if (!parsed.success) {
-		const issue = parsed.error.issues[0];
-		throw new OpsError(
-			'INVALID',
-			`${issue?.path.join('.') ?? 'input'}: ${issue?.message ?? 'invalid'}`
-		);
+		throw new OpsError('INVALID', firstProblem(v.input, parsed.error));
 	}
 	// The person's tap on the card is the confirmation, so a model never pre-sets it
 	const {
@@ -141,7 +157,14 @@ export async function createAction(
 	} = parsed.data as Args;
 	const args: Args = clean;
 	const names = await namesFor(ctx, args);
-	const summary = describeAction(v.name, args, names);
+	const { currency, current } = await run(ctx, async (tx, userId) => ({
+		...(await readSettings(tx, userId)),
+		current:
+			v.name === 'snapshot_record' && typeof args.accountId === 'string'
+				? (await balanceFor(tx, userId, args.accountId)).balance
+				: null
+	}));
+	const summary = describeAction(v.name, args, names, currency, current);
 	return mapped(async () => {
 		const row = await run(ctx, async (tx, userId) => {
 			const [r] = await tx
@@ -212,14 +235,29 @@ export async function decideAction(
 		// Approving is the yes the verb asks for. A balance count ten times off asks again: it needs the second approval
 		const asksForYes = CONFIRMING_VERBS.has(card.verb);
 		const wasAsked = (card.result as { status?: unknown } | null)?.status === 'needs_confirmation';
+		// A balance card states the old balance, the new one and the difference. A count of exactly zero is a deliberate reset, so one tap
+		// is the whole yes; any other count ten times off (most often a typo) still asks a second time
+		const zero = (card.args as Args).amount === 0;
 		const args = asksForYes
 			? {
 					...(card.args as Args),
 					confirmed: true,
-					...(card.verb === 'snapshot_record' && wasAsked ? { acknowledgeLarge: true } : {})
+					...(card.verb === 'snapshot_record' && (wasAsked || zero)
+						? { acknowledgeLarge: true }
+						: {})
 				}
 			: card.args;
-		const result = await invokeVerb({ ...ctx, requestId: `card-${card.id}` }, card.verb, args);
+		// The assistant asked, the person approved: the audit trail says both
+		const result = await invokeVerb(
+			{
+				...ctx,
+				requestId: `card-${card.id}`,
+				approvalId: card.id,
+				...(card.turnId ? { onBehalfOf: 'agent' as const, turnId: card.turnId } : {})
+			},
+			card.verb,
+			args
+		);
 		// A verb that only asked for more (an amount, an account, a second yes) wrote nothing, so the card is not applied
 		const status = (result as { status?: unknown } | null)?.status;
 		if (typeof status === 'string' && status.startsWith('needs_'))
@@ -233,6 +271,30 @@ export async function decideAction(
 		}
 		throw e;
 	}
+}
+
+/**
+ * One line per recent card, newest first, for the assistant's turn context: what the card asked for and how the person answered it.
+ * The sentence is the one built on the card and the failure reason is the server's own, so nothing here is free text from the model.
+ */
+export async function recentCardLines(ctx: Ctx, limit = 12, days = 3): Promise<string[]> {
+	const since = new Date(Date.now() - days * 24 * 3_600_000);
+	const rows = await run(ctx, (tx, userId) =>
+		tx
+			.select({
+				status: agentAction.status,
+				summary: agentAction.summary,
+				result: agentAction.result
+			})
+			.from(agentAction)
+			.where(and(eq(agentAction.userId, userId), gt(agentAction.createdAt, since)))
+			.orderBy(desc(agentAction.createdAt))
+			.limit(limit)
+	);
+	return rows.map((r) => {
+		const why = (r.result as { error?: unknown } | null)?.error;
+		return `${r.status}: ${r.summary.slice(0, 200)}${r.status === 'failed' && typeof why === 'string' ? ` (${why.slice(0, 120)})` : ''}`;
+	});
 }
 
 /** Used by the assistant's turn to know how many cards wait. */

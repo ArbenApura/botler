@@ -42,4 +42,22 @@ describe('masker hardening', () => {
 		const out = m.mask('Maria wrote from maria.cruz@example.com about account 123456789012');
 		expect(out).toBe('[NAME_1] wrote from [EMAIL_1] about account [ACCT_1]');
 	});
+
+	it('leaves record ids whole, even when their groups are all digits', () => {
+		const m = createMasker();
+		const ids = ['11111111-2222-3333-4444-555555555555', '72835839-3588-4112-9361-935884112345'];
+		for (const id of ids) expect(m.mask(`{"billId":"${id}"}`)).toBe(`{"billId":"${id}"}`);
+		// An id next to a real account number: only the number is masked
+		expect(m.mask(`bill ${ids[0]} account 123456789012`)).toBe(`bill ${ids[0]} account [ACCT_1]`);
+	});
+
+	it('leaves the ids and the dates of one changed due date whole (BTL-20261022-0650)', () => {
+		const m = createMasker();
+		const call =
+			'{"billId":"72835839-3588-4112-9361-935884112345","dueDate":"2026-11-10","newDueDate":"2026-11-14","amount":750000}';
+		expect(m.mask(call)).toBe(call);
+		const row =
+			'{"billId":"72835839-3588-4112-9361-935884112345","dueDate":"2026-11-14","originalDueDate":"2026-11-10","overridden":true}';
+		expect(m.mask(row)).toBe(row);
+	});
 });

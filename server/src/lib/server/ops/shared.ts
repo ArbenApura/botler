@@ -25,14 +25,25 @@ export type Plain<T> = T extends Date
 export const plain = <T>(value: T): Plain<T> =>
 	JSON.parse(JSON.stringify(value ?? null)) as Plain<T>;
 
+/**
+ * The first problem of a failed parse in plain words. A field the input does not have names the fields it does have, so the assistant
+ * can fix the call at once instead of guessing again.
+ */
+export function firstProblem(schema: z.ZodType, error: z.ZodError): string {
+	const issue = error.issues[0];
+	if (!issue) return 'Invalid input';
+	if (issue.code === 'unrecognized_keys') {
+		const shape = (schema as { shape?: Record<string, unknown> }).shape;
+		const allowed = shape ? ` The fields here are: ${Object.keys(shape).join(', ')}.` : '';
+		return `${issue.path.length ? `${issue.path.join('.')}: ` : ''}Unknown field ${issue.keys.map((k) => `"${k}"`).join(', ')}.${allowed} A field of a repeat rule (anchor, everyWeeks, anchorMonth) goes inside "schedule".`;
+	}
+	return `${issue.path.length ? `${issue.path.join('.')}: ` : ''}${issue.message}`;
+}
+
 /** Parses an input, or throws INVALID with the first problem in the schema's own words. */
 export function parse<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {
 	const r = schema.safeParse(input);
-	if (!r.success) {
-		const issue = r.error.issues[0];
-		const where = issue?.path.length ? `${issue.path.join('.')}: ` : '';
-		throw new OpsError('INVALID', `${where}${issue?.message ?? 'Invalid input'}`);
-	}
+	if (!r.success) throw new OpsError('INVALID', firstProblem(schema, r.error));
 	return r.data;
 }
 

@@ -6,7 +6,8 @@ import type {
 	GoalCreateInput,
 	GoalUpdateInput,
 	IncomeCreateInput,
-	IncomeUpdateInput
+	IncomeUpdateInput,
+	SchedulePreviewInput
 } from '../db/zod';
 import type { Plain } from './shared';
 import type { Schedule } from '../../finance/schedule';
@@ -14,9 +15,16 @@ import type { Schedule } from '../../finance/schedule';
 import { and, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
-import { occurrencesBetween } from '../../finance/schedule';
+import { describeSchedule, occurrencesBetween, previewOccurrences } from '../../finance/schedule';
 import { goal, incomeSchedule } from '../db/schema';
-import { goalCreateInput, goalUpdateInput, incomeCreateInput, incomeUpdateInput } from '../db/zod';
+import {
+	goalCreateInput,
+	goalUpdateInput,
+	incomeCreateInput,
+	incomeUpdateInput,
+	schedulePreviewInput
+} from '../db/zod';
+import { assertUserId } from '../db/tenant';
 import { OpsError, run, runWrite } from './context';
 import {
 	checkVersion,
@@ -53,7 +61,6 @@ export async function createIncome(ctx: Ctx, raw: IncomeCreateInput): Promise<In
 }
 
 export async function updateIncome(ctx: Ctx, raw: IncomeUpdateInput): Promise<IncomeView> {
-	requirePerson(ctx.actor.kind, 'change an income');
 	const { incomeId, expectVersion, ...changes } = parse(incomeUpdateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'income.update', { incomeId, expectVersion, ...changes }, async (tx, userId) => {
@@ -93,6 +100,23 @@ export async function nextPaydays(ctx: Ctx, incomeId: string, count = 4): Promis
 	return found.slice(0, Math.min(Math.max(count, 1), 24));
 }
 
+/** What a schedule means and when it would next fall, so a person sees a wrong schedule before saving it. Nothing is read or written. */
+export async function schedulePreview(ctx: Ctx, raw: SchedulePreviewInput) {
+	assertUserId(ctx.actor.userId);
+	const input = parse(schedulePreviewInput, raw);
+	const schedule = input.schedule as Schedule;
+	const from = input.from ?? toManilaDate(new Date());
+	const sentence = describeSchedule(schedule);
+	return {
+		key: sentence.key,
+		args: sentence.args,
+		text: sentence.text,
+		windows: previewOccurrences(schedule, from, input.count ?? 6, {
+			weekend: input.weekend ?? 'none'
+		})
+	};
+}
+
 // -- GOALS -- //
 
 export async function createGoal(ctx: Ctx, raw: GoalCreateInput): Promise<GoalView> {
@@ -112,7 +136,6 @@ export async function createGoal(ctx: Ctx, raw: GoalCreateInput): Promise<GoalVi
 }
 
 export async function updateGoal(ctx: Ctx, raw: GoalUpdateInput): Promise<GoalView> {
-	requirePerson(ctx.actor.kind, 'change a goal');
 	const { goalId, expectVersion, ...changes } = parse(goalUpdateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'goal.update', { goalId, expectVersion, ...changes }, async (tx, userId) => {

@@ -9,3 +9,5 @@ export * from './finance';
 export * from './agent';
 export * from './memory';
 export * from './schedule';
+export * from './settings';
+export * from './audit';

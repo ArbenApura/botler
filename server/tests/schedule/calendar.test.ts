@@ -5,13 +5,13 @@
 import type { Fixture } from '../agent/support';
 import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../src/lib/finance/dates';
 import { createCalendarHandlers } from '../../src/lib/server/jobs/calendar';
 import { syncCalendar } from '../../src/lib/server/calendar/sync';
-import { calendarEvent, calendarSync, user } from '../../src/lib/server/db/schema';
+import { auditEvent, calendarEvent, calendarSync, user } from '../../src/lib/server/db/schema';
 import { createAccount } from '../../src/lib/server/ops/accounts';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { createBill, markBillPaid } from '../../src/lib/server/ops/bills';
@@ -405,6 +405,49 @@ describe('Google refusing us', () => {
 });
 
 describe('bills and paydays as calendar events', () => {
+	it('puts a payment window on the calendar as one multi-day all-day event', async () => {
+		const f = await connected();
+		const api = new FakeGoogle();
+		const start = addDays(today(), 2);
+		const parts = start.split('-').map(Number);
+		const lastDay = new Date(Date.UTC(parts[0] ?? 0, parts[1] ?? 1, 0)).getUTCDate();
+		const end = `${start.slice(0, 8)}${String(lastDay).padStart(2, '0')}`;
+		await createBill(
+			{ ...f.ctx, requestId: rid() },
+			{
+				name: 'Internet',
+				category: 'bills',
+				accountId: f.rcbc,
+				kind: 'fixed',
+				amount: 99_900,
+				schedule: { kind: 'day_range', from: Number(start.slice(8)), to: -1 },
+				weekendRule: 'none',
+				deferrable: false
+			}
+		);
+		await sync(f, api);
+		const g = api.live().find((e) => e.summary === 'Bill due: Internet' && e.start?.date === start);
+		expect(g?.start?.date).toBe(start);
+		// An all-day event ends the day after its last day
+		expect(g?.end?.date).toBe(addDays(end, 1));
+		expect(JSON.stringify(g)).not.toMatch(/999|₱/);
+		// The events sync made are in the audit trail as calendar sync, with no title
+		const audited = await withUser(t.handle, f.userId, (tx) =>
+			tx
+				.select()
+				.from(auditEvent)
+				.where(and(eq(auditEvent.userId, f.userId), eq(auditEvent.entity, 'calendar_event')))
+		);
+		expect(audited.length).toBeGreaterThan(0);
+		expect(audited.every((r) => r.channel === 'calendar_sync')).toBe(true);
+		expect(JSON.stringify(audited)).not.toMatch(/Bill due: Internet/);
+		// Again, with nothing changed: still one event
+		await sync(f, api);
+		expect(
+			api.live().filter((e) => e.summary === 'Bill due: Internet' && e.start?.date === start)
+		).toHaveLength(1);
+	});
+
 	it('puts a bill that needs action on the calendar without its amount, and takes it off when it is paid', async () => {
 		const f = await connected();
 		const api = new FakeGoogle();

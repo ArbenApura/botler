@@ -1,12 +1,15 @@
 // REPEATING THINGS OF EVERY DAY LIFE (A GYM DAY, A MEDICINE, A WEEKLY CALL): A RULE PLUS A CLOCK TIME IN ASIA/MANILA.
 // Dates are chosen the way src/lib/finance/schedule.ts chooses them (so a day-31 rule clamps to the last day and a 14 day cycle never drifts);
 // weekly and daily rules are added here. The result is instants, because a reminder fires at a moment, not on a day.
+// freq 'schedule' takes any schedule of the finance engine (1st Wednesday, week of the month, a day range, every k months ...) plus a time;
+// a window fires on its first day.
 
 // -- TYPES -- //
 import type { ManilaDate } from '../finance/dates';
+import type { Schedule } from '../finance/schedule';
 // -- MODULES -- //
 import { addDays, manilaStart, toManilaDate, weekday } from '../finance/dates';
-import { occurrencesBetween } from '../finance/schedule';
+import { occurrencesBetween, validateSchedule, windowsBetween } from '../finance/schedule';
 
 // -- TYPES -- //
 
@@ -15,7 +18,8 @@ export type Recurrence =
 	/** days: 0 is Sunday, 6 is Saturday. */
 	| { freq: 'weekly'; days: readonly number[]; time: string }
 	| { freq: 'monthly'; day: number; time: string }
-	| { freq: 'every_n_days'; anchor: ManilaDate; n: number; time: string };
+	| { freq: 'every_n_days'; anchor: ManilaDate; n: number; time: string }
+	| { freq: 'schedule'; schedule: Schedule; time: string };
 
 // -- CONSTANTS -- //
 
@@ -42,6 +46,8 @@ export function validateRecurrence(r: Recurrence): string | null {
 				: 'Pick a day of the month, 1 to 31.';
 		case 'every_n_days':
 			return Number.isInteger(r.n) && r.n >= 1 && r.n <= 366 ? null : 'Repeat every 1 to 366 days.';
+		case 'schedule':
+			return validateSchedule(r.schedule);
 	}
 }
 
@@ -73,6 +79,12 @@ export function recurrenceOccurrences(r: Recurrence, from: Date, to: Date): Date
 			break;
 		case 'every_n_days':
 			dates = occurrencesBetween({ kind: 'every_n_days', anchor: r.anchor, n: r.n }, first, last);
+			break;
+		case 'schedule':
+			// A window is found by its end, so look a month past the range and keep the windows that START inside it
+			dates = windowsBetween(r.schedule, first, addDays(last, 31))
+				.map((w) => w.start)
+				.filter((d) => d >= first && d <= last);
 			break;
 	}
 	return dates

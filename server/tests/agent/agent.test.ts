@@ -18,7 +18,8 @@ import {
 	createAction,
 	decideAction,
 	describeAction,
-	listActions
+	listActions,
+	recentCardLines
 } from '../../src/lib/server/ops/actions';
 import { archiveAccount, listAccounts } from '../../src/lib/server/ops/accounts';
 import { createBill, listBills } from '../../src/lib/server/ops/bills';
@@ -89,35 +90,41 @@ describe('the verb registry', () => {
 				.map((v) => v.name)
 				.sort();
 		expect(by('person')).toEqual([
+			'audit_export',
 			'calendar_disable',
 			'calendar_enable',
+			'data_reset',
+			'data_reset_preview',
 			'memory_export',
 			'memory_wipe',
 			'rule_approve',
 			'rule_retire',
+			'settings_set',
 			'split_approve'
 		]);
 		expect(by('gated')).toEqual([
 			'account_archive',
 			'account_create',
-			'account_update',
 			'bill_create',
-			'bill_update',
 			'goal_create',
-			'goal_update',
 			'income_create',
-			'income_update',
 			'snapshot_record'
 		]);
 		expect(by('free')).toEqual(
 			[
+				'account_update',
 				'alarm_create',
+				'bill_update',
 				'bill_mark_paid',
+				'bill_occurrence_update',
+				'bill_occurrence_reset',
 				'event_create',
 				'event_delete',
 				'event_update',
 				'expense_from_text',
 				'expense_log',
+				'goal_update',
+				'income_update',
 				'income_record',
 				'memory_edit',
 				'memory_forget',
@@ -140,7 +147,24 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(23);
+		expect(by('read')).toHaveLength(28);
+	});
+
+	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {
+		const fx = await seedPerson(t);
+		const [bill] = await listBills(fx.ctx);
+		const edited = (await invokeVerb(
+			{ ...agentOf(fx), requestId: 'req-edit-bill-0001' },
+			'bill_update',
+			{ billId: bill?.id, name: 'Wifi', accountId: fx.rcbc, amount: 123_400 }
+		)) as { name: string; accountId: string; amount: number };
+		expect(edited).toMatchObject({ name: 'Wifi', accountId: fx.rcbc, amount: 123_400 });
+		const renamed = (await invokeVerb(
+			{ ...agentOf(fx), requestId: 'req-edit-acct-0001' },
+			'account_update',
+			{ accountId: fx.gcash, name: 'GCash main' }
+		)) as { name: string };
+		expect(renamed.name).toBe('GCash main');
 	});
 
 	it('refuses the assistant every gated and person-only verb before reading any input', async () => {
@@ -186,6 +210,8 @@ describe('identity binding', () => {
 		const names = tools.map((x) => x.name);
 		expect(names).not.toContain('rule_approve');
 		expect(names).not.toContain('split_approve');
+		expect(names).not.toContain('settings_set');
+		expect(names).toContain('settings_get');
 		expect(names).toEqual(expect.arrayContaining(['web_search', 'web_read', 'expense_log']));
 		for (const tool of tools) {
 			const bad = keysOf(tool.parameters).filter((k) =>
@@ -225,7 +251,7 @@ describe('approval cards', () => {
 	it('builds the card text from the fields, with the names looked up', async () => {
 		const card = await createAction(agentOf(f), { verb: 'bill_create', args: billArgs(f) });
 		expect(card.summary).toBe(
-			'Add the bill "Gym", ₱1,500.00, paid from GCash, on day 3 of each month.'
+			'Add the bill "Gym", ₱1,500.00, paid from GCash, on the 3rd of the month.'
 		);
 		expect(
 			describeAction(
@@ -270,6 +296,34 @@ describe('approval cards', () => {
 			code: 'CONFLICT'
 		});
 		expect(await listBills(fx.ctx)).toHaveLength(3);
+	});
+
+	it('tells the assistant how each recent card was answered', async () => {
+		const fx = await seedPerson(t);
+		const yes = await createAction(agentOf(fx), {
+			verb: 'account_create',
+			args: { name: 'BPI', kind: 'bank' }
+		});
+		const no = await createAction(agentOf(fx), {
+			verb: 'account_create',
+			args: { name: 'Maya2', kind: 'ewallet' }
+		});
+		await createAction(agentOf(fx), {
+			verb: 'account_create',
+			args: { name: 'Wait', kind: 'bank' }
+		});
+		await decideAction(fx.ctx, { actionId: yes.actionId, decision: 'approve' });
+		await decideAction(fx.ctx, { actionId: no.actionId, decision: 'reject' });
+		const lines = await recentCardLines(fx.ctx);
+		expect(lines.map((l) => l.split(':')[0])).toEqual(['pending', 'rejected', 'applied']);
+		const context = buildMessages({
+			now: new Date(),
+			history: [],
+			userText: 'hi',
+			cards: lines
+		})[1];
+		expect(context?.content).toContain('- applied: Add the account "BPI".');
+		expect(context?.content).toContain('- rejected: Add the account "Maya2".');
 	});
 
 	it('can be rejected, and expires after a day', async () => {

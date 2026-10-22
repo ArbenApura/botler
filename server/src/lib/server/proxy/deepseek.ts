@@ -23,7 +23,13 @@ export type ToolCall = {
 
 export type ChatMessage =
 	| { role: 'system' | 'user'; content: string }
-	| { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+	| {
+			role: 'assistant';
+			content: string | null;
+			tool_calls?: ToolCall[];
+			/** The model's own thinking, which DeepSeek wants back while a tool round continues. Masked like the rest on its way out. */
+			reasoning_content?: string;
+	  }
 	| { role: 'tool'; tool_call_id: string; content: string };
 
 export type ToolDef = {
@@ -42,6 +48,10 @@ export type ModelConfig = {
 	maxRetries?: number;
 	/** The most tokens one answer may use when the caller names no limit. It bounds what a single call can spend. */
 	defaultMaxTokens?: number;
+	/** Streamed chat answers think first and show their thinking. Never applies to the memory bucket or to complete(). */
+	thinking?: boolean;
+	/** The ceiling when thinking is on: thinking tokens share max_tokens with the answer. */
+	thinkingMaxTokens?: number;
 	/** For tests: a stand-in for fetch and for waiting between retries. */
 	fetch?: typeof fetch;
 	sleep?: (ms: number) => Promise<void>;
@@ -66,16 +76,21 @@ export type Completion = {
 	toolCalls: ToolCall[];
 	finishReason: string;
 	usage: Usage;
+	/** The thinking with real values restored, like content: it is only kept to go back to the model in a tool round, where maskMessages masks it again. Never stored or logged. */
+	reasoningRaw?: string;
 };
 
 export type StreamEvent =
-	{ type: 'delta'; text: string } | { type: 'done'; completion: Completion };
+	| { type: 'delta'; text: string }
+	| { type: 'reasoning'; text: string }
+	| { type: 'done'; completion: Completion };
 
 type Wire = {
 	choices?: {
 		message?: { content?: string | null; tool_calls?: ToolCall[] };
 		delta?: {
 			content?: string | null;
+			reasoning_content?: string | null;
 			tool_calls?: {
 				index: number;
 				id?: string;
@@ -114,6 +129,8 @@ function maskMessages(messages: ChatMessage[], masker: Masker): ChatMessage[] {
 			return {
 				...m,
 				content: m.content === null ? null : masker.mask(m.content),
+				// Real values restored for the screen go back masked, with the same placeholders as before (one masker per turn)
+				...(m.reasoning_content ? { reasoning_content: masker.mask(m.reasoning_content) } : {}),
 				...(m.tool_calls
 					? {
 							tool_calls: m.tool_calls.map((c) => ({
@@ -136,6 +153,7 @@ export function createModelClient(config: ModelConfig) {
 	const timeoutMs = config.timeoutMs ?? 60_000;
 	const maxRetries = config.maxRetries ?? 2;
 	const defaultMaxTokens = config.defaultMaxTokens ?? 2048;
+	const thinkingMaxTokens = config.thinkingMaxTokens ?? 8192;
 	const rate = createRateLimiter(config.limits.ratePerMinute);
 
 	/** Rate limit, then the monthly budget. Nothing leaves the server before both pass. */
@@ -187,15 +205,19 @@ export function createModelClient(config: ModelConfig) {
 	}
 
 	function buildBody(req: CompletionRequest, masker: Masker, stream: boolean) {
+		// Thinking only for a streamed chat answer; the memory jobs never pay for it
+		const thinking = stream && config.thinking === true && req.bucket === 'chat';
 		return {
 			model: config.model,
 			messages: maskMessages(req.messages, masker),
 			stream,
 			...(stream ? { stream_options: { include_usage: true } } : {}),
+			...(thinking ? { thinking: { type: 'enabled' } } : {}),
 			...(req.tools?.length ? { tools: req.tools } : {}),
-			...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
-			// Every call has a ceiling, so one call can never spend more than this
-			max_tokens: req.maxTokens ?? defaultMaxTokens
+			// A thinking model ignores sampling settings, so none are sent
+			...(req.temperature !== undefined && !thinking ? { temperature: req.temperature } : {}),
+			// Every call has a ceiling, so one call can never spend more than this. Thinking shares it with the answer
+			max_tokens: req.maxTokens ?? (thinking ? thinkingMaxTokens : defaultMaxTokens)
 		};
 	}
 
@@ -284,6 +306,8 @@ export function createModelClient(config: ModelConfig) {
 			await admit(ctx, req.bucket);
 			const masker = req.masker ?? createMasker(req.names);
 			const unmasker = masker.streamUnmasker();
+			// The thinking has its own unmasker, so a placeholder split inside it is never mixed with the answer's
+			const thinkUnmasker = masker.streamUnmasker();
 			const body = buildBody(req, masker, true);
 			const started = Date.now();
 			const res = await send(body, req.signal);
@@ -293,6 +317,8 @@ export function createModelClient(config: ModelConfig) {
 			const decoder = new TextDecoder();
 			let buffer = '';
 			let content = '';
+			let reasoning = '';
+			let thinking = false;
 			let finishReason = 'stop';
 			let reported: Usage | null = null;
 			const calls: ToolCall[] = [];
@@ -331,7 +357,20 @@ export function createModelClient(config: ModelConfig) {
 							};
 						const choice = wire.choices?.[0];
 						if (choice?.finish_reason) finishReason = choice.finish_reason;
+						const thought = choice?.delta?.reasoning_content;
+						if (thought) {
+							reasoning += thought;
+							thinking = true;
+							const shown = thinkUnmasker.push(thought);
+							if (shown) yield { type: 'reasoning', text: shown };
+						}
 						const text = choice?.delta?.content;
+						// The thinking is over once the answer or a tool call begins: release what the unmasker held back
+						if (thinking && (text || choice?.delta?.tool_calls?.length)) {
+							thinking = false;
+							const rest = thinkUnmasker.flush();
+							if (rest) yield { type: 'reasoning', text: rest };
+						}
 						if (text) {
 							content += text;
 							const out = unmasker.push(text);
@@ -349,6 +388,10 @@ export function createModelClient(config: ModelConfig) {
 						}
 					}
 				}
+				if (thinking) {
+					const left = thinkUnmasker.flush();
+					if (left) yield { type: 'reasoning', text: left };
+				}
 				const rest = unmasker.flush();
 				if (rest) yield { type: 'delta', text: rest };
 				completed = true;
@@ -357,14 +400,17 @@ export function createModelClient(config: ModelConfig) {
 				await reader.cancel().catch(() => undefined);
 				final = reported ?? {
 					promptTokens: estimateTokens(JSON.stringify(body.messages).length),
-					completionTokens: estimateTokens(content.length)
+					completionTokens: estimateTokens(content.length + reasoning.length)
 				};
 				await record(ctx, req.bucket, final);
 				log(ctx, req, Date.now() - started, final, completed);
 			}
 			yield {
 				type: 'done',
-				completion: finish(masker, content, calls.filter(Boolean), finishReason, final)
+				completion: {
+					...finish(masker, content, calls.filter(Boolean), finishReason, final),
+					...(reasoning ? { reasoningRaw: masker.unmask(reasoning) } : {})
+				}
 			};
 		}
 	};

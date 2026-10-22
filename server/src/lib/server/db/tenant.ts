@@ -60,3 +60,48 @@ export async function assertRuntimeRole(handle: DbHandle): Promise<void> {
 			`The database role must be ${RUNTIME_ROLE} without superuser or BYPASSRLS, but requests would run as ${role?.name ?? 'an unknown role'}. Check DATABASE_URL.`
 		);
 }
+
+/** Who is acting and where, for the audit trail. Each field that is given is set for this transaction only. */
+export type AuditContext = {
+	actorKind?: 'person' | 'agent' | 'job' | 'system';
+	onBehalf?: string;
+	actorRef?: string;
+	channel?: 'app' | 'chat' | 'widget' | 'outbox' | 'calendar_sync' | 'job' | 'system';
+	verb?: string;
+	turnId?: string;
+	approvalId?: string;
+	requestId?: string;
+	undoOf?: string;
+};
+
+const AUDIT_SETTINGS: [keyof AuditContext, string][] = [
+	['actorKind', 'app.actor_kind'],
+	['onBehalf', 'app.on_behalf'],
+	['actorRef', 'app.actor_ref'],
+	['channel', 'app.channel'],
+	['verb', 'app.verb'],
+	['turnId', 'app.turn_id'],
+	['approvalId', 'app.approval_id'],
+	['requestId', 'app.request_id'],
+	['undoOf', 'app.undo_of']
+];
+
+/**
+ * Takes the person's audit-chain lock at the start of a write transaction, before any row lock. The audit triggers take the same lock, so
+ * two writes by one person line up here instead of each holding a row the other needs (a deadlock). It is reentrant within a transaction.
+ */
+export async function lockPerson(tx: Tx, userId: string): Promise<void> {
+	await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
+}
+
+/**
+ * Hands the audit trail its context as transaction-local settings, read by the triggers (set_config with is_local = true, like the user id).
+ * Short plain values only: nothing here is message text.
+ */
+export async function setAuditContext(tx: Tx, c: AuditContext): Promise<void> {
+	for (const [key, setting] of AUDIT_SETTINGS) {
+		const value = c[key];
+		if (value === undefined) continue;
+		await tx.execute(sql`select set_config(${setting}, ${String(value).slice(0, 120)}, true)`);
+	}
+}

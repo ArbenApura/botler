@@ -29,6 +29,12 @@ const PHONE = /(?<![\d])(?:\+?63|0)[\s-]?9(?:[\s-]?\d){9}(?![\d])/g;
 const DIGIT_RUN = /(?<![\d.,])\d(?:[\s-]?\d){7,}(?![\d])(?!,\d{3})/g;
 const ACCOUNT_WORDS = /(?:acct|account|acc|a\/c|card|number|no\.?|#)\s*[:#-]?\s*$/i;
 const PLACEHOLDER = /\[(?:ACCT|CARD|PHONE|EMAIL|NAME)_\d+\]/g;
+// A record id. Its dash separated digit groups look like a card number, so ids are set aside while masking
+const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+// Private use characters stand in for a set aside id: they hold no digit and no letter, so no rule below can touch them
+const HOLD_OPEN = '';
+const HOLD_CLOSE = '';
+const HELD = /(\d+)/g;
 // The longest placeholder is [PHONE_999], so a chunk end that could still become one is at most this long
 const PARTIAL_PLACEHOLDER = /\[[A-Z]{0,5}_?\d{0,3}$/;
 
@@ -90,7 +96,12 @@ export function createMasker(names: readonly string[] = []): Masker {
 	return {
 		mask(text) {
 			// Text that already looks like a placeholder is changed first, so it can never be mistaken for one we issued
-			let out = text.replace(FORGED, '[$1-$2]');
+			const ids: string[] = [];
+			let out = text
+				.replaceAll(HOLD_OPEN, '')
+				.replaceAll(HOLD_CLOSE, '')
+				.replace(UUID, (id) => `${HOLD_OPEN}${ids.push(id) - 1}${HOLD_CLOSE}`)
+				.replace(FORGED, '[$1-$2]');
 			// Order matters: emails and phones first, so their digits are not read as an account number
 			out = out.replace(EMAIL, (m) => tokenFor('EMAIL', m));
 			// +63 9XX and 09XX are the same number, so both forms share one placeholder and come back as 09XX
@@ -107,7 +118,7 @@ export function createMasker(names: readonly string[] = []): Masker {
 				return m;
 			});
 			if (nameRe) out = out.replace(nameRe, (m) => tokenFor('NAME', m));
-			return out;
+			return out.replace(HELD, (_, i: string) => ids[Number(i)] ?? '');
 		},
 		unmask: unmaskPlain,
 		unmaskJson(json) {

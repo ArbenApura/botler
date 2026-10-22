@@ -89,6 +89,11 @@ export const variables = defineEnvVars({
 		description: 'The model name sent to DeepSeek (decided in P3.11).',
 		schema: (value) => (value && value.trim() ? value.trim() : 'deepseek-flash')
 	},
+	DEEPSEEK_THINKING: {
+		description:
+			'1 or true: chat answers think first and the app shows the thinking (costs more tokens and some time). 0 or false: no thinking. Empty means on. Anything else stops the server.',
+		schema: (value) => flag(value, true, 'DEEPSEEK_THINKING')
+	},
 	BOTLER_CHAT_TOKEN_CAP: {
 		description:
 			'Tokens one person may use per month for chat. Default 8000000 (a turn is about 10000, mostly cached).',
@@ -121,6 +126,15 @@ function optional(value: string | undefined) {
 function required(value: string | undefined, name: string): string {
 	if (!value || !value.trim()) throw new Error(`${name} is required`);
 	return value.trim();
+}
+
+/** On or off: 1, true, 0 or false. Empty gives the default. A typo stops the server instead of silently choosing. */
+function flag(value: string | undefined, fallback: boolean, name: string): boolean {
+	if (!value || !value.trim()) return fallback;
+	const v = value.trim().toLowerCase();
+	if (v === '1' || v === 'true') return true;
+	if (v === '0' || v === 'false') return false;
+	throw new Error(`${name} must be 1, 0, true or false`);
 }
 
 /** A whole number above zero, or the default when the variable is empty. A bad value stops the server. */
