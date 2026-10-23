@@ -3,8 +3,10 @@
 
 // -- DEP-MODULES -- //
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -114,7 +116,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (_stick && _scroll.hasClients) {
         // A jump, not an animation: many small ones a second would pile up and fight the person's finger
         final end = _scroll.position.maxScrollExtent;
-        _scroll.jumpTo(end);
+        _scroll.jumpTo(math.min(end, _answerTop() ?? end));
         // The rows below the screen are measured only once they are reached, so the end moves: look again until it settles
         if (passes > 1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -125,6 +127,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         }
       }
     });
+  }
+
+  /// Marks the answer being written, so following the newest words can stop where that answer starts.
+  final GlobalKey _answerKey = GlobalKey();
+
+  /// The scroll position that puts the start of the answer being written at the top, or null when no answer is being written.
+  /// A long answer is followed only until its first line reaches the top: the person reads from the start, not from the end.
+  double? _answerTop() {
+    final box = _answerKey.currentContext?.findRenderObject();
+    if (box == null || !box.attached) return null;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return null;
+    return viewport.getOffsetToReveal(box, 0).offset;
   }
 
   /// The earlier conversation arrived above what the person is looking at: keep their place instead of letting the page jump.
@@ -466,7 +481,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           return ChatItemView(
                             row.item,
                             more: row.more,
-                            key: ValueKey<int>(row.item.id),
+                            // Only the answer being written carries the marker
+                            key:
+                                row.item == last &&
+                                    last is AgentItem &&
+                                    last.streaming
+                                ? _answerKey
+                                : ValueKey<int>(row.item.id),
                           );
                         },
                       ),
