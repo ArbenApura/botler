@@ -73,6 +73,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (opened) {
       // Typing a message means the person wants the end of the conversation in view
       _stick = true;
+      _readFromStart = false;
       _toEnd();
     }
   }
@@ -132,9 +133,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// Marks the answer being written, so following the newest words can stop where that answer starts.
   final GlobalKey _answerKey = GlobalKey();
 
+  /// A turn has run since the person last sent, opened a chat or asked for the end: follow stops at the answer's first line, also after it is done.
+  bool _readFromStart = false;
+
   /// The scroll position that puts the start of the answer being written at the top, or null when no answer is being written.
   /// A long answer is followed only until its first line reaches the top: the person reads from the start, not from the end.
   double? _answerTop() {
+    if (!_readFromStart) return null;
     final box = _answerKey.currentContext?.findRenderObject();
     if (box == null || !box.attached) return null;
     final viewport = RenderAbstractViewport.maybeOf(box);
@@ -175,6 +180,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _jumpToLatest() async {
     if (!_scroll.hasClients) return;
     _stick = true;
+    _readFromStart = false;
     await _scroll.animateTo(
       _scroll.position.maxScrollExtent,
       duration: const Duration(milliseconds: 250),
@@ -197,6 +203,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// A chat was opened or started from the drawer: show its end, and forget any half-written edit.
   void _opened() {
     _stick = true;
+    _readFromStart = false;
     _away.value = false;
     ref.read(editProvider.notifier).stop();
     _toEnd();
@@ -339,6 +346,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
         _keepPlaceAfterRestore();
       }
+      if (next.busy) _readFromStart = true;
       _toEnd();
       _syncAway();
     });
@@ -353,6 +361,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final last = shown.isEmpty ? null : shown.last;
     // A run of identical quiet "Checked ..." lines is one line with a count
     final rows = groupQuietTools(shown);
+    final lastAnswer = rows
+        .map((r) => r.item)
+        .whereType<AgentItem>()
+        .lastOrNull;
     final working =
         chat.busy &&
         (chat.phase == TurnPhase.waiting ||
@@ -481,11 +493,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           return ChatItemView(
                             row.item,
                             more: row.more,
-                            // Only the answer being written carries the marker
-                            key:
-                                row.item == last &&
-                                    last is AgentItem &&
-                                    last.streaming
+                            // Only the newest answer carries the marker
+                            key: row.item == lastAnswer
                                 ? _answerKey
                                 : ValueKey<int>(row.item.id),
                           );
