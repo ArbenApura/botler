@@ -71,6 +71,11 @@ export const variables = defineEnvVars({
 			'The Firebase service account JSON file, encoded in base64. Never returned or logged. Set together with FCM_PROJECT_ID.',
 		schema: (value) => (value && value.trim() ? value.trim() : '')
 	},
+	TAVILY_API_KEY: {
+		description:
+			'The Tavily Search API key for the assistant web search. Left out, the search tool answers that it is not set up. Never returned or logged.',
+		schema: (value) => (value && value.trim() ? value.trim() : '')
+	},
 	BOTLER_AUTO_MIGRATE: {
 		description: 'Set to 1 to run the migrations when the server starts (local development).',
 		schema: (value) => (value === '1' ? '1' : '0')
