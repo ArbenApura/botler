@@ -15,6 +15,7 @@ import { withUser } from '../../src/lib/server/db/tenant';
 import { chatHistory } from '../../src/lib/server/ops/chatHistory';
 import { OpsError } from '../../src/lib/server/ops/context';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
+import { chatOf } from '../support/chats';
 import { createTestDb } from '../support/testDb';
 import { seedPerson, stubModel } from './support';
 
@@ -51,9 +52,10 @@ type Seed = {
 async function turn(s: Seed = {}) {
 	const who = s.who ?? me;
 	const id = `hist-${++n}-${'x'.repeat(8)}`;
-	await withUser(t.handle, who.userId, (tx) =>
+	await withUser(t.handle, who.userId, async (tx) =>
 		tx.insert(chatTurn).values({
 			userId: who.userId,
+			chatId: await chatOf(tx, who.userId),
 			clientMessageId: id,
 			userText: s.text ?? `question ${n}`,
 			reply: s.reply ?? `answer ${n}`,

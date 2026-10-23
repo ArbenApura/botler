@@ -24,6 +24,29 @@ const ends = (list: { end: string }[]) => list.map((o) => o.end);
 
 // -- TESTS -- //
 
+describe('the day a bill starts counting', () => {
+	it('leaves out schedule dates before it, so a new bill is not overdue for the past', () => {
+		const list = effectiveOccurrences(MONTHLY_10, '2026-08-01', '2026-12-31', {}, [], '2026-10-23');
+		expect(ends(list)).toEqual(['2026-11-10', '2026-12-10']);
+	});
+
+	it('keeps a date that falls on the start day', () => {
+		const list = effectiveOccurrences(MONTHLY_10, '2026-10-01', '2026-10-31', {}, [], '2026-10-10');
+		expect(ends(list)).toEqual(['2026-10-10']);
+	});
+
+	it('never hides a one-time bill that is already past due', () => {
+		const once: Schedule = { kind: 'once', date: '2026-10-01' };
+		const list = effectiveOccurrences(once, '2026-09-01', '2026-12-31', {}, [], '2026-10-23');
+		expect(ends(list)).toEqual(['2026-10-01']);
+	});
+
+	it('counts every date when there is no start day', () => {
+		const list = effectiveOccurrences(MONTHLY_10, '2026-08-01', '2026-09-30', {}, [], null);
+		expect(ends(list)).toEqual(['2026-08-10', '2026-09-10']);
+	});
+});
+
 describe('effective due dates', () => {
 	it('is the schedule when there are no overrides', () => {
 		const list = effectiveOccurrences(MONTHLY_10, '2026-11-01', '2027-01-31', {}, []);

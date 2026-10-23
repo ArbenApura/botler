@@ -173,6 +173,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get acctMenuExport => 'Export history';
 
   @override
+  String get acctMenuPurpose => 'Edit label';
+
+  @override
   String get acctMenuReset => 'Reset to zero';
 
   @override
@@ -1809,6 +1812,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayYours => 'Your paydays';
 
   @override
+  String get purposeCustom => 'Custom';
+
+  @override
+  String get purposeCustomHint => 'e.g. School fund';
+
+  @override
+  String get purposeCustomLabel => 'Your own label';
+
+  @override
+  String purposeEditTitle(String name) {
+    return 'Label for $name';
+  }
+
+  @override
+  String get purposeInvalid => 'Use up to 24 characters and no long numbers.';
+
+  @override
+  String get purposeNone => 'No label';
+
+  @override
+  String get purposeSaved => 'Label saved.';
+
+  @override
+  String purposeSemantic(String purpose) {
+    return 'Purpose: $purpose';
+  }
+
+  @override
+  String get purposeTitle => 'What is this account for?';
+
+  @override
   String get remBlockedExact =>
       'Botler may not set exact alarms, so reminders can come late.';
 
@@ -2002,6 +2036,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get schedNthLast => 'Last';
 
   @override
+  String get schedOnDate => 'On';
+
+  @override
   String get schedPatEveryN => 'Every few days';
 
   @override
@@ -2010,6 +2047,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get schedPatNthWeekday =>
       'On a weekday of the month (like the 1st Wednesday)';
+
+  @override
+  String get schedPatOnce => 'One time only';
 
   @override
   String get schedPatRange => 'Between two days of the month';
@@ -2083,6 +2123,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String schedSayNth(String nth, String weekday, String every) {
     return 'Every $nth $weekday of the month$every';
+  }
+
+  @override
+  String schedSayOnce(String date) {
+    return 'One time only, on $date';
   }
 
   @override

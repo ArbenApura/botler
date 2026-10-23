@@ -189,6 +189,23 @@ void main() {
       );
     });
 
+    test('a one-time schedule is one date, read back in both languages', () {
+      final once = ScheduleValue(
+        pattern: SchedulePattern.once,
+        anchor: DateTime(2026, 11, 5),
+      );
+      expect(once.toJson(), <String, Object?>{
+        'kind': 'once',
+        'date': '2026-11-05',
+      });
+      expect(once.isSingleDay, true);
+      final back = ScheduleValue.fromJson(once.toJson());
+      expect(back?.pattern, SchedulePattern.once);
+      expect(back?.anchor, DateTime(2026, 11, 5));
+      expect(say('en', once.toJson()), 'One time only, on Nov 5, 2026');
+      expect(say('fil', once.toJson()), startsWith('Isang beses lang'));
+    });
+
     test('adds the month cycle only when it is more than every month', () {
       final json = ScheduleValue(day: 15, everyMonths: 3).toJson();
       expect(json['everyMonths'], 3);

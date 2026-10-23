@@ -2,7 +2,10 @@
 // AND ANYTHING THAT NEEDS A DECISION (A CONFIRMATION, A CARD, A SPLIT) IS A CARD WITH ONE CLEAR BUTTON.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,6 +21,7 @@ import '../payday/split_card.dart';
 import 'agent_text.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
+import 'message_actions.dart';
 
 // -- FUNCTIONS -- //
 
@@ -59,32 +63,45 @@ class ChatItemView extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     return switch (item) {
-      UserItem(:final text, :final photo) => Align(
+      UserItem(:final text, :final photo, :final turnId) => Align(
         alignment: Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.8,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: c.chip,
-              borderRadius: BorderRadius.circular(18),
+        child: _Actionable(
+          text: text,
+          turnId: turnId,
+          mine: true,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.8,
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Text(photo ? context.t.chatWithPhoto(text) : text),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: c.chip,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Text(photo ? context.t.chatWithPhoto(text) : text),
+              ),
             ),
           ),
         ),
       ),
-      AgentItem(:final text, :final streaming) => Padding(
+      AgentItem(:final text, :final streaming, :final turnId) => Padding(
         padding: const EdgeInsets.only(right: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            AgentText(text),
-            if (streaming) const StreamCaret(),
-          ],
+        child: _Actionable(
+          text: text,
+          turnId: streaming ? null : turnId,
+          mine: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              AgentText(text),
+              if (streaming) const StreamCaret(),
+            ],
+          ),
         ),
       ),
       ThinkingItem() => ThinkingPanel(item as ThinkingItem),
@@ -111,6 +128,38 @@ class ChatItemView extends ConsumerWidget {
       NoticeItem(:final text) => Text(text, style: TextStyle(color: c.muted)),
       DividerItem() => const _EarlierDivider(),
     };
+  }
+}
+
+/// A message that opens its action sheet on a long press (and by the screen reader's own action list).
+class _Actionable extends ConsumerWidget {
+  const _Actionable({
+    required this.text,
+    required this.turnId,
+    required this.mine,
+    required this.child,
+  });
+
+  final String text;
+  final String? turnId;
+  final bool mine;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void open() => unawaited(
+      showMessageSheet(context, ref, text: text, turnId: turnId, mine: mine),
+    );
+    return Semantics(
+      customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+        CustomSemanticsAction(label: context.t.chatMsgActions): open,
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: open,
+        child: child,
+      ),
+    );
   }
 }
 
@@ -618,6 +667,10 @@ class _CardView extends ConsumerWidget {
           Text(item.summary, style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: 12),
           switch (item.state) {
+            CardState.waiting when item.readOnly => Text(
+              context.t.chatCardElsewhere,
+              style: TextStyle(color: c.muted),
+            ),
             CardState.waiting => Row(
               children: <Widget>[
                 FilledButton(

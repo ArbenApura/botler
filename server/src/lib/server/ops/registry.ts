@@ -54,7 +54,13 @@ import {
 	settingsSetInput,
 	accountHistoryInput,
 	auditExportInput,
+	chatArchiveInput,
+	chatForkInput,
 	chatHistoryInput,
+	chatIdInput,
+	chatListInput,
+	chatPinInput,
+	chatRenameInput,
 	calendarRangeInput,
 	dataResetInput,
 	dataResetPreviewInput,
@@ -74,7 +80,17 @@ import {
 	wipeInput
 } from '../db/zod';
 import { accountHistory, exportAudit, verifyAudit } from './audit';
-import { chatClear, chatHistory } from './chatHistory';
+import { chatHistory } from './chatHistory';
+import {
+	chatArchive,
+	chatClear,
+	chatFork,
+	chatList,
+	chatNew,
+	chatOpen,
+	chatPin,
+	chatRename
+} from './chats';
 import { calendarRange } from './calendarRange';
 import { previewDataReset, resetData } from './dataReset';
 import { getSettings, setSettings } from './settings';
@@ -256,7 +272,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'schedule_preview',
 		kind: 'read',
 		description:
-			'Say what a repeat schedule means and when it falls next, before it is saved. Schedule kinds: monthly (day, or -1 for the last day), semi_monthly, every_n_days, weekly (days, and for every few weeks everyWeeks plus anchor, a YYYY-MM-DD date that falls on one of those weekdays), nth_weekday (n 1-5 or -1, weekday 0 Sunday to 6 Saturday), week_of_month (n, basis days or calendar, pick window or weekday), day_range (from, to), yearly. Add everyMonths and anchorMonth (YYYY-MM) for every few months. Every field of the rule, anchor included, goes inside the "schedule" object, never beside it. Example every other Wednesday: {"schedule":{"kind":"weekly","days":[3],"everyWeeks":2,"anchor":"2026-10-28"}}.',
+			'Say what a repeat schedule means and when it falls next, before it is saved. Schedule kinds: monthly (day, or -1 for the last day), semi_monthly, every_n_days, weekly (days, and for every few weeks everyWeeks plus anchor, a YYYY-MM-DD date that falls on one of those weekdays), nth_weekday (n 1-5 or -1, weekday 0 Sunday to 6 Saturday), week_of_month (n, basis days or calendar, pick window or weekday), day_range (from, to), yearly, once (date, a YYYY-MM-DD, for a bill that happens one time only). Add everyMonths and anchorMonth (YYYY-MM) for every few months. Every field of the rule, anchor included, goes inside the "schedule" object, never beside it. Example every other Wednesday: {"schedule":{"kind":"weekly","days":[3],"everyWeeks":2,"anchor":"2026-10-28"}}.',
 		input: schedulePreviewInput,
 		run: (ctx, a) => schedulePreview(ctx, a)
 	}),
@@ -609,7 +625,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'account_update',
 		kind: 'free',
 		description:
-			'Change an account: its name, kind, minimum balance or order. Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
+			'Change an account: its name, kind, minimum balance, order or purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel; send purpose null to clear it). Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
 		input: accountUpdateInput,
 		run: (ctx, a) => updateAccount(ctx, a)
 	}),
@@ -669,7 +685,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'account_create',
 		kind: 'gated',
-		description: 'Add an account.',
+		description:
+			'Add an account. It may carry a purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel).',
 		input: accountCreateInput,
 		run: (ctx, a) => createAccount(ctx, a)
 	}),
@@ -690,7 +707,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'bill_create',
 		kind: 'gated',
-		description: 'Add a bill.',
+		description:
+			'Add a bill. A bill that happens one time only uses schedule kind once with its date. A new bill counts from today; set startsOn (YYYY-MM-DD) only when it began earlier and the earlier dates are really unpaid.',
 		input: billCreateInput,
 		run: (ctx, a) => createBill(ctx, a)
 	}),
@@ -737,9 +755,61 @@ export const VERBS: readonly Verb[] = [
 		name: 'chat_clear',
 		kind: 'person',
 		description:
-			'Start a new chat: the earlier conversation is set aside, not deleted. Only the person can do this.',
+			'Old name of chat_new: start a new chat. The earlier conversation stays in the list. Only the person can do this.',
 		input: emptyInput,
 		run: (ctx) => chatClear(ctx)
+	}),
+	verb({
+		name: 'chat_list',
+		kind: 'person',
+		description:
+			'The list of conversations, newest first, with a search over titles and messages. Never handed to the assistant.',
+		input: chatListInput,
+		run: (ctx, a) => chatList(ctx, a)
+	}),
+	verb({
+		name: 'chat_new',
+		kind: 'person',
+		description: 'Start a new conversation (an empty newest one is used again).',
+		input: emptyInput,
+		run: (ctx) => chatNew(ctx)
+	}),
+	verb({
+		name: 'chat_open',
+		kind: 'person',
+		description:
+			'Open a conversation: it becomes the one that opens next, and returns from the archive.',
+		input: chatIdInput,
+		run: (ctx, a) => chatOpen(ctx, a)
+	}),
+	verb({
+		name: 'chat_rename',
+		kind: 'person',
+		description: 'Give a conversation a name of the person own choosing.',
+		input: chatRenameInput,
+		run: (ctx, a) => chatRename(ctx, a)
+	}),
+	verb({
+		name: 'chat_pin',
+		kind: 'person',
+		description: 'Pin or unpin a conversation.',
+		input: chatPinInput,
+		run: (ctx, a) => chatPin(ctx, a)
+	}),
+	verb({
+		name: 'chat_archive',
+		kind: 'person',
+		description: 'Archive or restore a conversation. Nothing is deleted.',
+		input: chatArchiveInput,
+		run: (ctx, a) => chatArchive(ctx, a)
+	}),
+	verb({
+		name: 'chat_fork',
+		kind: 'person',
+		description:
+			'Branch a conversation from a message into a new one. The original stays as it was.',
+		input: chatForkInput,
+		run: (ctx, a) => chatFork(ctx, a)
 	}),
 	verb({
 		name: 'audit_export',

@@ -19,6 +19,7 @@ import {
 	billOverride,
 	billPayment,
 	calendarEvent,
+	chat,
 	chatTurn,
 	device,
 	goal,
@@ -39,6 +40,7 @@ import {
 	user
 } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
+import { chatOf } from '../support/chats';
 import { createTestDb } from '../support/testDb';
 
 // -- CONSTANTS -- //
@@ -158,8 +160,14 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		tx
 			.insert(memorySummary)
 			.values({ userId, period: 'day', periodStart: '2026-10-20', text: 'A day.' }),
-	chat_turn: (tx, userId) =>
-		tx.insert(chatTurn).values({ userId, clientMessageId: 'msg-isolation-1', userText: 'hi' })
+	chat: (tx, userId) => tx.insert(chat).values({ userId, title: 'A chat' }),
+	chat_turn: async (tx, userId) =>
+		tx.insert(chatTurn).values({
+			userId,
+			chatId: await chatOf(tx, userId),
+			clientMessageId: 'msg-isolation-1',
+			userText: 'hi'
+		})
 };
 
 // -- STATES -- //

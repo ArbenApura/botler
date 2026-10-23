@@ -479,6 +479,7 @@ export async function accountBalances(ctx: Ctx) {
 				name: a.name,
 				kind: a.kind,
 				minBalance: a.minBalance,
+				purpose: a.purpose,
 				balance: b.balance,
 				countedAt: b.countedAt?.toISOString() ?? null,
 				belowMinimum: b.balance < a.minBalance

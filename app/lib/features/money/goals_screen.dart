@@ -112,6 +112,7 @@ class GoalsScreen extends ConsumerWidget {
               controller: name,
               label: sheet.t.goalsNameLabel,
               hint: sheet.t.goalsNameHint,
+              capitalization: TextCapitalization.words,
             ),
             Text(
               sheet.t.goalsWhere,

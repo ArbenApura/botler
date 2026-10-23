@@ -124,6 +124,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           const SizedBox(height: 12),
           TextField(
+            textCapitalization: TextCapitalization.none,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: context.t.historySearchHint,

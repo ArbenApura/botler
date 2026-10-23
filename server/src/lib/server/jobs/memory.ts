@@ -153,12 +153,14 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 			.select({
 				clientMessageId: chatTurn.clientMessageId,
 				userText: chatTurn.userText,
-				status: chatTurn.status
+				status: chatTurn.status,
+				copiedFrom: chatTurn.copiedFromTurnId
 			})
 			.from(chatTurn)
 			.where(and(eq(chatTurn.userId, job.userId), eq(chatTurn.id, turnId)));
-		// A turn that was wiped, or never finished, teaches nothing
-		if (!turn || turn.status !== 'done' || turn.userText.trim().length < MIN_EXTRACT_CHARS) return;
+		// A turn that was wiped, or never finished, teaches nothing. A copy made by a branch was said once already, in the original
+		if (!turn || turn.status !== 'done' || turn.copiedFrom !== null) return;
+		if (turn.userText.trim().length < MIN_EXTRACT_CHARS) return;
 
 		const embedder = deps.embedder();
 		const vector = await queryVector(embedder, turn.userText);
@@ -245,6 +247,7 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 				and(
 					eq(chatTurn.userId, job.userId),
 					eq(chatTurn.status, 'done'),
+					isNull(chatTurn.copiedFromTurnId),
 					gte(chatTurn.createdAt, manilaStart(day)),
 					lt(chatTurn.createdAt, manilaStart(addDays(day, 1)))
 				)
@@ -378,6 +381,7 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 			.where(
 				and(
 					eq(chatTurn.userId, userId),
+					isNull(chatTurn.copiedFromTurnId),
 					gte(chatTurn.createdAt, manilaStart(day)),
 					lt(chatTurn.createdAt, manilaStart(addDays(day, 1)))
 				)

@@ -60,7 +60,11 @@ describe('chat route', () => {
 		expect(res.headers.get('content-encoding')).toBe('identity');
 		expect(res.headers.get('cache-control')).toContain('no-transform');
 		const body = await res.text();
-		expect(body.startsWith('data: {"type":"start"}')).toBe(true);
+		expect(body.startsWith('data: {"type":"start"')).toBe(true);
+		// The app learns which message and chat this is
+		expect(body).toMatch(
+			/^data: \{"type":"start","turnId":"[0-9a-f-]{36}","chatId":"[0-9a-f-]{36}"\}/
+		);
 		expect(body).toContain('"type":"done"');
 	});
 

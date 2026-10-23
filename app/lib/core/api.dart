@@ -215,6 +215,7 @@ class ApiClient {
     required String id,
     required String text,
     String? ocrText,
+    String? chatId,
     Future<void>? abort,
     Duration idle = _idle,
   }) async* {
@@ -230,6 +231,7 @@ class ApiClient {
           ..body = jsonEncode(<String, Object?>{
             'clientMessageId': id,
             'text': text,
+            'chatId': ?chatId,
             if (ocrText != null && ocrText.isNotEmpty) 'ocrText': ocrText,
           });
     final http.StreamedResponse res;

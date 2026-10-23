@@ -1,7 +1,7 @@
 // THE AGENT'S TABLES: APPROVAL CARDS (A CHANGE TO THE MONEY PLAN THE ASSISTANT PROPOSED, WAITING FOR THE PERSON) AND CHAT TURNS (ONE ROW PER MESSAGE, SO A RETRIED OR RECONNECTED MESSAGE NEVER RUNS TWICE)
 
 // -- DEP-MODULES -- //
-import { index, jsonb, text, timestamp, unique } from 'drizzle-orm/pg-core';
+import { foreignKey, index, jsonb, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 // -- MODULES -- //
 import { user } from './auth';
 import { id, oneOf, stamps, userTable } from './helpers';
@@ -41,6 +41,35 @@ export const agentAction = userTable(
 	]
 );
 
+// -- CHATS -- //
+
+/**
+ * One conversation. A person has many; the newest by last_active_at is the one that opens. A fork is a new chat that starts as a copy
+ * of another one up to a message, and the original is never touched. The title is the person's own, or empty (the first message
+ * names it on the screen). Nothing here is deleted by the app: archiving only hides a chat from the main list. The table is not audited
+ * because a title can be message text, like the turns themselves; it is erased with them.
+ */
+export const chat = userTable(
+	'chat',
+	() => user.id,
+	{
+		id: id(),
+		title: text('title'),
+		pinnedAt: timestamp('pinned_at', { withTimezone: true }),
+		archivedAt: timestamp('archived_at', { withTimezone: true }),
+		/** Where a fork came from. Plain ids with no reference, so the source can be erased without touching the fork. */
+		forkedFromChatId: uuid('forked_from_chat_id'),
+		forkedAtTurnId: uuid('forked_at_turn_id'),
+		/** Bumped only by opening, creating, forking and a message. Never by rename, pin or archive. */
+		lastActiveAt: timestamp('last_active_at', { withTimezone: true }).notNull().defaultNow(),
+		...stamps()
+	},
+	(t) => [
+		unique('chat_user_id_uq').on(t.userId, t.id),
+		index('chat_user_active_idx').on(t.userId, t.lastActiveAt)
+	]
+);
+
 // -- CHAT TURNS -- //
 
 /**
@@ -52,6 +81,8 @@ export const chatTurn = userTable(
 	() => user.id,
 	{
 		id: id(),
+		/** The conversation this message belongs to. */
+		chatId: uuid('chat_id').notNull(),
 		clientMessageId: text('client_message_id').notNull(),
 		userText: text('user_text').notNull(),
 		status: text('status', { enum: TURN_STATUSES }).notNull().default('running'),
@@ -61,9 +92,17 @@ export const chatTurn = userTable(
 		finishedAt: timestamp('finished_at', { withTimezone: true }),
 		/** Set when the person starts a new chat: the turn is no longer shown or handed to the assistant, but it stays for memory. */
 		clearedAt: timestamp('cleared_at', { withTimezone: true }),
+		/** Set on a turn that was copied into a fork. Memory, the digest and the export skip it: the person said it once. */
+		copiedFromTurnId: uuid('copied_from_turn_id'),
 		...stamps()
 	},
 	(t) => [
+		foreignKey({
+			name: 'chat_turn_chat_fk',
+			columns: [t.userId, t.chatId],
+			foreignColumns: [chat.userId, chat.id]
+		}).onDelete('cascade'),
+		index('chat_turn_chat_created_idx').on(t.userId, t.chatId, t.createdAt),
 		unique('chat_turn_user_message_uq').on(t.userId, t.clientMessageId),
 		index('chat_turn_user_created_idx').on(t.userId, t.createdAt),
 		oneOf('chat_turn_status_chk', t.status, TURN_STATUSES)

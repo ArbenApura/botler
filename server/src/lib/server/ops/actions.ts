@@ -7,11 +7,11 @@ import type { Plain } from './shared';
 import type { Ctx } from './context';
 import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { describeSchedule, validateSchedule } from '../../finance/schedule';
-import { account, agentAction, bill, goal } from '../db/schema';
+import { account, agentAction, bill, chatTurn, goal } from '../db/schema';
 import { OpsError, run } from './context';
 import { balanceFor } from './ledger';
 import { readSettings } from './settings';
@@ -85,9 +85,9 @@ export function describeAction(
 	const money = (v: unknown) => moneyIn(currency, v);
 	switch (verbName) {
 		case 'account_create':
-			return `Add the account "${text(args.name)}".`;
+			return `Add the account "${text(args.name)}"${args.purpose ? `, for "${text(args.purpose)}"` : ''}.`;
 		case 'account_update':
-			return `Change the account ${nm(args.accountId)}${args.name ? ` to "${text(args.name)}"` : ''}${num(args.minBalance) !== null ? `, minimum balance ${money(args.minBalance)}` : ''}.`;
+			return `Change the account ${nm(args.accountId)}${args.name ? ` to "${text(args.name)}"` : ''}${num(args.minBalance) !== null ? `, minimum balance ${money(args.minBalance)}` : ''}${args.purpose ? `, purpose "${text(args.purpose)}"` : args.purpose === null ? ', purpose cleared' : ''}.`;
 		case 'account_archive':
 			return `Hide the account ${nm(args.accountId)}.`;
 		case 'income_create':
@@ -277,7 +277,12 @@ export async function decideAction(
  * One line per recent card, newest first, for the assistant's turn context: what the card asked for and how the person answered it.
  * The sentence is the one built on the card and the failure reason is the server's own, so nothing here is free text from the model.
  */
-export async function recentCardLines(ctx: Ctx, limit = 12, days = 3): Promise<string[]> {
+export async function recentCardLines(
+	ctx: Ctx,
+	limit = 12,
+	days = 3,
+	chatId?: string
+): Promise<string[]> {
 	const since = new Date(Date.now() - days * 24 * 3_600_000);
 	const rows = await run(ctx, (tx, userId) =>
 		tx
@@ -287,7 +292,22 @@ export async function recentCardLines(ctx: Ctx, limit = 12, days = 3): Promise<s
 				result: agentAction.result
 			})
 			.from(agentAction)
-			.where(and(eq(agentAction.userId, userId), gt(agentAction.createdAt, since)))
+			.where(
+				and(
+					eq(agentAction.userId, userId),
+					gt(agentAction.createdAt, since),
+					// A card belongs to the message that asked for it, so only the cards of this chat reach its assistant
+					chatId
+						? inArray(
+								agentAction.turnId,
+								tx
+									.select({ id: chatTurn.clientMessageId })
+									.from(chatTurn)
+									.where(and(eq(chatTurn.userId, userId), eq(chatTurn.chatId, chatId)))
+							)
+						: undefined
+				)
+			)
 			.orderBy(desc(agentAction.createdAt))
 			.limit(limit)
 	);

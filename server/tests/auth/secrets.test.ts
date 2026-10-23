@@ -84,6 +84,12 @@ describe('secrets and tokens', () => {
 		expect(() => check('BETTER_AUTH_SECRET', 'too-short')).toThrow(/32 characters/);
 	});
 
+	it('treats the web search key as optional: blank means off, spaces are trimmed', () => {
+		expect(check('TAVILY_API_KEY', undefined)).toBe('');
+		expect(check('TAVILY_API_KEY', '   ')).toBe('');
+		expect(check('TAVILY_API_KEY', ' tvly-test ')).toBe('tvly-test');
+	});
+
 	it('rejects a bad cap instead of falling back silently', () => {
 		expect(check('BOTLER_CHAT_TOKEN_CAP', undefined)).toBe(8_000_000);
 		expect(() => check('BOTLER_CHAT_TOKEN_CAP', '-5')).toThrow();

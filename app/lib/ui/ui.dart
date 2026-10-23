@@ -289,7 +289,9 @@ class Field extends StatelessWidget {
     required this.label,
     this.hint,
     this.keyboard,
+    this.capitalization = TextCapitalization.sentences,
     this.maxLines = 1,
+    this.maxLength,
     this.onChanged,
     super.key,
   });
@@ -298,7 +300,13 @@ class Field extends StatelessWidget {
   final String label;
   final String? hint;
   final TextInputType? keyboard;
+
+  /// Sentences by default so free text starts with a capital. Names pass `words`, a typed code passes `characters`.
+  final TextCapitalization capitalization;
   final int maxLines;
+
+  /// Stops typing past this many characters, with no counter shown.
+  final int? maxLength;
   final ValueChanged<String>? onChanged;
 
   @override
@@ -307,9 +315,15 @@ class Field extends StatelessWidget {
     child: TextField(
       controller: controller,
       keyboardType: keyboard,
+      textCapitalization: capitalization,
       maxLines: maxLines,
+      maxLength: maxLength,
       onChanged: onChanged,
-      decoration: InputDecoration(labelText: label, hintText: hint),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        counterText: maxLength == null ? null : '',
+      ),
     ),
   );
 }

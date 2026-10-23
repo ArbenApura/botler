@@ -98,7 +98,8 @@ export const scheduleInput = z
 			everyMonths: z.number().int().optional(),
 			anchorMonth: z.string().optional()
 		}),
-		z.object({ kind: z.literal('yearly'), month: z.number().int(), day: z.number().int() })
+		z.object({ kind: z.literal('yearly'), month: z.number().int(), day: z.number().int() }),
+		z.object({ kind: z.literal('once'), date: z.string() })
 	])
 	.superRefine((s, ctx) => {
 		const problem = validateSchedule(s);
@@ -112,15 +113,32 @@ export const paydayScheduleInput = scheduleInput.superRefine((s, ctx) => {
 			code: 'custom',
 			message: 'A payday is one day. Pick a day or a weekday, not a range of days or a whole week.'
 		});
+	if (s.kind === 'once')
+		ctx.addIssue({ code: 'custom', message: 'A payday repeats. Pick a repeating schedule.' });
 });
 
 // -- ACCOUNTS -- //
 
+/** What an account is dedicated to. Short, no run of four or more digits (an account or phone number must not be kept in a label). Null clears it, absent leaves it alone. */
+export const PURPOSE_MAX = 24;
+const purposeField = z
+	.string()
+	.trim()
+	.min(1)
+	.max(PURPOSE_MAX)
+	.refine(
+		(v) => !/\d{4}/.test(v.normalize('NFKC').replace(/[\s\-./]/g, '')),
+		'A label cannot hold a long number'
+	)
+	.nullable()
+	.optional();
+
 export const accountCreateInput = createInsertSchema(account, {
 	name: nameField,
 	// Left out, the column's own default (zero) applies. A zod default here would reset the field on every update
-	minBalance: z.number().int().min(0).max(MAX_CENTAVOS).optional()
-}).pick({ name: true, kind: true, minBalance: true, sortOrder: true });
+	minBalance: z.number().int().min(0).max(MAX_CENTAVOS).optional(),
+	purpose: purposeField
+}).pick({ name: true, kind: true, minBalance: true, purpose: true, sortOrder: true });
 
 export const accountUpdateInput = accountCreateInput.partial().extend({
 	accountId: idField,
@@ -154,7 +172,32 @@ export const incomeUpdateInput = incomeCreateInput.partial().extend({
 
 /** The recent conversation: how many turns to return. The default (20) is applied by the operation, not here. */
 export const chatHistoryInput = z.strictObject({
-	limit: z.number().int().min(1).max(30).optional()
+	limit: z.number().int().min(1).max(30).optional(),
+	/** Which chat. Left out, the newest one that is not archived. */
+	chatId: idField.optional()
+});
+
+// -- CHATS -- //
+
+/** The list of chats: a search needs two characters, and the archive is listed on its own. */
+export const chatListInput = z.strictObject({
+	limit: z.number().int().min(1).max(100).optional(),
+	search: z.string().trim().min(2).max(80).optional(),
+	archived: z.boolean().optional()
+});
+
+export const chatIdInput = z.strictObject({ chatId: idField });
+
+export const chatRenameInput = chatIdInput.extend({ title: z.string().trim().min(1).max(80) });
+
+export const chatPinInput = chatIdInput.extend({ pinned: z.boolean() });
+
+export const chatArchiveInput = chatIdInput.extend({ archived: z.boolean() });
+
+/** A branch: up to a message (included, unless includeTurn is false), or the whole chat when no message is named. */
+export const chatForkInput = chatIdInput.extend({
+	upToTurnId: idField.optional(),
+	includeTurn: z.boolean().optional()
 });
 
 // -- AUDIT -- //
@@ -236,7 +279,9 @@ export const billCreateInput = createInsertSchema(bill, {
 	category: z.string().trim().min(1).max(40),
 	accountId: idField,
 	amount: amountField.nullable().optional(),
-	schedule: scheduleInput
+	schedule: scheduleInput,
+	// Left out on create it is today; null on an edit makes every earlier date count
+	startsOn: dayField.nullable().optional()
 }).pick({
 	name: true,
 	category: true,
@@ -245,7 +290,8 @@ export const billCreateInput = createInsertSchema(bill, {
 	amount: true,
 	schedule: true,
 	weekendRule: true,
-	deferrable: true
+	deferrable: true,
+	startsOn: true
 });
 
 export const billUpdateInput = billCreateInput.partial().extend({
@@ -600,6 +646,12 @@ export type BillOccurrenceResetInput = z.infer<typeof billOccurrenceResetInput>;
 export type SchedulePreviewInput = z.infer<typeof schedulePreviewInput>;
 export type AccountHistoryInput = z.infer<typeof accountHistoryInput>;
 export type ChatHistoryInput = z.infer<typeof chatHistoryInput>;
+export type ChatListInput = z.infer<typeof chatListInput>;
+export type ChatIdInput = z.infer<typeof chatIdInput>;
+export type ChatRenameInput = z.infer<typeof chatRenameInput>;
+export type ChatPinInput = z.infer<typeof chatPinInput>;
+export type ChatArchiveInput = z.infer<typeof chatArchiveInput>;
+export type ChatForkInput = z.infer<typeof chatForkInput>;
 export type AuditExportInput = z.infer<typeof auditExportInput>;
 export type CalendarRangeInput = z.infer<typeof calendarRangeInput>;
 export type DataResetInput = z.infer<typeof dataResetInput>;

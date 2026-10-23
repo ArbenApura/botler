@@ -71,6 +71,7 @@ describe('every layer in one range', () => {
 			// A window from the day-of-month two days away to the end of that month
 			schedule: { kind: 'day_range', from: Number(start.slice(8)), to: -1 },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		await createIncome(as(c), {
@@ -138,6 +139,7 @@ describe('every layer in one range', () => {
 			amount: 10_000,
 			schedule: { kind: 'monthly', day: Number(inDays(-1).slice(8)) },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		const back = await calendarRange(c, { from: inDays(-3), to: today() });
@@ -199,6 +201,7 @@ describe('the forecast', () => {
 			amount: 450_000,
 			schedule: { kind: 'monthly', day: due },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		await createIncome(as(c), {
@@ -235,6 +238,7 @@ describe('the forecast', () => {
 			amount: null,
 			schedule: { kind: 'monthly', day: Number(inDays(2).slice(8)) },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		await createBill(as(c), {
@@ -245,6 +249,7 @@ describe('the forecast', () => {
 			amount: 20_000,
 			schedule: { kind: 'monthly', day: Number(inDays(-2).slice(8)) },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		const r = await calendarRange(c, { from: today(), to: inDays(10) });

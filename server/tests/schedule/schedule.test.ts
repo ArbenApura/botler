@@ -69,6 +69,7 @@ const billDue = (f: Fixture, date: string, name = 'Water') =>
 		amount: 40_000,
 		schedule: { kind: 'monthly', day: Number(date.slice(8)) },
 		weekendRule: 'none',
+		startsOn: '2000-01-01',
 		deferrable: false
 	});
 
@@ -116,6 +117,7 @@ describe('reminders follow what needs action', () => {
 			amount: 120_000,
 			schedule: { kind: 'day_range', from: 5, to: 11 },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		// 10:00 in Manila on 2030-03-03; the window is the 5th to the 11th

@@ -113,31 +113,24 @@ void main() {
   });
 
   testWidgets(
-    'new chat asks first, then tells the server and empties the screen',
+    'new chat from the drawer tells the server and empties the screen',
     (tester) async {
       final s = await openChat(tester, 3);
       expect(find.text('message 0'), findsOneWidget);
 
-      // Saying no changes nothing
-      await tester.tap(find.byTooltip('New chat'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Start a new chat?'), findsOneWidget);
-      await tester.tap(find.text('Not now'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(s.clearCalls, 0);
-      expect(find.text('message 0'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('New chat'));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Start new chat'));
+      await tester.tap(find.byTooltip('Chats'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(s.newCalls, 0);
+      await tester.tap(find.text('New chat'));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );
       await tester.pump(const Duration(milliseconds: 300));
-      expect(s.clearCalls, 1);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(s.newCalls, 1);
       expect(find.text('message 0'), findsNothing);
-      // Nothing to clear any more: the button is gone, the summary card stays
-      expect(find.byTooltip('New chat'), findsNothing);
+      // The summary card stays
       expect(find.text('Across your accounts'), findsOneWidget);
     },
   );

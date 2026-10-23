@@ -10,15 +10,18 @@ import type { Embedder } from '../memory/embed';
 import type { ChatMessage } from '../proxy/deepseek';
 import type { TurnEvent, TurnModel, TurnParams } from './turn';
 // -- DEP-MODULES -- //
-import { and, desc, eq, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
 import { chatTurn } from '../db/schema';
+import { lockPerson } from '../db/tenant';
 import { enqueue } from '../jobs/queue';
 import { activeEmbedder } from '../memory/embed';
 import { loadMemoryContext } from '../memory/retrieve';
 import { recentCardLines } from '../ops/actions';
+import { forkSource, resolveChat, touchChat } from '../ops/chats';
 import { OpsError, run } from '../ops/context';
+import { verbByName } from '../ops/registry';
 import { parse } from '../ops/shared';
 import { runTurn } from './turn';
 
@@ -44,6 +47,8 @@ export type ChatDeps = {
 export const chatInput = z.strictObject({
 	clientMessageId: z.string().min(8).max(80),
 	text: z.string().trim().min(1).max(4000),
+	/** The conversation this message belongs to. Old apps leave it out and get the newest one. */
+	chatId: z.uuid().optional(),
 	/** Text the phone read from a photo or screenshot. Untrusted. */
 	ocrText: z.string().max(8000).optional()
 });
@@ -51,6 +56,7 @@ export const chatInput = z.strictObject({
 const HISTORY_TURNS = 10;
 const HISTORY_CHARS = 1500;
 const STALE_RUNNING_MS = 120_000;
+const NOTE_TOOLS = 20;
 /** The only events kept with a finished message. Thinking, phases and start are live only: never stored, never replayed. */
 const STORED = new Set<TurnEvent['type']>(['tool', 'card', 'fallback']);
 
@@ -58,21 +64,34 @@ const STORED = new Set<TurnEvent['type']>(['tool', 'card', 'fallback']);
 
 async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 	return run(ctx, async (tx, userId) => {
-		const [fresh] = await tx
-			.insert(chatTurn)
-			.values({ userId, clientMessageId: input.clientMessageId, userText: input.text })
-			.onConflictDoNothing()
-			.returning({ id: chatTurn.id });
-		if (fresh) return { mode: 'run' as const, id: fresh.id };
+		// One person's first messages line up here, so two of them never make two chats
+		await lockPerson(tx, userId);
 		const [row] = await tx
 			.select()
 			.from(chatTurn)
 			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.clientMessageId, input.clientMessageId)))
 			// Locked, so two requests that find the same stuck turn take turns: the second sees it running again and is refused
 			.for('update');
-		if (!row) throw new OpsError('CONFLICT', 'That message could not be started.');
+		if (!row) {
+			const target = await resolveChat(tx, userId, input.chatId);
+			const [fresh] = await tx
+				.insert(chatTurn)
+				.values({
+					userId,
+					chatId: target.id,
+					clientMessageId: input.clientMessageId,
+					userText: input.text
+				})
+				.returning({ id: chatTurn.id });
+			if (!fresh) throw new OpsError('CONFLICT', 'That message could not be started.');
+			await touchChat(tx, userId, target, input.text);
+			return { mode: 'run' as const, id: fresh.id, chatId: target.id };
+		}
 		if (row.userText !== input.text)
 			throw new OpsError('CONFLICT', 'That message id was already used for a different message.');
+		// A resend into another chat is not a replay of this one
+		if (input.chatId && input.chatId !== row.chatId)
+			throw new OpsError('CONFLICT', 'That message id belongs to another chat.');
 		if (row.status === 'done') return { mode: 'replay' as const, row };
 		const stale = Date.now() - row.updatedAt.getTime() > STALE_RUNNING_MS;
 		if (row.status === 'running' && !stale)
@@ -85,14 +104,14 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 			.update(chatTurn)
 			.set({ status: 'running', updatedAt: sql`now()` })
 			.where(and(eq(chatTurn.id, row.id), ne(chatTurn.status, 'done')));
-		return { mode: 'run' as const, id: row.id };
+		return { mode: 'run' as const, id: row.id, chatId: row.chatId };
 	});
 }
 
 async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 	const rows = await run(ctx, async (tx, userId) => {
 		const [self] = await tx
-			.select({ at: chatTurn.createdAt })
+			.select({ at: chatTurn.createdAt, chatId: chatTurn.chatId })
 			.from(chatTurn)
 			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, beforeId)));
 		if (!self) return [];
@@ -103,7 +122,7 @@ async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 				and(
 					eq(chatTurn.userId, userId),
 					eq(chatTurn.status, 'done'),
-					isNull(chatTurn.clearedAt),
+					eq(chatTurn.chatId, self.chatId),
 					lt(chatTurn.createdAt, self.at)
 				)
 			)
@@ -116,6 +135,53 @@ async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 	]);
 }
 
+/**
+ * When the chat is a branch, one line for the assistant: what the messages that were cut off had already done. Those changes stay in force,
+ * so it must not do them again unless asked. Only the names of the writing verbs of the registry are listed, with counts: no message text
+ * and nothing the model wrote, so nothing here can carry an instruction.
+ */
+async function rewindNote(ctx: Ctx, chatId: string): Promise<string | undefined> {
+	const rows = await run(ctx, async (tx, userId) => {
+		const source = await forkSource(tx, userId, chatId);
+		if (!source) return null;
+		const [cut] = source.atTurnId
+			? await tx
+					.select({ at: chatTurn.createdAt })
+					.from(chatTurn)
+					.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, source.atTurnId)))
+			: [];
+		return tx
+			.select({ events: chatTurn.events })
+			.from(chatTurn)
+			.where(
+				and(
+					eq(chatTurn.userId, userId),
+					eq(chatTurn.chatId, source.chatId),
+					eq(chatTurn.status, 'done'),
+					// Only what was cut off when the branch was made: later turns of the original are not part of this story
+					lt(chatTurn.createdAt, source.madeAt),
+					...(cut ? [gt(chatTurn.createdAt, cut.at)] : [])
+				)
+			)
+			.orderBy(asc(chatTurn.createdAt))
+			.limit(200);
+	});
+	if (!rows) return undefined;
+	const made = new Map<string, number>();
+	for (const r of rows) {
+		if (!Array.isArray(r.events)) continue;
+		for (const e of r.events as { type?: unknown; name?: unknown; status?: unknown }[]) {
+			if (e?.type !== 'tool' || e.status !== 'ok' || typeof e.name !== 'string') continue;
+			const kind = verbByName(e.name)?.kind;
+			if (kind === 'free' || kind === 'gated') made.set(e.name, (made.get(e.name) ?? 0) + 1);
+		}
+	}
+	const list = [...made].slice(0, NOTE_TOOLS).map(([name, n]) => `${name} x${n}`);
+	return list.length
+		? `This chat was branched from an earlier one. The messages that were cut off had already done these, and they stay done, so do not do them again unless asked: ${list.join(', ')}.`
+		: undefined;
+}
+
 /** Answers one chat message. Yields the events for the app as they happen; a repeat of a finished message replays them. */
 export async function* handleChat(
 	ctx: Ctx,
@@ -125,7 +191,12 @@ export async function* handleChat(
 	const input = parse(chatInput, raw);
 	const claimed = await claim(ctx, input);
 	// The message is accepted: the screen starts showing that the assistant is working before memory, history or the model are touched
-	yield { type: 'start' };
+	const where =
+		claimed.mode === 'replay'
+			? { turnId: claimed.row.id, chatId: claimed.row.chatId }
+			: { turnId: claimed.id, chatId: claimed.chatId };
+	// The app learns which message and which chat this is, so it can branch from the message later
+	yield { type: 'start', ...where };
 	if (claimed.mode === 'replay') {
 		const stored = Array.isArray(claimed.row.events) ? (claimed.row.events as TurnEvent[]) : [];
 		for (const e of stored) if (STORED.has(e.type)) yield e;
@@ -156,6 +227,7 @@ export async function* handleChat(
 			ctx,
 			model: deps.model,
 			history: await history(ctx, claimed.id),
+			rewindNote: await rewindNote(ctx, claimed.chatId).catch(() => undefined),
 			userText: input.text,
 			ocrText: input.ocrText,
 			turnKey: input.clientMessageId,
@@ -164,7 +236,7 @@ export async function* handleChat(
 				[deps.persona, memory?.persona, memory?.tone].filter(Boolean).join('\n') || undefined,
 			memories: [...(deps.memories ?? []), ...(memory?.lines ?? [])],
 			// Which cards the person approved or turned down since the last message. A read that fails never stops a chat
-			cards: await recentCardLines(ctx).catch(() => []),
+			cards: await recentCardLines(ctx, 12, 3, claimed.chatId).catch(() => []),
 			signal: deps.signal,
 			now: deps.now?.(),
 			tools: deps.tools,

@@ -19,7 +19,9 @@ import 'chat_group.dart';
 import 'chat_items.dart';
 import 'chat_start.dart';
 import 'chat_state.dart';
+import 'chats_drawer.dart';
 import 'live_parts.dart';
+import 'message_actions.dart';
 import 'summary_card.dart';
 
 // -- TYPES -- //
@@ -45,6 +47,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final VoiceListener _listener = VoiceListener();
   String? _photoText;
   bool _hearing = false;
+
+  /// Words typed and not sent, kept for each chat while the person looks at another one.
+  final Map<String, String> _drafts = <String, String>{};
 
   /// Keep following the newest words (the person is at the bottom).
   bool _stick = true;
@@ -174,20 +179,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     });
   }
 
-  /// Asks, then clears the conversation so the next message starts fresh.
-  Future<void> _newChat() async {
-    final t = context.t;
-    final yes = await confirm(
-      context,
-      title: t.chatNewTitle,
-      body: t.chatNewBody,
-      yes: t.chatNewYes,
-    );
-    if (!yes || !mounted) return;
+  /// A chat was opened or started from the drawer: show its end, and forget any half-written edit.
+  void _opened() {
+    _stick = true;
+    _away.value = false;
+    ref.read(editProvider.notifier).stop();
+    _toEnd();
+  }
+
+  /// Names the open chat. The title in the bar opens this.
+  Future<void> _rename() => renameWithSheet(
+    context,
+    current: ref.read(chatProvider).title ?? '',
+    save: ref.read(chatProvider.notifier).rename,
+  );
+
+  Future<void> _openOrigin(String id) async {
     try {
-      await ref.read(chatProvider.notifier).startNew();
-      _stick = true;
-      _away.value = false;
+      await ref.read(chatProvider.notifier).openChat(id);
+      _opened();
     } catch (e) {
       if (mounted) say(context, errorWords(e, context));
     }
@@ -207,6 +217,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (_hearing) {
       await _listener.stop();
       if (mounted) setState(() => _hearing = false);
+    }
+    final editing = ref.read(editProvider);
+    if (editing != null) {
+      // Only new words can be sent as an edit
+      if (text.isEmpty) return;
+      // The words stay in the box until the server has made the branch; a failure leaves them there to try again
+      final bool opened;
+      try {
+        opened = await ref
+            .read(chatProvider.notifier)
+            .branchBefore(editing.turnId);
+      } catch (e) {
+        if (mounted) say(context, errorWords(e, context));
+        return;
+      }
+      if (!opened) return;
+      // The branch exists: the edit is over (this also empties the box), and the new words go to it like any message
+      ref.read(editProvider.notifier).stop();
+      _opened();
+      setState(() => _photoText = null);
+      await ref.read(chatProvider.notifier).send(text);
+      ref
+        ..invalidate(syncProvider)
+        ..invalidate(balancesProvider);
+      return;
     }
     _text.clear();
     setState(() => _photoText = null);
@@ -265,7 +300,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final c = context.colors;
     final chat = ref.watch(chatProvider);
     final pending = ref.watch(outboxCountProvider);
+    ref.listen<EditTarget?>(editProvider, (prev, next) {
+      if (next != null && next != prev) {
+        _fill(next.text);
+      } else if (next == null && prev != null) {
+        _text.clear();
+      }
+    });
     ref.listen<ChatState>(chatProvider, (prev, next) {
+      // Another chat came on screen: its own unsent words come back, and the ones in the box wait for their chat
+      final from = prev?.chatId;
+      final to = next.chatId;
+      if (from != null && to != null && from != to) {
+        // Words being edited belong to no draft
+        if (ref.read(editProvider) == null && _text.text.isNotEmpty) {
+          _drafts[from] = _text.text;
+        }
+        _fill(_drafts.remove(to) ?? '');
+        if (_text.text.isEmpty) _focus.unfocus();
+        // An edit belongs to the chat it was started in
+        ref.read(editProvider.notifier).stop();
+      }
       if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
         _keepPlaceAfterRestore();
       }
@@ -293,19 +348,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         !(last is ThinkingItem && last.open);
     // Before anyone has said anything: the earlier chat coming, its retry line, or the greeting
     final showStart = shown.isEmpty && !working;
+    // The summary card, then (in a branch) the line that says where it came from
+    final forked = chat.forkedFrom != null;
+    final lead = forked ? 2 : 1;
     return Scaffold(
+      drawer: ChatsDrawer(onOpened: _opened),
       appBar: AppBar(
-        title: Text.rich(
-          TextSpan(
-            children: <InlineSpan>[
-              TextSpan(
-                text: 'B',
-                style: TextStyle(color: c.accent, fontWeight: FontWeight.w700),
-              ),
-              const TextSpan(text: 'otler'),
-            ],
+        leading: Builder(
+          builder: (bar) => IconButton(
+            tooltip: bar.t.chatsOpen,
+            onPressed: () => Scaffold.of(bar).openDrawer(),
+            icon: const Icon(Icons.forum_outlined),
           ),
         ),
+        title: (chat.title ?? '').trim().isEmpty
+            ? Text.rich(
+                TextSpan(
+                  children: <InlineSpan>[
+                    TextSpan(
+                      text: 'B',
+                      style: TextStyle(
+                        color: c.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const TextSpan(text: 'otler'),
+                  ],
+                ),
+              )
+            : InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: _rename,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      chat.title!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      semanticsLabel: '${chat.title}, ${context.t.chatsRename}',
+                    ),
+                  ),
+                ),
+              ),
         actions: <Widget>[
           if (pending > 0)
             IconButton(
@@ -322,13 +408,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             onPressed: () => showSummarySheet(context),
             icon: const Icon(Icons.account_balance_wallet_outlined),
           ),
-          // Only when there is a conversation to clear
-          if (shown.isNotEmpty && !chat.busy)
-            IconButton(
-              tooltip: context.t.chatNewTooltip,
-              onPressed: _newChat,
-              icon: const Icon(Icons.add_comment_outlined),
-            ),
           IconButton(
             tooltip: context.t.chatMenu,
             onPressed: () => context.push('/menu'),
@@ -358,11 +437,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         itemCount:
-                            rows.length + 1 + (working || showStart ? 1 : 0),
+                            rows.length + lead + (working || showStart ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 14),
                         itemBuilder: (context, i) {
                           if (i == 0) return const SummaryCard();
-                          if (i - 1 == rows.length && showStart) {
+                          if (forked && i == 1) {
+                            return _BranchNote(
+                              from: chat.forkedFrom!,
+                              onOpen: () => _openOrigin(chat.forkedFrom!.id),
+                            );
+                          }
+                          if (i - lead == rows.length && showStart) {
                             return ChatStart(
                               status: chat.restore,
                               onPick: _fill,
@@ -371,13 +456,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               ),
                             );
                           }
-                          if (i - 1 == rows.length) {
+                          if (i - lead == rows.length) {
                             return WorkingRow(
                               phase: chat.phase,
                               tool: chat.toolName,
                             );
                           }
-                          final row = rows[i - 1];
+                          final row = rows[i - lead];
                           return ChatItemView(
                             row.item,
                             more: row.more,
@@ -437,6 +522,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   onDeleted: () => setState(() => _photoText = null),
                 ),
               ),
+            if (ref.watch(editProvider) != null)
+              _EditingBar(onCancel: ref.read(editProvider.notifier).stop),
             _Composer(
               controller: _text,
               focus: _focus,
@@ -473,6 +560,100 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Says where a branch came from, and that what was saved before it stays saved. Tapping it goes back to the original.
+class _BranchNote extends StatelessWidget {
+  const _BranchNote({required this.from, required this.onOpen});
+
+  final ForkOrigin from;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    final name = (from.title ?? '').trim().isEmpty
+        ? t.chatsBranchedUntitled
+        : from.title!;
+    return Semantics(
+      container: true,
+      button: true,
+      label: t.chatsBranchedOpen,
+      excludeSemantics: true,
+      onTap: onOpen,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onOpen,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(Icons.call_split, size: 16, color: c.muted),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        t.chatsBranchedFrom(name),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: c.ink),
+                      ),
+                      Text(
+                        t.chatsBranchedNote,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: c.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Above the box while a message is being edited: what is happening, and a way out.
+class _EditingBar extends StatelessWidget {
+  const _EditingBar({required this.onCancel});
+
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.edit_outlined, size: 16, color: c.muted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.t.chatEditing,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: c.muted),
+            ),
+          ),
+          IconButton(
+            tooltip: context.t.chatEditCancel,
+            onPressed: onCancel,
+            icon: Icon(Icons.close, size: 20, color: c.muted),
+          ),
+        ],
       ),
     );
   }
@@ -526,6 +707,7 @@ class _Composer extends StatelessWidget {
                   focusNode: focus,
                   minLines: 1,
                   maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => onSend(),
                   decoration: InputDecoration(

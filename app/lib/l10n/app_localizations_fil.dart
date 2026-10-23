@@ -174,6 +174,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get acctMenuExport => 'I-export ang history';
 
   @override
+  String get acctMenuPurpose => 'Baguhin ang label';
+
+  @override
   String get acctMenuReset => 'I-reset sa zero';
 
   @override
@@ -1818,6 +1821,38 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayYours => 'Mga payday mo';
 
   @override
+  String get purposeCustom => 'Sarili kong label';
+
+  @override
+  String get purposeCustomHint => 'hal. Pang-eskuwela';
+
+  @override
+  String get purposeCustomLabel => 'Sarili mong label';
+
+  @override
+  String purposeEditTitle(String name) {
+    return 'Label ng $name';
+  }
+
+  @override
+  String get purposeInvalid =>
+      'Hanggang 24 na titik at walang mahabang numero.';
+
+  @override
+  String get purposeNone => 'Walang label';
+
+  @override
+  String get purposeSaved => 'Na-save ang label.';
+
+  @override
+  String purposeSemantic(String purpose) {
+    return 'Layunin: $purpose';
+  }
+
+  @override
+  String get purposeTitle => 'Para saan ang account na ito?';
+
+  @override
   String get remBlockedExact =>
       'Baka hindi makapag-set ng eksaktong alarm ang Botler, kaya maaaring mahuli ang mga paalala.';
 
@@ -2013,6 +2048,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get schedNthLast => 'Huli';
 
   @override
+  String get schedOnDate => 'Sa';
+
+  @override
   String get schedPatEveryN => 'Bawat ilang araw';
 
   @override
@@ -2021,6 +2059,9 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String get schedPatNthWeekday =>
       'Sa isang araw ng linggo sa buwan (gaya ng unang Miyerkules)';
+
+  @override
+  String get schedPatOnce => 'Isang beses lang';
 
   @override
   String get schedPatRange => 'Sa pagitan ng dalawang araw ng buwan';
@@ -2095,6 +2136,11 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String schedSayNth(String nth, String weekday, String every) {
     return 'Tuwing $nth $weekday ng buwan$every';
+  }
+
+  @override
+  String schedSayOnce(String date) {
+    return 'Isang beses lang, sa $date';
   }
 
   @override

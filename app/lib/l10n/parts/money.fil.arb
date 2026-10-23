@@ -132,5 +132,15 @@
   "billsSkipYes": "Laktawan",
   "billsSkipped": "Nilaktawan.",
   "billsPutBack": "Ibalik ayon sa iskedyul",
-  "billsPutBackDone": "Balik na sa iskedyul."
+  "billsPutBackDone": "Balik na sa iskedyul.",
+  "acctMenuPurpose": "Baguhin ang label",
+  "purposeTitle": "Para saan ang account na ito?",
+  "purposeEditTitle": "Label ng {name}",
+  "purposeNone": "Walang label",
+  "purposeCustom": "Sarili kong label",
+  "purposeCustomLabel": "Sarili mong label",
+  "purposeCustomHint": "hal. Pang-eskuwela",
+  "purposeInvalid": "Hanggang 24 na titik at walang mahabang numero.",
+  "purposeSaved": "Na-save ang label.",
+  "purposeSemantic": "Layunin: {purpose}"
 }

@@ -40,7 +40,8 @@ export const SCOPE_TABLES: Record<
 		'agent_action'
 	],
 	schedule: ['reminder', 'task', 'calendar_event', 'routine'],
-	memory_and_chat: ['chat_turn', 'memory_fact', 'memory_summary']
+	// A chat is deleted after its turns (the turns point at it)
+	memory_and_chat: ['chat_turn', 'chat', 'memory_fact', 'memory_summary']
 };
 
 /**
@@ -48,6 +49,9 @@ export const SCOPE_TABLES: Record<
  * and reach the database through a newer copy of the function (0018 and on), never by editing an applied migration.
  */
 const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'bill_override');
+
+/** The memory and chat scope as migrations 0017 and 0018 shipped it, before conversations existed (0021 adds the chat table). */
+const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter((t) => t !== 'chat');
 
 /** What 'everything' empties on top of the three scopes: the persona and what the person told it about themselves. */
 export const EVERYTHING_EXTRA: readonly string[] = ['memory_profile'];
@@ -84,7 +88,11 @@ export function tablesOf(scope: ResetScope): readonly string[] {
 }
 
 /** The function for a given list of tables: the first migration (0017) and the newest one differ only by their lists. */
-function resetFunctionSql(money: readonly string[], everything: readonly string[]): string {
+function resetFunctionSql(
+	money: readonly string[],
+	memory: readonly string[],
+	everything: readonly string[]
+): string {
 	return `-- ERASE ONE PERSON'S DATA BY SCOPE. SECURITY DEFINER, OWNED BY THE MIGRATING OWNER. IT CAN ONLY ERASE THE PERSON SET IN THE SESSION (app.user_id).
 -- The audit triggers stay quiet (this function runs as the owner), the trail's own guard is lifted for this transaction, and one tombstone
 -- row says who, when, which scope and how many rows. When the trail itself is erased the chain starts again at 1 with that row.
@@ -109,7 +117,7 @@ BEGIN
 	tables := CASE p_scope
 		WHEN 'money' THEN ${arr(money)}
 		WHEN 'schedule' THEN ${arr(SCOPE_TABLES.schedule)}
-		WHEN 'memory_and_chat' THEN ${arr(SCOPE_TABLES.memory_and_chat)}
+		WHEN 'memory_and_chat' THEN ${arr(memory)}
 		WHEN 'audit' THEN ${arr([])}
 		WHEN 'everything' THEN ${arr(everything)}
 		ELSE NULL
@@ -151,15 +159,25 @@ $$;
 
 /** The first migration (0017), exactly as it ran. */
 export function dataResetMigrationSql(): string {
-	return resetFunctionSql(MONEY_0017, [
+	return resetFunctionSql(MONEY_0017, MEMORY_0017, [
 		...MONEY_0017,
 		...SCOPE_TABLES.schedule,
-		...SCOPE_TABLES.memory_and_chat,
+		...MEMORY_0017,
 		...EVERYTHING_EXTRA
 	]);
 }
 
-/** The function as it is now: what the newest migration (0018) installs over the one of 0017. */
+/** The function migration 0018 installed (bill overrides, before conversations). */
+export function dataResetBillOverrideSql(): string {
+	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0017, [
+		...SCOPE_TABLES.money,
+		...SCOPE_TABLES.schedule,
+		...MEMORY_0017,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0021, conversations) installs over the one of 0018. */
 export function dataResetLatestSql(): string {
-	return resetFunctionSql(SCOPE_TABLES.money, EVERYTHING_TABLES);
+	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
 }

@@ -21,6 +21,7 @@ const Set<String> knownScheduleKinds = <String>{
   'week_of_month',
   'day_range',
   'yearly',
+  'once',
 };
 
 // -- FUNCTIONS -- //
@@ -111,6 +112,11 @@ String? describeSchedule(AppLocalizations t, String locale, Json s) {
         months[(intOf(s['month'], 1) - 1).clamp(0, 11)],
         intOf(s['day'], 1),
       );
+    case 'once':
+      final date = DateTime.tryParse(str(s['date']));
+      return date == null
+          ? null
+          : t.schedSayOnce(DateFormat.yMMMd(locale).format(date));
   }
   return null;
 }

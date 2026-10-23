@@ -16,6 +16,7 @@
 //   that weekday is not inside the (clipped) week.
 // - day_range(from, to, everyMonths): any day from the 5th to the 10th, clamped to the length of the month; to -1 is the last day.
 // - yearly(month, day): once a year, the 29th of February clamped to the 28th in a common year.
+// - once(date): a single date that never repeats, for a one-time bill. The weekend rule still applies.
 // everyMonths counts months from anchorMonth (YYYY-MM), which is required when it is above 1, so a two month cycle never drifts.
 // The weekend rule moves the END of a window only; the start stays unless it would pass the end.
 
@@ -52,7 +53,8 @@ export type Schedule =
 			anchorMonth?: string;
 	  }
 	| { kind: 'day_range'; from: number; to: number; everyMonths?: number; anchorMonth?: string }
-	| { kind: 'yearly'; month: number; day: number };
+	| { kind: 'yearly'; month: number; day: number }
+	| { kind: 'once'; date: ManilaDate };
 
 export type WeekendRule = 'none' | 'before' | 'after';
 
@@ -84,7 +86,8 @@ export const SCHEDULE_KINDS = [
 	'nth_weekday',
 	'week_of_month',
 	'day_range',
-	'yearly'
+	'yearly',
+	'once'
 ] as const;
 
 const MAX_SHIFT = 10;
@@ -194,6 +197,8 @@ export function validateSchedule(s: Schedule): string | null {
 			if (!Number.isInteger(s.day) || s.day < 1 || s.day > daysInMonth(2028, s.month))
 				return 'That day is not in that month.';
 			return null;
+		case 'once':
+			return isDate(s.date) ? null : 'The date is not a real date.';
 	}
 }
 
@@ -316,6 +321,11 @@ function nominal(s: Schedule, from: ManilaDate, to: ManilaDate): ScheduleWindow[
 		// The first multiple of n at or after `from`. Math.ceil also works when the anchor is after the window
 		const k = Math.ceil(diffDays(from, s.anchor) / s.n);
 		for (let d = addDays(s.anchor, k * s.n); d <= to; d = addDays(d, s.n)) out.push(single(d));
+		return out;
+	}
+	if (s.kind === 'once') {
+		// One date that never repeats
+		if (s.date >= from && s.date <= to) out.push(single(s.date));
 		return out;
 	}
 	if (s.kind === 'weekly') {
@@ -447,6 +457,8 @@ export function describeSchedule(s: Schedule): ScheduleDescription {
 				args: { n: s.n, anchor: s.anchor },
 				text: s.n === 1 ? `Every day from ${s.anchor}` : `Every ${s.n} days from ${s.anchor}`
 			};
+		case 'once':
+			return { key: 'schedule.once', args: { date: s.date }, text: `Once, on ${s.date}` };
 		case 'monthly':
 			return s.day === -1
 				? {

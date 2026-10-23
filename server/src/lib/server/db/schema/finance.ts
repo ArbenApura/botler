@@ -54,6 +54,8 @@ export const account = userTable(
 		kind: text('kind', { enum: ACCOUNT_KINDS }).notNull().default('bank'),
 		/** The balance the person wants to keep in it. The split tops it up before spending money elsewhere. */
 		minBalance: centavos('min_balance').notNull().default(0),
+		/** What the account is dedicated to (Emergency, Savings, Bills...). A short label, cosmetic only; null when none. */
+		purpose: text('purpose'),
 		sortOrder: integer('sort_order').notNull().default(0),
 		archivedAt: timestamp('archived_at', { withTimezone: true }),
 		version: version(),
@@ -64,7 +66,11 @@ export const account = userTable(
 		unique('account_user_id_uq').on(t.userId, t.id),
 		uniqueIndex('account_user_name_uq').on(t.userId, sql`lower(${t.name})`),
 		oneOf('account_kind_chk', t.kind, ACCOUNT_KINDS),
-		check('account_min_balance_chk', sql`${t.minBalance} >= 0`)
+		check('account_min_balance_chk', sql`${t.minBalance} >= 0`),
+		check(
+			'account_purpose_chk',
+			sql`${t.purpose} is null or (char_length(${t.purpose}) between 1 and 24 and ${t.purpose} = btrim(${t.purpose}))`
+		)
 	]
 );
 
@@ -119,6 +125,8 @@ export const bill = userTable(
 		/** Can wait for the next payday when the pay is short. */
 		deferrable: boolean('deferrable').notNull().default(false),
 		active: boolean('active').notNull().default(true),
+		/** The first Manila day the bill counts. Dates the schedule gives before it do not exist, so a new bill is never overdue for the past. Null keeps every date. */
+		startsOn: date('starts_on', { mode: 'string' }),
 		version: version(),
 		...stamps()
 	},

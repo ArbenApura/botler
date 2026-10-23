@@ -19,6 +19,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'accounts_screen.dart';
 import 'audit_words.dart';
+import 'purpose.dart';
 
 // -- CONSTANTS -- //
 
@@ -318,6 +319,8 @@ class _State extends ConsumerState<AccountDetailScreen> {
                         if (mounted) _load(reset: true);
                       });
                     }
+                  case 'purpose':
+                    if (account != null) editPurpose(context, ref, account);
                   case 'set':
                     _askBalance(zero: false);
                   case 'zero':
@@ -333,6 +336,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
                   value: 'count',
                   height: 48,
                   child: Text(t.acctMenuCount),
+                ),
+                PopupMenuItem<String>(
+                  value: 'purpose',
+                  height: 48,
+                  child: Text(t.acctMenuPurpose),
                 ),
                 PopupMenuItem<String>(
                   value: 'set',
@@ -375,6 +383,14 @@ class _State extends ConsumerState<AccountDetailScreen> {
             if (broken)
               AuditBanner(seq: intOf(asJson(verify['problem'])['seq'])),
             if (unverified) const _Unverified(),
+            if (purposeOf(account) != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: PurposeChip(purposeOf(account)),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Row(
@@ -530,6 +546,7 @@ class _Filters extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: TextField(
             controller: search,
+            textCapitalization: TextCapitalization.none,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: t.acctSearchHint,

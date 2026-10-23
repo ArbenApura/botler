@@ -3,9 +3,9 @@
 // - The caller is the session's person, set here. A tool call can never name another user (the schemas hold no user id and are strict).
 // - Reads run. Records (free verbs) run. A change to the money plan (gated) only ever becomes an approval card. Person-only verbs are not offered.
 // - Once untrusted text enters the turn (a web page, a photo's text, anything a tool marks untrusted), every write verb for the rest of
-//   the turn becomes a card too, and web search and reading are closed except for addresses the person typed themselves, so the model
-//   cannot carry private text out in an address.
-// - Bounded: at most 6 model calls, 12 tool calls, a time limit per tool. A cancelled request stops the model call and runs no more tools.
+//   the turn becomes a card too, and web reading is closed except for addresses the person typed themselves, so the model cannot carry
+//   private text out in an address. Web search stays open but short: a plain query of a few words, none with a run of digits.
+// - Bounded: at most 6 model calls, 12 tool calls, 3 web searches, a time limit per tool. A cancelled request stops the model call and runs no more tools.
 // - A model that is down or over its cap ends the turn with a fallback event: the app shows the manual form, and the verbs still work.
 
 // -- TYPES -- //
@@ -33,7 +33,7 @@ import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
 
 export type TurnEvent =
 	// Live only: start, phase, reasoning and tool_start are shown while the turn runs and are never stored or replayed
-	| { type: 'start' }
+	| { type: 'start'; turnId?: string; chatId?: string }
 	| { type: 'phase'; phase: 'thinking' | 'writing' }
 	| { type: 'reasoning'; text: string }
 	| { type: 'tool_start'; id: string; name: string }
@@ -73,6 +73,8 @@ export type TurnParams = {
 	memories?: string[];
 	/** Recent approval cards and how each was answered, so the assistant knows what was approved, rejected or is still waiting. */
 	cards?: string[];
+	/** In a branched chat: what the cut-off messages already did. Made by the server from verb names, never from message text. */
+	rewindNote?: string;
 	/** The person's currency and how the assistant replies, read from their settings. */
 	currency?: string;
 	replyLanguage?: 'auto' | 'en' | 'fil' | 'taglish';
@@ -96,6 +98,10 @@ type Outcome = {
 export const LIMITS = {
 	maxModelCalls: 6,
 	maxToolCalls: 12,
+	/** Web searches in one message, so a poor result can be tried again with other words but quota and what a search can carry out stay small. */
+	maxWebSearches: 3,
+	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
+	maxTaintedQueryChars: 80,
 	toolTimeoutMs: 15_000,
 	webTimeoutMs: 25_000,
 	maxResultChars: 6_000,
@@ -107,6 +113,8 @@ export const LIMITS = {
 /** What untrusted text did to a turn so far. */
 export class TurnState {
 	tainted = false;
+	/** Web searches started in this message, counted before each runs so a failed or slow one still counts. */
+	searches = 0;
 	readonly reasons = new Set<string>();
 	constructor(readonly userUrls: ReadonlySet<string> = new Set()) {}
 	taint(reason: string) {
@@ -135,6 +143,26 @@ const normalizeUrl = (u: unknown): string | null => {
 		return null;
 	}
 };
+
+/** A search query that is short and holds no run of five digits (the shape of an account number or a balance). */
+function plainQuery(query: unknown, max: number): boolean {
+	return (
+		typeof query === 'string' &&
+		query.length <= max &&
+		!/\d{5}/.test(query.replace(/[^\p{L}\p{N}]/gu, ''))
+	);
+}
+
+/** A tool result that is only an error text the tool wrote itself. Checked on the object's own keys, never by searching its text. */
+function isPlainError(result: unknown): boolean {
+	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
+	const keys = Object.keys(result);
+	return (
+		keys.length === 1 &&
+		keys[0] === 'error' &&
+		typeof (result as { error: unknown }).error === 'string'
+	);
+}
 
 function capJson(value: unknown, max: number): string {
 	const text = JSON.stringify(value) ?? 'null';
@@ -190,12 +218,28 @@ async function executeTool(
 
 	// -- WEB -- //
 	if (tool.kind === 'web' && tool.web) {
-		if (state.tainted) {
+		if (tool.name === WEB_SEARCH) {
+			// Counted before the call, tainted or not, and a blocked or failed search still counts
+			state.searches += 1;
+			if (state.searches > limits.maxWebSearches)
+				return err(
+					'blocked',
+					`At most ${limits.maxWebSearches} searches are allowed in one message. Answer with what you have.`,
+					'blocked'
+				);
+			// After untrusted text, a query may not be a way to carry text out: it must be short and hold nothing like an account number
+			if (state.tainted && !plainQuery(args.query, limits.maxTaintedQueryChars))
+				return err(
+					'blocked',
+					'Untrusted text was already read in this message, so only a short search with plain words is allowed now. Do not put numbers or personal details in it.',
+					'blocked'
+				);
+		} else if (state.tainted) {
 			const typed = tool.name === WEB_READ && state.userUrls.has(normalizeUrl(args.url) ?? '');
 			if (!typed)
 				return err(
 					'blocked',
-					'Untrusted text was already read in this message, so searching and opening addresses are turned off. Only an address the person typed can be opened.',
+					'Untrusted text was already read in this message, so opening addresses is turned off. Only an address the person typed can be opened.',
 					'blocked'
 				);
 		}
@@ -205,8 +249,9 @@ async function executeTool(
 				limits.webTimeoutMs,
 				'The web'
 			);
-			// Whatever came back from the web closes the door on writes, even when it was a refusal message
-			state.taint(tool.name === WEB_SEARCH ? 'web-search' : 'web-page');
+			// Whatever came back from the web closes the door on writes. The one exception is a plain error the tool wrote itself (an own
+			// "error" text and no "untrusted" key): nothing from outside came back. Anything else fails closed and taints
+			if (!isPlainError(result)) state.taint(tool.name === WEB_SEARCH ? 'web-search' : 'web-page');
 			return { status: 'ok', forModel: capJson(result, limits.maxResultChars) };
 		} catch (e) {
 			if (e instanceof OpsError) return err('unavailable', e.message);
@@ -309,6 +354,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		persona: p.persona,
 		memories: p.memories,
 		cards: p.cards,
+		rewindNote: p.rewindNote,
 		history: p.history,
 		userText: p.userText,
 		ocrText: p.ocrText,

@@ -246,7 +246,11 @@ class _State extends ConsumerState<ResetScreen> {
       OutlinedButton(onPressed: _exportFirst, child: Text(t.resetExportFirst)),
       const SizedBox(height: 16),
       if (total > 0) ...<Widget>[
-        Field(controller: _typed, label: t.resetTypeWord(word)),
+        Field(
+          controller: _typed,
+          label: t.resetTypeWord(word),
+          capitalization: TextCapitalization.characters,
+        ),
         const SizedBox(height: 8),
         FilledButton(
           style: FilledButton.styleFrom(

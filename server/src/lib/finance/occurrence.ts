@@ -44,13 +44,15 @@ export const OVERRIDE_REACH_DAYS = MOVE_LIMIT_DAYS + 3;
 /**
  * The due dates of a bill whose effective date falls between `from` and `to` inclusive, in date order. The schedule is read over a range
  * widened by the longest move, so a date moved into the range from outside it is found, and a date moved out of it is left out.
+ * `startsOn` is the first day the bill counts: schedule dates before it are left out (never for a one-time bill).
  */
 export function effectiveOccurrences<O extends OverrideLike>(
 	schedule: Schedule,
 	from: ManilaDate,
 	to: ManilaDate,
 	opts: ScheduleOptions,
-	overrides: readonly O[]
+	overrides: readonly O[],
+	startsOn: ManilaDate | null = null
 ): Occurrence<O>[] {
 	const byOriginal = new Map<ManilaDate, O>();
 	for (const o of overrides) byOriginal.set(o.originalDueDate, o);
@@ -61,6 +63,8 @@ export function effectiveOccurrences<O extends OverrideLike>(
 		addDays(to, MOVE_LIMIT_DAYS),
 		opts
 	)) {
+		// Dates the schedule gives before the bill began do not exist; a one-time bill keeps its date even when it is already past
+		if (startsOn !== null && schedule.kind !== 'once' && w.end < startsOn) continue;
 		const override = byOriginal.get(w.end) ?? null;
 		if (override?.skipped) continue;
 		const moved = override?.newDueDate ?? null;

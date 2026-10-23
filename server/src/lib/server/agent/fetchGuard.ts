@@ -272,9 +272,7 @@ async function readBody(res: TransportResponse): Promise<{ bytes: Buffer; trunca
 export async function fetchPublicText(
 	rawUrl: string,
 	deps: GuardDeps = {},
-	outerSignal?: AbortSignal,
-	// `raw` keeps the markup, for the search results page whose links are the point
-	opts: { raw?: boolean } = {}
+	outerSignal?: AbortSignal
 ): Promise<FetchedPage> {
 	const timeout = AbortSignal.timeout(TOTAL_TIMEOUT_MS);
 	const signal = outerSignal ? AbortSignal.any([outerSignal, timeout]) : timeout;
@@ -321,14 +319,13 @@ export async function fetchPublicText(
 			);
 		}
 		const raw = body.bytes.toString('utf8');
-		const text = !opts.raw && /html|xml/i.test(contentType) ? htmlToText(raw) : raw.trim();
-		const cap = opts.raw ? MAX_BYTES : MAX_TEXT_CHARS;
+		const text = /html|xml/i.test(contentType) ? htmlToText(raw) : raw.trim();
 		return {
 			url: url.toString(),
 			status: res.status,
 			contentType,
-			text: text.slice(0, cap),
-			truncated: body.truncated || text.length > cap
+			text: text.slice(0, MAX_TEXT_CHARS),
+			truncated: body.truncated || text.length > MAX_TEXT_CHARS
 		};
 	}
 	throw new FetchRefused('The page redirected too many times.');

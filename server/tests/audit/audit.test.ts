@@ -9,7 +9,11 @@ import { join } from 'node:path';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { auditLaterTriggersSql, auditMigrationSql } from '../../src/lib/server/db/auditSql';
+import {
+	auditLaterTriggersSql,
+	auditMigrationSql,
+	auditRedefinedSql
+} from '../../src/lib/server/db/auditSql';
 import {
 	AUDITED_TABLES,
 	auditEvent,
@@ -112,6 +116,29 @@ describe('the registry of audited tables', () => {
 				[auditMigrationSql(), file].filter((f) => f.includes(`TRIGGER "audit_${a.table}" `)),
 				a.table
 			).toHaveLength(1);
+	});
+
+	it('replaces the trigger of a table whose audited columns grew in a later migration, and leaves 0016 as it ran', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0022_account_purpose.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditRedefinedSql('0022'));
+		// 0016 keeps the columns it had; the current list is the one the replacement carries
+		expect(auditMigrationSql()).not.toContain('archived_at,purpose');
+		expect(auditRedefinedSql('0022')).toContain('archived_at,purpose');
+		for (const a of AUDITED_TABLES.filter((t) => t.redefined))
+			expect(a.columns.slice(0, a.firstColumns?.length)).toEqual(a.firstColumns);
+	});
+
+	it('replaces the trigger of bill when it gained its start date (0023)', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0023_bill_starts_on.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditRedefinedSql('0023'));
+		expect(auditMigrationSql()).not.toContain('active,starts_on');
+		expect(auditRedefinedSql('0023')).toContain('active,starts_on');
 	});
 
 	it('copies no title or free text of an event, a task, a routine or a reminder', () => {

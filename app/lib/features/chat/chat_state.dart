@@ -15,6 +15,7 @@ import '../../core/json.dart';
 import '../../core/reminders.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import 'chats_state.dart';
 
 // -- TYPES -- //
 
@@ -30,22 +31,32 @@ sealed class ChatItem {
 }
 
 final class UserItem extends ChatItem {
-  const UserItem(super.id, this.text, {this.photo = false});
+  const UserItem(super.id, this.text, {this.photo = false, this.turnId});
 
   final String text;
 
   /// Text from a photo went along with it.
   final bool photo;
+
+  /// The server's id for this message, known once the server has accepted it. Branching and editing start from it.
+  final String? turnId;
+
+  UserItem withTurn(String turn) =>
+      UserItem(id, text, photo: photo, turnId: turn);
 }
 
 final class AgentItem extends ChatItem {
-  const AgentItem(super.id, this.text, {this.streaming = false});
+  const AgentItem(super.id, this.text, {this.streaming = false, this.turnId});
 
   final String text;
   final bool streaming;
 
-  AgentItem grow(String more) => AgentItem(id, text + more, streaming: true);
-  AgentItem done() => AgentItem(id, text);
+  /// The message this answers, so the person can branch from it.
+  final String? turnId;
+
+  AgentItem grow(String more) =>
+      AgentItem(id, text + more, streaming: true, turnId: turnId);
+  AgentItem done() => AgentItem(id, text, turnId: turnId);
 }
 
 /// What the assistant thought before it answered. Open while it is still thinking; then it folds into one line.
@@ -116,6 +127,7 @@ final class CardItem extends ChatItem {
     required this.summary,
     this.state = CardState.waiting,
     this.note,
+    this.readOnly = false,
   });
 
   final String actionId;
@@ -123,8 +135,17 @@ final class CardItem extends ChatItem {
   final CardState state;
   final String? note;
 
-  CardItem with_(CardState s, {String? note}) =>
-      CardItem(id, actionId: actionId, summary: summary, state: s, note: note);
+  /// The card was copied into a branch: it can only be answered in the chat it came from.
+  final bool readOnly;
+
+  CardItem with_(CardState s, {String? note}) => CardItem(
+    id,
+    actionId: actionId,
+    summary: summary,
+    state: s,
+    note: note,
+    readOnly: readOnly,
+  );
 }
 
 /// The model is down or over its cap: the manual expense form is offered.
@@ -149,8 +170,19 @@ final class DividerItem extends ChatItem {
 /// The empty-chat greeting shows only on [done], so it never flashes while the history is still coming, or offline.
 enum RestoreStatus { idle, loading, done, failed }
 
+/// Where a branch came from.
+class ForkOrigin {
+  const ForkOrigin(this.id, this.title);
+
+  final String id;
+  final String? title;
+}
+
 class ChatState {
   const ChatState({
+    this.chatId,
+    this.title,
+    this.forkedFrom,
     this.restore = RestoreStatus.idle,
     this.restored = const <ChatItem>[],
     this.items = const <ChatItem>[],
@@ -158,6 +190,15 @@ class ChatState {
     this.phase = TurnPhase.idle,
     this.toolName,
   });
+
+  /// The conversation on screen. Null until the server has said which one it is (the first start, or a first message).
+  final String? chatId;
+
+  /// Its name, once it has one.
+  final String? title;
+
+  /// Set when this chat started as a branch of another.
+  final ForkOrigin? forkedFrom;
 
   /// The earlier conversation brought back from the server. Kept apart from [items] so it can arrive at any moment without
   /// moving anything the live turn counts on.
@@ -171,6 +212,8 @@ class ChatState {
   final String? toolName;
 
   ChatState copyWith({
+    String? chatId,
+    String? title,
     RestoreStatus? restore,
     List<ChatItem>? restored,
     List<ChatItem>? items,
@@ -179,6 +222,9 @@ class ChatState {
     String? toolName,
     bool clearTool = false,
   }) => ChatState(
+    chatId: chatId ?? this.chatId,
+    title: title ?? this.title,
+    forkedFrom: forkedFrom,
     restore: restore ?? this.restore,
     restored: restored ?? this.restored,
     items: items ?? this.items,
@@ -198,6 +244,13 @@ const Duration _retryWait = Duration(seconds: 2);
 const Duration _flushEvery = Duration(milliseconds: 40);
 
 // -- FUNCTIONS -- //
+
+/// The name a chat gets from its first message: one line, cut short (the server does the same).
+String? _titleFrom(String text) {
+  final one = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (one.isEmpty) return null;
+  return one.length > 60 ? one.substring(0, 60) : one;
+}
 
 /// True when the text has a number in it, so it may be an expense that can be kept for later without the assistant.
 bool looksLikeExpense(String text) => RegExp(r'\d').hasMatch(text);
@@ -223,6 +276,16 @@ class ChatNotifier extends Notifier<ChatState> {
   /// Counts fresh starts. An answer that comes back after another person signed in belongs to the old start and is thrown away.
   int _generation = 0;
   final Set<String> _sentIds = <String>{};
+
+  // The message being answered: the server's id for it, and the row on screen it belongs to.
+  String? _turnId;
+  int _userItemId = -1;
+
+  // A branch is made once per action: asking again after a failure reuses the request id, so no second branch appears.
+  final Map<String, String> _forkKeys = <String, String>{};
+
+  /// A branch is being made. A second tap meanwhile does nothing.
+  bool _forking = false;
 
   @override
   ChatState build() {
@@ -272,22 +335,93 @@ class ChatNotifier extends Notifier<ChatState> {
     if (abort != null && !abort.isCompleted) abort.complete();
   }
 
-  // -- NEW CHAT -- //
+  // -- CHATS -- //
 
-  /// Starts a new chat: the server sets the earlier conversation aside (so the assistant starts without it too), and the screen empties.
-  /// Needs a connection. A turn being answered is not interrupted.
-  Future<void> startNew() async {
-    if (state.busy) return;
-    await ref.read(apiProvider).verb('chat_clear');
-    // A message sent while the request was on its way is a live turn: it is not wiped
-    if (state.busy) return;
-    // Anything still on its way back from before belongs to the old conversation
+  /// Everything on screen belongs to the old conversation: forget it, and throw away any answer still on its way for it.
+  void _fresh() {
     _generation++;
     _sentIds.clear();
     _resetTurn();
-    // Cleared on the server too, so there is nothing to bring back (a later screen mount must not ask again): the empty chat may greet
+    _turnId = null;
+    _userItemId = -1;
+    // The next conversation is loaded or started by the caller, so a later screen mount must not ask again
     _restoreStarted = true;
-    state = const ChatState(restore: RestoreStatus.done);
+  }
+
+  void _listsChanged() => ref
+    ..invalidate(chatListProvider)
+    ..invalidate(archivedChatsProvider)
+    ..invalidate(chatSearchProvider);
+
+  /// Starts a new chat. The earlier conversation stays in the list. Needs a connection. A turn being answered is not interrupted.
+  Future<void> startNew() async {
+    if (state.busy || _forking) return;
+    final answer = asJson(await ref.read(apiProvider).verb('chat_new'));
+    // A message sent while the request was on its way is a live turn: it is not wiped
+    if (state.busy) return;
+    _fresh();
+    state = ChatState(
+      chatId: str(answer['chatId']),
+      restore: RestoreStatus.done,
+    );
+    _listsChanged();
+  }
+
+  /// Opens another conversation and shows its recent messages. Waits for the current answer to end first.
+  Future<void> openChat(String chatId) async {
+    if (state.busy || _forking || chatId == state.chatId) return;
+    await ref.read(apiProvider).verb('chat_open', <String, Object?>{
+      'chatId': chatId,
+    });
+    if (state.busy) return;
+    _fresh();
+    state = ChatState(chatId: chatId, restore: RestoreStatus.loading);
+    await _load(chatId);
+    _listsChanged();
+  }
+
+  /// Branches from a message (that message included) into a new chat and opens it.
+  Future<bool> branch(String turnId) => _fork(turnId, include: true);
+
+  /// The first half of "edit and resend": a new chat that holds everything before the message, opened. The screen sends the new words next.
+  /// False when nothing was opened (a second tap, a reply being written, another chat opened meanwhile): then nothing is sent.
+  Future<bool> branchBefore(String turnId) => _fork(turnId, include: false);
+
+  Future<bool> _fork(String turnId, {required bool include}) async {
+    final from = state.chatId;
+    if (state.busy || _forking || from == null) return false;
+    _forking = true;
+    try {
+      final key = '$from|$turnId|$include';
+      final requestId = _forkKeys.putIfAbsent(key, newRequestId);
+      final answer = asJson(
+        await ref.read(apiProvider).verb('chat_fork', <String, Object?>{
+          'chatId': from,
+          'upToTurnId': turnId,
+          if (!include) 'includeTurn': false,
+        }, requestId),
+      );
+      _forkKeys.remove(key);
+      // A message sent, or another chat opened, while the branch was being made: the screen stays as it is (the branch is in the list)
+      _listsChanged();
+      if (state.busy || state.chatId != from) return false;
+      final id = str(answer['chatId']);
+      _fresh();
+      state = ChatState(chatId: id, restore: RestoreStatus.loading);
+      await _load(id);
+      return true;
+    } finally {
+      _forking = false;
+    }
+  }
+
+  /// Gives the open conversation a name of the person's own.
+  Future<void> rename(String title) async {
+    final id = state.chatId;
+    if (id == null) return;
+    final clean = title.trim();
+    await ref.read(chatActionsProvider).rename(id, clean);
+    if (state.chatId == id) state = state.copyWith(title: clean);
   }
 
   // -- RESTORE -- //
@@ -297,11 +431,21 @@ class ChatNotifier extends Notifier<ChatState> {
   Future<void> restore() async {
     if (_restoreStarted) return;
     _restoreStarted = true;
-    final generation = _generation;
     state = state.copyWith(restore: RestoreStatus.loading);
+    await _load(state.chatId);
+  }
+
+  /// Reads one chat's recent messages ([chatId] null means the newest one) and puts them on screen as read-only items.
+  Future<void> _load(String? chatId) async {
+    final generation = _generation;
     try {
-      final answer = await ref.read(apiProvider).verbJson('chat_history');
+      final answer = await ref.read(apiProvider).verbJson(
+        'chat_history',
+        <String, Object?>{'chatId': ?chatId},
+      );
       if (generation != _generation) return;
+      final head = asJson(answer['chat']);
+      final origin = asJson(head['forkedFrom']);
       final turns = asJsonList(answer['turns']);
       final items = <ChatItem>[];
       for (final t in turns) {
@@ -309,7 +453,22 @@ class ChatNotifier extends Notifier<ChatState> {
         if (_sentIds.contains(str(t['clientMessageId']))) continue;
         items.addAll(_restoredTurn(t));
       }
-      state = state.copyWith(restored: items, restore: RestoreStatus.done);
+      state = ChatState(
+        chatId: head['id'] is String ? str(head['id']) : state.chatId,
+        title: head['title'] is String ? str(head['title']) : state.title,
+        forkedFrom: origin['id'] is String
+            ? ForkOrigin(
+                str(origin['id']),
+                origin['title'] is String ? str(origin['title']) : null,
+              )
+            : null,
+        restored: items,
+        items: state.items,
+        busy: state.busy,
+        phase: state.phase,
+        toolName: state.toolName,
+        restore: RestoreStatus.done,
+      );
     } on Object {
       if (generation == _generation) {
         _restoreStarted = false;
@@ -320,7 +479,8 @@ class ChatNotifier extends Notifier<ChatState> {
 
   /// One earlier turn as read-only items: what was said, what was done, what was answered.
   List<ChatItem> _restoredTurn(Json t) {
-    final out = <ChatItem>[UserItem(_id(), str(t['text']))];
+    final turn = t['id'] is String ? str(t['id']) : null;
+    final out = <ChatItem>[UserItem(_id(), str(t['text']), turnId: turn)];
     for (final e in asJsonList(t['events'])) {
       switch (str(e['type'])) {
         case 'tool':
@@ -342,6 +502,7 @@ class ChatNotifier extends Notifier<ChatState> {
               _id(),
               actionId: str(e['actionId']),
               summary: str(e['summary']),
+              readOnly: t['copied'] == true,
               state: switch (str(e['status'])) {
                 'pending' => CardState.waiting,
                 'applied' => CardState.approved,
@@ -357,7 +518,7 @@ class ChatNotifier extends Notifier<ChatState> {
     }
     final reply = str(t['reply']);
     if (reply.trim().isNotEmpty) {
-      out.add(AgentItem(_id(), reply));
+      out.add(AgentItem(_id(), reply, turnId: turn));
     } else if (str(t['status']) == 'failed' && out.length == 1) {
       out.add(NoticeItem(_id(), _words.chatNoAnswer));
     }
@@ -402,7 +563,7 @@ class ChatNotifier extends Notifier<ChatState> {
         _replace(_agentId, (old) => old is AgentItem ? old.grow(more) : old);
       } else {
         _agentId = _id();
-        _add(AgentItem(_agentId, more, streaming: true));
+        _add(AgentItem(_agentId, more, streaming: true, turnId: _turnId));
       }
     }
   }
@@ -454,6 +615,7 @@ class ChatNotifier extends Notifier<ChatState> {
     _thinkStart = null;
     _sawDone = false;
     _sawError = false;
+    _turnId = null;
   }
 
   /// Sends one message. [ocrText] is text the phone read from a photo.
@@ -463,6 +625,7 @@ class ChatNotifier extends Notifier<ChatState> {
     final messageId = newRequestId();
     // The retry below cuts the screen back to this message by its id, not by a position, so nothing arriving meanwhile can move it
     final userItemId = _id();
+    _userItemId = userItemId;
     _sentIds.add(messageId);
     _add(
       UserItem(
@@ -486,6 +649,7 @@ class ChatNotifier extends Notifier<ChatState> {
                     id: messageId,
                     text: trimmed,
                     ocrText: ocrText,
+                    chatId: state.chatId,
                     abort: abort.future,
                   )) {
             _handle(e);
@@ -550,7 +714,21 @@ class ChatNotifier extends Notifier<ChatState> {
   void _handle(Json e) {
     switch (str(e['type'])) {
       case 'start':
-        state = state.copyWith(phase: TurnPhase.waiting, clearTool: true);
+        // The server says which message and which chat this is: the message can be branched from, and a first message names the chat
+        final turn = e['turnId'] is String ? str(e['turnId']) : null;
+        _turnId = turn;
+        if (turn != null) {
+          _replace(
+            _userItemId,
+            (old) => old is UserItem ? old.withTurn(turn) : old,
+          );
+        }
+        state = state.copyWith(
+          phase: TurnPhase.waiting,
+          clearTool: true,
+          chatId: e['chatId'] is String ? str(e['chatId']) : null,
+          title: state.title ?? _titleFrom(_userWords()),
+        );
       case 'phase':
         _flush();
         if (str(e['phase']) == 'writing') {
@@ -684,6 +862,14 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   void notice(String text) => _add(NoticeItem(_id(), text));
+
+  /// The words of the message being sent, for naming a chat that has no name yet.
+  String _userWords() {
+    for (final i in state.items.reversed) {
+      if (i is UserItem && i.id == _userItemId) return i.text;
+    }
+    return '';
+  }
 }
 
 final NotifierProvider<ChatNotifier, ChatState> chatProvider =

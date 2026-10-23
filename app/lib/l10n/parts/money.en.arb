@@ -365,5 +365,29 @@
   "billsSkipYes": "Skip it",
   "billsSkipped": "Skipped.",
   "billsPutBack": "Put back as scheduled",
-  "billsPutBackDone": "Back to the schedule."
+  "billsPutBackDone": "Back to the schedule.",
+  "acctMenuPurpose": "Edit label",
+  "purposeTitle": "What is this account for?",
+  "purposeEditTitle": "Label for {name}",
+  "@purposeEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "purposeNone": "No label",
+  "purposeCustom": "Custom",
+  "purposeCustomLabel": "Your own label",
+  "purposeCustomHint": "e.g. School fund",
+  "purposeInvalid": "Use up to 24 characters and no long numbers.",
+  "purposeSaved": "Label saved.",
+  "purposeSemantic": "Purpose: {purpose}",
+  "@purposeSemantic": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -42,6 +42,7 @@ import {
 import { createModelClient } from '../../src/lib/server/proxy/deepseek';
 import { DEFAULT_LIMITS } from '../../src/lib/server/proxy/limits';
 import { fakeEmbedder } from '../support/embed';
+import { chatOf } from '../support/chats';
 import { createTestDb } from '../support/testDb';
 import { stubModel } from '../agent/support';
 
@@ -125,11 +126,12 @@ async function addTurn(
 	c: Ctx,
 	values: { id: string; userText: string; reply?: string; at?: string }
 ) {
-	const [row] = await withUser(t.handle, c.actor.userId, (tx) =>
+	const [row] = await withUser(t.handle, c.actor.userId, async (tx) =>
 		tx
 			.insert(chatTurn)
 			.values({
 				userId: c.actor.userId,
+				chatId: await chatOf(tx, c.actor.userId),
 				clientMessageId: values.id,
 				userText: values.userText,
 				reply: values.reply ?? '',
@@ -682,6 +684,26 @@ describe('the jobs', () => {
 			await runJob(handlersFor(model), 'memory.extract', c, { turnId: turn });
 		expect(await facts(c)).toHaveLength(0);
 		expect(model.asked).toHaveLength(2);
+	});
+
+	it('learns nothing from a turn that a branch copied, and counts it nowhere', async () => {
+		const c = await newUser();
+		const model = completer(['{"facts":[],"mood_delta":0}']);
+		const original = await addTurn(c, {
+			id: 'msg-copy-orig-01',
+			userText: 'I always pay the rent on the first of the month'
+		});
+		const copy = await addTurn(c, {
+			id: 'msg-copy-copy-01',
+			userText: 'I always pay the rent on the first of the month'
+		});
+		await withUser(t.handle, c.actor.userId, (tx) =>
+			tx.update(chatTurn).set({ copiedFromTurnId: original }).where(eq(chatTurn.id, copy))
+		);
+		await runJob(handlersFor(model), 'memory.extract', c, { turnId: copy });
+		expect(model.asked).toHaveLength(0);
+		await runJob(handlersFor(model), 'memory.extract', c, { turnId: original });
+		expect(model.asked).toHaveLength(1);
 	});
 
 	it('writes the day, week and month digests and cites the facts learned that day', async () => {

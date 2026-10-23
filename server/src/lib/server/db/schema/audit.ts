@@ -21,6 +21,10 @@ export type AuditedTable = {
 	amount: '' | 'txn';
 	/** The migration that adds this table's trigger when it is not the first audit migration (0016). Empty for the tables of 0016. */
 	migration?: string;
+	/** The columns the trigger had when its migration ran, kept when a later migration replaced the trigger with a longer list. */
+	firstColumns?: readonly string[];
+	/** The later migration that drops this table's trigger and creates it again with the current columns. */
+	redefined?: string;
 };
 
 // -- CONSTANTS -- //
@@ -56,9 +60,12 @@ export const AUDIT_ACTIONS = [
 export const AUDITED_TABLES: readonly AuditedTable[] = [
 	{
 		table: 'account',
-		columns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at'],
+		columns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at', 'purpose'],
 		account: 'id',
-		amount: ''
+		amount: '',
+		// The label is typed by the person (24 characters, no long digit runs), so it is safe to copy
+		firstColumns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at'],
+		redefined: '0022'
 	},
 	{
 		table: 'ledger_txn',
@@ -98,10 +105,25 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'schedule',
 			'weekend_rule',
 			'deferrable',
-			'active'
+			'active',
+			'starts_on'
 		],
 		account: 'account_id',
-		amount: ''
+		amount: '',
+		// The first day the bill counts is a date the person chose, so it is safe to copy
+		firstColumns: [
+			'id',
+			'name',
+			'category',
+			'account_id',
+			'kind',
+			'amount',
+			'schedule',
+			'weekend_rule',
+			'deferrable',
+			'active'
+		],
+		redefined: '0023'
 	},
 	{
 		table: 'bill_payment',
@@ -215,6 +237,7 @@ export const EXEMPT_FROM_AUDIT: Record<string, string> = {
 	request_log: 'idempotency bookkeeping',
 	undo_journal: 'bookkeeping for undo; the changes it undoes are audited',
 	chat_turn: 'the chat transcript, which holds message text and is never copied elsewhere',
+	chat: 'a conversation; its title can be message text, so it is kept out of the trail like the transcript',
 	memory_fact: 'memory has its own provenance, editing and wipe',
 	memory_profile: 'memory has its own provenance, editing and wipe',
 	memory_summary: 'memory has its own provenance, editing and wipe'

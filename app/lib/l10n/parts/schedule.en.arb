@@ -8,6 +8,8 @@
   "schedPatWeekly": "Every week",
   "schedPatEveryN": "Every few days",
   "schedPatYearly": "Once a year",
+  "schedPatOnce": "One time only",
+  "schedOnDate": "On",
 
   "schedDay": "Day",
   "schedLastDay": "Last day",
@@ -73,6 +75,8 @@
   "@schedSayRangeToLast": { "placeholders": { "from": { "type": "String" }, "every": { "type": "String" } } },
   "schedSayYearly": "Once a year on {month} {day}",
   "@schedSayYearly": { "placeholders": { "month": { "type": "String" }, "day": { "type": "int" } } },
+  "schedSayOnce": "One time only, on {date}",
+  "@schedSayOnce": { "placeholders": { "date": { "type": "String" } } },
   "schedSayEveryMonths": ", every {n} months",
   "@schedSayEveryMonths": { "placeholders": { "n": { "type": "int" } } },
 

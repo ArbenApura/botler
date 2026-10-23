@@ -29,6 +29,7 @@ enum SchedulePattern {
   weekly,
   everyNDays,
   yearly,
+  once,
 }
 
 /// What the person has chosen so far. The same object is edited by the picker and read by the form that saves it.
@@ -124,6 +125,9 @@ class ScheduleValue {
         v.pattern = SchedulePattern.yearly;
         v.month = intOf(s['month'], 1);
         v.day = intOf(s['day'], 1);
+      case 'once':
+        v.pattern = SchedulePattern.once;
+        v.anchor = DateTime.tryParse(str(s['date'])) ?? DateTime.now();
     }
     return v;
   }
@@ -193,6 +197,11 @@ class ScheduleValue {
         };
       case SchedulePattern.yearly:
         return <String, Object?>{'kind': 'yearly', 'month': month, 'day': day};
+      case SchedulePattern.once:
+        return <String, Object?>{
+          'kind': 'once',
+          'date': DateFormat('yyyy-MM-dd').format(anchor),
+        };
     }
   }
 }
@@ -320,6 +329,7 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
       SchedulePattern.weekly => t.schedPatWeekly,
       SchedulePattern.everyNDays => t.schedPatEveryN,
       SchedulePattern.yearly => t.schedPatYearly,
+      SchedulePattern.once => t.schedPatOnce,
     };
   }
 
@@ -585,13 +595,15 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
             ],
           ),
         ];
+      case SchedulePattern.once:
+        return <Widget>[_datePicker(locale, label: t.schedOnDate)];
     }
   }
 
-  Widget _datePicker(String locale) => OutlinedButton.icon(
+  Widget _datePicker(String locale, {String? label}) => OutlinedButton.icon(
     icon: const Icon(Icons.event),
     label: Text(
-      '${context.t.schedStartingOn} ${DateFormat.yMMMd(locale).format(v.anchor)}',
+      '${label ?? context.t.schedStartingOn} ${DateFormat.yMMMd(locale).format(v.anchor)}',
     ),
     onPressed: () async {
       final picked = await showDatePicker(
@@ -662,7 +674,10 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
     final c = context.colors;
     final locale = Localizations.localeOf(context).toString();
     final patterns = SchedulePattern.values.where(
-      (p) => !(widget.singleDayOnly && p == SchedulePattern.dayRange),
+      (p) =>
+          // A payday repeats and is one day, so it gets neither a range of days nor a single date
+          !(widget.singleDayOnly &&
+              (p == SchedulePattern.dayRange || p == SchedulePattern.once)),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

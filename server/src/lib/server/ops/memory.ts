@@ -20,6 +20,7 @@ import {
 	balanceSnapshot,
 	bill,
 	billPayment,
+	chat,
 	chatTurn,
 	goal,
 	incomeSchedule,
@@ -438,7 +439,8 @@ export async function exportAll(ctx: Ctx) {
 						createdAt: chatTurn.createdAt
 					})
 					.from(chatTurn)
-					.where(mine(chatTurn))
+					// A copy made by a branch is the same conversation again: it is exported once, in the original
+					.where(and(mine(chatTurn), isNull(chatTurn.copiedFromTurnId)))
 					.orderBy(chatTurn.createdAt)
 			},
 			finance: {
@@ -483,6 +485,8 @@ export async function wipeMemory(ctx: Ctx, raw: unknown) {
 				.delete(chatTurn)
 				.where(eq(chatTurn.userId, userId))
 				.returning({ id: chatTurn.id });
+			// The conversations (their names can be message text) go with the messages
+			await tx.delete(chat).where(eq(chat.userId, userId));
 			await tx
 				.update(memoryProfile)
 				.set({ mood: 0, familiarity: 0, updatedAt: sql`now()` })

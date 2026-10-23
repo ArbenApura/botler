@@ -345,7 +345,11 @@ class PaydayScreen extends ConsumerWidget {
         builder: (_, setState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Field(controller: label, label: sheet.t.paydayIncomeLabel),
+            Field(
+              controller: label,
+              label: sheet.t.paydayIncomeLabel,
+              capitalization: TextCapitalization.words,
+            ),
             Field(
               controller: amount,
               label: sheet.t.paydayIncomeAmountLabel(sheet.currencyCode),

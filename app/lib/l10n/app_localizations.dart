@@ -362,6 +362,12 @@ abstract class AppLocalizations {
   /// **'Export history'**
   String get acctMenuExport;
 
+  /// No description provided for @acctMenuPurpose.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit label'**
+  String get acctMenuPurpose;
+
   /// No description provided for @acctMenuReset.
   ///
   /// In en, this message translates to:
@@ -3157,6 +3163,60 @@ abstract class AppLocalizations {
   /// **'Your paydays'**
   String get paydayYours;
 
+  /// No description provided for @purposeCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get purposeCustom;
+
+  /// No description provided for @purposeCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. School fund'**
+  String get purposeCustomHint;
+
+  /// No description provided for @purposeCustomLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own label'**
+  String get purposeCustomLabel;
+
+  /// No description provided for @purposeEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Label for {name}'**
+  String purposeEditTitle(String name);
+
+  /// No description provided for @purposeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use up to 24 characters and no long numbers.'**
+  String get purposeInvalid;
+
+  /// No description provided for @purposeNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No label'**
+  String get purposeNone;
+
+  /// No description provided for @purposeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Label saved.'**
+  String get purposeSaved;
+
+  /// No description provided for @purposeSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Purpose: {purpose}'**
+  String purposeSemantic(String purpose);
+
+  /// No description provided for @purposeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What is this account for?'**
+  String get purposeTitle;
+
   /// No description provided for @remBlockedExact.
   ///
   /// In en, this message translates to:
@@ -3511,6 +3571,12 @@ abstract class AppLocalizations {
   /// **'Last'**
   String get schedNthLast;
 
+  /// No description provided for @schedOnDate.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get schedOnDate;
+
   /// No description provided for @schedPatEveryN.
   ///
   /// In en, this message translates to:
@@ -3528,6 +3594,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On a weekday of the month (like the 1st Wednesday)'**
   String get schedPatNthWeekday;
+
+  /// No description provided for @schedPatOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'One time only'**
+  String get schedPatOnce;
 
   /// No description provided for @schedPatRange.
   ///
@@ -3642,6 +3714,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every {nth} {weekday} of the month{every}'**
   String schedSayNth(String nth, String weekday, String every);
+
+  /// No description provided for @schedSayOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'One time only, on {date}'**
+  String schedSayOnce(String date);
 
   /// No description provided for @schedSayRange.
   ///

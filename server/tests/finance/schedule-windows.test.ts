@@ -206,6 +206,27 @@ describe('every few months, weeks and years', () => {
 	});
 });
 
+describe('a one-time schedule', () => {
+	const s: Schedule = { kind: 'once', date: '2026-10-31' };
+
+	it('falls on its date once and never repeats', () => {
+		expect(ends(s, '2026-01-01', '2028-12-31')).toEqual(['2026-10-31']);
+		expect(ends(s, '2026-11-01', '2028-12-31')).toEqual([]);
+		expect(nextOccurrence(s, '2026-10-31')).toBeNull();
+	});
+
+	it('follows the weekend rule (2026-10-31 is a Saturday)', () => {
+		expect(ends(s, '2026-10-01', '2026-10-31', 'before')).toEqual(['2026-10-30']);
+		expect(ends(s, '2026-10-01', '2026-11-30', 'after')).toEqual(['2026-11-02']);
+	});
+
+	it('is checked and described', () => {
+		expect(validateSchedule({ kind: 'once', date: '2026-02-30' })).toMatch(/real date/);
+		expect(scheduleInput.safeParse(s).success).toBe(true);
+		expect(describeSchedule(s).key).toBe('schedule.once');
+	});
+});
+
 describe('weekend rule with windows', () => {
 	it('moves the end of a window only', () => {
 		const s: Schedule = { kind: 'day_range', from: 5, to: 11 };

@@ -37,7 +37,8 @@ const PEOPLE = [
 	'reset',
 	'calendar',
 	'edge',
-	'paidmove'
+	'paidmove',
+	'fresh'
 ].map((k, i) => ({
 	key: k,
 	id: `user_ovr_${String(i + 1).padStart(4, '0')}`
@@ -599,5 +600,48 @@ describe('erasing the money data', () => {
 		expect(counts.bill_override).toBe(1);
 		expect(counts.bill).toBe(1);
 		expect(await overridesOf(id)).toHaveLength(0);
+	});
+});
+
+describe('a new bill and a one-time bill', () => {
+	const id = idOf('fresh');
+	let h: Awaited<ReturnType<typeof household>>;
+	const today = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+	const shift = (days: number) =>
+		new Date(Date.parse(today()) + days * 86_400_000).toISOString().slice(0, 10);
+
+	beforeAll(async () => {
+		h = await household(id);
+	});
+
+	it('is not overdue for the dates before the day it was added', async () => {
+		await h.monthly('Water');
+		const list = await h.due(shift(-120), shift(-1));
+		expect(list).toEqual([]);
+	});
+
+	it('counts earlier dates only when the person says it started earlier', async () => {
+		await h.monthly('Internet', { startsOn: shift(-70) });
+		const list = await h.due(shift(-120), shift(-1));
+		expect(list.length).toBeGreaterThan(0);
+		expect(list.every((d) => d.dueDate >= shift(-70))).toBe(true);
+	});
+
+	it('shows a one-time bill once, and keeps it when it is already past due', async () => {
+		await h.monthly('Permit', { schedule: { kind: 'once', date: shift(-3) } });
+		await h.monthly('Repair', { schedule: { kind: 'once', date: shift(20) } });
+		const list = await h.due(shift(-60), shift(120));
+		expect(list.filter((d) => d.name === 'Permit').map((d) => [d.dueDate, d.paid])).toEqual([
+			[shift(-3), false]
+		]);
+		expect(list.filter((d) => d.name === 'Repair').map((d) => d.dueDate)).toEqual([shift(20)]);
+	});
+
+	it('does not come back after it is paid', async () => {
+		const paid = (await h.due(shift(-60), shift(120))).find((d) => d.name === 'Repair');
+		expect(paid).toBeDefined();
+		await markBillPaid(as(person(id)), { billId: paid?.billId ?? '', dueDate: shift(20) });
+		const after = await h.due(shift(-60), shift(400));
+		expect(after.filter((d) => d.name === 'Repair').map((d) => d.paid)).toEqual([true]);
 	});
 });

@@ -381,6 +381,7 @@ class _CurrencySheetState extends State<_CurrencySheet> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: TextField(
                   autofocus: false,
+                  textCapitalization: TextCapitalization.none,
                   decoration: InputDecoration(
                     hintText: t.settingsCurrencySearch,
                     prefixIcon: const Icon(Icons.search),

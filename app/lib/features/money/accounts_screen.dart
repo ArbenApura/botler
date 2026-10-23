@@ -15,6 +15,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'purpose.dart';
 
 // -- TYPES -- //
 
@@ -52,6 +53,7 @@ class AccountsScreen extends ConsumerWidget {
                               str(a['name']),
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
+                            PurposeChip(purposeOf(a)),
                             Text(
                               a['countedAt'] == null
                                   ? context.t.accountsNeverCounted
@@ -89,6 +91,7 @@ class AccountsScreen extends ConsumerWidget {
     final name = TextEditingController();
     final min = TextEditingController();
     var kind = 'bank';
+    String? purpose;
     final done = await showFormSheet<bool>(
       context,
       title: context.t.accountsAdd,
@@ -100,6 +103,7 @@ class AccountsScreen extends ConsumerWidget {
               controller: name,
               label: context.t.accountsNameLabel,
               hint: sheet.t.accountsNameHint,
+              capitalization: TextCapitalization.words,
             ),
             Wrap(
               spacing: 8,
@@ -124,12 +128,15 @@ class AccountsScreen extends ConsumerWidget {
               hint: '500',
               keyboard: TextInputType.number,
             ),
+            PurposeField(value: null, onChanged: (v) => purpose = v),
             FilledButton(
               onPressed: () async {
                 final minimum = min.text.trim().isEmpty
                     ? 0
                     : context.parseAmount(min.text);
-                if (name.text.trim().isEmpty || minimum == null) {
+                if (name.text.trim().isEmpty ||
+                    minimum == null ||
+                    !purposeValid(purpose)) {
                   say(sheet, sheet.t.accountsAddInvalid);
                   return;
                 }
@@ -140,6 +147,7 @@ class AccountsScreen extends ConsumerWidget {
                       'name': name.text.trim(),
                       'kind': kind,
                       'minBalance': minimum,
+                      'purpose': ?purpose,
                     },
                   );
                   close(true);

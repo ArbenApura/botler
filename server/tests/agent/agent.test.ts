@@ -91,8 +91,15 @@ describe('the verb registry', () => {
 				.sort();
 		expect(by('person')).toEqual([
 			'audit_export',
+			'chat_archive',
 			'chat_clear',
+			'chat_fork',
 			'chat_history',
+			'chat_list',
+			'chat_new',
+			'chat_open',
+			'chat_pin',
+			'chat_rename',
 			'data_reset',
 			'data_reset_preview',
 			'memory_export',
@@ -260,6 +267,19 @@ describe('approval cards', () => {
 				new Map([[f.gcash, 'GCash']])
 			)
 		).toBe('Record that GCash holds ₱123.45.');
+	});
+
+	it('says the purpose label on the card of a new or changed account', () => {
+		expect(
+			describeAction('account_create', { name: 'Pocket', purpose: 'Emergency' }, new Map())
+		).toBe('Add the account "Pocket", for "Emergency".');
+		expect(
+			describeAction(
+				'account_update',
+				{ accountId: f.gcash, purpose: null },
+				new Map([[f.gcash, 'GCash']])
+			)
+		).toBe('Change the account GCash, purpose cleared.');
 	});
 
 	it("does not accept a card whose arguments fail the verb's own checks", async () => {

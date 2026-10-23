@@ -8,6 +8,8 @@
   "schedPatWeekly": "Bawat linggo",
   "schedPatEveryN": "Bawat ilang araw",
   "schedPatYearly": "Minsan sa isang taon",
+  "schedPatOnce": "Isang beses lang",
+  "schedOnDate": "Sa",
 
   "schedDay": "Araw",
   "schedLastDay": "Huling araw",
@@ -59,6 +61,7 @@
   "schedSayRange": "Kahit anong araw sa pagitan ng {from} at {to}{every}",
   "schedSayRangeToLast": "Kahit anong araw mula {from} hanggang katapusan ng buwan{every}",
   "schedSayYearly": "Minsan sa isang taon, {month} {day}",
+  "schedSayOnce": "Isang beses lang, sa {date}",
   "schedSayEveryMonths": ", bawat {n} buwan",
 
   "schedWeekendLabel": "Kung tumapat sa weekend",

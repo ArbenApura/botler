@@ -6,12 +6,13 @@
 import type { Ctx } from './context';
 import type { ChatHistoryInput } from '../db/zod';
 // -- DEP-MODULES -- //
-import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
-import { agentAction, chatTurn } from '../db/schema';
+import { agentAction, chat, chatTurn } from '../db/schema';
 import { chatHistoryInput } from '../db/zod';
-import { run, runWrite } from './context';
+import { activeChatId } from './chats';
+import { run } from './context';
 import { parse, requirePerson } from './shared';
 
 // -- TYPES -- //
@@ -32,12 +33,21 @@ type FallbackOut = { type: 'fallback'; reason: string };
 
 export type HistoryEvent = ToolOut | (CardRead & { status: CardNow }) | FallbackOut;
 
+/** The chat the turns belong to, and where it was branched from. */
+export type HistoryChat = {
+	id: string;
+	title: string | null;
+	forkedFrom: { id: string; title: string | null } | null;
+};
+
 export type HistoryTurn = {
 	id: string;
 	clientMessageId: string;
 	text: string;
 	reply: string;
 	status: 'done' | 'failed';
+	/** A copy made by a branch: its approval cards belong to the original chat. */
+	copied: boolean;
 	at: string;
 	events: HistoryEvent[];
 };
@@ -110,32 +120,33 @@ function readEvents(raw: unknown): (ToolOut | CardRead | FallbackOut)[] {
 	return out;
 }
 
-/**
- * Starts a new chat: every finished turn so far is set aside. The app opens empty and the assistant starts without the earlier
- * conversation. Nothing is deleted, so memory and the daily digest keep what was said. A turn still running is left alone.
- */
-export async function chatClear(ctx: Ctx) {
-	requirePerson(ctx.actor.kind, 'start a new chat');
-	return runWrite(ctx, 'chat.clear', {}, async (tx, userId) => {
-		const rows = await tx
-			.update(chatTurn)
-			.set({ clearedAt: sql`now()` })
-			.where(
-				and(eq(chatTurn.userId, userId), isNull(chatTurn.clearedAt), ne(chatTurn.status, 'running'))
-			)
-			.returning({ id: chatTurn.id });
-		return { cleared: rows.length };
-	});
-}
-
 /** The person's recent finished or stopped turns, oldest first. */
 export async function chatHistory(
 	ctx: Ctx,
 	raw: ChatHistoryInput
-): Promise<{ turns: HistoryTurn[] }> {
+): Promise<{ chat: HistoryChat | null; turns: HistoryTurn[] }> {
 	requirePerson(ctx.actor.kind, 'read the chat history');
-	const { limit } = parse(chatHistoryInput, raw);
+	const { limit, chatId } = parse(chatHistoryInput, raw);
 	return run(ctx, async (tx, userId) => {
+		const wanted = chatId ?? (await activeChatId(tx, userId));
+		const [head] = wanted
+			? await tx
+					.select({ id: chat.id, title: chat.title, from: chat.forkedFromChatId })
+					.from(chat)
+					.where(and(eq(chat.userId, userId), eq(chat.id, wanted)))
+			: [];
+		if (!head) return { chat: null, turns: [] };
+		const [origin] = head.from
+			? await tx
+					.select({ id: chat.id, title: chat.title })
+					.from(chat)
+					.where(and(eq(chat.userId, userId), eq(chat.id, head.from)))
+			: [];
+		const chatHead: HistoryChat = {
+			id: head.id,
+			title: head.title,
+			forkedFrom: origin ? { id: origin.id, title: origin.title } : null
+		};
 		// A turn still running is not shown, unless it was left behind long ago (then it counts as failed). An empty message is not a turn.
 		// A failed one with no answer still is: the person's words stay
 		const rows = await tx
@@ -147,14 +158,15 @@ export async function chatHistory(
 				status: chatTurn.status,
 				events: chatTurn.events,
 				createdAt: chatTurn.createdAt,
-				updatedAt: chatTurn.updatedAt
+				updatedAt: chatTurn.updatedAt,
+				copiedFrom: chatTurn.copiedFromTurnId
 			})
 			.from(chatTurn)
 			.where(
 				and(
 					eq(chatTurn.userId, userId),
 					ne(chatTurn.userText, ''),
-					isNull(chatTurn.clearedAt),
+					eq(chatTurn.chatId, head.id),
 					or(
 						ne(chatTurn.status, 'running'),
 						lt(chatTurn.updatedAt, sql`now() - make_interval(secs => ${STALE_RUNNING_MS / 1000})`)
@@ -196,6 +208,7 @@ export async function chatHistory(
 				text: row.userText,
 				reply: row.reply.slice(0, MAX_REPLY_CHARS),
 				status: row.status === 'done' ? ('done' as const) : ('failed' as const),
+				copied: row.copiedFrom !== null,
 				at: row.createdAt.toISOString(),
 				events: events.map((e): HistoryEvent =>
 					e.type === 'card' ? { ...e, status: now.get(e.actionId) ?? 'gone' } : e
@@ -218,6 +231,6 @@ export async function chatHistory(
 			const dropped = turns.shift();
 			total -= dropped ? sizeOf(dropped) : 0;
 		}
-		return { turns };
+		return { chat: chatHead, turns };
 	});
 }

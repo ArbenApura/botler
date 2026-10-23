@@ -108,6 +108,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: typed,
+              textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(labelText: context.t.memoryWipeType),
             ),
           ],
@@ -219,6 +220,7 @@ class _MemoryScreenState extends ConsumerState<MemoryScreen> {
           ),
           SectionTitle(context.t.memoryRemembers),
           TextField(
+            textCapitalization: TextCapitalization.none,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: context.t.memorySearchHint,
@@ -381,6 +383,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
           controller: _people,
           label: context.t.memoryPeopleLabel,
           hint: context.t.memoryPeopleHint,
+          capitalization: TextCapitalization.words,
         ),
         Text(
           context.t.memoryPeopleNote,

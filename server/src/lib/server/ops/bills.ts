@@ -107,9 +107,10 @@ export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillVi
 	return mapped(() =>
 		runWrite(ctx, 'bill.create', input, async (tx, userId) => {
 			await requireActiveAccount(tx, userId, input.accountId, 'account the bill is paid from');
+			// A new bill counts from today, so the dates its schedule gives before today are not overdue
 			const [row] = await tx
 				.insert(bill)
-				.values({ ...input, userId })
+				.values({ ...input, startsOn: input.startsOn ?? toManilaDate(new Date()), userId })
 				.returning();
 			if (!row) throw new OpsError('CONFLICT', 'The bill could not be saved.');
 			return plain(row);
@@ -271,7 +272,8 @@ async function occurrencesAround(
 		addDays(date, -WINDOW_PAD_DAYS),
 		addDays(date, WINDOW_PAD_DAYS),
 		{ weekend: b.weekendRule },
-		opts.keepSkipped ? overrides.map((o) => ({ ...o, skipped: false })) : overrides
+		opts.keepSkipped ? overrides.map((o) => ({ ...o, skipped: false })) : overrides,
+		b.startsOn
 	);
 	return { list, overrides };
 }
@@ -392,7 +394,8 @@ export async function dueBills(
 			from,
 			to,
 			{ weekend: b.weekendRule },
-			overrides.get(b.id) ?? []
+			overrides.get(b.id) ?? [],
+			b.startsOn
 		)
 	}));
 	const estimates = await estimatesOf(

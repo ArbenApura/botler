@@ -372,6 +372,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
           controller: _name,
           label: t.billsNameLabel,
           hint: _adding ? t.billsNameHint : null,
+          capitalization: TextCapitalization.words,
         ),
         if (showDate) ...<Widget>[
           Semantics(

@@ -10,6 +10,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
+	dataResetBillOverrideSql,
 	dataResetLatestSql,
 	dataResetMigrationSql,
 	EVERYTHING_TABLES,
@@ -124,13 +125,25 @@ describe('what a reset covers', () => {
 	});
 });
 
-describe('the newest copy of the function', () => {
+describe('the conversations copy of the function', () => {
+	it('is installed by migration 0021 and erases a chat after its turns', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0021_chats.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		const mem = SCOPE_TABLES.memory_and_chat;
+		expect(mem.indexOf('chat')).toBeGreaterThan(mem.indexOf('chat_turn'));
+	});
+});
+
+describe('the bill override copy of the function', () => {
 	it('is installed by a later migration and erases the override of a bill before the bill', () => {
 		const file = readFileSync(
 			join(__dirname, '../../src/lib/server/db/migrations/0018_bill_override.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		expect(file).toContain(dataResetBillOverrideSql());
 		const money = SCOPE_TABLES.money;
 		expect(money.indexOf('bill_override')).toBeGreaterThanOrEqual(0);
 		expect(money.indexOf('bill_override')).toBeLessThan(money.indexOf('bill'));

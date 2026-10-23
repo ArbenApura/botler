@@ -6,9 +6,10 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { asc, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 // -- MODULES -- //
-import { bill, user } from '../../src/lib/server/db/schema';
+import { auditEvent, bill, user } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import {
 	createAccount,
@@ -112,6 +113,7 @@ describe('accounts and isolation', () => {
 				amount: 1000,
 				schedule: { kind: 'monthly', day: 1 },
 				weekendRule: 'none',
+				startsOn: '2000-01-01',
 				deferrable: false
 			})
 		).rejects.toMatchObject({ code: 'NOT_FOUND' });
@@ -191,6 +193,7 @@ describe('the payday split, end to end', () => {
 				amount,
 				schedule,
 				weekendRule: 'none',
+				startsOn: '2000-01-01',
 				deferrable: false
 			});
 		await fixed('Rent', 'rent', rcbc, 800_000, { kind: 'monthly', day: 1 });
@@ -365,6 +368,7 @@ describe('a variable bill with no amount yet', () => {
 			amount: null,
 			schedule: { kind: 'monthly', day: 20 },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 		// The 15th of November 2026 is a Sunday, so the weekend rule moves this payday to Friday the 13th
@@ -576,6 +580,81 @@ describe('the ledger', () => {
 	});
 });
 
+describe('the purpose label of an account', () => {
+	let acc: string;
+	const ctx = () => person('user_eli_00001');
+
+	it('is set at creation, changed, kept when absent and cleared with null', async () => {
+		const made = await createAccount(as(ctx()), {
+			name: 'Pocket',
+			kind: 'bank',
+			purpose: ' Emergency '
+		});
+		acc = made.id;
+		expect(made.purpose).toBe('Emergency');
+		const changed = await updateAccount(as(ctx()), { accountId: acc, purpose: 'Travel' });
+		expect(changed.purpose).toBe('Travel');
+		// A change that does not mention the label leaves it alone
+		const renamed = await updateAccount(as(ctx()), { accountId: acc, name: 'Pocket 2' });
+		expect(renamed.purpose).toBe('Travel');
+		const cleared = await updateAccount(as(ctx()), { accountId: acc, purpose: null });
+		expect(cleared.purpose).toBeNull();
+	});
+
+	it('refuses an empty label, a long one and a long number, through the verb and the database', async () => {
+		for (const purpose of [
+			'',
+			'   ',
+			'x'.repeat(25),
+			'GCash 0917 123 4567',
+			'0917.123.4567',
+			'12345678'
+		])
+			await expect(updateAccount(as(ctx()), { accountId: acc, purpose })).rejects.toMatchObject({
+				code: 'INVALID'
+			});
+		await expect(
+			withUser(t.handle, 'user_eli_00001', (tx) =>
+				tx.execute(sql.raw(`update account set purpose = '  padded ' where id = '${acc}'`))
+			)
+		).rejects.toBeTruthy();
+	});
+
+	it('comes back in the balances read and is a replay of the first answer on a repeated request', async () => {
+		const base = as(ctx());
+		const first = await updateAccount(base, { accountId: acc, purpose: 'Savings' });
+		const again = await updateAccount(base, { accountId: acc, purpose: 'Savings' });
+		expect(again.version).toBe(first.version);
+		const row = (await accountBalances(ctx())).find((x) => x.id === acc);
+		expect(row?.purpose).toBe('Savings');
+	});
+
+	it('leaves the label in the audit trail, before and after', async () => {
+		const rows = await withUser(t.handle, 'user_eli_00001', (tx) =>
+			tx.select().from(auditEvent).where(eq(auditEvent.entityId, acc)).orderBy(asc(auditEvent.seq))
+		);
+		const last = rows.at(-1);
+		expect(last?.after).toMatchObject({ purpose: 'Savings' });
+		expect(
+			rows.some((r) => (r.after as { purpose?: string | null } | null)?.purpose === 'Emergency')
+		).toBe(true);
+		expect(
+			rows.some(
+				(r) =>
+					(r.before as { purpose?: string | null } | null)?.purpose === 'Travel' &&
+					(r.after as { purpose?: string | null } | null)?.purpose === null
+			)
+		).toBe(true);
+	});
+
+	it('is hidden from another person', async () => {
+		expect((await accountBalances(ben())).some((x) => x.id === acc)).toBe(false);
+		await expect(
+			updateAccount(as(ben()), { accountId: acc, purpose: 'Mine' })
+		).rejects.toBeTruthy();
+	});
+});
+
 describe('no model needed', () => {
 	it('logs an expense and marks a bill paid while every outside call fails', async () => {
 		const fetchSpy = vi.fn(() => {
@@ -596,6 +675,7 @@ describe('no model needed', () => {
 				amount: 40_000,
 				schedule: { kind: 'monthly', day: 5 },
 				weekendRule: 'none',
+				startsOn: '2000-01-01',
 				deferrable: false
 			});
 			expect(await logExpenseFromText(as(anna()), { text: 'snack 90 offlinebank' })).toMatchObject({
@@ -635,6 +715,7 @@ describe('bills on flexible schedules (BTL-20261022-0218, O.1 and O.2)', () => {
 			amount: 150_000,
 			schedule,
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false,
 			...extra
 		});
@@ -793,6 +874,7 @@ describe('payment windows and paydays (BTL-20261022-0218, O.5)', () => {
 			amount: 800_000,
 			schedule: { kind: 'day_range', from, to },
 			weekendRule: 'none',
+			startsOn: '2000-01-01',
 			deferrable: false
 		});
 

@@ -131,18 +131,27 @@ $$;
 ${BREAK}
 CREATE TRIGGER audit_event_block BEFORE UPDATE OR DELETE ON "audit_event" FOR EACH ROW EXECUTE FUNCTION audit_block();`;
 
-const triggerOf = (t: AuditedTable) =>
-	`CREATE TRIGGER "audit_${t.table}" AFTER INSERT OR UPDATE OR DELETE ON "${t.table}" FOR EACH ROW EXECUTE FUNCTION audit_row('${t.columns.join(',')}', '${t.account}', '${t.amount}');`;
+const triggerOf = (t: AuditedTable, columns: readonly string[] = t.columns) =>
+	`CREATE TRIGGER "audit_${t.table}" AFTER INSERT OR UPDATE OR DELETE ON "${t.table}" FOR EACH ROW EXECUTE FUNCTION audit_row('${columns.join(',')}', '${t.account}', '${t.amount}');`;
 
-/** The whole first migration (0016): the functions, then one trigger per table audited from the start. */
+/** The whole first migration (0016): the functions, then one trigger per table audited from the start, with the columns it had then. */
 export function auditMigrationSql(): string {
-	const triggers = AUDITED_TABLES.filter((t) => !t.migration).map(triggerOf);
+	const triggers = AUDITED_TABLES.filter((t) => !t.migration).map((t) =>
+		triggerOf(t, t.firstColumns ?? t.columns)
+	);
 	return [FUNCTIONS, ...triggers].join(`\n${BREAK}\n`) + '\n';
 }
 
 /** The triggers a later migration adds for the tables that came after 0016. The functions are not repeated. */
 export function auditLaterTriggersSql(migration: string): string {
 	return AUDITED_TABLES.filter((t) => t.migration === migration)
-		.map(triggerOf)
+		.map((t) => triggerOf(t))
+		.join(`\n${BREAK}\n`);
+}
+
+/** The triggers a later migration replaces because the table got a new audited column: dropped, then created again with the current list. */
+export function auditRedefinedSql(migration: string): string {
+	return AUDITED_TABLES.filter((t) => t.redefined === migration)
+		.map((t) => `DROP TRIGGER "audit_${t.table}" ON "${t.table}";${'\n'}${BREAK}\n${triggerOf(t)}`)
 		.join(`\n${BREAK}\n`);
 }

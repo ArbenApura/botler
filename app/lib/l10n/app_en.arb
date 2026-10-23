@@ -140,6 +140,7 @@
   "acctLoadMore": "Show older",
   "acctMenuCount": "I counted this",
   "acctMenuExport": "Export history",
+  "acctMenuPurpose": "Edit label",
   "acctMenuReset": "Reset to zero",
   "acctMenuSet": "Set balance",
   "acctOffline": "The history needs a connection.",
@@ -1203,6 +1204,29 @@
   },
   "paydayWaiting": "Waiting for your yes",
   "paydayYours": "Your paydays",
+  "purposeCustom": "Custom",
+  "purposeCustomHint": "e.g. School fund",
+  "purposeCustomLabel": "Your own label",
+  "purposeEditTitle": "Label for {name}",
+  "@purposeEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "purposeInvalid": "Use up to 24 characters and no long numbers.",
+  "purposeNone": "No label",
+  "purposeSaved": "Label saved.",
+  "purposeSemantic": "Purpose: {purpose}",
+  "@purposeSemantic": {
+    "placeholders": {
+      "purpose": {
+        "type": "String"
+      }
+    }
+  },
+  "purposeTitle": "What is this account for?",
   "remBlockedExact": "Botler may not set exact alarms, so reminders can come late.",
   "remBlockedFailed": "The last try to set your reminders failed. It will try again.",
   "remBlockedNotifications": "Notifications are off for Botler, so reminders cannot show.",
@@ -1290,9 +1314,11 @@
   "schedNth4": "4th",
   "schedNth5": "5th",
   "schedNthLast": "Last",
+  "schedOnDate": "On",
   "schedPatEveryN": "Every few days",
   "schedPatMonthlyDay": "On a day of the month",
   "schedPatNthWeekday": "On a weekday of the month (like the 1st Wednesday)",
+  "schedPatOnce": "One time only",
   "schedPatRange": "Between two days of the month",
   "schedPatSemi": "Twice a month",
   "schedPatWeek": "In a week of the month",
@@ -1382,6 +1408,14 @@
         "type": "String"
       },
       "every": {
+        "type": "String"
+      }
+    }
+  },
+  "schedSayOnce": "One time only, on {date}",
+  "@schedSayOnce": {
+    "placeholders": {
+      "date": {
         "type": "String"
       }
     }

@@ -21,38 +21,75 @@ class RestoreServer {
   Object history = <String, Object?>{'turns': <Object?>[]};
   bool historyFails = false;
   Completer<void>? historyGate;
+
+  /// Holds the answer to chat_fork until the test lets it go.
+  Completer<void>? forkGate;
   int historyCalls = 0;
-  int clearCalls = 0;
+  int newCalls = 0;
+
+  /// What chat_list answers, and what any other verb named here answers (anything else gets an empty result).
+  Object chatList = <String, Object?>{'chats': <Object?>[]};
+  final Map<String, Object?> answers = <String, Object?>{};
+
+  /// Every verb called, in order, with its arguments.
+  final List<(String, Json)> calls = <(String, Json)>[];
+  Json? lastArgs(String verb) =>
+      calls.where((c) => c.$1 == verb).map((c) => c.$2).lastOrNull;
+  int count(String verb) => calls.where((c) => c.$1 == verb).length;
   final List<StreamController<List<int>>> streams =
       <StreamController<List<int>>>[];
   final List<String> sentIds = <String>[];
 
+  /// The body of every message sent to the chat stream.
+  final List<Json> sentBodies = <Json>[];
+
+  /// Verbs that fail with a server error.
+  final Set<String> failVerbs = <String>{};
+
   MockClient get client => MockClient.streaming((req, body) async {
     final text = await http.ByteStream(body).bytesToString();
-    if (req.url.path.endsWith('/do/chat_history')) {
-      historyCalls++;
-      await historyGate?.future;
-      if (historyFails) throw http.ClientException('offline');
-      return http.StreamedResponse(
-        Stream<List<int>>.value(
-          utf8.encode(jsonEncode(<String, Object?>{'result': history})),
-        ),
-        200,
-      );
+    final verb = req.url.path.contains('/do/')
+        ? req.url.pathSegments.last
+        : null;
+    if (verb != null) {
+      final args = text.isEmpty ? <String, Object?>{} : decodeJson(text);
+      calls.add((verb, args));
     }
-    if (req.url.path.endsWith('/do/chat_clear')) {
-      clearCalls++;
+    http.StreamedResponse reply(Object? result) => http.StreamedResponse(
+      Stream<List<int>>.value(
+        utf8.encode(jsonEncode(<String, Object?>{'result': result})),
+      ),
+      200,
+    );
+    if (verb != null && failVerbs.contains(verb)) {
       return http.StreamedResponse(
         Stream<List<int>>.value(
           utf8.encode(
             jsonEncode(<String, Object?>{
-              'result': <String, Object?>{'cleared': 1},
+              'error': <String, Object?>{
+                'code': 'INTERNAL',
+                'message': 'Something went wrong.',
+              },
             }),
           ),
         ),
-        200,
+        500,
       );
     }
+    if (verb == 'chat_history') {
+      historyCalls++;
+      await historyGate?.future;
+      if (historyFails) throw http.ClientException('offline');
+      return reply(history);
+    }
+    if (verb == 'chat_fork') await forkGate?.future;
+    if (verb == 'chat_new') {
+      newCalls++;
+      return reply(<String, Object?>{'chatId': 'chat-new', 'created': true});
+    }
+    if (verb == 'chat_list') return reply(chatList);
+    if (verb != null) return reply(answers[verb] ?? <String, Object?>{});
+    sentBodies.add(decodeJson(text));
     sentIds.add(str(decodeJson(text)['clientMessageId']));
     final controller = StreamController<List<int>>();
     streams.add(controller);
