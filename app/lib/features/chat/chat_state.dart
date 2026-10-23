@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/reminders.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 
@@ -617,6 +618,11 @@ class ChatNotifier extends Notifier<ChatState> {
         _sawDone = true;
         _closeThinking();
         _flush();
+        // A reminder, alarm, timer, task or event made in this reply reaches the phone's alarms now, not at the next 15 minute round
+        if (changesReminders(e['toolsRun'])) {
+          ref.invalidate(syncProvider);
+          unawaited(flushAndSync(ref.container).catchError((Object _) {}));
+        }
       default:
         break;
     }

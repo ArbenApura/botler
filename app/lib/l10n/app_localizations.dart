@@ -1693,6 +1693,12 @@ abstract class AppLocalizations {
   /// **'The assistant is not available right now.'**
   String get chatAssistantDown;
 
+  /// No description provided for @chatCardElsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for your answer in the chat it came from.'**
+  String get chatCardElsewhere;
+
   /// No description provided for @chatCardExpired.
   ///
   /// In en, this message translates to:
@@ -1746,6 +1752,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Earlier'**
   String get chatEarlier;
+
+  /// No description provided for @chatEditCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop editing'**
+  String get chatEditCancel;
+
+  /// No description provided for @chatEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing your message'**
+  String get chatEditing;
 
   /// No description provided for @chatGreeting.
   ///
@@ -1801,35 +1819,41 @@ abstract class AppLocalizations {
   /// **'This phone cannot listen right now. Check the microphone permission.'**
   String get chatMicBlocked;
 
+  /// No description provided for @chatMsgActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Message actions'**
+  String get chatMsgActions;
+
+  /// No description provided for @chatMsgBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch from here'**
+  String get chatMsgBranch;
+
+  /// No description provided for @chatMsgCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied.'**
+  String get chatMsgCopied;
+
+  /// No description provided for @chatMsgCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chatMsgCopy;
+
+  /// No description provided for @chatMsgEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit and resend'**
+  String get chatMsgEdit;
+
   /// No description provided for @chatNeedsAmounts.
   ///
   /// In en, this message translates to:
   /// **'How much is usually {names}? I need an amount to make the split.'**
   String chatNeedsAmounts(String names);
-
-  /// No description provided for @chatNewBody.
-  ///
-  /// In en, this message translates to:
-  /// **'The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.'**
-  String get chatNewBody;
-
-  /// No description provided for @chatNewTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Start a new chat?'**
-  String get chatNewTitle;
-
-  /// No description provided for @chatNewTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'New chat'**
-  String get chatNewTooltip;
-
-  /// No description provided for @chatNewYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Start new chat'**
-  String get chatNewYes;
 
   /// No description provided for @chatNextBill.
   ///
@@ -2088,6 +2112,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'your account'**
   String get chatYourAccount;
+
+  /// No description provided for @chatsArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive'**
+  String get chatsArchive;
+
+  /// No description provided for @chatsArchivedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is archived.'**
+  String get chatsArchivedEmpty;
+
+  /// No description provided for @chatsArchivedOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived chats'**
+  String get chatsArchivedOpen;
+
+  /// No description provided for @chatsArchivedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get chatsArchivedTitle;
+
+  /// No description provided for @chatsBranchMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch'**
+  String get chatsBranchMark;
+
+  /// No description provided for @chatsBranchedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Branched from {title}'**
+  String chatsBranchedFrom(String title);
+
+  /// No description provided for @chatsBranchedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes saved before this point stay saved. Undo them in History.'**
+  String get chatsBranchedNote;
+
+  /// No description provided for @chatsBranchedOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the chat this branched from'**
+  String get chatsBranchedOpen;
+
+  /// No description provided for @chatsBranchedUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'an earlier chat'**
+  String get chatsBranchedUntitled;
+
+  /// No description provided for @chatsBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler is answering. Wait for it, or stop it, to change chats.'**
+  String get chatsBusy;
+
+  /// No description provided for @chatsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your conversations will show here.'**
+  String get chatsEmpty;
+
+  /// No description provided for @chatsGroupOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Older'**
+  String get chatsGroupOlder;
+
+  /// No description provided for @chatsGroupPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get chatsGroupPinned;
+
+  /// No description provided for @chatsGroupToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get chatsGroupToday;
+
+  /// No description provided for @chatsGroupWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous 7 days'**
+  String get chatsGroupWeek;
+
+  /// No description provided for @chatsGroupYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get chatsGroupYesterday;
+
+  /// No description provided for @chatsMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More about this chat'**
+  String get chatsMore;
+
+  /// No description provided for @chatsNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New chat'**
+  String get chatsNew;
+
+  /// No description provided for @chatsNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No chat matches that.'**
+  String get chatsNoResults;
+
+  /// No description provided for @chatsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get chatsOpen;
+
+  /// No description provided for @chatsPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get chatsPin;
+
+  /// No description provided for @chatsPinnedMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get chatsPinnedMark;
+
+  /// No description provided for @chatsRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get chatsRename;
+
+  /// No description provided for @chatsRenameInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Give it a name of 1 to 80 characters.'**
+  String get chatsRenameInvalid;
+
+  /// No description provided for @chatsRenameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get chatsRenameLabel;
+
+  /// No description provided for @chatsRenameSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save name'**
+  String get chatsRenameSave;
+
+  /// No description provided for @chatsRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this chat'**
+  String get chatsRenameTitle;
+
+  /// No description provided for @chatsRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get chatsRestore;
+
+  /// No description provided for @chatsRowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}, {when}'**
+  String chatsRowLabel(String title, String when);
+
+  /// No description provided for @chatsSearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the search'**
+  String get chatsSearchClear;
+
+  /// No description provided for @chatsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search your chats'**
+  String get chatsSearchHint;
+
+  /// No description provided for @chatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chats'**
+  String get chatsTitle;
+
+  /// No description provided for @chatsUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get chatsUnpin;
+
+  /// No description provided for @chatsUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'New conversation'**
+  String get chatsUntitled;
 
   /// No description provided for @close.
   ///
@@ -2928,6 +3156,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your paydays'**
   String get paydayYours;
+
+  /// No description provided for @remBlockedExact.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler may not set exact alarms, so reminders can come late.'**
+  String get remBlockedExact;
+
+  /// No description provided for @remBlockedFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The last try to set your reminders failed. It will try again.'**
+  String get remBlockedFailed;
+
+  /// No description provided for @remBlockedNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are off for Botler, so reminders cannot show.'**
+  String get remBlockedNotifications;
+
+  /// No description provided for @remFix.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get remFix;
 
   /// No description provided for @resetBack.
   ///

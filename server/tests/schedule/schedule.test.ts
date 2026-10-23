@@ -318,6 +318,39 @@ describe('reminders, alarms and timers', () => {
 		).rejects.toMatchObject({ code: 'INVALID' });
 	});
 
+	it('hands a reminder made just now to the phone, and one up to ten minutes late, but not older', async () => {
+		const f = await seedPerson(t);
+		const soon = await createReminder(as(f.ctx), {
+			title: 'In a minute',
+			at: new Date(Date.now() + 60_000).toISOString()
+		});
+		const late = (min: number, title: string) =>
+			withUser(t.handle, f.userId, (tx) =>
+				tx.insert(reminder).values({
+					userId: f.userId,
+					kind: 'custom',
+					refKey: `custom:${title}`,
+					title,
+					remindAt: new Date(Date.now() - min * 60_000),
+					origin: 'user'
+				})
+			);
+		await late(5, 'Five late');
+		await late(11, 'Eleven late');
+		const listed = ((await syncGet(f.ctx)).reminders ?? []).map((r) => r.title);
+		expect(listed).toContain('In a minute');
+		expect(listed).toContain('Five late');
+		expect(listed).not.toContain('Eleven late');
+		expect(soon.status).toBe('scheduled');
+	});
+
+	it('tells the assistant what time it is when the time it gave has passed', async () => {
+		const f = await seedPerson(t);
+		await expect(
+			createReminder(as(f.ctx), { title: 'Late', at: hours(-3).toISOString() })
+		).rejects.toMatchObject({ code: 'INVALID', message: expect.stringContaining('It is now') });
+	});
+
 	it('queues a visible push for a reminder the assistant made, and a silent sync for any change', async () => {
 		const f = await seedPerson(t);
 		const agent: Ctx = {

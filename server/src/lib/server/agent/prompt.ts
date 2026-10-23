@@ -90,11 +90,19 @@ export type PromptInput = {
 	replyLanguage?: 'auto' | 'en' | 'fil' | 'taglish';
 };
 
+/** The clock time in Manila with its offset, so "in 3 minutes" or "at 3:30pm" becomes a correct instant for reminder_create and alarm_create. */
+export function nowLine(now: Date): string {
+	// Manila has no daylight saving, so a fixed +08:00 shift is exact and needs no locale data
+	const local = new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(0, 19);
+	return `Now is ${local}+08:00 (Asia/Manila). For a reminder or alarm at a time, give "at" as a full ISO instant with the +08:00 offset (never Z), counted from this moment; for "in N minutes" use timer_create or add N minutes to this moment.`;
+}
+
 /** The messages for one model call: stable prefix, turn context, history, the new message. */
 export function buildMessages(p: PromptInput): ChatMessage[] {
 	const manila = toManilaDate(p.now);
 	const context = [
 		`Today is ${manila} in Asia/Manila.`,
+		nowLine(p.now),
 		currencyLine(p.currency ?? DEFAULT_CURRENCY),
 		languageLine(p.replyLanguage ?? 'auto'),
 		p.cards?.length

@@ -686,6 +686,7 @@
   "chatApprove": "Approve",
   "chatApproveRule": "Approve rule",
   "chatAssistantDown": "The assistant is not available right now.",
+  "chatCardElsewhere": "Waiting for your answer in the chat it came from.",
   "chatCardExpired": "This request has expired.",
   "chatCardFailed": "That could not be done.",
   "chatChecked": "Checked {what}",
@@ -736,6 +737,8 @@
     }
   },
   "chatEarlier": "Earlier",
+  "chatEditCancel": "Stop editing",
+  "chatEditing": "Editing your message",
   "chatGreeting": "What can I help with?",
   "chatHintMessage": "Message Botler",
   "chatHowMuch": "How much was it?",
@@ -762,6 +765,11 @@
   },
   "chatMenu": "Menu",
   "chatMicBlocked": "This phone cannot listen right now. Check the microphone permission.",
+  "chatMsgActions": "Message actions",
+  "chatMsgBranch": "Branch from here",
+  "chatMsgCopied": "Copied.",
+  "chatMsgCopy": "Copy",
+  "chatMsgEdit": "Edit and resend",
   "chatNeedsAmounts": "How much is usually {names}? I need an amount to make the split.",
   "@chatNeedsAmounts": {
     "placeholders": {
@@ -770,10 +778,6 @@
       }
     }
   },
-  "chatNewBody": "The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.",
-  "chatNewTitle": "Start a new chat?",
-  "chatNewTooltip": "New chat",
-  "chatNewYes": "Start new chat",
   "chatNextBill": "Next bill: {name}, {day}",
   "@chatNextBill": {
     "placeholders": {
@@ -876,6 +880,57 @@
   "chatWriting": "Writing",
   "chatYesLogIt": "Yes, log it",
   "chatYourAccount": "your account",
+  "chatsArchive": "Archive",
+  "chatsArchivedEmpty": "Nothing is archived.",
+  "chatsArchivedOpen": "Archived chats",
+  "chatsArchivedTitle": "Archived",
+  "chatsBranchMark": "Branch",
+  "chatsBranchedFrom": "Branched from {title}",
+  "@chatsBranchedFrom": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsBranchedNote": "Changes saved before this point stay saved. Undo them in History.",
+  "chatsBranchedOpen": "Open the chat this branched from",
+  "chatsBranchedUntitled": "an earlier chat",
+  "chatsBusy": "Botler is answering. Wait for it, or stop it, to change chats.",
+  "chatsEmpty": "Your conversations will show here.",
+  "chatsGroupOlder": "Older",
+  "chatsGroupPinned": "Pinned",
+  "chatsGroupToday": "Today",
+  "chatsGroupWeek": "Previous 7 days",
+  "chatsGroupYesterday": "Yesterday",
+  "chatsMore": "More about this chat",
+  "chatsNew": "New chat",
+  "chatsNoResults": "No chat matches that.",
+  "chatsOpen": "Chats",
+  "chatsPin": "Pin",
+  "chatsPinnedMark": "Pinned",
+  "chatsRename": "Rename",
+  "chatsRenameInvalid": "Give it a name of 1 to 80 characters.",
+  "chatsRenameLabel": "Name",
+  "chatsRenameSave": "Save name",
+  "chatsRenameTitle": "Name this chat",
+  "chatsRestore": "Restore",
+  "chatsRowLabel": "{title}, {when}",
+  "@chatsRowLabel": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "chatsSearchClear": "Clear the search",
+  "chatsSearchHint": "Search your chats",
+  "chatsTitle": "Chats",
+  "chatsUnpin": "Unpin",
+  "chatsUntitled": "New conversation",
   "close": "Close",
   "delete": "Delete",
   "done": "Done",
@@ -1148,6 +1203,10 @@
   },
   "paydayWaiting": "Waiting for your yes",
   "paydayYours": "Your paydays",
+  "remBlockedExact": "Botler may not set exact alarms, so reminders can come late.",
+  "remBlockedFailed": "The last try to set your reminders failed. It will try again.",
+  "remBlockedNotifications": "Notifications are off for Botler, so reminders cannot show.",
+  "remFix": "Open settings",
   "resetBack": "Choose another part",
   "resetBiometric": "Confirm with your fingerprint or screen lock first.",
   "resetButton": "Erase now",

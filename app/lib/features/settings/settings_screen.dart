@@ -20,6 +20,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import '../money/account_detail_screen.dart';
+import 'reminder_status_row.dart';
 import 'update_row.dart';
 
 // -- TYPES -- //
@@ -200,6 +201,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // -- REMINDERS -- //
           SectionTitle(t.settingsReminders),
+          const ReminderStatusRow(),
           DropdownButtonFormField<int>(
             // ignore: deprecated_member_use
             value: s.leadMinutes,

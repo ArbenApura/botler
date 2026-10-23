@@ -971,6 +971,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatAssistantDown => 'The assistant is not available right now.';
 
   @override
+  String get chatCardElsewhere =>
+      'Waiting for your answer in the chat it came from.';
+
+  @override
   String get chatCardExpired => 'This request has expired.';
 
   @override
@@ -1014,6 +1018,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatEarlier => 'Earlier';
 
   @override
+  String get chatEditCancel => 'Stop editing';
+
+  @override
+  String get chatEditing => 'Editing your message';
+
+  @override
   String get chatGreeting => 'What can I help with?';
 
   @override
@@ -1046,22 +1056,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'This phone cannot listen right now. Check the microphone permission.';
 
   @override
+  String get chatMsgActions => 'Message actions';
+
+  @override
+  String get chatMsgBranch => 'Branch from here';
+
+  @override
+  String get chatMsgCopied => 'Copied.';
+
+  @override
+  String get chatMsgCopy => 'Copy';
+
+  @override
+  String get chatMsgEdit => 'Edit and resend';
+
+  @override
   String chatNeedsAmounts(String names) {
     return 'How much is usually $names? I need an amount to make the split.';
   }
-
-  @override
-  String get chatNewBody =>
-      'The conversation on screen is cleared and Botler starts without it. Your money, reminders and memory stay as they are.';
-
-  @override
-  String get chatNewTitle => 'Start a new chat?';
-
-  @override
-  String get chatNewTooltip => 'New chat';
-
-  @override
-  String get chatNewYes => 'Start new chat';
 
   @override
   String chatNextBill(String name, String day) {
@@ -1221,6 +1233,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatYourAccount => 'your account';
+
+  @override
+  String get chatsArchive => 'Archive';
+
+  @override
+  String get chatsArchivedEmpty => 'Nothing is archived.';
+
+  @override
+  String get chatsArchivedOpen => 'Archived chats';
+
+  @override
+  String get chatsArchivedTitle => 'Archived';
+
+  @override
+  String get chatsBranchMark => 'Branch';
+
+  @override
+  String chatsBranchedFrom(String title) {
+    return 'Branched from $title';
+  }
+
+  @override
+  String get chatsBranchedNote =>
+      'Changes saved before this point stay saved. Undo them in History.';
+
+  @override
+  String get chatsBranchedOpen => 'Open the chat this branched from';
+
+  @override
+  String get chatsBranchedUntitled => 'an earlier chat';
+
+  @override
+  String get chatsBusy =>
+      'Botler is answering. Wait for it, or stop it, to change chats.';
+
+  @override
+  String get chatsEmpty => 'Your conversations will show here.';
+
+  @override
+  String get chatsGroupOlder => 'Older';
+
+  @override
+  String get chatsGroupPinned => 'Pinned';
+
+  @override
+  String get chatsGroupToday => 'Today';
+
+  @override
+  String get chatsGroupWeek => 'Previous 7 days';
+
+  @override
+  String get chatsGroupYesterday => 'Yesterday';
+
+  @override
+  String get chatsMore => 'More about this chat';
+
+  @override
+  String get chatsNew => 'New chat';
+
+  @override
+  String get chatsNoResults => 'No chat matches that.';
+
+  @override
+  String get chatsOpen => 'Chats';
+
+  @override
+  String get chatsPin => 'Pin';
+
+  @override
+  String get chatsPinnedMark => 'Pinned';
+
+  @override
+  String get chatsRename => 'Rename';
+
+  @override
+  String get chatsRenameInvalid => 'Give it a name of 1 to 80 characters.';
+
+  @override
+  String get chatsRenameLabel => 'Name';
+
+  @override
+  String get chatsRenameSave => 'Save name';
+
+  @override
+  String get chatsRenameTitle => 'Name this chat';
+
+  @override
+  String get chatsRestore => 'Restore';
+
+  @override
+  String chatsRowLabel(String title, String when) {
+    return '$title, $when';
+  }
+
+  @override
+  String get chatsSearchClear => 'Clear the search';
+
+  @override
+  String get chatsSearchHint => 'Search your chats';
+
+  @override
+  String get chatsTitle => 'Chats';
+
+  @override
+  String get chatsUnpin => 'Unpin';
+
+  @override
+  String get chatsUntitled => 'New conversation';
 
   @override
   String get close => 'Close';
@@ -1687,6 +1807,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paydayYours => 'Your paydays';
+
+  @override
+  String get remBlockedExact =>
+      'Botler may not set exact alarms, so reminders can come late.';
+
+  @override
+  String get remBlockedFailed =>
+      'The last try to set your reminders failed. It will try again.';
+
+  @override
+  String get remBlockedNotifications =>
+      'Notifications are off for Botler, so reminders cannot show.';
+
+  @override
+  String get remFix => 'Open settings';
 
   @override
   String get resetBack => 'Choose another part';

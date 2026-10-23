@@ -332,7 +332,10 @@ async function addReminder(
 	input: unknown
 ): Promise<ReminderView> {
 	if (at.getTime() < Date.now() - 60_000)
-		throw new OpsError('INVALID', 'That time has already passed.');
+		throw new OpsError(
+			'INVALID',
+			`That time has already passed. It is now ${new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 19)}+08:00; give a later instant.`
+		);
 	return mapped(() =>
 		runWrite(ctx, verb, input, async (tx, userId) => {
 			const [row] = await tx

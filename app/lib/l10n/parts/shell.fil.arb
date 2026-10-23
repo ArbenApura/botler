@@ -67,6 +67,10 @@
   "settingsLead60": "1 oras bago",
   "settingsLead180": "3 oras bago",
   "settingsLead1440": "1 araw bago",
+  "remBlockedNotifications": "Naka-off ang mga notification ng Botler, kaya hindi lalabas ang mga paalala.",
+  "remBlockedExact": "Baka hindi makapag-set ng eksaktong alarm ang Botler, kaya maaaring mahuli ang mga paalala.",
+  "remBlockedFailed": "Hindi naitakda ang mga paalala sa huling subok. Susubukan ulit.",
+  "remFix": "Buksan ang settings",
 
   "settingsVoice": "Boses",
   "settingsListenFor": "Pakinggan ang",

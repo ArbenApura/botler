@@ -70,6 +70,10 @@
   "settingsLead60": "1 hour before",
   "settingsLead180": "3 hours before",
   "settingsLead1440": "1 day before",
+  "remBlockedNotifications": "Notifications are off for Botler, so reminders cannot show.",
+  "remBlockedExact": "Botler may not set exact alarms, so reminders can come late.",
+  "remBlockedFailed": "The last try to set your reminders failed. It will try again.",
+  "remFix": "Open settings",
 
   "settingsVoice": "Voice",
   "settingsListenFor": "Listen for",

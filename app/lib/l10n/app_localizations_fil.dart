@@ -976,6 +976,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatAssistantDown => 'Hindi available ang assistant ngayon.';
 
   @override
+  String get chatCardElsewhere =>
+      'Naghihintay ng sagot mo sa chat na pinagmulan nito.';
+
+  @override
   String get chatCardExpired => 'Nag-expire na ang hiling na ito.';
 
   @override
@@ -1019,6 +1023,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatEarlier => 'Mas maaga';
 
   @override
+  String get chatEditCancel => 'Ihinto ang pag-edit';
+
+  @override
+  String get chatEditing => 'Ine-edit ang mensahe mo';
+
+  @override
   String get chatGreeting => 'Ano ang maitutulong ko?';
 
   @override
@@ -1051,22 +1061,24 @@ class AppLocalizationsFil extends AppLocalizations {
       'Hindi makapakinig ang phone ngayon. Tingnan ang pahintulot sa mikropono.';
 
   @override
+  String get chatMsgActions => 'Mga aksyon sa mensahe';
+
+  @override
+  String get chatMsgBranch => 'Sumanga mula rito';
+
+  @override
+  String get chatMsgCopied => 'Nakopya na.';
+
+  @override
+  String get chatMsgCopy => 'Kopyahin';
+
+  @override
+  String get chatMsgEdit => 'I-edit at ipadala ulit';
+
+  @override
   String chatNeedsAmounts(String names) {
     return 'Magkano karaniwan ang $names? Kailangan ko ng halaga para magawa ang hati.';
   }
-
-  @override
-  String get chatNewBody =>
-      'Mabubura sa screen ang usapan at magsisimula si Botler nang wala ito. Mananatili ang pera, paalala at alaala mo.';
-
-  @override
-  String get chatNewTitle => 'Magsimula ng bagong chat?';
-
-  @override
-  String get chatNewTooltip => 'Bagong chat';
-
-  @override
-  String get chatNewYes => 'Magsimula ng bagong chat';
 
   @override
   String chatNextBill(String name, String day) {
@@ -1226,6 +1238,115 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatYourAccount => 'iyong account';
+
+  @override
+  String get chatsArchive => 'I-archive';
+
+  @override
+  String get chatsArchivedEmpty => 'Walang naka-archive.';
+
+  @override
+  String get chatsArchivedOpen => 'Mga naka-archive na chat';
+
+  @override
+  String get chatsArchivedTitle => 'Naka-archive';
+
+  @override
+  String get chatsBranchMark => 'Sanga';
+
+  @override
+  String chatsBranchedFrom(String title) {
+    return 'Sanga mula sa $title';
+  }
+
+  @override
+  String get chatsBranchedNote =>
+      'Nananatiling naka-save ang mga pagbabago bago ang puntong ito. I-undo ang mga ito sa History.';
+
+  @override
+  String get chatsBranchedOpen => 'Buksan ang chat na pinagmulan nito';
+
+  @override
+  String get chatsBranchedUntitled => 'mas naunang chat';
+
+  @override
+  String get chatsBusy =>
+      'Sumasagot pa si Botler. Hintayin o ihinto ito para magpalit ng chat.';
+
+  @override
+  String get chatsEmpty => 'Dito lalabas ang mga usapan mo.';
+
+  @override
+  String get chatsGroupOlder => 'Mas luma';
+
+  @override
+  String get chatsGroupPinned => 'Naka-pin';
+
+  @override
+  String get chatsGroupToday => 'Ngayon';
+
+  @override
+  String get chatsGroupWeek => 'Nakaraang 7 araw';
+
+  @override
+  String get chatsGroupYesterday => 'Kahapon';
+
+  @override
+  String get chatsMore => 'Iba pa tungkol sa chat na ito';
+
+  @override
+  String get chatsNew => 'Bagong chat';
+
+  @override
+  String get chatsNoResults => 'Walang chat na tumutugma.';
+
+  @override
+  String get chatsOpen => 'Mga chat';
+
+  @override
+  String get chatsPin => 'I-pin';
+
+  @override
+  String get chatsPinnedMark => 'Naka-pin';
+
+  @override
+  String get chatsRename => 'Palitan ang pangalan';
+
+  @override
+  String get chatsRenameInvalid =>
+      'Maglagay ng pangalan na 1 hanggang 80 titik.';
+
+  @override
+  String get chatsRenameLabel => 'Pangalan';
+
+  @override
+  String get chatsRenameSave => 'I-save ang pangalan';
+
+  @override
+  String get chatsRenameTitle => 'Pangalanan ang chat';
+
+  @override
+  String get chatsRestore => 'Ibalik';
+
+  @override
+  String chatsRowLabel(String title, String when) {
+    return '$title, $when';
+  }
+
+  @override
+  String get chatsSearchClear => 'Burahin ang hinahanap';
+
+  @override
+  String get chatsSearchHint => 'Hanapin sa mga chat mo';
+
+  @override
+  String get chatsTitle => 'Mga chat';
+
+  @override
+  String get chatsUnpin => 'Alisin sa pin';
+
+  @override
+  String get chatsUntitled => 'Bagong usapan';
 
   @override
   String get close => 'Isara';
@@ -1695,6 +1816,21 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get paydayYours => 'Mga payday mo';
+
+  @override
+  String get remBlockedExact =>
+      'Baka hindi makapag-set ng eksaktong alarm ang Botler, kaya maaaring mahuli ang mga paalala.';
+
+  @override
+  String get remBlockedFailed =>
+      'Hindi naitakda ang mga paalala sa huling subok. Susubukan ulit.';
+
+  @override
+  String get remBlockedNotifications =>
+      'Naka-off ang mga notification ng Botler, kaya hindi lalabas ang mga paalala.';
+
+  @override
+  String get remFix => 'Buksan ang settings';
 
   @override
   String get resetBack => 'Pumili ng ibang bahagi';
