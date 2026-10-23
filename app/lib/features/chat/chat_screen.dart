@@ -16,6 +16,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../update/changelog_sheet.dart';
 import '../update/update_gate.dart';
 import 'chat_group.dart';
 import 'chat_items.dart';
@@ -82,10 +83,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Mounted while a turn runs (back from the menu): what is on screen already belongs to earlier answers
+    _earlier = _answerIds(ref.read(chatProvider));
     // Bring back the recent conversation once the first frame is up. The notifier remembers it did, so a rebuild of this screen
     // (the lock screen, coming back from the menu) never asks again
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(ref.read(chatProvider.notifier).restore());
+      if (!mounted) return;
+      unawaited(ref.read(chatProvider.notifier).restore());
+      // What is new after an update: once per run, never over the lock or the required-update screen (this screen is below both)
+      unawaited(showPendingChangelog(context, ref));
     });
   }
 
@@ -117,7 +123,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (_stick && _scroll.hasClients) {
         // A jump, not an animation: many small ones a second would pile up and fight the person's finger
         final end = _scroll.position.maxScrollExtent;
-        _scroll.jumpTo(math.min(end, _answerTop() ?? end));
+        final top = _answerTop();
+        // Never backwards: someone who has read on past the answer's first line is followed to the end instead
+        final held = top != null && _scroll.position.pixels <= top + 1;
+        _scroll.jumpTo(held ? math.min(end, top) : end);
         // The rows below the screen are measured only once they are reached, so the end moves: look again until it settles
         if (passes > 1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -135,6 +144,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// A turn has run since the person last sent, opened a chat or asked for the end: follow stops at the answer's first line, also after it is done.
   bool _readFromStart = false;
+
+  /// The answers that were already there when the running turn began. Only an answer outside this set is anchored: while the
+  /// assistant is still thinking or using tools the page follows the end as usual, instead of rising to the previous answer.
+  Set<int> _earlier = <int>{};
+
+  /// The ids of the answers on screen.
+  Set<int> _answerIds(ChatState chat) => <ChatItem>[
+    ...chat.restored,
+    ...chat.items,
+  ].whereType<AgentItem>().map((a) => a.id).toSet();
 
   /// The scroll position that puts the start of the answer being written at the top, or null when no answer is being written.
   /// A long answer is followed only until its first line reaches the top: the person reads from the start, not from the end.
@@ -172,6 +191,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // Only the conversation's own list counts, not the thinking panel's small scroller inside it
     if (byPerson && n.depth == 0 && n.metrics.axis == Axis.vertical) {
       _stick = n.metrics.maxScrollExtent - n.metrics.pixels < _nearBottom;
+      // Back at the bottom by hand with nothing running: the answer no longer holds the page
+      if (_stick && !ref.read(chatProvider).busy) _readFromStart = false;
     }
     return false;
   }
@@ -346,7 +367,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
         _keepPlaceAfterRestore();
       }
-      if (next.busy) _readFromStart = true;
+      if (next.busy && !(prev?.busy ?? false)) {
+        // A turn begins: armed once, so a reset by the keyboard or the jump button is not undone by the next chunk
+        _readFromStart = true;
+        _earlier = _answerIds(next);
+      } else if (next.busy && !identical(prev?.restored, next.restored)) {
+        // Earlier conversation arriving while the turn runs is not part of this turn's answer
+        _earlier = <int>{..._earlier, ..._answerIds(next)};
+      } else if (!next.busy && !(prev?.busy ?? false)) {
+        // Long after the turn, a change (an undo, a rename) must not pull the page back up to the answer
+        _readFromStart = false;
+      }
       _toEnd();
       _syncAway();
     });
@@ -361,10 +392,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final last = shown.isEmpty ? null : shown.last;
     // A run of identical quiet "Checked ..." lines is one line with a count
     final rows = groupQuietTools(shown);
-    final lastAnswer = rows
-        .map((r) => r.item)
-        .whereType<AgentItem>()
-        .lastOrNull;
+    // The newest answer of this turn holds the page only while it is the last row: a tool or approval row after it is followed
+    final tail = rows.isEmpty ? null : rows.last.item;
+    final lastAnswer = tail is AgentItem && !_earlier.contains(tail.id)
+        ? tail
+        : null;
     final working =
         chat.busy &&
         (chat.phase == TurnPhase.waiting ||
