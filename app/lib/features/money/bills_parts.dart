@@ -45,20 +45,52 @@ String _when(BuildContext context, Json d) {
       : text;
 }
 
+/// An amount in the bill's own currency, and in brackets what it comes to in the main currency at the latest rate. A bill in the main
+/// currency is just its amount; a bill whose currency has no rate yet says so instead of showing a made-up value.
+String billAmountText(
+  BuildContext context,
+  int amount,
+  String currency,
+  Object? inMain, {
+  bool missingRate = false,
+}) {
+  final own = context.moneyIn(amount, currency);
+  if (currency == context.currencyCode) return own;
+  if (missingRate || inMain is! num) {
+    return '$own (${context.t.billsMissingRateTag})';
+  }
+  return '$own (${context.t.billsAboutMain(context.moneyMain(inMain.toInt()))})';
+}
+
 /// What a due row costs: the amount, or a question mark when a bill that varies has none yet.
 String _cost(BuildContext context, Json d) => boolOf(d['unknownAmount'])
     ? context.t.billsAmountUnknown
-    : context.money(intOf(d['amount']));
+    : billAmountText(
+        context,
+        intOf(d['amount']),
+        str(d['currency'], context.currencyCode),
+        d['amountMain'],
+        missingRate: boolOf(d['missingRate']),
+      );
 
 /// What a bill is expected to cost and how it repeats, in one line.
 String describeBill(BuildContext context, Json b) {
   final t = context.t;
   final est = asJson(b['estimate']);
+  final shown = est['amount'] == null
+      ? ''
+      : billAmountText(
+          context,
+          intOf(est['amount']),
+          str(b['currency'], context.currencyCode),
+          b['estimateMain'],
+          missingRate:
+              b['estimateMain'] == null &&
+              str(b['currency'], context.currencyCode) != context.currencyCode,
+        );
   final amount = est['amount'] == null
       ? t.billsAmountNotKnown
-      : (str(b['kind']) == 'variable'
-            ? t.billsUsualSuffix(context.money(intOf(est['amount'])))
-            : context.money(intOf(est['amount'])));
+      : (str(b['kind']) == 'variable' ? t.billsUsualSuffix(shown) : shown);
   // The schedule is read back as a sentence on the phone; a kind this version does not know is said plainly
   final when =
       describeSchedule(t, _locale(context), asJson(b['schedule'])) ??

@@ -37,6 +37,13 @@ A quiet, spacious, notebook-like app. Money and time should feel less stressful,
 - A due row has two separate targets of at least 48 dp: the body opens the bill sheet, and "Mark paid" pays it (a paid row shows a quiet "Paid" mark instead). The primary action of the screen is Add a bill.
 - The bill sheet is the add form with the bill's values. Opened from a date it also offers that date's own change (move it within a month, skip it, put it back); an amount or an account changed on a date asks "Just this one, or every time?". Opened from "All bills" it changes the bill.
 
+## Currencies
+
+- An amount is always written with the symbol of ITS OWN currency (`context.moneyIn`, `Amount(currency:)`); `context.moneyMain` is only for an amount that is in the main currency (a total, the money plan). A dollar is never written with a peso sign.
+- The accounts screen opens with one card: "Everything you have" in the main currency, the date of the exchange rates (a quiet line that is also the 48 dp "Update rates" button, `warning` colour once the rates are three days old), and a `warning` line naming a currency with no rate, which is left out of the total. An account with several currencies lists each wallet and "About X in all".
+- A currency is picked from one searchable sheet (`pickCurrency`) with the ones already in use first. A move between two currencies asks for the amount sent AND the amount that arrived, and shows the rate they imply; today's rate is only a suggestion for the second box.
+- A bill in another currency shows its own amount with "(about ₱…)" at the latest rate, or "(no exchange rate yet)".
+
 ## Wordmark
 
 "Botler", with the capital B in the sage accent. The app icon is that B on paper.

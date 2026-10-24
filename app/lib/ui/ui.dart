@@ -98,21 +98,23 @@ class SectionTitle extends StatelessWidget {
 }
 
 /// A money amount in light, tabular figures. Negative amounts are not red: a balance below zero is not an error.
+/// [currency] is the currency the amount is in (a wallet, a bill); left out it is the person's main currency. A dollar is never written with a peso sign.
 class Amount extends StatelessWidget {
-  const Amount(this.centavos, {this.style, super.key});
+  const Amount(this.centavos, {this.currency, this.style, super.key});
 
   final int centavos;
+  final String? currency;
   final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
     final base = style ?? Theme.of(context).textTheme.headlineMedium;
+    final text = currency == null
+        ? context.moneyMain(centavos)
+        : context.moneyIn(centavos, currency!);
     return Semantics(
-      label: context.money(centavos),
-      child: Text(
-        context.money(centavos),
-        style: base?.copyWith(fontFeatures: tabular),
-      ),
+      label: text,
+      child: Text(text, style: base?.copyWith(fontFeatures: tabular)),
     );
   }
 }

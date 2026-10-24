@@ -16,6 +16,7 @@ import {
 	unregisterDeviceByToken
 } from '../../src/lib/server/ops/devices';
 import { createTestDb } from '../support/testDb';
+import { assertProviderKeys } from '../../src/lib/server/proxy/provider';
 
 // -- FUNCTIONS -- //
 
@@ -74,8 +75,7 @@ describe('secrets and tokens', () => {
 			'BETTER_AUTH_SECRET',
 			'GOOGLE_CLIENT_ID',
 			'GOOGLE_CLIENT_SECRET',
-			'ALLOWED_EMAILS',
-			'DEEPSEEK_API_KEY'
+			'ALLOWED_EMAILS'
 		] as const;
 		for (const name of required) {
 			expect(() => check(name, undefined), `${name} must be required`).toThrow();
@@ -84,10 +84,43 @@ describe('secrets and tokens', () => {
 		expect(() => check('BETTER_AUTH_SECRET', 'too-short')).toThrow(/32 characters/);
 	});
 
+	it('validates the model provider and its conditional key', () => {
+		expect(check('MODEL_PROVIDER', undefined)).toBe('anthropic');
+		expect(check('MODEL_PROVIDER', 'anthropic')).toBe('anthropic');
+		expect(check('MODEL_PROVIDER', 'deepseek')).toBe('deepseek');
+		expect(() => check('MODEL_PROVIDER', 'antropic')).toThrow();
+		// The cross-variable requirement is plain code (proxy/provider.ts), so the matrix is tested there itself
+	});
+
 	it('treats the web search key as optional: blank means off, spaces are trimmed', () => {
 		expect(check('TAVILY_API_KEY', undefined)).toBe('');
 		expect(check('TAVILY_API_KEY', '   ')).toBe('');
 		expect(check('TAVILY_API_KEY', ' tvly-test ')).toBe('tvly-test');
+	});
+
+	it('requires the key of the chosen provider and takes the other provider as kept but unused', () => {
+		// anthropic is the default
+		expect(() => assertProviderKeys('anthropic', '', 'sk-dsk')).toThrow(/ANTHROPIC_API_KEY/);
+		expect(() => assertProviderKeys('anthropic', 'sk-ant', 'sk-dsk')).not.toThrow();
+		// deepseek kept and disabled, still loud when chosen with no key
+		expect(() => assertProviderKeys('deepseek', 'sk-ant', '')).toThrow(/DEEPSEEK_API_KEY/);
+		expect(() => assertProviderKeys('deepseek', 'sk-ant', 'sk-dsk')).not.toThrow();
+		expect(() => assertProviderKeys('mistral', 'k', 'k')).toThrow(/MODEL_PROVIDER/);
+	});
+
+	it('has a default exchange rate feed, trims it, and stops the server on an address that is not https', () => {
+		expect(check('FX_RATES_URL', undefined)).toBe('https://open.er-api.com/v6/latest/USD');
+		expect(check('FX_RATES_URL', '  ')).toBe('https://open.er-api.com/v6/latest/USD');
+		expect(check('FX_RATES_URL', ' https://rates.example.com/latest ')).toBe(
+			'https://rates.example.com/latest'
+		);
+		for (const bad of [
+			'http://rates.example.com',
+			'ftp://x.test',
+			'not an address',
+			'https://u:p@x.test/'
+		])
+			expect(() => check('FX_RATES_URL', bad), bad).toThrow();
 	});
 
 	it('rejects a bad cap instead of falling back silently', () => {

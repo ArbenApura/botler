@@ -131,6 +131,30 @@ $$;
 ${BREAK}
 CREATE TRIGGER audit_event_block BEFORE UPDATE OR DELETE ON "audit_event" FOR EACH ROW EXECUTE FUNCTION audit_block();`;
 
+/**
+ * Migration 0024 widens amounts to 64 bits, so the three audit functions that were typed integer are replaced. They are derived from
+ * the 0016 text above (which stays as it ran), so the two versions cannot drift apart. CREATE OR REPLACE cannot change a return type
+ * or a parameter type, and a new parameter type would add an overload next to the old one, so the old functions are dropped first.
+ */
+export function auditBigintSql(): string {
+	const parts = FUNCTIONS.split(`\n${BREAK}\n`);
+	const take = (name: string) => {
+		const found = parts.find((p) => p.includes(`FUNCTION ${name}(`));
+		if (!found) throw new Error(`The audit function ${name} is not in the first migration`);
+		return found.replaceAll('integer', 'bigint');
+	};
+	return (
+		[
+			'-- AMOUNTS ARE 64 BIT NOW: THE AUDIT FUNCTIONS THAT WERE TYPED integer ARE REPLACED. 0016 STAYS AS IT RAN.',
+			'DROP FUNCTION audit_hash(text, bigint, text, text, text, integer, jsonb, jsonb, text);',
+			'DROP FUNCTION audit_txn_effect(jsonb);',
+			take('audit_hash'),
+			take('audit_txn_effect'),
+			take('audit_row')
+		].join(`\n${BREAK}\n`) + '\n'
+	);
+}
+
 const triggerOf = (t: AuditedTable, columns: readonly string[] = t.columns) =>
 	`CREATE TRIGGER "audit_${t.table}" AFTER INSERT OR UPDATE OR DELETE ON "${t.table}" FOR EACH ROW EXECUTE FUNCTION audit_row('${columns.join(',')}', '${t.account}', '${t.amount}');`;
 
@@ -151,7 +175,12 @@ export function auditLaterTriggersSql(migration: string): string {
 
 /** The triggers a later migration replaces because the table got a new audited column: dropped, then created again with the current list. */
 export function auditRedefinedSql(migration: string): string {
-	return AUDITED_TABLES.filter((t) => t.redefined === migration)
-		.map((t) => `DROP TRIGGER "audit_${t.table}" ON "${t.table}";${'\n'}${BREAK}\n${triggerOf(t)}`)
-		.join(`\n${BREAK}\n`);
+	return AUDITED_TABLES.flatMap((t) => {
+		const step = t.redefinitions?.find((r) => r.migration === migration);
+		return step
+			? [
+					`DROP TRIGGER "audit_${t.table}" ON "${t.table}";${'\n'}${BREAK}\n${triggerOf(t, step.columns)}`
+				]
+			: [];
+	}).join(`\n${BREAK}\n`);
 }

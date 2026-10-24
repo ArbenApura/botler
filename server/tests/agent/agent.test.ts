@@ -102,6 +102,8 @@ describe('the verb registry', () => {
 			'chat_rename',
 			'data_reset',
 			'data_reset_preview',
+			'fx_rates',
+			'fx_rates_refresh',
 			'memory_export',
 			'memory_wipe',
 			'rule_approve',
@@ -112,6 +114,7 @@ describe('the verb registry', () => {
 		expect(by('gated')).toEqual([
 			'account_archive',
 			'account_create',
+			'account_wallet_add',
 			'bill_create',
 			'goal_create',
 			'income_create',
@@ -154,7 +157,7 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(27);
+		expect(by('read')).toHaveLength(29);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {
@@ -220,6 +223,19 @@ describe('identity binding', () => {
 		expect(names).not.toContain('settings_set');
 		expect(names).toContain('settings_get');
 		expect(names).toEqual(expect.arrayContaining(['web_search', 'web_read', 'expense_log']));
+		// Several currencies: the assistant converts and totals with the stored rates, and cannot change the main currency or the rates
+		expect(names).toEqual(
+			expect.arrayContaining(['assets_summary', 'fx_convert', 'account_wallet_add'])
+		);
+		expect(names).not.toContain('fx_rates');
+		expect(names).not.toContain('fx_rates_refresh');
+		for (const verb of ['expense_log', 'income_record', 'transfer_record', 'snapshot_record']) {
+			const tool = tools.find((x) => x.name === verb);
+			expect(keysOf(tool?.parameters ?? {}), verb).toContain('currency');
+		}
+		expect(keysOf(tools.find((x) => x.name === 'transfer_record')?.parameters ?? {})).toEqual(
+			expect.arrayContaining(['toCurrency', 'toAmount'])
+		);
 		for (const tool of tools) {
 			const bad = keysOf(tool.parameters).filter((k) =>
 				/^(user_?id|tenant\w*|owner\w*|actor\w*)$/i.test(k)

@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // -- MODULES -- //
 import 'app.dart';
+import 'core/app_update.dart';
+import 'core/changelog.dart';
 import 'core/push.dart';
 import 'core/reminders.dart';
 import 'state/providers.dart';
@@ -24,6 +26,15 @@ Future<void> main() async {
     initializeDateFormatting('fil'),
   ]);
   final prefs = await SharedPreferences.getInstance();
+  // What is new after an update: decided now, before any update check can write 'update.lastCheck' on a fresh install
+  try {
+    await decideFirstRun(
+      prefs,
+      await const MethodChannelUpdateHost().installedCode(),
+    );
+  } on Exception {
+    // The build is unknown: nothing is announced and nothing is written
+  }
   // Firebase must be up before the first screen can register the push token; a failure only means no push
   await initPush();
   runApp(

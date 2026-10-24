@@ -12,13 +12,16 @@ import type { SplitProposeInput } from '../db/zod';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
+import { canConvert, convertUp, showRate } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
 import { proposeSplit } from '../../finance/split';
 import { account, allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
 import { splitApproveInput, splitProposeInput, splitSentInput } from '../db/zod';
 import { OpsError, run, runWrite } from './context';
+import { loadRates } from '../fx/store';
 import { dueBills } from './bills';
 import { insertTxn } from './ledger';
+import { readSettings } from './settings';
 import { toRule } from './rules';
 import { mapped, parse, plain, requireIncome, requirePerson } from './shared';
 
@@ -31,6 +34,17 @@ export type StoredSplit = SplitResult & {
 	periodEnd: string;
 	incomeAccountId: string;
 	accountNames: Record<string, string>;
+	/** The bills in another currency that were counted at a rate: what each is, what it came to in the main currency, the rate and its date. */
+	foreignBills?: {
+		billId: string;
+		name: string;
+		dueDate: string;
+		currency: string;
+		amount: number;
+		converted: number;
+		rate: string;
+		ratesAsOf: string | null;
+	}[];
 };
 
 export type SplitPlanView = Omit<Plain<typeof splitPlan.$inferSelect>, 'result'> & {
@@ -87,7 +101,20 @@ export async function proposeSplitPlan(
 			.select()
 			.from(allocationRule)
 			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')));
-		return { inc, payday, pay, periodEnd, due, unknown, accounts, goals, rules };
+		return {
+			inc,
+			payday,
+			pay,
+			periodEnd,
+			due,
+			unknown,
+			accounts,
+			goals,
+			rules,
+			// The split is in the main currency, so a bill in another one is counted at the stored rate
+			main: (await readSettings(tx, userId)).currency,
+			rates: await loadRates(tx)
+		};
 	});
 
 	if (gathered.unknown.length > 0)
@@ -102,6 +129,31 @@ export async function proposeSplitPlan(
 	const counts = new Map<string, number>();
 	for (const b of gathered.due) counts.set(b.billId, (counts.get(b.billId) ?? 0) + 1);
 
+	// A bill in another currency is counted as its main currency value, rounded up so the reserve is never short. The rate and its date
+	// are kept with the plan. Without a rate the split stops with a plain message instead of counting the bill as nothing.
+	const foreignBills: NonNullable<StoredSplit['foreignBills']> = [];
+	const amountInMain = (b: (typeof gathered.due)[number]): number => {
+		const amount = b.amount ?? 0;
+		if (b.currency === gathered.main) return amount;
+		if (!canConvert(b.currency, gathered.main, gathered.rates.rates))
+			throw new OpsError(
+				'INVALID',
+				`There is no exchange rate for ${b.currency} yet, so "${b.name}" cannot be counted in the split. Refresh the exchange rates and try again.`
+			);
+		const converted = convertUp(amount, b.currency, gathered.main, gathered.rates.rates);
+		foreignBills.push({
+			billId: b.billId,
+			name: b.name,
+			dueDate: b.dueDate,
+			currency: b.currency,
+			amount,
+			converted,
+			rate: showRate(b.currency, gathered.main, gathered.rates.rates),
+			ratesAsOf: gathered.rates.asOf
+		});
+		return converted;
+	};
+
 	let result: SplitResult;
 	try {
 		result = proposeSplit({
@@ -114,7 +166,7 @@ export async function proposeSplitPlan(
 					refId: b.billId,
 					// A bill that falls twice in one period shows its date, so the two lines can be told apart
 					label: (counts.get(b.billId) ?? 0) > 1 ? `${b.name} (${b.dueDate})` : b.name,
-					amount: b.amount ?? 0,
+					amount: amountInMain(b),
 					accountId: b.accountId,
 					deferrable: b.deferrable
 				})),
@@ -142,7 +194,8 @@ export async function proposeSplitPlan(
 		payday: gathered.payday,
 		periodEnd: gathered.periodEnd,
 		incomeAccountId: gathered.inc.accountId,
-		accountNames: names
+		accountNames: names,
+		...(foreignBills.length > 0 ? { foreignBills } : {})
 	};
 	return mapped(() =>
 		runWrite(ctx, 'split.propose', input, async (tx, userId) => {
@@ -213,6 +266,7 @@ export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncom
 				)
 				.returning();
 			if (!done) throw new OpsError('CONFLICT', 'That split changed while you approved it.');
+			// The split is a money plan, so the pay lands in the main currency wallet of the income account (opened if need be)
 			if (input.recordIncome ?? plan.payday <= today)
 				await insertTxn(
 					tx,
@@ -222,6 +276,7 @@ export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncom
 						type: 'income',
 						accountId: stored.incomeAccountId,
 						amount: plan.pay,
+						currency: (await readSettings(tx, userId)).currency,
 						category: 'income',
 						note: 'Pay',
 						source: 'split',
@@ -253,11 +308,14 @@ export async function markTransferSent(ctx: Ctx, raw: { splitId: string; index: 
 				: [];
 			if (sent.some((s) => s.index === input.index))
 				throw new OpsError('CONFLICT', 'That transfer is already marked sent.');
+			const main = (await readSettings(tx, userId)).currency;
 			const txn = await insertTxn(tx, userId, ctx.requestId, {
 				type: 'transfer',
 				accountId: t.fromAccountId,
 				toAccountId: t.toAccountId,
 				amount: t.amount,
+				currency: main,
+				toCurrency: main,
 				note: t.labels.join(', ').slice(0, 200),
 				source: 'split',
 				splitId: plan.id

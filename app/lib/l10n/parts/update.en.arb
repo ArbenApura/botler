@@ -80,5 +80,24 @@
   "updFailDamaged": "The download was damaged. Try again.",
   "updFailWrongBuild": "That download is not an update for this app. Nothing was installed.",
   "updFailPermission": "Allow Botler to install apps in Android settings, then come back and try again.",
-  "updFailInstaller": "The update did not finish. Try again."
+  "updFailInstaller": "The update did not finish. Try again.",
+  "changelogTitle": "What is new in {version}",
+  "@changelogTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "changelogBuildHeader": "Version {version}",
+  "@changelogBuildHeader": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "changelogGotIt": "Got it",
+  "changelogRowTitle": "What is new in this version",
+  "changelogRowHint": "Read the changes in the version you have now"
 }

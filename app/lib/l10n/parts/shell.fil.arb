@@ -48,7 +48,7 @@
   "settingsCurrencyExample": "Halimbawa {amount}",
   "settingsCurrencyNone": "Walang pera na tugma diyan.",
   "settingsCurrencyConfirmTitle": "Gawing {code} ang pera?",
-  "settingsCurrencyConfirmBody": "Babasahin na sa {name} ang mga halaga mo. Walang kino-convert: nananatiling 100.00 ang 100.00, ang pera lang ang nagbabago.",
+  "settingsCurrencyConfirmBody": "Sa {name} na ipapakita ang kabuuan mo. Nananatili sa account ang mga pera nito. Pareho pa rin ang numero ng kita, goal, rule at minimum na balanse mo pero babasahin na sa {name}: walang kino-convert sa mga ito. Nananatili sa sarili nilang pera ang mga bill mo.",
   "settingsCurrencyChange": "Palitan",
   "settingsWeekStarts": "Nagsisimula ang linggo sa",
   "settingsMonday": "Lunes",

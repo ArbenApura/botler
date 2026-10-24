@@ -198,6 +198,11 @@ export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date
 			.insert(job)
 			.values({ userId: p.id, kind: 'maintenance.purge', key: day })
 			.onConflictDoNothing();
+		// The exchange rates are refreshed once a day (the first job to run fetches, the rest find them fresh)
+		await handle.db
+			.insert(job)
+			.values({ userId: p.id, kind: 'fx.refresh', key: day })
+			.onConflictDoNothing();
 		for (const kind of ['memory.digest', 'memory.night'])
 			await handle.db
 				.insert(job)

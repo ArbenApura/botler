@@ -25,6 +25,7 @@ class CalItem {
       date = str(j['date']),
       endDate = str(j['endDate'], str(j['date'])),
       amount = j['amount'] is num ? intOf(j['amount']) : null,
+      currency = str(j['currency']),
       unknownAmount = boolOf(j['unknownAmount']),
       paid = boolOf(j['paid']) || boolOf(j['done']),
       overdue = boolOf(j['overdue']),
@@ -42,6 +43,9 @@ class CalItem {
   final String date;
   final String endDate;
   final int? amount;
+
+  /// The currency of [amount]: a bill's own. Empty (a payday, an older server) means the main currency.
+  final String currency;
   final bool unknownAmount;
   final bool paid;
   final bool overdue;
@@ -91,7 +95,8 @@ class CalRange {
         for (final a in asJsonList(asJson(j['forecast'])['accounts']))
           str(a['id']): str(a['name']),
       },
-      unknownBills = intOf(asJson(j['forecast'])['unknownBills']);
+      unknownBills = intOf(asJson(j['forecast'])['unknownBills']),
+      unconvertedBills = intOf(asJson(j['forecast'])['unconvertedBills']);
 
   final String from;
   final String to;
@@ -99,6 +104,9 @@ class CalRange {
   final List<CalForecastDay> days;
   final Map<String, String> accountNames;
   final int unknownBills;
+
+  /// Bills in another currency left out of the forecast because their exchange rate is missing.
+  final int unconvertedBills;
 
   List<CalItem> on(String day) => <CalItem>[
     for (final i in items)

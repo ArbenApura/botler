@@ -273,6 +273,25 @@ final FutureProvider<List<Json>> balancesProvider =
       }
     });
 
+/// Everything the person has, every wallet converted to the main currency (assets_summary), with the rates used and their date. Without a
+/// connection the last answer that worked is shown, marked offline, so the total is never empty on a train.
+final FutureProvider<Json> assetsProvider = FutureProvider.autoDispose<Json>((
+  ref,
+) async {
+  final prefs = ref.watch(prefsProvider);
+  try {
+    final answer = await ref.watch(apiProvider).verbJson('assets_summary');
+    await prefs.setString('assets.cache', jsonEncode(answer));
+    return answer;
+  } on ApiException catch (e) {
+    final cached = prefs.getString('assets.cache');
+    if (e.isNetwork && cached != null) {
+      return <String, Object?>{...decodeJson(cached), 'offline': true};
+    }
+    rethrow;
+  }
+});
+
 /// The home screen summary card and the calendar state, straight from the sync answer. Without a connection the last answer that
 /// worked is shown, marked offline, so the card is never empty on a train.
 final FutureProvider<Json> syncProvider = FutureProvider.autoDispose<Json>((

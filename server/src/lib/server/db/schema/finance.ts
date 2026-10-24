@@ -21,7 +21,17 @@ import {
 } from 'drizzle-orm/pg-core';
 // -- MODULES -- //
 import { user } from './auth';
-import { centavos, id, oneOf, stamps, userTable, version } from './helpers';
+import { DEFAULT_CURRENCY } from '../../../finance/currency';
+import {
+	centavos,
+	currencyCode,
+	currencyShape,
+	id,
+	oneOf,
+	stamps,
+	userTable,
+	version
+} from './helpers';
 
 // -- CONSTANTS -- //
 
@@ -56,6 +66,8 @@ export const account = userTable(
 		minBalance: centavos('min_balance').notNull().default(0),
 		/** What the account is dedicated to (Emergency, Savings, Bills...). A short label, cosmetic only; null when none. */
 		purpose: text('purpose'),
+		/** The currency the account is in unless an entry says another (a Wise or PayPal account holds more, see account_wallet). */
+		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
 		sortOrder: integer('sort_order').notNull().default(0),
 		archivedAt: timestamp('archived_at', { withTimezone: true }),
 		version: version(),
@@ -66,11 +78,39 @@ export const account = userTable(
 		unique('account_user_id_uq').on(t.userId, t.id),
 		uniqueIndex('account_user_name_uq').on(t.userId, sql`lower(${t.name})`),
 		oneOf('account_kind_chk', t.kind, ACCOUNT_KINDS),
+		currencyShape('account_currency_chk', t.currency),
 		check('account_min_balance_chk', sql`${t.minBalance} >= 0`),
 		check(
 			'account_purpose_chk',
 			sql`${t.purpose} is null or (char_length(${t.purpose}) between 1 and 24 and ${t.purpose} = btrim(${t.purpose}))`
 		)
+	]
+);
+
+// -- WALLETS -- //
+
+/**
+ * A currency an account holds: a Wise account with pesos, dollars and euros has three. The balance of a wallet is the latest count of it
+ * plus the signed entries in its currency after that. Wallets are made when the person adds a currency and on the first entry in one.
+ */
+export const accountWallet = userTable(
+	'account_wallet',
+	() => user.id,
+	{
+		id: id(),
+		accountId: uuid('account_id').notNull(),
+		currency: currencyCode('currency').notNull(),
+		...stamps()
+	},
+	(t) => [
+		unique('account_wallet_user_id_uq').on(t.userId, t.id),
+		unique('account_wallet_currency_uq').on(t.userId, t.accountId, t.currency),
+		foreignKey({
+			name: 'account_wallet_account_fk',
+			columns: [t.userId, t.accountId],
+			foreignColumns: [account.userId, account.id]
+		}),
+		currencyShape('account_wallet_currency_chk', t.currency)
 	]
 );
 
@@ -127,6 +167,8 @@ export const bill = userTable(
 		active: boolean('active').notNull().default(true),
 		/** The first Manila day the bill counts. Dates the schedule gives before it do not exist, so a new bill is never overdue for the past. Null keeps every date. */
 		startsOn: date('starts_on', { mode: 'string' }),
+		/** The currency of amount, and of every override of a date. The main currency unless the person says another. */
+		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
 		version: version(),
 		...stamps()
 	},
@@ -138,6 +180,7 @@ export const bill = userTable(
 			foreignColumns: [account.userId, account.id]
 		}),
 		oneOf('bill_kind_chk', t.kind, BILL_KINDS),
+		currencyShape('bill_currency_chk', t.currency),
 		oneOf('bill_weekend_chk', t.weekendRule, WEEKEND_RULE_VALUES),
 		check('bill_amount_chk', sql`${t.amount} is null or ${t.amount} > 0`),
 		// A fixed bill always has its amount
@@ -241,10 +284,15 @@ export const ledgerTxn = userTable(
 		accountId: uuid('account_id').notNull(),
 		/** The destination of a transfer. */
 		toAccountId: uuid('to_account_id'),
-		/** Centavos. Above zero for every type but an adjustment, which is signed and never zero. */
+		/** Minor units of currency. Above zero for every type but an adjustment, which is signed and never zero. */
 		amount: centavos('amount').notNull(),
-		/** Charged to the source account of a transfer. */
+		/** The wallet of the account this happens in. For a transfer, the source wallet. */
+		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
+		/** Charged to the source account of a transfer, in its currency. */
 		fee: centavos('fee').notNull().default(0),
+		/** A transfer between wallets of different currencies: the wallet it lands in and what really arrived there. Null otherwise. */
+		toCurrency: currencyCode('to_currency'),
+		toAmount: centavos('to_amount'),
 		category: text('category'),
 		note: text('note').notNull().default(''),
 		occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
@@ -276,6 +324,13 @@ export const ledgerTxn = userTable(
 			foreignColumns: [bill.userId, bill.id]
 		}),
 		oneOf('ledger_txn_type_chk', t.type, TXN_TYPE_VALUES),
+		currencyShape('ledger_txn_currency_chk', t.currency),
+		check(
+			'ledger_txn_to_currency_chk',
+			sql`(${t.type} = 'transfer' and ${t.toCurrency} is not null and ${t.toCurrency} ~ '^[A-Z]{3}$'
+				and ((${t.toCurrency} = ${t.currency} and ${t.toAmount} is null) or (${t.toCurrency} <> ${t.currency} and ${t.toAmount} > 0)))
+				or (${t.type} <> 'transfer' and ${t.toCurrency} is null and ${t.toAmount} is null)`
+		),
 		oneOf('ledger_txn_source_chk', t.source, TXN_SOURCES),
 		check(
 			'ledger_txn_amount_chk',
@@ -284,7 +339,7 @@ export const ledgerTxn = userTable(
 		check('ledger_txn_fee_chk', sql`${t.fee} >= 0 and (${t.fee} = 0 or ${t.type} = 'transfer')`),
 		check(
 			'ledger_txn_transfer_chk',
-			sql`(${t.type} = 'transfer' and ${t.toAccountId} is not null and ${t.toAccountId} <> ${t.accountId}) or (${t.type} <> 'transfer' and ${t.toAccountId} is null)`
+			sql`(${t.type} = 'transfer' and ${t.toAccountId} is not null and (${t.toAccountId} <> ${t.accountId} or ${t.toCurrency} is distinct from ${t.currency})) or (${t.type} <> 'transfer' and ${t.toAccountId} is null)`
 		)
 	]
 );
@@ -302,7 +357,12 @@ export const billPayment = userTable(
 		/** The window the payment settled, so a later change to the schedule or the weekend rule still finds it. Null on older rows (due date only). */
 		windowStart: date('window_start', { mode: 'string' }),
 		windowEnd: date('window_end', { mode: 'string' }),
+		/** The amount of the payment in the currency of the bill. */
 		amount: centavos('amount').notNull(),
+		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
+		/** What was really charged and in which wallet's currency, when that is not the bill's own. Null when it was the same. */
+		paidCurrency: currencyCode('paid_currency'),
+		paidAmount: centavos('paid_amount'),
 		paidAt: timestamp('paid_at', { withTimezone: true }).notNull().defaultNow(),
 		/** The expense this payment wrote in the ledger. */
 		txnId: uuid('txn_id'),
@@ -321,7 +381,12 @@ export const billPayment = userTable(
 			columns: [t.userId, t.txnId],
 			foreignColumns: [ledgerTxn.userId, ledgerTxn.id]
 		}),
-		check('bill_payment_amount_chk', sql`${t.amount} > 0`)
+		check('bill_payment_amount_chk', sql`${t.amount} > 0`),
+		currencyShape('bill_payment_currency_chk', t.currency),
+		check(
+			'bill_payment_paid_chk',
+			sql`(${t.paidCurrency} is null and ${t.paidAmount} is null) or (${t.paidCurrency} ~ '^[A-Z]{3}$' and ${t.paidAmount} > 0)`
+		)
 	]
 );
 
@@ -385,8 +450,9 @@ export const balanceSnapshot = userTable(
 	{
 		id: id(),
 		accountId: uuid('account_id').notNull(),
-		/** What the account really held when counted, centavos. */
+		/** What the wallet really held when counted, in minor units of currency. */
 		amount: centavos('amount').notNull(),
+		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
 		takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
 		/** What the app expected at that moment, so the drift can be shown later. */
 		expectedAmount: centavos('expected_amount'),
@@ -394,7 +460,8 @@ export const balanceSnapshot = userTable(
 		...stamps()
 	},
 	(t) => [
-		index('balance_snapshot_account_time_idx').on(t.userId, t.accountId, t.takenAt),
+		index('balance_snapshot_account_time_idx').on(t.userId, t.accountId, t.currency, t.takenAt),
+		currencyShape('balance_snapshot_currency_chk', t.currency),
 		foreignKey({
 			name: 'balance_snapshot_account_fk',
 			columns: [t.userId, t.accountId],

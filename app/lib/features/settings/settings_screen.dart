@@ -20,6 +20,10 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import '../money/account_detail_screen.dart';
+import '../money/currency_picker.dart';
+import 'changelog_row.dart';
+import 'failed_writes_row.dart';
+import 'rates_row.dart';
 import 'reminder_status_row.dart';
 import 'update_row.dart';
 
@@ -152,6 +156,8 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const RatesRow(),
+          const FailedWritesRow(),
           const SizedBox(height: 12),
           Text(t.settingsWeekStarts, style: TextStyle(color: c.muted)),
           const SizedBox(height: 6),
@@ -198,6 +204,7 @@ class SettingsScreen extends ConsumerWidget {
 
           // -- APP VERSION AND UPDATES -- //
           const UpdateRow(),
+          const ChangelogRow(),
 
           // -- REMINDERS -- //
           SectionTitle(t.settingsReminders),
@@ -304,7 +311,12 @@ class SettingsScreen extends ConsumerWidget {
             weekStartsOn: weekStartsOn,
           );
       // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language
-      if (notice != null) ref.invalidate(balancesProvider);
+      if (notice != null) {
+        ref
+          ..invalidate(balancesProvider)
+          ..invalidate(assetsProvider)
+          ..invalidate(syncProvider);
+      }
     } catch (e) {
       if (context.mounted) say(context, errorWords(e, context));
     }
@@ -316,13 +328,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     String current,
   ) async {
-    final chosen = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: context.colors.paper,
-      builder: (sheet) => _CurrencySheet(current: current),
-    );
+    final chosen = await pickCurrency(context, current: current);
     if (chosen == null || chosen == current || !context.mounted) return;
     final t = context.t;
     final picked = currencyOf(chosen);
@@ -335,104 +341,6 @@ class SettingsScreen extends ConsumerWidget {
     if (yes && context.mounted) {
       await _save(context, ref, currency: chosen);
     }
-  }
-}
-
-/// The list inside the sheet: a search field and every currency with its symbol and an example amount.
-class _CurrencySheet extends StatefulWidget {
-  const _CurrencySheet({required this.current});
-
-  final String current;
-
-  @override
-  State<_CurrencySheet> createState() => _CurrencySheetState();
-}
-
-class _CurrencySheetState extends State<_CurrencySheet> {
-  // -- STATES -- //
-
-  String _query = '';
-
-  // -- FUNCTIONS -- //
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final t = context.t;
-    final needle = _query.trim().toLowerCase();
-    final shown = currencies
-        .where(
-          (x) =>
-              needle.isEmpty ||
-              x.code.toLowerCase().contains(needle) ||
-              x.name.toLowerCase().contains(needle),
-        )
-        .toList();
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Column(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: TextField(
-                  autofocus: false,
-                  textCapitalization: TextCapitalization.none,
-                  decoration: InputDecoration(
-                    hintText: t.settingsCurrencySearch,
-                    prefixIcon: const Icon(Icons.search),
-                  ),
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
-              Expanded(
-                child: shown.isEmpty
-                    ? Note(t.settingsCurrencyNone)
-                    : ListView.builder(
-                        itemCount: shown.length,
-                        itemBuilder: (_, i) {
-                          final x = shown[i];
-                          final selected = x.code == widget.current;
-                          return ListTile(
-                            minTileHeight: 56,
-                            selected: selected,
-                            leading: SizedBox(
-                              width: 48,
-                              child: Text(
-                                x.code,
-                                style: TextStyle(
-                                  color: c.accentText,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            title: Text(x.name),
-                            subtitle: Text(
-                              t.settingsCurrencyExample(
-                                formatMoney(123456, x.code),
-                              ),
-                              style: TextStyle(
-                                color: c.muted,
-                                fontFeatures: tabular,
-                              ),
-                            ),
-                            trailing: selected
-                                ? Icon(Icons.check, color: c.accent)
-                                : null,
-                            onTap: () => Navigator.of(context).pop(x.code),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

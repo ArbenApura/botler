@@ -16,9 +16,12 @@ import { createPostgres } from '../src/lib/server/db/client';
 import { migrateLocked } from '../src/lib/server/db/migrate';
 import { decideAction, listActions } from '../src/lib/server/ops/actions';
 import { accountBalances } from '../src/lib/server/ops/ledger';
+import { assertProviderKeys, type ProviderName } from '../src/lib/server/proxy/provider';
+import { createAnthropicClient } from '../src/lib/server/proxy/anthropic';
 import { createModelClient } from '../src/lib/server/proxy/deepseek';
 import { DEFAULT_LIMITS } from '../src/lib/server/proxy/limits';
 import { formatPhp } from '../src/lib/finance/money';
+import { EXTRACT_PROMPT, parseJsonObject } from '../src/lib/server/jobs/memory';
 
 // -- CONSTANTS -- //
 
@@ -45,11 +48,37 @@ function mustBeLocal(url: string | undefined, name: string): string {
 	return url;
 }
 
+function providerClient(env: Record<string, string>) {
+	// The script reads its own environment, so the provider check runs here with the same values (tsx cannot use $app/env)
+	const provider = (env.MODEL_PROVIDER || 'anthropic').trim().toLowerCase();
+	assertProviderKeys(provider, env.ANTHROPIC_API_KEY || '', env.DEEPSEEK_API_KEY || '');
+	const limits = DEFAULT_LIMITS;
+	if (provider === 'deepseek')
+		return {
+			provider: 'deepseek' as ProviderName,
+			model: createModelClient({
+				apiKey: env.DEEPSEEK_API_KEY || '',
+				baseUrl: (env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
+				model: env.DEEPSEEK_MODEL || 'deepseek-flash',
+				limits
+			})
+		};
+	return {
+		provider: 'anthropic' as ProviderName,
+		model: createAnthropicClient({
+			apiKey: env.ANTHROPIC_API_KEY || '',
+			baseUrl: (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, ''),
+			model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
+			limits
+		})
+	};
+}
+
 async function main() {
 	const env = loadEnv();
 	const runtimeUrl = mustBeLocal(env.DATABASE_URL, 'DATABASE_URL');
 	const ownerUrl = mustBeLocal(env.DATABASE_OWNER_URL, 'DATABASE_OWNER_URL');
-	if (!env.DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY is missing in server/.env');
+	const using = providerClient(env);
 	const handle = createPostgres({ runtimeUrl, ownerUrl, switchRole: false });
 	await migrateLocked(handle);
 	await handle.db
@@ -57,25 +86,38 @@ async function main() {
 		.values({ id: DEV_USER, name: 'Dev', email: 'dev@example.invalid' })
 		.onConflictDoNothing();
 	const ctx = { handle, actor: { userId: DEV_USER, kind: 'person' as const } };
-	const model = createModelClient({
-		apiKey: env.DEEPSEEK_API_KEY,
-		baseUrl: env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-		model: env.DEEPSEEK_MODEL || 'deepseek-flash',
-		limits: DEFAULT_LIMITS
-	});
 	const rl = createInterface({ input: stdin, output: stdout });
+	const model = using.model;
 	console.log(
-		'Botler test client (local database, dev user). Type a message, or /cards /approve <id> /reject <id> /balances /quit'
+		`Botler test client (local database, dev user, provider ${using.provider}). Type a message, or /cards /approve <id> /reject <id> /balances /quit`
 	);
 	try {
 		for (;;) {
-			const line = (await rl.question('you> ')).trim();
+			let line: string;
+			try {
+				line = (await rl.question('you> ')).trim();
+			} catch {
+				// The input closed (piped input): end the session without a readline error
+				break;
+			}
 			if (!line) continue;
 			if (line === '/quit') break;
 			try {
 				if (line === '/balances') {
 					for (const b of await accountBalances(ctx))
 						console.log(`  ${b.name}: ${formatPhp(b.balance)}`);
+				} else if (line.startsWith('/memory ')) {
+					// The real memory job path, run here synchronously: one memory-bucket call with the extract prompt
+					const message = line.slice(8).trim();
+					const out = await model.complete(ctx, {
+						bucket: 'memory',
+						messages: [
+							{ role: 'system', content: EXTRACT_PROMPT },
+							{ role: 'user', content: message }
+						]
+					});
+					console.log(`  facts: ${JSON.stringify(parseJsonObject(out.content) ?? out.content)}`);
+					console.log(`  tokens: ${out.usage.promptTokens} in / ${out.usage.completionTokens} out`);
 				} else if (line === '/cards') {
 					for (const c of await listActions(ctx, 'pending'))
 						console.log(`  [${c.id.slice(0, 8)}] ${c.summary}`);

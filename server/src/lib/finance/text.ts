@@ -9,8 +9,10 @@ import { CURRENCIES, currencyOf, DEFAULT_CURRENCY } from './currency';
 // -- TYPES -- //
 
 export type ParsedExpense = {
-	/** Centavos, or null when no amount was found. */
+	/** Minor units of currency, or null when no amount was found. */
 	amount: number | null;
+	/** The currency the text names (a symbol or a code in front of the number), or null when it names none. */
+	currency: string | null;
 	note: string;
 	category: string;
 	/** The account name as the person has it, or null when none was named. */
@@ -75,20 +77,97 @@ const CATEGORY_WORDS: Record<string, string[]> = {
 	fun: ['movie', 'sinehan', 'game', 'netflix', 'spotify', 'inom', 'bar']
 };
 
+/**
+ * Codes a person may write in any case ("usd 5", "Eur 3"): none of them is an ordinary word. Every other code is read only when it is
+ * written in capitals ("MOP 150"), because "mop 150", "pen 25", "top 200", "cup 40" or "all 5" are an expense and not a currency.
+ */
+const ANY_CASE_CODES = new Set([
+	'PHP',
+	'USD',
+	'EUR',
+	'GBP',
+	'JPY',
+	'KRW',
+	'CNY',
+	'HKD',
+	'SGD',
+	'AUD',
+	'NZD',
+	'CAD',
+	'CHF',
+	'INR',
+	'IDR',
+	'MYR',
+	'THB',
+	'VND',
+	'TWD',
+	'AED',
+	'SAR',
+	'SEK',
+	'NOK',
+	'DKK',
+	'PLN',
+	'BRL',
+	'MXN',
+	'ZAR',
+	'RUB',
+	'ILS',
+	'NGN',
+	'EGP',
+	'PKR',
+	'BDT',
+	'LKR',
+	'NPR',
+	'KWD',
+	'QAR',
+	'BHD',
+	'OMR',
+	'JOD',
+	'CZK',
+	'HUF',
+	'UAH',
+	'KES',
+	'GHS',
+	'COP',
+	'CLP'
+]);
+
+/** A letter in either case, written out, so the pattern needs no case flag (the digits and the "k" are handled the same way). */
+const anyCase = (t: string) =>
+	t.replace(/[a-z]/gi, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`);
+const escapeToken = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // A currency symbol or code of the catalogue (₱, $, usd, S$ ...) or a "p" before the digits, then digits with optional thousands commas and
 // decimals, and an optional "k". A name such as "firm" never counts as the RM of ringgit: a word-like prefix may not follow a letter.
+const CODES = new Set(CURRENCIES.map((c) => c.code));
 const AMOUNT_PREFIXES = [
 	...new Set(CURRENCIES.flatMap((c) => [c.symbol.trim(), c.code]).filter((t) => t.length > 0))
 ]
 	.sort((x, y) => y.length - x.length)
-	.map(
-		(t) => (/^[A-Za-z]/.test(t) ? '(?<![A-Za-z])' : '') + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-	);
+	.map((t) => {
+		const letters = /^[A-Za-z]/.test(t);
+		// A code that is also a word must be in capitals; a symbol and a common code may be in any case
+		const body = letters
+			? CODES.has(t) && !ANY_CASE_CODES.has(t)
+				? escapeToken(t)
+				: anyCase(escapeToken(t))
+			: escapeToken(t);
+		return (letters ? '(?<![A-Za-z])' : '') + body;
+	});
+// Group 1 is the symbol or code that was written, 2 the whole part, 3 the decimals, 4 the "k"
 const AMOUNT_RE = new RegExp(
-	'(?:' +
+	'(?:(' +
 		AMOUNT_PREFIXES.join('|') +
-		'|\\bp(?=\\d))?\\s?(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,2}))?\\s?(k\\b)?',
-	'gi'
+		')|\\b[pP](?=\\d))?\\s?(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,3}))?\\s?([kK]\\b)?',
+	'g'
+);
+
+/** What a written symbol or code means (lowercase): ₱ is PHP, usd is USD. Every symbol belongs to one currency, so none is ambiguous. */
+const CURRENCY_OF_TOKEN = new Map(
+	CURRENCIES.flatMap((c) => [
+		[c.symbol.trim().toLowerCase(), c.code] as const,
+		[c.code.toLowerCase(), c.code] as const
+	])
 );
 
 // -- FUNCTIONS -- //
@@ -96,11 +175,11 @@ const AMOUNT_RE = new RegExp(
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Minor units of what was read. A zero digit currency (yen) has no fraction, so a decimal part is dropped. */
-function toMinor(whole: string, frac: string | undefined, k: boolean, digits: 0 | 2): number {
+function toMinor(whole: string, frac: string | undefined, k: boolean, digits: 0 | 2 | 3): number {
 	const major = Number(whole.replaceAll(',', ''));
 	if (digits === 0) return major * (k ? 1000 : 1);
-	const minor = frac ? Number(frac.padEnd(2, '0')) : 0;
-	return (major * 100 + minor) * (k ? 1000 : 1);
+	const minor = frac ? Number(frac.slice(0, digits).padEnd(digits, '0')) : 0;
+	return (major * 10 ** digits + minor) * (k ? 1000 : 1);
 }
 
 /** The category a note most likely belongs to. */
@@ -126,10 +205,12 @@ export function parseExpenseText(
 	accountNames: readonly string[],
 	currency: string = DEFAULT_CURRENCY
 ): ParsedExpense {
-	const digits = currencyOf(currency).digits;
 	const matches = [...text.matchAll(AMOUNT_RE)];
 	const last = matches.at(-1);
-	const amount = last ? toMinor(last[1] as string, last[2], Boolean(last[3]), digits) : null;
+	// A symbol or code in front of the number names the currency; without one the number is in the currency the caller passes
+	const written = last?.[1] ? (CURRENCY_OF_TOKEN.get(last[1].toLowerCase()) ?? null) : null;
+	const digits = currencyOf(written ?? currency).digits;
+	const amount = last ? toMinor(last[2] as string, last[3], Boolean(last[4]), digits) : null;
 	const account = findName(
 		text,
 		accountNames.map((name) => ({ name }))
@@ -142,6 +223,7 @@ export function parseExpenseText(
 		.trim();
 	return {
 		amount,
+		currency: written,
 		note,
 		category: guessCategory(note),
 		accountName: account?.name ?? null,
@@ -196,7 +278,7 @@ export function parseRuleText(
 			ok: false,
 			reason: 'Say it as an amount, a percentage or "the rest", then where it goes.'
 		};
-	const amount = toMinor(a[1] as string, a[2], Boolean(a[3]), digits);
+	const amount = toMinor(a[2] as string, a[3], Boolean(a[4]), digits);
 	if (amount <= 0) return { ok: false, reason: 'The amount must be above zero.' };
 	return {
 		ok: true,

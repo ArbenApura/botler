@@ -27,7 +27,7 @@ import {
 	occurrenceOn,
 	OVERRIDE_REACH_DAYS
 } from '../../finance/occurrence';
-import { bill, billOverride, billPayment } from '../db/schema';
+import { accountWallet, bill, billOverride, billPayment } from '../db/schema';
 import {
 	billCreateInput,
 	billMarkPaidInput,
@@ -37,6 +37,9 @@ import {
 } from '../db/zod';
 import { OpsError, recordUndo, run, runWrite } from './context';
 import { insertTxn } from './ledger';
+import { valueInMain } from './assets';
+import { loadRates, refreshInBackground } from '../fx/store';
+import { readSettings } from './settings';
 import {
 	checkVersion,
 	mapped,
@@ -72,8 +75,10 @@ export type DueBill = {
 	windowStart: string;
 	/** The last day, same as dueDate. */
 	windowEnd: string;
-	/** Centavos, or null when a variable bill has no estimate yet (the person must be asked). */
+	/** Minor units of currency, or null when a variable bill has no estimate yet (the person must be asked). */
 	amount: number | null;
+	/** The currency of the bill and of amount. */
+	currency: string;
 	unknownAmount: boolean;
 	paid: boolean;
 	deferrable: boolean;
@@ -107,10 +112,17 @@ export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillVi
 	return mapped(() =>
 		runWrite(ctx, 'bill.create', input, async (tx, userId) => {
 			await requireActiveAccount(tx, userId, input.accountId, 'account the bill is paid from');
+			// A bill is in the person's main currency unless it says another (a dollar subscription)
+			const currency = input.currency ?? (await readSettings(tx, userId)).currency;
 			// A new bill counts from today, so the dates its schedule gives before today are not overdue
 			const [row] = await tx
 				.insert(bill)
-				.values({ ...input, startsOn: input.startsOn ?? toManilaDate(new Date()), userId })
+				.values({
+					...input,
+					currency,
+					startsOn: input.startsOn ?? toManilaDate(new Date()),
+					userId
+				})
 				.returning();
 			if (!row) throw new OpsError('CONFLICT', 'The bill could not be saved.');
 			return plain(row);
@@ -190,6 +202,22 @@ export async function updateBill(
 			const current = await requireBill(tx, userId, billId);
 			checkVersion(current.version, expectVersion, 'bill');
 			if (changes.accountId) await requireActiveAccount(tx, userId, changes.accountId);
+			// The amounts of a bill, its changed dates and its payments are all in its currency, so it cannot change under them
+			if (changes.currency !== undefined && changes.currency !== current.currency) {
+				const [dates] = await tx
+					.select({ n: sql<number>`count(*)::int` })
+					.from(billOverride)
+					.where(and(eq(billOverride.userId, userId), eq(billOverride.billId, billId)));
+				const [paid] = await tx
+					.select({ n: sql<number>`count(*)::int` })
+					.from(billPayment)
+					.where(and(eq(billPayment.userId, userId), eq(billPayment.billId, billId)));
+				if ((dates?.n ?? 0) > 0 || (paid?.n ?? 0) > 0)
+					throw new OpsError(
+						'INVALID',
+						'This bill already has payments or changed dates in its currency. Add a new bill in the other currency instead.'
+					);
+			}
 			const [row] = await tx
 				.update(bill)
 				.set({ ...changes, version: sql`${bill.version} + 1`, updatedAt: sql`now()` })
@@ -207,8 +235,16 @@ export async function updateBill(
 export async function listBills(ctx: Ctx) {
 	return run(ctx, async (tx, userId) => {
 		const rows = await tx.select().from(bill).where(eq(bill.userId, userId)).orderBy(bill.name);
+		const main = (await readSettings(tx, userId)).currency;
+		const { rates } = await loadRates(tx);
 		const out = [];
-		for (const b of rows) out.push({ ...plain(b), estimate: await estimateOf(tx, userId, b) });
+		for (const b of rows) {
+			const estimate = await estimateOf(tx, userId, b);
+			// What the usual amount is worth in the main currency; null when it is not known or the rate is missing
+			const estimateMain =
+				estimate.amount === null ? null : valueInMain(estimate.amount, b.currency, main, rates);
+			out.push({ ...plain(b), estimate, estimateMain, mainCurrency: main });
+		}
 		return out;
 	});
 }
@@ -418,6 +454,7 @@ export async function dueBills(
 				windowStart: w.start,
 				windowEnd: w.end,
 				amount: w.override?.amount ?? est?.amount ?? null,
+				currency: b.currency,
 				unknownAmount: (w.override?.amount ?? est?.amount ?? null) === null,
 				// Overlap, so a later change of the weekend rule or the schedule does not hide a payment already made
 				paid: (settled.get(b.id) ?? []).some((p) => p.start <= w.end && p.end >= w.start),
@@ -429,8 +466,36 @@ export async function dueBills(
 	);
 }
 
-export async function listDueBills(ctx: Ctx, from: string, to: string): Promise<DueBill[]> {
-	return run(ctx, (tx, userId) => dueBills(tx, userId, from, to));
+/** A due bill with what it comes to in the main currency at the stored rates (the same number for a bill in the main currency). */
+export type DueBillView = DueBill & {
+	/** Null when the amount is unknown or the exchange rate for its currency is missing. */
+	amountMain: number | null;
+	/** True when the bill is in another currency and its rate is not known. */
+	missingRate: boolean;
+	/** The main currency the value is in. */
+	mainCurrency: string;
+};
+
+export async function listDueBills(ctx: Ctx, from: string, to: string): Promise<DueBillView[]> {
+	const { list, main, rates, status } = await run(ctx, async (tx, userId) => {
+		const status = await loadRates(tx);
+		return {
+			list: await dueBills(tx, userId, from, to),
+			main: (await readSettings(tx, userId)).currency,
+			rates: status.rates,
+			status
+		};
+	});
+	refreshInBackground(ctx.handle, status);
+	return list.map((b) => {
+		const amountMain = b.amount === null ? null : valueInMain(b.amount, b.currency, main, rates);
+		return {
+			...b,
+			amountMain,
+			missingRate: b.amount !== null && amountMain === null,
+			mainCurrency: main
+		};
+	});
 }
 
 /**
@@ -466,6 +531,42 @@ export async function markBillPaid(ctx: Ctx, raw: BillMarkPaidInput) {
 				if (!own.archivedAt) accountId = own.id;
 			}
 			await requireActiveAccount(tx, userId, accountId);
+			// The amount is in the bill's currency. What leaves the account is in the wallet's currency: the same unless the person says
+			// a dollar bill was paid in pesos, and then they say what was really charged.
+			const walletCurrency = input.paidCurrency ?? b.currency;
+			const foreign = walletCurrency !== b.currency;
+			// A bill in a currency the paying account does not hold is not paid into a new, negative wallet by default: the person says which
+			// wallet and what was charged
+			if (!input.paidCurrency) {
+				const payer = await requireActiveAccount(tx, userId, accountId);
+				if (payer.currency !== b.currency) {
+					const [wallet] = await tx
+						.select({ id: accountWallet.id })
+						.from(accountWallet)
+						.where(
+							and(
+								eq(accountWallet.userId, userId),
+								eq(accountWallet.accountId, accountId),
+								eq(accountWallet.currency, b.currency)
+							)
+						);
+					if (!wallet)
+						throw new OpsError(
+							'INVALID',
+							`"${payer.name}" holds no ${b.currency} wallet. Say which currency it was charged in and how much.`
+						);
+				}
+			}
+			if (foreign && !input.paidAmount)
+				throw new OpsError(
+					'INVALID',
+					`Say how much ${walletCurrency} was charged for "${b.name}".`
+				);
+			if (!foreign && input.paidAmount && input.paidAmount !== amount)
+				throw new OpsError(
+					'INVALID',
+					`The bill and the wallet are both in ${b.currency}, so the charge is the bill's amount.`
+				);
 			const txn = await insertTxn(
 				tx,
 				userId,
@@ -473,7 +574,8 @@ export async function markBillPaid(ctx: Ctx, raw: BillMarkPaidInput) {
 				{
 					type: 'expense',
 					accountId,
-					amount,
+					amount: foreign ? (input.paidAmount ?? amount) : amount,
+					currency: walletCurrency,
 					note: b.name,
 					category: b.category,
 					source: 'bill',
@@ -490,6 +592,9 @@ export async function markBillPaid(ctx: Ctx, raw: BillMarkPaidInput) {
 					windowStart: window.start,
 					windowEnd: window.end,
 					amount,
+					currency: b.currency,
+					paidCurrency: foreign ? walletCurrency : null,
+					paidAmount: foreign ? (input.paidAmount ?? null) : null,
 					txnId: txn.id
 				})
 				.returning();
@@ -511,7 +616,15 @@ export async function markBillPaid(ctx: Ctx, raw: BillMarkPaidInput) {
 				b.kind === 'variable' && est.amount !== null && amount < est.amount
 					? est.amount - amount
 					: null;
-			return { paymentId: payment.id, txnId: txn.id, amount, savingsHint: hint };
+			return {
+				paymentId: payment.id,
+				txnId: txn.id,
+				amount,
+				currency: b.currency,
+				paidCurrency: foreign ? walletCurrency : null,
+				paidAmount: foreign ? (input.paidAmount ?? null) : null,
+				savingsHint: hint
+			};
 		})
 	);
 }

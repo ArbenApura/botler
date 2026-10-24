@@ -68,6 +68,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get accountsCurrencyLabel => 'Currency';
+
+  @override
+  String get accountsCurrencyNote =>
+      'What is in this account is counted in this currency unless you pick another when you enter something.';
+
+  @override
   String accountsDaysAgo(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -98,6 +105,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String accountsMissingRate(String currencies) {
+    return 'No exchange rate yet for $currencies. It is not in the total.';
+  }
+
+  @override
   String get accountsNameHint => 'GCash';
 
   @override
@@ -107,7 +119,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsNeverCounted => 'Never counted';
 
   @override
+  String accountsNoMainWallet(String currency) {
+    return 'Nothing in $currency here, so the minimum is not checked.';
+  }
+
+  @override
   String get accountsNotSaved => 'Not saved.';
+
+  @override
+  String accountsRatesAsOf(String date) {
+    return 'Exchange rates as of $date';
+  }
+
+  @override
+  String get accountsRatesFailed =>
+      'Could not update the rates. The last ones are still used.';
+
+  @override
+  String get accountsRatesNone => 'No exchange rates yet. Tap to get them.';
+
+  @override
+  String get accountsRatesOffline => 'No connection. Showing the last total.';
+
+  @override
+  String get accountsRatesRefresh => 'Update rates';
+
+  @override
+  String accountsRatesStale(String date) {
+    return 'Exchange rates are old (from $date). Tap to update.';
+  }
+
+  @override
+  String get accountsRatesTooSoon => 'The rates were just updated.';
+
+  @override
+  String get accountsRatesUpdated => 'Exchange rates updated.';
 
   @override
   String get accountsSaveCount => 'Save the count';
@@ -121,10 +167,33 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String accountsSubtotal(String amount) {
+    return 'About $amount in all';
+  }
+
+  @override
   String get accountsTitle => 'Accounts';
 
   @override
   String get accountsToday => 'today';
+
+  @override
+  String get accountsTotalTitle => 'Everything you have';
+
+  @override
+  String get accountsTotalUnavailable =>
+      'The total needs exchange rates, and there are none yet.';
+
+  @override
+  String get accountsWalletAdd => 'Add a currency';
+
+  @override
+  String accountsWalletAdded(String currency) {
+    return '$currency added.';
+  }
+
+  @override
+  String get accountsWalletsTitle => 'Currencies in this account';
 
   @override
   String get accountsYesterday => 'yesterday';
@@ -511,6 +580,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String billsAboutMain(String amount) {
+    return 'about $amount';
+  }
+
+  @override
   String get billsAdd => 'Add a bill';
 
   @override
@@ -529,7 +603,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billsAmountUnknown => 'amount?';
 
   @override
+  String billsChargedLabel(String currency) {
+    return 'Really charged ($currency)';
+  }
+
+  @override
+  String billsChargedNote(String bill, String wallet) {
+    return 'This bill is in $bill, but you pay from a $wallet wallet. Type what was really charged.';
+  }
+
+  @override
   String get billsComingUp => 'Coming up';
+
+  @override
+  String get billsCurrencyLabel => 'Currency of this bill';
 
   @override
   String get billsDateLabel => 'Due date';
@@ -567,6 +654,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String billsMarkedPaidHint(String amount) {
     return 'Marked paid. It came in $amount under the usual: you could set that aside.';
   }
+
+  @override
+  String get billsMissingRateTag => 'no exchange rate yet';
 
   @override
   String get billsMovedTag => 'moved';
@@ -624,6 +714,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'You changed how it repeats, so every date follows the new rule.';
 
   @override
+  String get billsReserveNote =>
+      'The payday split keeps the money for this bill in your main currency. Paying from another wallet can take that wallet below zero.';
+
+  @override
   String get billsSave => 'Save';
 
   @override
@@ -672,6 +766,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get billsVaries => 'The amount is different every time';
+
+  @override
+  String get billsWalletLabel => 'Paid in';
 
   @override
   String get calAdd => 'Add';
@@ -838,6 +935,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String calForecastUnconverted(int count) {
+    return '$count bills in other currencies are left out of this forecast because their exchange rate is missing.';
+  }
+
+  @override
   String calForecastUnknown(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -954,6 +1056,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancel => 'Cancel';
+
+  @override
+  String changelogBuildHeader(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get changelogGotIt => 'Got it';
+
+  @override
+  String get changelogRowHint => 'Read the changes in the version you have now';
+
+  @override
+  String get changelogRowTitle => 'What is new in this version';
+
+  @override
+  String changelogTitle(String version) {
+    return 'What is new in $version';
+  }
 
   @override
   String get chatAcrossAccounts => 'Across your accounts';
@@ -1355,6 +1476,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get done => 'Done';
 
   @override
+  String get entryCurrencyLabel => 'Currency';
+
+  @override
+  String get entryCurrencyOther => 'Other…';
+
+  @override
   String expenseAmountError(String code) {
     return 'Type the amount in $code, like 180 or 1,250.50.';
   }
@@ -1462,6 +1589,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String historyMoved(String from, String to) {
     return 'Moved $from → $to';
+  }
+
+  @override
+  String historyOtherCurrencies(String currencies) {
+    return 'Also spent in $currencies. Those are not added here.';
   }
 
   @override
@@ -1694,6 +1826,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifHiddenBody => 'You have a reminder';
+
+  @override
+  String get outboxFailedDismiss => 'Got it';
+
+  @override
+  String outboxFailedLine(int count) {
+    return '$count changes you made offline did not go through. Tap to see why.';
+  }
+
+  @override
+  String get outboxFailedTitle => 'Changes the server refused';
 
   @override
   String get paydayAdd => 'Add a payday';
@@ -2271,7 +2414,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String settingsCurrencyConfirmBody(String name) {
-    return 'Your amounts will read in $name. Nothing is converted: 100.00 stays 100.00, only the currency changes.';
+    return 'Your total will be shown in $name. Your accounts keep the currencies they hold. Your income, goals, rules and minimum balances keep the same numbers, now read in $name: nothing in them is converted. Your bills keep their own currency.';
   }
 
   @override
@@ -2357,6 +2500,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPrivacy => 'Privacy';
 
   @override
+  String settingsRatesLine(String date, String source) {
+    return 'Fetched $date from $source';
+  }
+
+  @override
+  String get settingsRatesNone => 'No rates yet';
+
+  @override
+  String get settingsRatesTap => 'Tap to update';
+
+  @override
+  String get settingsRatesTitle => 'Exchange rates';
+
+  @override
   String get settingsReminders => 'Reminders';
 
   @override
@@ -2433,6 +2590,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splitCutOrMove => 'You could cut or move:';
 
   @override
+  String splitForeignLine(
+    String name,
+    String amount,
+    String converted,
+    String rate,
+  ) {
+    return '$name: $amount counted as $converted ($rate)';
+  }
+
+  @override
+  String get splitForeignTitle => 'Bills in other currencies';
+
+  @override
   String get splitMarkSent => 'Mark sent';
 
   @override
@@ -2453,6 +2623,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splitTransfers => 'Transfers to make';
+
+  @override
+  String summaryMissingRates(int count) {
+    return '$count currencies are not in this total: no exchange rate yet.';
+  }
+
+  @override
+  String transferArrivedLabel(String currency) {
+    return 'Amount that arrived ($currency)';
+  }
+
+  @override
+  String get transferDone => 'Moved.';
+
+  @override
+  String transferFeeLabel(String currency) {
+    return 'Fee ($currency, optional)';
+  }
+
+  @override
+  String get transferFrom => 'From';
+
+  @override
+  String get transferInvalid => 'Check the amounts.';
+
+  @override
+  String get transferMove => 'Move money';
+
+  @override
+  String get transferQueued =>
+      'Saved on the phone. It is sent when you are back online.';
+
+  @override
+  String transferRate(String rate) {
+    return 'Your rate: $rate';
+  }
+
+  @override
+  String get transferSame => 'Pick two different wallets.';
+
+  @override
+  String transferSentLabel(String currency) {
+    return 'Amount sent ($currency)';
+  }
+
+  @override
+  String transferSuggest(String amount) {
+    return 'Today\'\'s rate suggests about $amount. Change it to what really arrived.';
+  }
+
+  @override
+  String get transferTo => 'To';
 
   @override
   String get uiError => 'Something went wrong. Try again.';

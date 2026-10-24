@@ -66,11 +66,30 @@ String entryTitle(AppLocalizations t, Json e) {
 /// A column name as words ("min_balance" becomes "min balance").
 String fieldWords(String key) => key.replaceAll('_', ' ');
 
-/// A value for the screen: money fields in the person's currency, empty as "none".
-String valueWords(BuildContext context, String key, Object? v) {
+/// The currency an entry of the trail is in, or empty when it has none (an account or a bill changing).
+String entryCurrency(Json e) {
+  final after = asJson(e['after']);
+  final before = asJson(e['before']);
+  return str(after['currency'], str(before['currency']));
+}
+
+/// A value for the screen: money fields in the currency they are in, empty as "none". A minimum balance belongs to the money plan, so it is
+/// in the main currency; the amount that arrived in a transfer is in the currency it landed in; the rest are in the entry's own wallet.
+String valueWords(
+  BuildContext context,
+  String key,
+  Object? v, [
+  String? currency,
+  String own = '',
+]) {
   if (v == null) return context.t.auditNone;
   final isMoney = key.contains('amount') || key.contains('balance');
-  if (isMoney && v is num) return context.money(v.toInt());
+  if (isMoney && v is num) {
+    final code = key == 'min_balance'
+        ? context.currencyCode
+        : currency ?? (own.isEmpty ? context.currencyCode : own);
+    return context.moneyIn(v.toInt(), code);
+  }
   return '$v';
 }
 

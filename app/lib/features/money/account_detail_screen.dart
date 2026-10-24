@@ -20,6 +20,7 @@ import '../../ui/ui.dart';
 import 'accounts_screen.dart';
 import 'audit_words.dart';
 import 'purpose.dart';
+import 'transfer_sheet.dart';
 
 // -- CONSTANTS -- //
 
@@ -54,14 +55,16 @@ class _Filter {
     search: search ?? this.search,
   );
 
-  Json args(String accountId, {int? cursor}) => <String, Object?>{
-    'accountId': accountId,
-    'by': ?by,
-    if (from != null) 'from': DateFormat('yyyy-MM-dd').format(from!),
-    if (to != null) 'to': DateFormat('yyyy-MM-dd').format(to!),
-    if (search.isNotEmpty) 'search': search,
-    'cursor': ?cursor,
-  };
+  Json args(String accountId, String currency, {int? cursor}) =>
+      <String, Object?>{
+        'accountId': accountId,
+        'currency': currency,
+        'by': ?by,
+        if (from != null) 'from': DateFormat('yyyy-MM-dd').format(from!),
+        if (to != null) 'to': DateFormat('yyyy-MM-dd').format(to!),
+        if (search.isNotEmpty) 'search': search,
+        'cursor': ?cursor,
+      };
 }
 
 class AccountDetailScreen extends ConsumerStatefulWidget {
@@ -84,6 +87,9 @@ class _State extends ConsumerState<AccountDetailScreen> {
   Object? _error;
   int _balance = 0;
   int _gen = 0;
+
+  /// The wallet whose history and balance are shown. Null until the person picks one: then the account's own currency.
+  String? _wallet;
   final TextEditingController _search = TextEditingController();
 
   // -- LIFECYCLES -- //
@@ -118,7 +124,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
           .read(apiProvider)
           .verbJson(
             'account_history',
-            _filter.args(widget.accountId, cursor: reset ? null : _cursor),
+            _filter.args(
+              widget.accountId,
+              _currency(),
+              cursor: reset ? null : _cursor,
+            ),
           );
       if (!mounted || gen != _gen) return;
       setState(() {
@@ -143,6 +153,10 @@ class _State extends ConsumerState<AccountDetailScreen> {
     _filter = f;
     _load(reset: true);
   }
+
+  /// The currency of the wallet that is shown: the one picked, else the account's own, else the main currency.
+  String _currency() =>
+      _wallet ?? str(_account()?['currency'], context.currencyCode);
 
   Json? _account() {
     final list = ref.read(balancesProvider).value ?? <Json>[];
@@ -184,13 +198,14 @@ class _State extends ConsumerState<AccountDetailScreen> {
   Future<void> _setBalance(Json account, int cents, String reason) async {
     final t = context.t;
     final name = str(account['name']);
-    final old = intOf(account['balance']);
+    final code = _currency();
+    final old = _balance;
     final yes = await confirm(
       context,
-      title: t.setBalanceConfirmTitle(name, context.money(cents)),
+      title: t.setBalanceConfirmTitle(name, context.moneyIn(cents, code)),
       body: t.setBalanceConfirmBody(
-        context.money(old),
-        context.money(cents - old),
+        context.moneyIn(old, code),
+        context.moneyIn(cents - old, code),
       ),
       yes: t.setBalanceConfirmYes,
       danger: cents == 0 && old != 0,
@@ -199,13 +214,16 @@ class _State extends ConsumerState<AccountDetailScreen> {
     try {
       await ref.read(apiProvider).verb('snapshot_record', <String, Object?>{
         'accountId': widget.accountId,
+        'currency': code,
         'amount': cents,
         'mode': 'reset',
         'reason': reason,
         'confirmed': true,
         'source': 'manual',
       });
-      ref.invalidate(balancesProvider);
+      ref
+        ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider);
       if (!mounted) return;
       say(context, t.setBalanceDone);
       await _load(reset: true);
@@ -222,6 +240,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
     final account = _account();
     if (account == null) return;
     final t = context.t;
+    final code = _currency();
     final amount = TextEditingController();
     final reason = TextEditingController(text: zero ? t.resetZeroReason : '');
     final picked = await showFormSheet<(int, String)>(
@@ -231,22 +250,22 @@ class _State extends ConsumerState<AccountDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            sheet.t.setBalanceBody(sheet.money(intOf(account['balance']))),
+            sheet.t.setBalanceBody(sheet.moneyIn(_balance, code)),
             style: TextStyle(color: sheet.colors.muted),
           ),
           const SizedBox(height: 12),
           if (!zero)
             Field(
               controller: amount,
-              label: sheet.t.setBalanceNew(sheet.currencyCode),
+              label: sheet.t.setBalanceNew(code),
               keyboard: const TextInputType.numberWithOptions(decimal: true),
             ),
           Field(controller: reason, label: sheet.t.setBalanceReason),
           FilledButton(
             onPressed: () {
-              final cents = zero ? 0 : sheet.parseAmount(amount.text);
+              final cents = zero ? 0 : sheet.parseAmountIn(amount.text, code);
               if (cents == null) {
-                say(sheet, sheet.t.accountsCountInvalid(sheet.currencyCode));
+                say(sheet, sheet.t.accountsCountInvalid(code));
                 return;
               }
               if (reason.text.trim().isEmpty) {
@@ -300,6 +319,8 @@ class _State extends ConsumerState<AccountDetailScreen> {
     // Watched, so the name and balance appear as soon as the accounts arrive
     ref.watch(balancesProvider);
     final account = _account();
+    final code = _currency();
+    final wallets = account == null ? const <Json>[] : walletsOf(account);
     final verify = ref.watch(auditVerifyProvider).value;
     // A check that could not run is said, never shown as a clean chain
     final unverified = ref.watch(auditVerifyProvider).hasError;
@@ -315,7 +336,27 @@ class _State extends ConsumerState<AccountDetailScreen> {
                 switch (v) {
                   case 'count':
                     if (account != null) {
-                      AccountsScreen.count(context, ref, account).then((_) {
+                      AccountsScreen.count(
+                        context,
+                        ref,
+                        account,
+                        currency: _currency(),
+                      ).then((_) {
+                        if (mounted) _load(reset: true);
+                      });
+                    }
+                  case 'wallet':
+                    if (account != null) {
+                      AccountsScreen.addWallet(context, ref, account);
+                    }
+                  case 'move':
+                    if (account != null) {
+                      showMoveSheet(
+                        context,
+                        ref,
+                        from: account,
+                        fromCurrency: _currency(),
+                      ).then((_) {
                         if (mounted) _load(reset: true);
                       });
                     }
@@ -336,6 +377,16 @@ class _State extends ConsumerState<AccountDetailScreen> {
                   value: 'count',
                   height: 48,
                   child: Text(t.acctMenuCount),
+                ),
+                PopupMenuItem<String>(
+                  value: 'move',
+                  height: 48,
+                  child: Text(t.transferMove),
+                ),
+                PopupMenuItem<String>(
+                  value: 'wallet',
+                  height: 48,
+                  child: Text(t.accountsWalletAdd),
                 ),
                 PopupMenuItem<String>(
                   value: 'purpose',
@@ -391,6 +442,27 @@ class _State extends ConsumerState<AccountDetailScreen> {
                   child: PurposeChip(purposeOf(account)),
                 ),
               ),
+            if (wallets.length > 1)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    children: <Widget>[
+                      for (final w in wallets)
+                        ChoiceChip(
+                          label: Text(str(w['currency'])),
+                          selected: str(w['currency']) == code,
+                          onSelected: (_) {
+                            setState(() => _wallet = str(w['currency']));
+                            _load(reset: true);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Row(
@@ -402,7 +474,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
                       style: TextStyle(color: c.muted),
                     ),
                   ),
-                  Amount(_balance),
+                  Amount(_balance, currency: code),
                 ],
               ),
             ),
@@ -457,7 +529,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       children: <Widget>[
         if (rows.isEmpty) Note(t.acctEmpty),
-        for (final e in rows) _EntryRow(entry: e),
+        for (final e in rows) _EntryRow(entry: e, currency: _currency()),
         if (_more)
           TextButton(
             onPressed: _loading ? null : () => _load(),
@@ -563,9 +635,12 @@ class _Filters extends StatelessWidget {
 // -- ROWS -- //
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry});
+  const _EntryRow({required this.entry, required this.currency});
 
   final Json entry;
+
+  /// The wallet the list shows: every amount of a row is in it.
+  final String currency;
 
   @override
   Widget build(BuildContext context) {
@@ -578,12 +653,12 @@ class _EntryRow extends StatelessWidget {
     final what = entryTitle(t, entry);
     final who = actorWords(t, entry);
     final where = channelWords(t, str(entry['channel']));
-    final balance = context.money(intOf(entry['balanceAfter']));
+    final balance = context.moneyIn(intOf(entry['balanceAfter']), currency);
     return Semantics(
       button: true,
       label: t.auditRowSemantics(what, who, when, balance),
       child: InkWell(
-        onTap: () => showEntrySheet(context, entry),
+        onTap: () => showEntrySheet(context, entry, currency: currency),
         child: ExcludeSemantics(
           child: Container(
             constraints: const BoxConstraints(minHeight: 64),
@@ -613,7 +688,7 @@ class _EntryRow extends StatelessWidget {
                     Text(
                       delta == 0
                           ? ''
-                          : '${delta > 0 ? '+' : ''}${context.money(delta)}',
+                          : '${delta > 0 ? '+' : ''}${context.moneyIn(delta, currency)}',
                       style: TextStyle(fontFeatures: tabular),
                     ),
                     Text(
@@ -632,20 +707,30 @@ class _EntryRow extends StatelessWidget {
 }
 
 /// One entry in full: who, where, when, what changed in words, the note and the references.
-Future<void> showEntrySheet(BuildContext context, Json entry) {
+Future<void> showEntrySheet(
+  BuildContext context,
+  Json entry, {
+  String? currency,
+}) {
   final t = context.t;
+  // The amounts of an entry are in the wallet it belongs to; a row of the trail that is not about money has no currency of its own
+  final code = currency ?? str(entry['currency'], context.currencyCode);
   final locale = Localizations.localeOf(context).toString();
   final at = (dateOf(entry['at']) ?? DateTime.now()).toLocal();
   final before = asJson(entry['before']);
   final after = asJson(entry['after']);
   final keys = <String>{...before.keys, ...after.keys}.toList()..sort();
+  // What arrived in a conversion is in the currency it landed in, the rest in the wallet shown
+  String landed(String key) => key == 'to_amount'
+      ? str(after['to_currency'], str(before['to_currency'], code))
+      : code;
   final changes = <String>[
     for (final k in keys)
       if ('${before[k]}' != '${after[k]}')
         t.auditChangeLine(
           fieldWords(k),
-          valueWords(context, k, before[k]),
-          valueWords(context, k, after[k]),
+          valueWords(context, k, before[k], landed(k), entryCurrency(entry)),
+          valueWords(context, k, after[k], landed(k), entryCurrency(entry)),
         ),
   ];
   final note = str(entry['note']);
@@ -681,7 +766,10 @@ Future<void> showEntrySheet(BuildContext context, Json entry) {
         line(t.auditWho, actorWords(t, entry)),
         line(t.auditWhere, channelWords(t, str(entry['channel']))),
         line(t.auditWhen, DateFormat.yMMMMd(locale).add_jm().format(at)),
-        line(t.auditBalanceAfter, sheet.money(intOf(entry['balanceAfter']))),
+        line(
+          t.auditBalanceAfter,
+          sheet.moneyIn(intOf(entry['balanceAfter']), code),
+        ),
         if (changes.isNotEmpty) line(t.auditChanges, changes.join('\n')),
         if (note.isNotEmpty) line(t.auditNote, note),
         line(t.auditRefs, refs.join(' · ')),

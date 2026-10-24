@@ -11,6 +11,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/money_scope.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../money/accounts_screen.dart';
+import '../money/currency_picker.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
@@ -23,11 +25,14 @@ const String _lastAccountKey = 'expense.last_account';
 // -- TYPES -- //
 
 class ExpenseScreen extends ConsumerStatefulWidget {
-  const ExpenseScreen({this.amount, this.note, super.key});
+  const ExpenseScreen({this.amount, this.note, this.currency, super.key});
 
   /// Filled in when fixing an entry.
   final String? amount;
   final String? note;
+
+  /// The currency of the entry being fixed. Left out, the account's own.
+  final String? currency;
 
   @override
   ConsumerState<ExpenseScreen> createState() => _ExpenseScreenState();
@@ -41,6 +46,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     text: widget.note,
   );
   String? _accountId;
+
+  /// The wallet it is spent from. Null until picked: then the account's own currency.
+  String? _currency;
   bool _busy = false;
 
   @override
@@ -53,10 +61,17 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   /// Back to where the person came from; the home screen when this was the first screen (the widget opens it directly).
   void _close() => context.canPop() ? context.pop() : context.go('/');
 
-  Future<void> _save(String id) async {
-    final cents = context.parseAmount(_amount.text);
+  /// The currency of the entry: the one picked, else the one being fixed, else the account's own.
+  String _code(Json? account) =>
+      _currency ??
+      widget.currency ??
+      str(account?['currency'], context.currencyCode);
+
+  Future<void> _save(String id, Json? account) async {
+    final code = _code(account);
+    final cents = context.parseAmountIn(_amount.text, code);
     if (cents == null || cents <= 0) {
-      say(context, context.t.expenseAmountError(context.currencyCode));
+      say(context, context.t.expenseAmountError(code));
       return;
     }
     if (id.isEmpty) {
@@ -67,6 +82,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
     final args = <String, Object?>{
       'accountId': id,
       'amount': cents,
+      // Only when it is not the account's own currency, so an ordinary entry is the same request as before
+      if (code != str(account?['currency'], context.currencyCode))
+        'currency': code,
       'note': _note.text.trim(),
       'source': 'manual',
     };
@@ -77,9 +95,10 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       await prefs.setString(_lastAccountKey, id);
       ref
         ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider)
         ..invalidate(syncProvider);
       if (!mounted) return;
-      say(context, context.t.expenseLogged(context.money(cents)));
+      say(context, context.t.expenseLogged(context.moneyIn(cents, code)));
       _close();
     } on ApiException catch (e) {
       if (e.isNetwork) {
@@ -117,12 +136,17 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
               (list.any((a) => str(a['id']) == last)
                   ? (last ?? '')
                   : str(list.firstOrNull?['id']));
+          final account = list.firstWhere(
+            (a) => str(a['id']) == selected,
+            orElse: () => <String, Object?>{},
+          );
+          final code = _code(account.isEmpty ? null : account);
           return ListView(
             padding: const EdgeInsets.all(20),
             children: <Widget>[
               Field(
                 controller: _amount,
-                label: context.t.expenseHowMuch(context.currencyCode),
+                label: context.t.expenseHowMuch(code),
                 hint: '180',
                 keyboard: const TextInputType.numberWithOptions(decimal: true),
               ),
@@ -139,9 +163,53 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                     ChoiceChip(
                       label: Text(str(a['name'])),
                       selected: str(a['id']) == selected,
-                      onSelected: (_) =>
-                          setState(() => _accountId = str(a['id'])),
+                      onSelected: (_) => setState(() {
+                        _accountId = str(a['id']);
+                        // Another account starts again in its own currency
+                        _currency = null;
+                      }),
                     ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // The wallets of the account, and any other currency (which opens a wallet)
+              Text(
+                context.t.entryCurrencyLabel,
+                style: TextStyle(color: c.muted),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: <Widget>[
+                  for (final w
+                      in account.isEmpty ? <Json>[] : walletsOf(account))
+                    ChoiceChip(
+                      label: Text(str(w['currency'])),
+                      selected: str(w['currency']) == code,
+                      onSelected: (_) =>
+                          setState(() => _currency = str(w['currency'])),
+                    ),
+                  if (code.isNotEmpty &&
+                      !(account.isEmpty ? <Json>[] : walletsOf(account)).any(
+                        (w) => str(w['currency']) == code,
+                      ))
+                    ChoiceChip(
+                      label: Text(code),
+                      selected: true,
+                      onSelected: (_) {},
+                    ),
+                  ActionChip(
+                    label: Text(context.t.entryCurrencyOther),
+                    onPressed: () async {
+                      final picked = await pickCurrency(
+                        context,
+                        current: code,
+                        first: <String>{context.currencyCode},
+                      );
+                      if (picked != null) setState(() => _currency = picked);
+                    },
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -152,7 +220,9 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
               ),
               const SizedBox(height: 8),
               FilledButton(
-                onPressed: _busy ? null : () => _save(selected),
+                onPressed: _busy
+                    ? null
+                    : () => _save(selected, account.isEmpty ? null : account),
                 child: Text(context.t.expenseLogIt),
               ),
             ],

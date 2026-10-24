@@ -250,7 +250,7 @@ class CashflowStrip extends StatelessWidget {
             Row(
               children: <Widget>[
                 Text(
-                  t.calForecastTotal(context.money(days.last.total)),
+                  t.calForecastTotal(context.moneyMain(days.last.total)),
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(fontFeatures: tabular),
                 ),
@@ -280,6 +280,14 @@ class CashflowStrip extends StatelessWidget {
                 child: Text(
                   t.calForecastUnknown(range.unknownBills),
                   style: TextStyle(color: c.muted),
+                ),
+              ),
+            if (range.unconvertedBills > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  t.calForecastUnconverted(range.unconvertedBills),
+                  style: TextStyle(color: c.warning),
                 ),
               ),
           ],
@@ -389,7 +397,9 @@ class ItemRow extends ConsumerWidget {
         final due = DateFormat.MMMd(locale).format(parseDay(item.endDate));
         final amount = item.amount == null || item.unknownAmount
             ? t.calAmountUnknown
-            : context.money(item.amount ?? 0);
+            : item.currency.isEmpty
+            ? context.moneyMain(item.amount ?? 0)
+            : context.moneyIn(item.amount ?? 0, item.currency);
         final state = item.paid
             ? t.calBillPaid
             : item.overdue
@@ -404,7 +414,7 @@ class ItemRow extends ConsumerWidget {
       case 'payday':
         final amount = item.amount == null
             ? ''
-            : '${context.money(item.amount ?? 0)} · ';
+            : '${context.moneyMain(item.amount ?? 0)} · ';
         return '$amount${item.paid ? t.calPaydaySplitDone : t.calPaydayLabel}';
       case 'event':
         return time ?? t.calAllDay;
@@ -420,15 +430,22 @@ class ItemRow extends ConsumerWidget {
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
     final t = context.t;
     final amount = item.amount;
-    // A bill with no amount yet is paid from the bills screen, where the amount is typed
-    if (amount == null || item.unknownAmount) {
+    // A bill with no amount yet, or in another currency, is paid from the bills screen: there the amount is typed, or the wallet and
+    // what was really charged are asked
+    if (amount == null ||
+        item.unknownAmount ||
+        (item.currency.isNotEmpty && item.currency != context.currencyCode)) {
       unawaited(context.push<void>('/bills'));
       return;
     }
     final ok = await confirm(
       context,
       title: t.calMarkPaidTitle(item.title),
-      body: t.calMarkPaidBody(context.money(amount)),
+      body: t.calMarkPaidBody(
+        item.currency.isEmpty
+            ? context.moneyMain(amount)
+            : context.moneyIn(amount, item.currency),
+      ),
       yes: t.calMarkPaid,
     );
     if (!ok || !context.mounted) return;

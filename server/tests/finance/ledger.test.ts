@@ -21,6 +21,7 @@ import { parseExpenseText, parseRuleText } from '../../src/lib/finance/text';
 const at = (iso: string) => new Date(iso);
 const txn = (t: Partial<Txn> & Pick<Txn, 'type' | 'amount'>): Txn => ({
 	accountId: 'gcash',
+	currency: 'PHP',
 	occurredAt: at('2026-10-22T00:00:00Z'),
 	...t
 });
@@ -48,7 +49,7 @@ describe('ledger', () => {
 			txn({ type: 'expense', amount: 99_999, occurredAt: at('2026-10-20T00:00:00Z') }),
 			txn({ type: 'expense', amount: 7_000, voided: true })
 		];
-		expect(balanceOf('gcash', snap, rows)).toBe(100_000 + 50_000 - 18_000 + 3_000);
+		expect(balanceOf('gcash', 'PHP', snap, rows)).toBe(100_000 + 50_000 - 18_000 + 3_000);
 	});
 
 	it('moves a transfer between accounts and charges the fee to the source', () => {
@@ -59,9 +60,11 @@ describe('ledger', () => {
 			toAccountId: 'gcash',
 			fee: 1_500
 		});
-		expect(effectOn(t, 'rcbc')).toBe(-11_500);
-		expect(effectOn(t, 'gcash')).toBe(10_000);
-		expect(effectOn(t, 'maya')).toBe(0);
+		expect(effectOn(t, 'rcbc', 'PHP')).toBe(-11_500);
+		expect(effectOn(t, 'gcash', 'PHP')).toBe(10_000);
+		expect(effectOn(t, 'maya', 'PHP')).toBe(0);
+		// The same account in another currency is another wallet and sees nothing
+		expect(effectOn(t, 'rcbc', 'USD')).toBe(0);
 	});
 
 	it('never counts a transfer as spending, but counts its fee and nets refunds', () => {
@@ -77,7 +80,56 @@ describe('ledger', () => {
 			txn({ type: 'refund', amount: 5_000 }),
 			txn({ type: 'income', amount: 900_000 })
 		];
-		expect(spendingOf(rows)).toBe(20_000 + 1_500 - 5_000);
+		expect(spendingOf(rows, 'PHP')).toBe(20_000 + 1_500 - 5_000);
+	});
+
+	it('keeps the wallets of one account apart: pesos and dollars on the same account never mix', () => {
+		const rows = [
+			txn({ type: 'income', amount: 500_000, accountId: 'wise' }),
+			txn({ type: 'income', amount: 10_000, accountId: 'wise', currency: 'USD' }),
+			txn({ type: 'expense', amount: 1_250, accountId: 'wise', currency: 'USD' }),
+			txn({ type: 'expense', amount: 30_000, accountId: 'wise' })
+		];
+		expect(balanceOf('wise', 'PHP', null, rows)).toBe(470_000);
+		expect(balanceOf('wise', 'USD', null, rows)).toBe(8_750);
+		expect(balanceOf('wise', 'EUR', null, rows)).toBe(0);
+		// A count of the dollars does not count the pesos
+		const usdCount = { amount: 20_000, takenAt: at('2026-10-21T00:00:00Z'), currency: 'USD' };
+		expect(balanceOf('wise', 'USD', usdCount, rows)).toBe(20_000 + 10_000 - 1_250);
+	});
+
+	it('moves a PHP to USD conversion inside one account by what really arrived', () => {
+		// 5,600 pesos became 99.40 dollars (the person's own rate), with a 50 peso fee
+		const t = txn({
+			type: 'transfer',
+			amount: 560_000,
+			accountId: 'wise',
+			toAccountId: 'wise',
+			currency: 'PHP',
+			toCurrency: 'USD',
+			toAmount: 9_940,
+			fee: 5_000
+		});
+		expect(effectOn(t, 'wise', 'PHP')).toBe(-565_000);
+		expect(effectOn(t, 'wise', 'USD')).toBe(9_940);
+		expect(effectOn(t, 'wise', 'EUR')).toBe(0);
+	});
+
+	it('counts spending of one currency only, so amounts of two currencies are never added', () => {
+		const rows = [
+			txn({ type: 'expense', amount: 20_000 }),
+			txn({ type: 'expense', amount: 999, currency: 'USD' }),
+			txn({
+				type: 'transfer',
+				amount: 100,
+				accountId: 'wise',
+				toAccountId: 'gcash',
+				currency: 'USD',
+				fee: 25
+			})
+		];
+		expect(spendingOf(rows, 'PHP')).toBe(20_000);
+		expect(spendingOf(rows, 'USD')).toBe(999 + 25);
 	});
 
 	it('signs drift and shows untracked spending only when it is negative', () => {

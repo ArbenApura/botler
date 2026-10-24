@@ -9,7 +9,16 @@ import type {
 } from 'drizzle-orm/pg-core';
 // -- DEP-MODULES -- //
 import { sql } from 'drizzle-orm';
-import { check, customType, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+	bigint,
+	check,
+	customType,
+	integer,
+	pgTable,
+	text,
+	timestamp,
+	uuid
+} from 'drizzle-orm/pg-core';
 
 // -- TYPES -- //
 
@@ -32,6 +41,9 @@ export const USER_TABLES: UserTableEntry[] = [];
  */
 export const PLAIN_TABLES: string[] = [];
 
+/** Plain tables the runtime role may read, insert into and update but never delete from (the exchange rates must survive a bad refresh). */
+export const PLAIN_NO_DELETE: Set<string> = new Set();
+
 // -- FUNCTIONS -- //
 
 /** A PostgreSQL full text search column, always generated from the row's own text columns. */
@@ -47,8 +59,15 @@ export const stamps = () => ({
 /** The optimistic concurrency column. Every write that changes the row bumps it. */
 export const version = () => integer('version').notNull().default(1);
 
-/** Money is always integer centavos. A column of this kind never holds a float. */
-export const centavos = (name: string) => integer(name);
+/** Money is always an integer in the minor unit of its currency, in a 64 bit column read back as a safe integer. A column of this kind never holds a float. */
+export const centavos = (name: string) => bigint(name, { mode: 'number' });
+
+/** An ISO 4217 code. The catalogue is checked at the edge (Zod) and in user_setting, so a new currency needs no migration here. */
+export const currencyCode = (name: string) => text(name);
+
+/** A CHECK constraint that a currency column holds three capital letters. */
+export const currencyShape = (name: string, column: AnyPgColumn) =>
+	check(name, sql`${column} ~ '^[A-Z]{3}$'`);
 
 /** A CHECK constraint limiting a text column to a fixed set of values. */
 export const oneOf = (name: string, column: AnyPgColumn, values: readonly string[]) =>
@@ -62,9 +81,11 @@ export const oneOf = (name: string, column: AnyPgColumn, values: readonly string
 export function plainTable<T extends Record<string, PgColumnBuilderBase>>(
 	name: string,
 	columns: T,
-	extra?: (self: { [K in keyof T]: ExtraConfigColumn }) => PgTableExtraConfigValue[]
+	extra?: (self: { [K in keyof T]: ExtraConfigColumn }) => PgTableExtraConfigValue[],
+	options: { noDelete?: boolean } = {}
 ) {
 	PLAIN_TABLES.push(name);
+	if (options.noDelete) PLAIN_NO_DELETE.add(name);
 	// The array form of the extra config is supported at runtime, its type is wider than the overloads accept
 	return pgTable(name, columns, extra as never);
 }

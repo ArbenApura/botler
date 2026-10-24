@@ -195,7 +195,10 @@ class _ToolView extends ConsumerWidget {
             final txn = asJson(data['txn']);
             return _Logged(
               line: context.t.chatLogged(
-                context.money(intOf(txn['amount'])),
+                context.moneyIn(
+                  intOf(txn['amount']),
+                  str(txn['currency'], context.currencyCode),
+                ),
                 _name(context, accounts, str(txn['accountId'])),
               ),
               undoable: !item.resolved,
@@ -206,7 +209,10 @@ class _ToolView extends ConsumerWidget {
             final chip = asJson(data['chip']);
             return _Ask(
               question: context.t.chatConfirmQuestion(
-                context.money(intOf(chip['amount'])),
+                context.moneyIn(
+                  intOf(chip['amount']),
+                  str(chip['currency'], context.currencyCode),
+                ),
                 str(chip['accountName']),
               ),
               resolved: item.resolved,
@@ -215,6 +221,8 @@ class _ToolView extends ConsumerWidget {
                 await api.verb('expense_log', <String, Object?>{
                   'accountId': str(chip['accountId']),
                   'amount': intOf(chip['amount']),
+                  if (str(chip['currency']).isNotEmpty)
+                    'currency': str(chip['currency']),
                   'note': str(chip['note']),
                   'confirmed': true,
                 });
@@ -228,7 +236,10 @@ class _ToolView extends ConsumerWidget {
           case 'needs_account':
             return _Choose(
               question: context.t.chatWhichAccount(
-                context.money(intOf(data['amount'])),
+                context.moneyIn(
+                  intOf(data['amount']),
+                  str(data['currency'], context.currencyCode),
+                ),
               ),
               names: asList(data['accounts']).whereType<String>().toList(),
               resolved: item.resolved,
@@ -239,6 +250,8 @@ class _ToolView extends ConsumerWidget {
                 await api.verb('expense_log', <String, Object?>{
                   'accountId': str(match.first['id']),
                   'amount': intOf(data['amount']),
+                  if (str(data['currency']).isNotEmpty)
+                    'currency': str(data['currency']),
                   'note': str(data['note']),
                 });
                 notifier.answer(item.id);
@@ -256,7 +269,12 @@ class _ToolView extends ConsumerWidget {
         return const SizedBox.shrink();
       case 'income_record' || 'refund_record' || 'transfer_record':
         return _Logged(
-          line: context.t.chatRecorded(context.money(intOf(data['amount']))),
+          line: context.t.chatRecorded(
+            context.moneyIn(
+              intOf(data['amount']),
+              str(data['currency'], context.currencyCode),
+            ),
+          ),
           undoable: !item.resolved,
           undone: item.resolved,
           onUndo: () => _undo(context, ref, str(data['id'])),
@@ -280,8 +298,14 @@ class _ToolView extends ConsumerWidget {
       case 'rule_from_text' || 'rule_propose':
         return _RuleCard(rule: data);
       case 'bill_mark_paid':
+        // A bill's amount is in the bill's own currency
         return Text(
-          context.t.chatMarkedPaid(context.money(intOf(data['amount']))),
+          context.t.chatMarkedPaid(
+            context.moneyIn(
+              intOf(data['amount']),
+              str(data['currency'], context.currencyCode),
+            ),
+          ),
           style: TextStyle(color: c.muted),
         );
       default:
@@ -396,17 +420,30 @@ class _RestoredToolLine extends ConsumerWidget {
         if (str(data['status']) == 'saved' && txn['amount'] is int) {
           final accounts = ref.watch(balancesProvider).value;
           line = context.t.chatLogged(
-            context.money(intOf(txn['amount'])),
+            context.moneyIn(
+              intOf(txn['amount']),
+              str(txn['currency'], context.currencyCode),
+            ),
             _name(context, accounts, str(txn['accountId'])),
           );
         }
       case 'income_record' || 'refund_record' || 'transfer_record':
         if (data['amount'] is int) {
-          line = context.t.chatRecorded(context.money(intOf(data['amount'])));
+          line = context.t.chatRecorded(
+            context.moneyIn(
+              intOf(data['amount']),
+              str(data['currency'], context.currencyCode),
+            ),
+          );
         }
       case 'bill_mark_paid':
         if (data['amount'] is int) {
-          line = context.t.chatMarkedPaid(context.money(intOf(data['amount'])));
+          line = context.t.chatMarkedPaid(
+            context.moneyIn(
+              intOf(data['amount']),
+              str(data['currency'], context.currencyCode),
+            ),
+          );
         }
     }
     return _QuietRow(

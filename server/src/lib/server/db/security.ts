@@ -3,7 +3,7 @@
 
 // -- MODULES -- //
 // Importing the whole schema registers every table before the statements are generated
-import { PLAIN_TABLES, USER_TABLES } from './schema';
+import { PLAIN_NO_DELETE, PLAIN_TABLES, USER_TABLES } from './schema';
 
 // -- CONSTANTS -- //
 
@@ -23,7 +23,11 @@ export function securityStatements(): string[] {
 	);
 	out.push(`GRANT USAGE ON SCHEMA public TO ${RUNTIME_ROLE}`);
 	for (const name of PLAIN_TABLES) {
-		out.push(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${q(name)} TO ${RUNTIME_ROLE}`);
+		// A table that must never lose rows is also stripped of any wider grant it may have had before
+		if (PLAIN_NO_DELETE.has(name)) {
+			out.push(`REVOKE DELETE, TRUNCATE ON ${q(name)} FROM ${RUNTIME_ROLE}`);
+			out.push(`GRANT SELECT, INSERT, UPDATE ON ${q(name)} TO ${RUNTIME_ROLE}`);
+		} else out.push(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${q(name)} TO ${RUNTIME_ROLE}`);
 	}
 	for (const t of USER_TABLES) {
 		const col = q(t.userColumn);

@@ -66,6 +66,8 @@
       }
     }
   },
+  "accountsCurrencyLabel": "Currency",
+  "accountsCurrencyNote": "What is in this account is counted in this currency unless you pick another when you enter something.",
   "accountsDaysAgo": "{count, plural, other{{count} days ago}}",
   "@accountsDaysAgo": {
     "placeholders": {
@@ -87,10 +89,48 @@
       }
     }
   },
+  "accountsMissingRate": "No exchange rate yet for {currencies}. It is not in the total.",
+  "@accountsMissingRate": {
+    "placeholders": {
+      "currencies": {
+        "type": "String"
+      }
+    }
+  },
   "accountsNameHint": "GCash",
   "accountsNameLabel": "Name",
   "accountsNeverCounted": "Never counted",
+  "accountsNoMainWallet": "Nothing in {currency} here, so the minimum is not checked.",
+  "@accountsNoMainWallet": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
   "accountsNotSaved": "Not saved.",
+  "accountsRatesAsOf": "Exchange rates as of {date}",
+  "@accountsRatesAsOf": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsRatesFailed": "Could not update the rates. The last ones are still used.",
+  "accountsRatesNone": "No exchange rates yet. Tap to get them.",
+  "accountsRatesOffline": "No connection. Showing the last total.",
+  "accountsRatesRefresh": "Update rates",
+  "accountsRatesStale": "Exchange rates are old (from {date}). Tap to update.",
+  "@accountsRatesStale": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsRatesTooSoon": "The rates were just updated.",
+  "accountsRatesUpdated": "Exchange rates updated.",
   "accountsSaveCount": "Save the count",
   "accountsSaved": "Saved.",
   "accountsSavedUntracked": "Saved. {amount} went untracked since the last count.",
@@ -101,8 +141,28 @@
       }
     }
   },
+  "accountsSubtotal": "About {amount} in all",
+  "@accountsSubtotal": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "accountsTitle": "Accounts",
   "accountsToday": "today",
+  "accountsTotalTitle": "Everything you have",
+  "accountsTotalUnavailable": "The total needs exchange rates, and there are none yet.",
+  "accountsWalletAdd": "Add a currency",
+  "accountsWalletAdded": "{currency} added.",
+  "@accountsWalletAdded": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "accountsWalletsTitle": "Currencies in this account",
   "accountsYesterday": "yesterday",
   "acctBalanceNow": "Balance now",
   "acctByAnyone": "Anyone",
@@ -356,13 +416,41 @@
       }
     }
   },
+  "billsAboutMain": "about {amount}",
+  "@billsAboutMain": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "billsAdd": "Add a bill",
   "billsAddButton": "Add the bill",
   "billsAddInvalid": "Give it a name, an amount and an account.",
   "billsAll": "All bills",
   "billsAmountNotKnown": "amount not known yet",
   "billsAmountUnknown": "amount?",
+  "billsChargedLabel": "Really charged ({currency})",
+  "@billsChargedLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "billsChargedNote": "This bill is in {bill}, but you pay from a {wallet} wallet. Type what was really charged.",
+  "@billsChargedNote": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      },
+      "wallet": {
+        "type": "String"
+      }
+    }
+  },
   "billsComingUp": "Coming up",
+  "billsCurrencyLabel": "Currency of this bill",
   "billsDateLabel": "Due date",
   "billsDateNote": "This moves only this one. To change every date, change how it repeats below.",
   "billsEditHint": "Tap to change it",
@@ -394,6 +482,7 @@
       }
     }
   },
+  "billsMissingRateTag": "no exchange rate yet",
   "billsMovedTag": "moved",
   "billsNameHint": "Rent",
   "billsNameLabel": "What is it?",
@@ -431,6 +520,7 @@
   "billsPutBack": "Put back as scheduled",
   "billsPutBackDone": "Back to the schedule.",
   "billsRepeatChangedNote": "You changed how it repeats, so every date follows the new rule.",
+  "billsReserveNote": "The payday split keeps the money for this bill in your main currency. Paying from another wallet can take that wallet below zero.",
   "billsSave": "Save",
   "billsSaved": "Saved.",
   "billsSavedOffline": "No connection. It will be saved when you are back online.",
@@ -469,6 +559,7 @@
     }
   },
   "billsVaries": "The amount is different every time",
+  "billsWalletLabel": "Paid in",
   "calAdd": "Add",
   "calAddBill": "A bill",
   "calAddEvent": "An event",
@@ -612,6 +703,14 @@
       }
     }
   },
+  "calForecastUnconverted": "{count} bills in other currencies are left out of this forecast because their exchange rate is missing.",
+  "@calForecastUnconverted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "calForecastUnknown": "{count, plural, =1{1 bill has no amount yet, so it counts as nothing} other{{count} bills have no amount yet, so they count as nothing}}",
   "@calForecastUnknown": {
     "placeholders": {
@@ -681,6 +780,25 @@
   },
   "calWhatIsIt": "What is it?",
   "cancel": "Cancel",
+  "changelogBuildHeader": "Version {version}",
+  "@changelogBuildHeader": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "changelogGotIt": "Got it",
+  "changelogRowHint": "Read the changes in the version you have now",
+  "changelogRowTitle": "What is new in this version",
+  "changelogTitle": "What is new in {version}",
+  "@changelogTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "chatAcrossAccounts": "Across your accounts",
   "chatAddExpense": "Add an expense",
   "chatAddExpenseHint": "You can still add an expense yourself.",
@@ -935,6 +1053,8 @@
   "close": "Close",
   "delete": "Delete",
   "done": "Done",
+  "entryCurrencyLabel": "Currency",
+  "entryCurrencyOther": "Other…",
   "expenseAmountError": "Type the amount in {code}, like 180 or 1,250.50.",
   "@expenseAmountError": {
     "placeholders": {
@@ -1027,6 +1147,14 @@
         "type": "String"
       },
       "to": {
+        "type": "String"
+      }
+    }
+  },
+  "historyOtherCurrencies": "Also spent in {currencies}. Those are not added here.",
+  "@historyOtherCurrencies": {
+    "placeholders": {
+      "currencies": {
         "type": "String"
       }
     }
@@ -1132,6 +1260,16 @@
   "notifChannel": "Reminders",
   "notifChannelDescription": "Bills, paydays, tasks and events",
   "notifHiddenBody": "You have a reminder",
+  "outboxFailedDismiss": "Got it",
+  "outboxFailedLine": "{count} changes you made offline did not go through. Tap to see why.",
+  "@outboxFailedLine": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "outboxFailedTitle": "Changes the server refused",
   "paydayAdd": "Add a payday",
   "paydayAddRule": "Add a rule",
   "paydayApprove": "Approve",
@@ -1595,7 +1733,7 @@
   "settingsAppLanguage": "App language",
   "settingsCurrency": "Currency",
   "settingsCurrencyChange": "Change",
-  "settingsCurrencyConfirmBody": "Your amounts will read in {name}. Nothing is converted: 100.00 stays 100.00, only the currency changes.",
+  "settingsCurrencyConfirmBody": "Your total will be shown in {name}. Your accounts keep the currencies they hold. Your income, goals, rules and minimum balances keep the same numbers, now read in {name}: nothing in them is converted. Your bills keep their own currency.",
   "@settingsCurrencyConfirmBody": {
     "placeholders": {
       "name": {
@@ -1642,6 +1780,20 @@
   "settingsLookPhone": "Phone",
   "settingsMonday": "Monday",
   "settingsPrivacy": "Privacy",
+  "settingsRatesLine": "Fetched {date} from {source}",
+  "@settingsRatesLine": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsRatesNone": "No rates yet",
+  "settingsRatesTap": "Tap to update",
+  "settingsRatesTitle": "Exchange rates",
   "settingsReminders": "Reminders",
   "settingsReplies": "Assistant replies",
   "settingsRepliesAuto": "Auto: English, and Filipino when you write it",
@@ -1673,6 +1825,24 @@
   },
   "splitCopyTooltip": "Copy the amount",
   "splitCutOrMove": "You could cut or move:",
+  "splitForeignLine": "{name}: {amount} counted as {converted} ({rate})",
+  "@splitForeignLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "converted": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "splitForeignTitle": "Bills in other currencies",
   "splitMarkSent": "Mark sent",
   "splitMarkedSent": "Marked as sent.",
   "splitPayday": "Payday {date}",
@@ -1693,6 +1863,61 @@
     }
   },
   "splitTransfers": "Transfers to make",
+  "summaryMissingRates": "{count} currencies are not in this total: no exchange rate yet.",
+  "@summaryMissingRates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "transferArrivedLabel": "Amount that arrived ({currency})",
+  "@transferArrivedLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transferDone": "Moved.",
+  "transferFeeLabel": "Fee ({currency}, optional)",
+  "@transferFeeLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transferFrom": "From",
+  "transferInvalid": "Check the amounts.",
+  "transferMove": "Move money",
+  "transferQueued": "Saved on the phone. It is sent when you are back online.",
+  "transferRate": "Your rate: {rate}",
+  "@transferRate": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      }
+    }
+  },
+  "transferSame": "Pick two different wallets.",
+  "transferSentLabel": "Amount sent ({currency})",
+  "@transferSentLabel": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "transferSuggest": "Today''s rate suggests about {amount}. Change it to what really arrived.",
+  "@transferSuggest": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "transferTo": "To",
   "uiError": "Something went wrong. Try again.",
   "uiLoading": "Loading",
   "uiNotNow": "Not now",

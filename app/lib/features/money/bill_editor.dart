@@ -19,6 +19,7 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'bills_parts.dart';
+import 'currency_picker.dart';
 import 'schedule_picker.dart';
 
 // -- CONSTANTS -- //
@@ -64,6 +65,9 @@ class _BillEditorState extends ConsumerState<BillEditor> {
   late bool _parents;
   late String _accountId;
   late String _date;
+
+  /// The currency of the bill and of its amount. A new bill starts in the main currency.
+  String? _currency;
   List<Json> _accounts = const <Json>[];
   bool _saving = false;
   final Map<String, String> _keys = <String, String>{};
@@ -71,6 +75,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
   // What the form held when it opened, to send only what changed
   late final String _origName;
   late final int? _origAmount;
+  late final String _origCurrency;
   late final String _origAccountId;
   late final String _origSchedule;
   late final String _origWeekend;
@@ -80,6 +85,11 @@ class _BillEditorState extends ConsumerState<BillEditor> {
   bool _seeded = false;
 
   // -- FUNCTIONS -- //
+
+  /// The currency the amount is typed in: the one picked, else the bill's own, else the main currency.
+  String get _code =>
+      _currency ??
+      (_origCurrency.isEmpty ? context.currencyCode : _origCurrency);
 
   Json get _bill => widget.bill ?? const <String, Object?>{};
   Json? get _due => widget.due;
@@ -119,6 +129,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
         ? intOf(due['amount'])
         : intOf(b['amount']);
     _origAmount = seed > 0 ? seed : null;
+    _origCurrency = str(b['currency']);
     _amount = TextEditingController();
     _origAccountId = _onADate && due != null
         ? str(due['accountId'], str(b['accountId']))
@@ -142,7 +153,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
     if (!_seeded) {
       _seeded = true;
       final seed = _origAmount;
-      if (seed != null) _amount.text = context.plainAmount(seed);
+      if (seed != null) _amount.text = plainAmountIn(seed, _code);
     }
   }
 
@@ -255,7 +266,9 @@ class _BillEditorState extends ConsumerState<BillEditor> {
   Future<void> _save() async {
     final t = context.t;
     final text = _amount.text.trim();
-    final cents = text.isEmpty ? null : context.parseAmount(text);
+    final cents = text.isEmpty ? null : context.parseAmountIn(text, _code);
+    final currencyChanged =
+        _code != (_origCurrency.isEmpty ? context.currencyCode : _origCurrency);
     if (_name.text.trim().isEmpty ||
         _accountId.isEmpty ||
         (text.isNotEmpty && (cents == null || cents <= 0)) ||
@@ -271,6 +284,8 @@ class _BillEditorState extends ConsumerState<BillEditor> {
           'category': _parents ? 'parents' : 'bills',
           'accountId': _accountId,
           'kind': _varies ? 'variable' : 'fixed',
+          // Only when it is not the main currency, so an ordinary bill is the same request as before
+          if (_code != context.currencyCode) 'currency': _code,
           'amount': cents,
           'schedule': schedule?.toJson(),
           'weekendRule': schedule != null && schedule.isSingleDay
@@ -289,6 +304,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
       series['category'] = _parents ? 'parents' : 'bills';
     }
     if (_varies != _origVaries) series['kind'] = _varies ? 'variable' : 'fixed';
+    if (currencyChanged) series['currency'] = _code;
     if (_scheduleChanged && schedule != null) {
       series['schedule'] = schedule.toJson();
       series['weekendRule'] = schedule.isSingleDay ? _weekend : 'none';
@@ -399,10 +415,31 @@ class _BillEditorState extends ConsumerState<BillEditor> {
         Field(
           controller: _amount,
           label: _varies
-              ? t.billsAboutLabel(context.currencyCode)
-              : t.billsHowMuchLabel(context.currencyCode),
+              ? t.billsAboutLabel(_code)
+              : t.billsHowMuchLabel(_code),
           keyboard: const TextInputType.numberWithOptions(decimal: true),
         ),
+        // The bill's currency: a dollar subscription is typed in dollars, and follows the latest rate against the main currency.
+        // It belongs to the whole bill, so it is not offered while only one date is being changed
+        if (!_onADate || _repeatChanged)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: CurrencyButton(
+              code: _code,
+              label: t.billsCurrencyLabel,
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      final picked = await pickCurrency(
+                        context,
+                        current: _code,
+                        first: <String>{context.currencyCode},
+                      );
+                      if (picked != null) setState(() => _currency = picked);
+                    },
+            ),
+          ),
+        const SizedBox(height: 8),
         Text(t.billsPaidFrom, style: TextStyle(color: c.muted)),
         Wrap(
           spacing: 8,

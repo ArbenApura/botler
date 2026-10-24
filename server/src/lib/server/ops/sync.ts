@@ -10,12 +10,12 @@ import type { Ctx } from './context';
 import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
-import { account, calendarEvent, reminder } from '../db/schema';
+import { calendarEvent, reminder } from '../db/schema';
 import { syncInput } from '../db/zod';
 import { reconcileReminders } from '../schedule/reminders';
 import { dueBills } from './bills';
 import { run } from './context';
-import { balanceFor } from './ledger';
+import { computeAssets } from './assets';
 import { parse } from './shared';
 
 // -- TYPES -- //
@@ -30,8 +30,14 @@ export type SyncReminder = {
 };
 
 export type SummaryCard = {
-	/** Centavos, across the accounts. */
+	/** Minor units of the main currency: every wallet of every account converted with the stored rates. */
 	total: number;
+	/** The main currency the total is in. */
+	currency: string;
+	/** How many currencies are held but left out of the total because their exchange rate is missing. */
+	totalMissing: number;
+	/** When the rates used were fetched, or null when there are none. */
+	ratesAsOf: string | null;
 	nextBill: { name: string; dueDate: string; windowStart: string; windowEnd: string } | null;
 	firstEventToday: { title: string; startsAt: string } | null;
 };
@@ -91,12 +97,8 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 			: undefined;
 
 		// The summary card: the total, the next bill, the first event today
-		const accounts = await tx
-			.select({ id: account.id })
-			.from(account)
-			.where(and(eq(account.userId, userId), isNull(account.archivedAt)));
-		let total = 0;
-		for (const a of accounts) total += (await balanceFor(tx, userId, a.id, now)).balance;
+		// The total is every wallet converted to the main currency (a wallet with no known rate is left out and counted in totalMissing)
+		const { view: assets } = await computeAssets(tx, userId, now);
 		const today = toManilaDate(now);
 		const next = (await dueBills(tx, userId, today, addDays(today, 60))).find((b) => !b.paid);
 		const [first] = await tx
@@ -117,7 +119,10 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 			changed,
 			...(reminders ? { reminders } : {}),
 			summary: {
-				total,
+				total: assets.total,
+				currency: assets.currency,
+				totalMissing: assets.missing.length,
+				ratesAsOf: assets.rates.asOf,
 				nextBill: next
 					? {
 							name: next.name,

@@ -5,7 +5,7 @@
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 // -- MODULES -- //
-import { CURRENCY_CODES } from '../../finance/currency';
+import { CURRENCY_CODES, isCurrencyCode } from '../../finance/currency';
 import { isDate } from '../../finance/dates';
 import { validateRecurrence } from '../../schedule/recurrence';
 import { MAX_CENTAVOS } from '../../finance/money';
@@ -46,6 +46,10 @@ export type DeviceUnregisterInput = z.infer<typeof deviceUnregisterInput>;
 
 /** An amount above zero in centavos. */
 const amountField = z.number().int().min(1).max(MAX_CENTAVOS);
+/** An ISO 4217 code of the catalogue; an unknown one is refused with a plain message instead of failing deeper in. */
+export const currencyField = z
+	.string()
+	.refine(isCurrencyCode, 'Use a currency code such as PHP or USD');
 const dayField = z.string().refine(isDate, 'Use a real date written YYYY-MM-DD');
 const idField = z.uuid();
 const nameField = z.string().trim().min(1).max(60);
@@ -137,8 +141,20 @@ export const accountCreateInput = createInsertSchema(account, {
 	name: nameField,
 	// Left out, the column's own default (zero) applies. A zod default here would reset the field on every update
 	minBalance: z.number().int().min(0).max(MAX_CENTAVOS).optional(),
-	purpose: purposeField
-}).pick({ name: true, kind: true, minBalance: true, purpose: true, sortOrder: true });
+	purpose: purposeField,
+	// Left out, a new account is in the person's main currency
+	currency: currencyField.optional()
+}).pick({
+	name: true,
+	kind: true,
+	minBalance: true,
+	purpose: true,
+	sortOrder: true,
+	currency: true
+});
+
+/** Adds a currency to an account (a Wise or PayPal account holds several). */
+export const walletAddInput = z.object({ accountId: idField, currency: currencyField });
 
 export const accountUpdateInput = accountCreateInput.partial().extend({
 	accountId: idField,
@@ -146,6 +162,13 @@ export const accountUpdateInput = accountCreateInput.partial().extend({
 });
 
 export const accountIdInput = z.object({ accountId: idField });
+
+/** An amount in the smallest unit of one currency, converted to another with the stored rates. Zero is allowed. */
+export const fxConvertInput = z.object({
+	amount: z.number().int().min(0).max(MAX_CENTAVOS),
+	from: currencyField,
+	to: currencyField
+});
 
 // -- INCOME -- //
 
@@ -205,6 +228,8 @@ export const chatForkInput = chatIdInput.extend({
 /** The history of one account: filters are all optional, and the page is cut by the sequence number of the last row seen. */
 export const accountHistoryInput = z.object({
 	accountId: idField,
+	/** Which wallet's history and running balance. Left out, the account's own currency. */
+	currency: currencyField.optional(),
 	from: dayField.optional(),
 	to: dayField.optional(),
 	/** Who did it: the person, the assistant, a job or sync. */
@@ -281,7 +306,9 @@ export const billCreateInput = createInsertSchema(bill, {
 	amount: amountField.nullable().optional(),
 	schedule: scheduleInput,
 	// Left out on create it is today; null on an edit makes every earlier date count
-	startsOn: dayField.nullable().optional()
+	startsOn: dayField.nullable().optional(),
+	// Left out, a new bill is in the person's main currency
+	currency: currencyField.optional()
 }).pick({
 	name: true,
 	category: true,
@@ -291,7 +318,8 @@ export const billCreateInput = createInsertSchema(bill, {
 	schedule: true,
 	weekendRule: true,
 	deferrable: true,
-	startsOn: true
+	startsOn: true,
+	currency: true
 });
 
 export const billUpdateInput = billCreateInput.partial().extend({
@@ -303,10 +331,14 @@ export const billUpdateInput = billCreateInput.partial().extend({
 export const billMarkPaidInput = z.object({
 	billId: idField,
 	dueDate: dayField,
-	/** What was really paid. Defaults to the bill's amount or its estimate. */
+	/** What the bill was this time, in the bill's own currency. Defaults to the bill's amount or its estimate. */
 	amount: amountField.optional(),
 	/** Pay from another account than the bill's own. */
-	accountId: idField.optional()
+	accountId: idField.optional(),
+	/** The currency of the wallet it was paid from, when that is not the bill's own (a dollar bill paid in pesos). */
+	paidCurrency: currencyField.optional(),
+	/** What was really charged in that currency. Required when paidCurrency is not the bill's currency. */
+	paidAmount: amountField.optional()
 });
 
 export const billIdInput = z.object({ billId: idField });
@@ -393,6 +425,8 @@ export const expenseLogInput = ledgerBase
 	.pick({ accountId: true, amount: true, note: true, category: true, billId: true })
 	.partial({ note: true, category: true, billId: true })
 	.extend({
+		/** The wallet it is spent from. Left out, the account's own currency. */
+		currency: currencyField.optional(),
 		source: z.enum(['manual', 'chat', 'ocr', 'screenshot']).optional(),
 		occurredAt: instantField.optional(),
 		/** The person saw the amount and said yes. Required when it was read from a picture. */
@@ -409,6 +443,8 @@ export const expenseFromTextInput = z.object({
 export const incomeRecordInput = z.object({
 	accountId: idField,
 	amount: amountField,
+	/** The wallet it arrives in. Left out, the account's own currency. */
+	currency: currencyField.optional(),
 	note: noteField.optional(),
 	occurredAt: instantField.optional()
 });
@@ -419,6 +455,11 @@ export const transferRecordInput = z.object({
 	fromAccountId: idField,
 	toAccountId: idField,
 	amount: amountField,
+	/** The wallet it leaves from, and the one it lands in. Left out, the currency of each account. */
+	currency: currencyField.optional(),
+	toCurrency: currencyField.optional(),
+	/** What really arrived, when the two wallets are in different currencies (the rate is then the person's own). */
+	toAmount: amountField.optional(),
 	fee: z.number().int().min(0).max(MAX_CENTAVOS).optional(),
 	note: noteField.optional(),
 	occurredAt: instantField.optional()
@@ -428,6 +469,8 @@ export const snapshotRecordInput = z.object({
 	accountId: idField,
 	/** What the account holds right now. A credit balance may be negative. */
 	amount: z.number().int().min(-MAX_CENTAVOS).max(MAX_CENTAVOS),
+	/** Which wallet is counted. Left out, the account's own currency. */
+	currency: currencyField.optional(),
 	takenAt: instantField.optional(),
 	source: z.enum(['manual', 'chat', 'ocr', 'screenshot']).optional(),
 	confirmed: z.boolean().optional(),
@@ -635,6 +678,8 @@ export const splitSentInput = z.object({
 	index: z.number().int().min(0).max(50)
 });
 
+export type WalletAddInput = z.infer<typeof walletAddInput>;
+export type FxConvertInput = z.infer<typeof fxConvertInput>;
 export type AccountCreateInput = z.infer<typeof accountCreateInput>;
 export type AccountUpdateInput = z.infer<typeof accountUpdateInput>;
 export type IncomeCreateInput = z.infer<typeof incomeCreateInput>;

@@ -25,5 +25,10 @@
   "updFailDamaged": "Nasira ang download. Subukan ulit.",
   "updFailWrongBuild": "Hindi update ng app na ito ang na-download. Walang na-install.",
   "updFailPermission": "Payagan ang Botler na mag-install ng apps sa settings ng Android, saka bumalik at subukan ulit.",
-  "updFailInstaller": "Hindi natapos ang update. Subukan ulit."
+  "updFailInstaller": "Hindi natapos ang update. Subukan ulit.",
+  "changelogTitle": "Ano ang bago sa {version}",
+  "changelogBuildHeader": "Bersyon {version}",
+  "changelogGotIt": "Sige",
+  "changelogRowTitle": "Ano ang bago sa bersyong ito",
+  "changelogRowHint": "Basahin ang mga pagbabago sa bersyong gamit mo ngayon"
 }

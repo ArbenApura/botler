@@ -10,7 +10,11 @@ param(
 	# Phones running a build older than this must update before they can be used. Keep it at 1 unless an old build must be shut out
 	[int]$MinSupported = 1,
 	[string]$Notes = '',
-	[string]$FlutterBin = "$env:USERPROFILE\dev\flutter\bin\flutter.bat"
+	[string]$FlutterBin = "$env:USERPROFILE\dev\flutter\bin\flutter.bat",
+	# Only validate app/assets/changelog.json and print the notes it gives, then stop: no build, no ssh, no upload
+	[switch]$CheckChangelogOnly,
+	# A changelog file to check instead of app/assets/changelog.json (to try the gate on a temporary copy)
+	[string]$ChangelogPath = ''
 )
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path "$PSScriptRoot\..\.."
@@ -28,6 +32,26 @@ $versionName = $Matches[1]
 $versionCode = [int]$Matches[2]
 if ($MinSupported -gt $versionCode -or $MinSupported -lt 1) { throw "MinSupported must be between 1 and $versionCode" }
 Write-Host "Version $versionName+$versionCode"
+
+# -- THE CHANGELOG (BEFORE ANY SSH, .env READ OR BUILD) -- #
+# Every update tells the person what is new, so a version without an entry in English and Filipino is not built. UTF-8 without a BOM:
+# Windows PowerShell 5.1 would otherwise read the Filipino text as ANSI
+if ($ChangelogPath -and -not $CheckChangelogOnly) { throw '-ChangelogPath is only for -CheckChangelogOnly: a build always bundles app/assets/changelog.json.' }
+if (-not $ChangelogPath) { $ChangelogPath ="$root\app\assets\changelog.json" }
+if (-not (Test-Path $ChangelogPath)) { throw "Changelog not found at $ChangelogPath" }
+$changelog = [IO.File]::ReadAllText($ChangelogPath, (New-Object Text.UTF8Encoding $false)) | ConvertFrom-Json
+$mine = @($changelog | Where-Object { [int]$_.versionCode -eq $versionCode })
+if ($mine.Count -ne 1) { throw "app/assets/changelog.json needs exactly one entry for versionCode $versionCode (found $($mine.Count)). Nothing was built." }
+if ("$($mine[0].versionName)" -ne $versionName) { throw "The changelog entry says version $($mine[0].versionName) but app/pubspec.yaml says $versionName. Nothing was built." }
+$linesEn = @($mine[0].en | Where-Object { "$_".Trim() })
+$linesFil = @($mine[0].fil | Where-Object { "$_".Trim() })
+if ($linesEn.Count -eq 0) { throw "The changelog entry for $versionCode has no English lines. Nothing was built." }
+if ($linesFil.Count -eq 0) { throw "The changelog entry for $versionCode has no Filipino lines. Nothing was built." }
+# The notes the phone shows before the update default to the English lines; the server accepts at most 2000 characters
+if (-not $Notes) { $Notes = ($linesEn | ForEach-Object { "- $("$_".Trim())" }) -join "`n" }
+if ($Notes.Length -gt 2000) { throw "The release notes are $($Notes.Length) characters; the server accepts 2000. Shorten the changelog entry. Nothing was built." }
+Write-Host "Changelog ok: $($linesEn.Count) English and $($linesFil.Count) Filipino lines."
+if ($CheckChangelogOnly) { Write-Host "Notes:`n$Notes"; exit 0 }
 
 # -- THE PINNED CERTIFICATE -- #
 $android = Get-Content "$root\docs\ANDROID.md" -Raw
@@ -74,6 +98,12 @@ $certs = & "$($tools.FullName)\apksigner.bat" verify --print-certs $apk
 Check 'apksigner verify'
 $digest = ($certs | Where-Object { $_ -match 'Signer.*certificate SHA-256 digest: ([0-9a-f]{64})' } | ForEach-Object { $Matches[1] } | Select-Object -First 1)
 if ($digest -ne $pinned) { throw 'The APK is signed with a different certificate than the pinned one in docs/ANDROID.md. An update could never install over the app.' }
+
+# The changelog must be inside the APK, or the phone has nothing to show after the update
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [IO.Compression.ZipFile]::OpenRead($apk)
+try { $hasChangelog = $null -ne ($zip.Entries | Where-Object { $_.FullName -eq 'assets/flutter_assets/assets/changelog.json' } | Select-Object -First 1) } finally { $zip.Dispose() }
+if (-not $hasChangelog) { throw 'The APK does not hold assets/changelog.json. Check the assets: entry in app/pubspec.yaml.' }
 
 $sha = (Get-FileHash $apk -Algorithm SHA256).Hash.ToLower()
 $size = (Get-Item $apk).Length

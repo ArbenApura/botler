@@ -55,7 +55,7 @@ class GoalsScreen extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             Text(
-                              '${intOf(g['perPayday']) > 0 ? context.t.goalsEachPayday(context.money(intOf(g['perPayday']))) : context.t.goalsOnlyRules}${g['targetAmount'] == null ? '' : context.t.goalsAim(context.money(intOf(g['targetAmount'])))}',
+                              '${intOf(g['perPayday']) > 0 ? context.t.goalsEachPayday(context.moneyMain(intOf(g['perPayday']))) : context.t.goalsOnlyRules}${g['targetAmount'] == null ? '' : context.t.goalsAim(context.moneyMain(intOf(g['targetAmount'])))}',
                               style: TextStyle(color: c.muted),
                             ),
                           ],
@@ -136,13 +136,15 @@ class GoalsScreen extends ConsumerWidget {
               keyboard: TextInputType.number,
               onChanged: (_) => setState(() {}),
             ),
-            if (context.parseAmount(per.text) != null &&
-                (context.parseAmount(per.text) ?? 0) > 0)
+            if (context.parseAmountMain(per.text) != null &&
+                (context.parseAmountMain(per.text) ?? 0) > 0)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   sheet.t.goalsYear(
-                    context.money((context.parseAmount(per.text) ?? 0) * 24),
+                    context.moneyMain(
+                      (context.parseAmountMain(per.text) ?? 0) * 24,
+                    ),
                   ),
                   style: TextStyle(color: sheet.colors.muted),
                 ),
@@ -156,10 +158,10 @@ class GoalsScreen extends ConsumerWidget {
               onPressed: () async {
                 final perCents = per.text.trim().isEmpty
                     ? 0
-                    : context.parseAmount(per.text);
+                    : context.parseAmountMain(per.text);
                 final aim = target.text.trim().isEmpty
                     ? null
-                    : context.parseAmount(target.text);
+                    : context.parseAmountMain(target.text);
                 if (name.text.trim().isEmpty ||
                     accountId.isEmpty ||
                     perCents == null) {

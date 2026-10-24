@@ -16,6 +16,7 @@ import {
 	plainAmount
 } from '../../src/lib/finance/currency';
 import { formatPhp, MAX_CENTAVOS } from '../../src/lib/finance/money';
+import { dartCurrencyLines } from '../../scripts/currencies-dart';
 
 // -- TESTS -- //
 
@@ -76,10 +77,11 @@ describe('reading what a person typed', () => {
 	it('refuses what is not an amount, too many decimals and an amount too large', () => {
 		for (const bad of ['', 'abc', '1.234', '-5', '5..5', '1e3', '12 34a'])
 			expect(parseMoney(bad, 'PHP'), bad).toBeNull();
-		expect(parseMoney('21474837', 'PHP')).toBeNull();
-		expect(parseMoney('21474836', 'PHP')).toBe(2_147_483_600);
-		expect(parseMoney('2147483647', 'JPY')).toBe(MAX_CENTAVOS);
-		expect(parseMoney('2147483648', 'JPY')).toBeNull();
+		// The cap is a safe integer, so rupiah, dong and rial fit
+		expect(parseMoney('90071992547409', 'PHP')).toBe(9_007_199_254_740_900);
+		expect(parseMoney('90071992547410', 'PHP')).toBeNull();
+		expect(parseMoney('9007199254740991', 'JPY')).toBe(MAX_CENTAVOS);
+		expect(parseMoney('9007199254740992', 'JPY')).toBeNull();
 	});
 
 	it('round-trips every catalogue currency through plain text', () => {
@@ -96,12 +98,42 @@ describe('the catalogue', () => {
 		const codes = CURRENCIES.map((c) => c.code);
 		expect(new Set(codes).size).toBe(codes.length);
 		for (const c of CURRENCIES) {
-			expect([0, 2]).toContain(c.digits);
+			expect([0, 2, 3]).toContain(c.digits);
 			expect(isCurrencyCode(c.code)).toBe(true);
 			expect(c.code).toMatch(/^[A-Z]{3}$/);
 		}
 		expect(isCurrencyCode('php')).toBe(false);
 		expect(currencyOf('JPY').digits).toBe(0);
+		expect(currencyOf('KWD').digits).toBe(3);
+	});
+
+	it('has about 160 currencies and no two share a symbol that a person could type', () => {
+		expect(CURRENCIES.length).toBeGreaterThan(150);
+		const seen = new Map<string, string>();
+		for (const c of CURRENCIES) {
+			const token = c.symbol.trim().toLowerCase();
+			expect(
+				seen.get(token),
+				`${c.code} shares "${token}" with ${seen.get(token)}`
+			).toBeUndefined();
+			seen.set(token, c.code);
+		}
+		// A bare dollar sign is the US dollar and nothing else
+		expect(CURRENCIES.filter((c) => c.symbol.trim() === '$').map((c) => c.code)).toEqual(['USD']);
+	});
+
+	it('formats and reads three digit currencies without a float', () => {
+		expect(formatMoney(1_234_567, 'KWD')).toBe('KWD 1,234.567');
+		expect(formatMoney(5, 'BHD')).toBe('BHD 0.005');
+		expect(plainAmount(-1_500, 'OMR')).toBe('-1.500');
+		expect(parseMoney('1.5', 'KWD')).toBe(1_500);
+		expect(parseMoney('1.5555', 'KWD')).toBeNull();
+		expect(balanceConfirmThreshold('KWD')).toBe(11_000);
+	});
+
+	it('writes the largest amount exactly', () => {
+		expect(formatMoney(9_007_199_254_740_991, 'PHP')).toBe('₱90,071,992,547,409.91');
+		expect(formatMoney(9_007_199_254_740_991, 'JPY')).toBe('¥9,007,199,254,740,991');
 	});
 
 	it('scales the confirmation size by the currency, not by the peso', () => {
@@ -110,6 +142,17 @@ describe('the catalogue', () => {
 		// About 35 dollars in cents and about 5,500 yen in yen
 		expect(balanceConfirmThreshold('USD')).toBe(3_500);
 		expect(balanceConfirmThreshold('JPY')).toBe(5_500);
+	});
+});
+
+describe('the app catalogue', () => {
+	it('lists exactly the currencies of the server in app/lib/core/money.dart (scripts/currencies-dart.ts prints them)', () => {
+		const dart = readFileSync(
+			join(__dirname, '../../../app/lib/core/money.dart'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		const lines = dart.split('\n').filter((l) => l.startsWith("  Currency('"));
+		expect(lines).toEqual(dartCurrencyLines());
 	});
 });
 

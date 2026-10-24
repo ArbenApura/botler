@@ -14,10 +14,12 @@ import type { ManilaDate } from '../../finance/dates';
 import { and, eq, gte, isNull, lte, ne } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { canConvert, convertUp } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
 import { recurrenceOccurrences } from '../../schedule/recurrence';
 import {
 	account,
+	accountWallet,
 	calendarEvent,
 	incomeSchedule,
 	reminder,
@@ -29,6 +31,8 @@ import { calendarRangeInput } from '../db/zod';
 import { OpsError, run } from './context';
 import { dueBills } from './bills';
 import { balanceFor } from './ledger';
+import { loadRates } from '../fx/store';
+import { readSettings } from './settings';
 import { parse } from './shared';
 
 // -- TYPES -- //
@@ -46,6 +50,8 @@ export type CalendarItem =
 	| (Base & {
 			type: 'bill';
 			amount: number | null;
+			/** The currency of amount: the bill's own, which is the main currency unless it says another. */
+			currency: string;
 			unknownAmount: boolean;
 			paid: boolean;
 			overdue: boolean;
@@ -82,6 +88,8 @@ export type CalendarRange = {
 		accounts: { id: string; name: string; minBalance: number }[];
 		/** Bills in the range with no amount to take off yet. */
 		unknownBills: number;
+		/** Bills in another currency whose exchange rate is not known, so they are not taken off. */
+		unconvertedBills: number;
 	};
 };
 
@@ -122,6 +130,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					date: b.windowStart,
 					endDate: b.windowEnd,
 					amount: b.amount,
+					currency: b.currency,
 					unknownAmount: b.unknownAmount,
 					paid: b.paid,
 					overdue: !b.paid && b.windowEnd < today,
@@ -281,17 +290,31 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 		items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.title < b.title ? -1 : 1));
 
 		// -- THE FORECAST -- //
-		const accounts = await tx
-			.select({ id: account.id, name: account.name, minBalance: account.minBalance })
-			.from(account)
-			.where(and(eq(account.userId, userId), isNull(account.archivedAt)));
+		// The forecast is a money plan view, so it is in the main currency: an account with no wallet in it has nothing to forecast
+		const main = (await readSettings(tx, userId)).currency;
+		const withMain = new Set(
+			(
+				await tx
+					.select({ id: accountWallet.accountId })
+					.from(accountWallet)
+					.where(and(eq(accountWallet.userId, userId), eq(accountWallet.currency, main)))
+			).map((w) => w.id)
+		);
+		const accounts = (
+			await tx
+				.select({ id: account.id, name: account.name, minBalance: account.minBalance })
+				.from(account)
+				.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
+		).filter((a) => withMain.has(a.id));
 		const days: ForecastDay[] = [];
 		let unknownBills = 0;
+		let unconvertedBills = 0;
+		const rates = await loadRates(tx);
 		const first = from > today ? from : today;
 		if (first <= to && accounts.length > 0) {
 			const balances = new Map<string, number>();
 			for (const a of accounts)
-				balances.set(a.id, (await balanceFor(tx, userId, a.id, now)).balance);
+				balances.set(a.id, (await balanceFor(tx, userId, a.id, main, now)).balance);
 			// Bills the range does not show, still unpaid and past due, come off today
 			const overdue = (
 				await dueBills(tx, userId, addDays(today, -OVERDUE_LOOKBACK_DAYS), addDays(today, -1))
@@ -310,7 +333,12 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 			};
 			for (const b of unpaid) {
 				if (b.amount === null) unknown.add(`${b.billId}|${b.dueDate}`);
-				else add(b.dueDate, b.accountId, -b.amount);
+				// A bill in another currency comes off in the main currency at the stored rate, rounded up so the forecast is never too rosy
+				else if (b.currency !== main) {
+					if (canConvert(b.currency, main, rates.rates))
+						add(b.dueDate, b.accountId, -convertUp(b.amount, b.currency, main, rates.rates));
+					else unconvertedBills++;
+				} else add(b.dueDate, b.accountId, -b.amount);
 			}
 			// Expected pay arrives on payday, after today (today's is assumed recorded already)
 			const futurePaydays = await Promise.all(
@@ -344,7 +372,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 			from,
 			to,
 			items,
-			forecast: { estimate: true as const, days, accounts, unknownBills }
+			forecast: { estimate: true as const, days, accounts, unknownBills, unconvertedBills }
 		};
 	});
 }

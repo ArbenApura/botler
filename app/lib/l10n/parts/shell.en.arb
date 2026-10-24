@@ -50,7 +50,7 @@
   "settingsCurrencyNone": "No currency matches that.",
   "settingsCurrencyConfirmTitle": "Change the currency to {code}?",
   "@settingsCurrencyConfirmTitle": { "placeholders": { "code": { "type": "String" } } },
-  "settingsCurrencyConfirmBody": "Your amounts will read in {name}. Nothing is converted: 100.00 stays 100.00, only the currency changes.",
+  "settingsCurrencyConfirmBody": "Your total will be shown in {name}. Your accounts keep the currencies they hold. Your income, goals, rules and minimum balances keep the same numbers, now read in {name}: nothing in them is converted. Your bills keep their own currency.",
   "@settingsCurrencyConfirmBody": { "placeholders": { "name": { "type": "String" } } },
   "settingsCurrencyChange": "Change",
   "settingsWeekStarts": "Week starts on",

@@ -88,6 +88,8 @@ export function describeAction(
 			return `Add the account "${text(args.name)}"${args.purpose ? `, for "${text(args.purpose)}"` : ''}.`;
 		case 'account_update':
 			return `Change the account ${nm(args.accountId)}${args.name ? ` to "${text(args.name)}"` : ''}${num(args.minBalance) !== null ? `, minimum balance ${money(args.minBalance)}` : ''}${args.purpose ? `, purpose "${text(args.purpose)}"` : args.purpose === null ? ', purpose cleared' : ''}.`;
+		case 'account_wallet_add':
+			return `Add a ${text(args.currency, 3)} wallet to the account ${nm(args.accountId)}.`;
 		case 'account_archive':
 			return `Hide the account ${nm(args.accountId)}.`;
 		case 'income_create':
@@ -104,7 +106,7 @@ export function describeAction(
 		case 'bill_occurrence_update':
 			return `Change one date of the bill ${names.get(typeof args.billId === 'string' ? args.billId : '') ?? ''} (${text(args.dueDate, 10)})${args.newDueDate ? `: move it to ${text(args.newDueDate, 10)}` : ''}${args.amount ? `, ${money(args.amount)} this time` : ''}${args.accountId ? `, paid from ${nm(args.accountId)}` : ''}${args.skipped === true ? ', skip it' : ''}.`;
 		case 'bill_mark_paid':
-			return `Mark "${names.get(typeof args.billId === 'string' ? args.billId : '') ?? 'the bill'}" paid for ${text(args.dueDate, 10)}${args.amount ? `, ${money(args.amount)}` : ''}.`;
+			return `Mark "${names.get(typeof args.billId === 'string' ? args.billId : '') ?? 'the bill'}" paid for ${text(args.dueDate, 10)}${args.amount ? `, ${money(args.amount)}` : ''}${typeof args.paidCurrency === 'string' && num(args.paidAmount) ? `, charged ${moneyIn(args.paidCurrency, args.paidAmount)}` : ''}.`;
 		case 'goal_create':
 			return `Add the goal "${text(args.name)}" in ${nm(args.accountId)}${num(args.perPayday) ? `, setting aside ${money(args.perPayday)} each payday` : ''}.`;
 		case 'goal_update':
@@ -128,7 +130,7 @@ export function describeAction(
 		case 'refund_record':
 			return `Record a refund of ${money(args.amount)} into ${nm(args.accountId)}.`;
 		case 'transfer_record':
-			return `Move ${money(args.amount)} from ${nm(args.fromAccountId)} to ${nm(args.toAccountId)}${num(args.fee) ? ` (fee ${money(args.fee)})` : ''}.`;
+			return `Move ${money(args.amount)} from ${nm(args.fromAccountId)} to ${nm(args.toAccountId)}${typeof args.toCurrency === 'string' && num(args.toAmount) ? `, where ${moneyIn(args.toCurrency, args.toAmount)} arrives` : ''}${num(args.fee) ? ` (fee ${money(args.fee)})` : ''}.`;
 		default:
 			return `Run "${verbName.replaceAll('_', ' ')}".`;
 	}
@@ -157,13 +159,51 @@ export async function createAction(
 	} = parsed.data as Args;
 	const args: Args = clean;
 	const names = await namesFor(ctx, args);
-	const { currency, current } = await run(ctx, async (tx, userId) => ({
-		...(await readSettings(tx, userId)),
-		current:
-			v.name === 'snapshot_record' && typeof args.accountId === 'string'
-				? (await balanceFor(tx, userId, args.accountId)).balance
-				: null
-	}));
+	// The amounts on a card are in the currency they are for: the one named; for a bill, the bill's own (a new bill: the main currency);
+	// for money in or out of an account, the wallet's, which is the account's own unless another is named; for the money plan, the main one
+	const { currency, current } = await run(ctx, async (tx, userId) => {
+		const main = (await readSettings(tx, userId)).currency;
+		const accountId =
+			typeof args.accountId === 'string'
+				? args.accountId
+				: typeof args.fromAccountId === 'string'
+					? args.fromAccountId
+					: null;
+		const billId = typeof args.billId === 'string' ? args.billId : null;
+		const [acc] = accountId
+			? await tx
+					.select({ currency: account.currency })
+					.from(account)
+					.where(and(eq(account.userId, userId), eq(account.id, accountId)))
+			: [];
+		const [theBill] = billId
+			? await tx
+					.select({ currency: bill.currency })
+					.from(bill)
+					.where(and(eq(bill.userId, userId), eq(bill.id, billId)))
+			: [];
+		const planVerbs = [
+			'bill_create',
+			'income_create',
+			'income_update',
+			'goal_create',
+			'goal_update'
+		];
+		const currency =
+			typeof args.currency === 'string'
+				? args.currency
+				: (theBill?.currency ??
+					(planVerbs.includes(v.name) || v.name === 'account_update'
+						? main
+						: (acc?.currency ?? main)));
+		return {
+			currency,
+			current:
+				v.name === 'snapshot_record' && accountId
+					? (await balanceFor(tx, userId, accountId, currency)).balance
+					: null
+		};
+	});
 	const summary = describeAction(v.name, args, names, currency, current);
 	return mapped(async () => {
 		const row = await run(ctx, async (tx, userId) => {

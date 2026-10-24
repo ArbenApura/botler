@@ -77,7 +77,7 @@ class PaydayScreen extends ConsumerWidget {
                     subtitle: Text(
                       i['expectedAmount'] == null
                           ? context.t.paydayDifferent
-                          : '${context.t.paydayUsually(context.money(intOf(i['expectedAmount'])))} · ${describeSchedule(context.t, Localizations.localeOf(context).toString(), asJson(i['schedule'])) ?? context.t.schedUnknown}',
+                          : '${context.t.paydayUsually(context.moneyMain(intOf(i['expectedAmount'])))} · ${describeSchedule(context.t, Localizations.localeOf(context).toString(), asJson(i['schedule'])) ?? context.t.schedUnknown}',
                       style: TextStyle(color: c.muted),
                     ),
                   ),
@@ -252,7 +252,7 @@ class PaydayScreen extends ConsumerWidget {
             onPressed: () async {
               final cents = pay.text.trim().isEmpty
                   ? null
-                  : context.parseAmount(pay.text);
+                  : context.parseAmountMain(pay.text);
               if (pay.text.trim().isNotEmpty && cents == null) {
                 say(sheet, sheet.t.paydayPayInvalid(sheet.currencyCode));
                 return;
@@ -383,7 +383,7 @@ class PaydayScreen extends ConsumerWidget {
               onPressed: () async {
                 final cents = amount.text.trim().isEmpty
                     ? null
-                    : context.parseAmount(amount.text);
+                    : context.parseAmountMain(amount.text);
                 if (label.text.trim().isEmpty ||
                     accountId.isEmpty ||
                     (amount.text.trim().isNotEmpty && cents == null)) {

@@ -26,6 +26,7 @@ import { setAuditContext } from '../db/tenant';
 import { readSettings } from './settings';
 import {
 	account,
+	accountWallet,
 	balanceSnapshot,
 	billOverride,
 	billPayment,
@@ -54,6 +55,8 @@ export type Chip = {
 	accountId: string;
 	accountName: string;
 	amount: number;
+	/** The currency of the amount: the wallet it is for. */
+	currency: string;
 	date: string;
 	note: string;
 	/** For a balance count: what the app expected, and how unusual the change is. */
@@ -64,13 +67,22 @@ export type Chip = {
 export type ExpenseResult =
 	| { status: 'saved'; txn: TxnView }
 	| { status: 'needs_confirmation'; chip: Chip }
-	| { status: 'needs_account'; amount: number; note: string; accounts: string[] }
+	| {
+			status: 'needs_account';
+			amount: number;
+			/** The currency the words named, or the main currency when they named none. */
+			currency: string;
+			note: string;
+			accounts: string[];
+	  }
 	| { status: 'needs_amount'; note: string };
 
 export type SnapshotResult =
 	| {
 			status: 'saved';
 			snapshotId: string;
+			/** The wallet that was counted: counted, expected, drift and untracked are in this currency. */
+			currency: string;
 			counted: number;
 			expected: number | null;
 			drift: number;
@@ -92,6 +104,9 @@ const toTxn = (r: typeof ledgerTxn.$inferSelect): Txn => ({
 	accountId: r.accountId,
 	toAccountId: r.toAccountId,
 	amount: r.amount,
+	currency: r.currency,
+	toCurrency: r.toCurrency,
+	toAmount: r.toAmount,
 	fee: r.fee,
 	occurredAt: r.occurredAt,
 	voided: r.voidedAt !== null
@@ -105,8 +120,27 @@ function instant(value: string | undefined, label: string): Date {
 	return d;
 }
 
-/** The balance of an account at an instant, from its latest count and what happened after. Reads only, inside a transaction. */
-export async function balanceFor(tx: Tx, userId: string, accountId: string, at: Date = new Date()) {
+/** Makes sure the account has a wallet in the currency. Safe to repeat and to run at the same time: the second one finds it there. */
+export async function ensureWallet(tx: Tx, userId: string, accountId: string, currency: string) {
+	await tx
+		.insert(accountWallet)
+		.values({ userId, accountId, currency })
+		.onConflictDoNothing({
+			target: [accountWallet.userId, accountWallet.accountId, accountWallet.currency]
+		});
+}
+
+/**
+ * The balance of one wallet of an account (the account in one currency) at an instant, from its latest count and what happened after.
+ * Reads only, inside a transaction.
+ */
+export async function balanceFor(
+	tx: Tx,
+	userId: string,
+	accountId: string,
+	currency: string,
+	at: Date = new Date()
+) {
 	const [snap] = await tx
 		.select()
 		.from(balanceSnapshot)
@@ -114,6 +148,7 @@ export async function balanceFor(tx: Tx, userId: string, accountId: string, at: 
 			and(
 				eq(balanceSnapshot.userId, userId),
 				eq(balanceSnapshot.accountId, accountId),
+				eq(balanceSnapshot.currency, currency),
 				lte(balanceSnapshot.takenAt, at)
 			)
 		)
@@ -134,11 +169,12 @@ export async function balanceFor(tx: Tx, userId: string, accountId: string, at: 
 	return {
 		balance: balanceOf(
 			accountId,
+			currency,
 			snap ? { amount: snap.amount, takenAt: snap.takenAt } : null,
 			rows.map(toTxn)
 		),
 		countedAt: snap?.takenAt ?? null,
-		hasData: Boolean(snap) || rows.length > 0
+		hasData: Boolean(snap) || rows.some((r) => r.currency === currency || r.toCurrency === currency)
 	};
 }
 
@@ -156,6 +192,10 @@ export async function insertTxn(
 		.values({ ...values, userId })
 		.returning();
 	if (!row) throw new OpsError('CONFLICT', 'The entry could not be saved.');
+	// An entry in a currency the account did not hold yet opens that wallet (both sides of a transfer)
+	await ensureWallet(tx, userId, row.accountId, row.currency);
+	if (row.toAccountId && row.toCurrency)
+		await ensureWallet(tx, userId, row.toAccountId, row.toCurrency);
 	if (options.journal !== false)
 		await recordUndo(tx, userId, requestId, {
 			verb: `ledger.${row.type}`,
@@ -182,6 +222,7 @@ export async function logExpense(ctx: Ctx, raw: ExpenseLogInput): Promise<Expens
 				accountId: acc.id,
 				accountName: acc.name,
 				amount: input.amount,
+				currency: input.currency ?? acc.currency,
 				date: toManilaDate(occurredAt),
 				note: input.note ?? ''
 			}
@@ -189,11 +230,12 @@ export async function logExpense(ctx: Ctx, raw: ExpenseLogInput): Promise<Expens
 	}
 	return mapped(() =>
 		runWrite(ctx, 'expense.log', input, async (tx, userId) => {
-			await requireActiveAccount(tx, userId, input.accountId);
+			const acc = await requireActiveAccount(tx, userId, input.accountId);
 			const row = await insertTxn(tx, userId, ctx.requestId, {
 				type: 'expense',
 				accountId: input.accountId,
 				amount: input.amount,
+				currency: input.currency ?? acc.currency,
 				note: input.note ?? '',
 				category: input.category ?? null,
 				billId: input.billId ?? null,
@@ -213,41 +255,44 @@ export async function logExpenseFromText(
 	const input = parse(expenseFromTextInput, raw);
 	const { accounts, currency } = await run(ctx, async (tx, userId) => ({
 		accounts: await tx
-			.select({ id: account.id, name: account.name })
+			.select({ id: account.id, name: account.name, currency: account.currency })
 			.from(account)
 			.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
 			.orderBy(account.sortOrder, account.name),
-		// "lunch 5" is five of the person's own currency
+		// "lunch 5" is five of the account's own currency; the main currency only reads the first pass
 		currency: (await readSettings(tx, userId)).currency
 	}));
-	const parsed = parseExpenseText(
-		input.text,
-		accounts.map((a) => a.name),
-		currency
-	);
-	if (parsed.amount === null || parsed.amount < 1)
-		return { status: 'needs_amount', note: parsed.note };
+	const names = accounts.map((a) => a.name);
+	let parsed = parseExpenseText(input.text, names, currency);
 	const named = parsed.accountName
 		? accounts.find((a) => a.name.toLowerCase() === parsed.accountName?.toLowerCase())
 		: undefined;
 	const accountId =
 		named?.id ?? input.accountId ?? (accounts.length === 1 ? accounts[0]?.id : undefined);
+	const acc = accounts.find((a) => a.id === accountId);
+	// A number with no symbol or code in front of it is in the currency of the account it is spent from
+	if (acc && !parsed.currency && acc.currency !== currency)
+		parsed = parseExpenseText(input.text, names, acc.currency);
+	if (parsed.amount === null || parsed.amount < 1)
+		return { status: 'needs_amount', note: parsed.note };
 	if (!accountId)
 		return {
 			status: 'needs_account',
 			amount: parsed.amount,
+			currency: parsed.currency ?? currency,
 			note: parsed.note,
-			accounts: accounts.map((a) => a.name)
+			accounts: names
 		};
+	const spentIn = parsed.currency ?? acc?.currency ?? currency;
 	// Two numbers in one message: the person checks which one was meant before anything is saved
 	if (parsed.ambiguous && !input.confirmed) {
-		const acc = accounts.find((a) => a.id === accountId);
 		return {
 			status: 'needs_confirmation',
 			chip: {
 				accountId,
 				accountName: acc?.name ?? '',
 				amount: parsed.amount,
+				currency: spentIn,
 				date: toManilaDate(new Date()),
 				note: parsed.note
 			}
@@ -256,6 +301,7 @@ export async function logExpenseFromText(
 	return logExpense(ctx, {
 		accountId,
 		amount: parsed.amount,
+		currency: spentIn,
 		note: parsed.note,
 		category: parsed.category,
 		source: 'chat'
@@ -274,11 +320,12 @@ async function recordSimple(
 	const occurredAt = instant(input.occurredAt, 'The date');
 	return mapped(() =>
 		runWrite(ctx, verb, input, async (tx, userId) => {
-			await requireActiveAccount(tx, userId, input.accountId);
+			const acc = await requireActiveAccount(tx, userId, input.accountId);
 			const row = await insertTxn(tx, userId, ctx.requestId, {
 				type,
 				accountId: input.accountId,
 				amount: input.amount,
+				currency: input.currency ?? acc.currency,
 				note: input.note ?? '',
 				category: type === 'income' ? 'income' : null,
 				occurredAt,
@@ -300,18 +347,40 @@ export const recordRefund = (ctx: Ctx, input: IncomeRecordInput) =>
 /** A move between the person's own accounts. Never spending; its fee is. */
 export async function recordTransfer(ctx: Ctx, raw: TransferRecordInput): Promise<TxnView> {
 	const input = parse(transferRecordInput, raw);
-	if (input.fromAccountId === input.toAccountId)
-		throw new OpsError('INVALID', 'Pick two different accounts.');
 	const occurredAt = instant(input.occurredAt, 'The date');
 	return mapped(() =>
 		runWrite(ctx, 'transfer.record', input, async (tx, userId) => {
-			await requireActiveAccount(tx, userId, input.fromAccountId, 'account to move from');
-			await requireActiveAccount(tx, userId, input.toAccountId, 'account to move to');
+			const from = await requireActiveAccount(
+				tx,
+				userId,
+				input.fromAccountId,
+				'account to move from'
+			);
+			const to = await requireActiveAccount(tx, userId, input.toAccountId, 'account to move to');
+			const currency = input.currency ?? from.currency;
+			const toCurrency = input.toCurrency ?? to.currency;
+			// Moving inside one account is a conversion between two of its wallets, so the wallets must differ
+			if (input.fromAccountId === input.toAccountId && currency === toCurrency)
+				throw new OpsError('INVALID', 'Pick two different accounts, or two different currencies.');
+			// Two currencies: the person says what really arrived (their own rate); one currency: there is nothing to say
+			if (currency !== toCurrency && !input.toAmount)
+				throw new OpsError(
+					'INVALID',
+					`Say how much ${toCurrency} arrived: the amount sent is in ${currency}.`
+				);
+			if (currency === toCurrency && input.toAmount && input.toAmount !== input.amount)
+				throw new OpsError(
+					'INVALID',
+					'Both wallets are in one currency, so the same amount arrives.'
+				);
 			const row = await insertTxn(tx, userId, ctx.requestId, {
 				type: 'transfer',
 				accountId: input.fromAccountId,
 				toAccountId: input.toAccountId,
 				amount: input.amount,
+				currency,
+				toCurrency,
+				toAmount: currency === toCurrency ? null : (input.toAmount ?? null),
 				fee: input.fee ?? 0,
 				note: input.note ?? '',
 				occurredAt,
@@ -340,17 +409,25 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 	const source = input.source ?? 'manual';
 	const state = await run(ctx, async (tx, userId) => {
 		const acc = await requireActiveAccount(tx, userId, input.accountId);
+		// The count is of one wallet: the one named, else the account's own currency
+		const currency = input.currency ?? acc.currency;
 		const [last] = await tx
 			.select({ takenAt: balanceSnapshot.takenAt })
 			.from(balanceSnapshot)
-			.where(and(eq(balanceSnapshot.userId, userId), eq(balanceSnapshot.accountId, acc.id)))
+			.where(
+				and(
+					eq(balanceSnapshot.userId, userId),
+					eq(balanceSnapshot.accountId, acc.id),
+					eq(balanceSnapshot.currency, currency)
+				)
+			)
 			.orderBy(desc(balanceSnapshot.takenAt))
 			.limit(1);
 		return {
 			acc,
 			last,
-			now: await balanceFor(tx, userId, acc.id, takenAt),
-			currency: (await readSettings(tx, userId)).currency
+			now: await balanceFor(tx, userId, acc.id, currency, takenAt),
+			currency
 		};
 	});
 	// A count dated in the future would block every later count, so it is refused (a few minutes of clock difference is allowed)
@@ -372,6 +449,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				accountId: state.acc.id,
 				accountName: state.acc.name,
 				amount: input.amount,
+				currency: state.currency,
 				date: toManilaDate(takenAt),
 				note: '',
 				expected,
@@ -385,6 +463,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				accountId: state.acc.id,
 				accountName: state.acc.name,
 				amount: input.amount,
+				currency: state.currency,
 				date: toManilaDate(takenAt),
 				note: '',
 				expected,
@@ -399,7 +478,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				.from(account)
 				.where(and(eq(account.userId, userId), eq(account.id, input.accountId)))
 				.for('update');
-			const again = await balanceFor(tx, userId, input.accountId, takenAt);
+			const again = await balanceFor(tx, userId, input.accountId, state.currency, takenAt);
 			if ((again.hasData ? again.balance : null) !== expected)
 				throw new OpsError(
 					'CONFLICT',
@@ -411,12 +490,14 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 					userId,
 					accountId: input.accountId,
 					amount: input.amount,
+					currency: state.currency,
 					takenAt,
 					expectedAmount: expected,
 					source
 				})
 				.returning();
 			if (!snap) throw new OpsError('CONFLICT', 'The count could not be saved.');
+			await ensureWallet(tx, userId, input.accountId, state.currency);
 			const drift = expected === null ? 0 : input.amount - expected;
 			let adjustmentId: string | null = null;
 			if (drift !== 0) {
@@ -427,6 +508,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 						userId,
 						type: 'adjustment',
 						accountId: input.accountId,
+						currency: state.currency,
 						amount: drift,
 						// A reset is not spending, so it never counts as untracked
 						category: reset ? 'reset' : drift < 0 ? 'untracked' : null,
@@ -451,6 +533,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 			return {
 				status: 'saved' as const,
 				snapshotId: snap.id,
+				currency: state.currency,
 				counted: input.amount,
 				expected,
 				drift,
@@ -463,9 +546,33 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 
 // -- READS -- //
 
-/** Every active account with its balance now. */
+/** One currency an account holds, with its balance now. */
+export type WalletBalance = { currency: string; balance: number; countedAt: string | null };
+
+/** The currencies an account holds, its own first and the rest in code order. Its own is listed even before anything was entered in it. */
+export async function walletCurrencies(
+	tx: Tx,
+	userId: string,
+	accountId: string,
+	own: string
+): Promise<string[]> {
+	const rows = await tx
+		.select({ currency: accountWallet.currency })
+		.from(accountWallet)
+		.where(and(eq(accountWallet.userId, userId), eq(accountWallet.accountId, accountId)));
+	return [own, ...rows.map((r) => r.currency).filter((c) => c !== own)].sort((a, b) =>
+		a === own ? -1 : b === own ? 1 : a < b ? -1 : 1
+	);
+}
+
+/**
+ * Every active account with its balance now. `balance` and `countedAt` are those of the wallet in the account's own currency (what an
+ * older app reads); `wallets` lists every currency the account holds. The minimum balance is a money plan rule, so it is judged in the
+ * main currency: an account with no wallet in it is not below its minimum (there is nothing to judge), never "empty".
+ */
 export async function accountBalances(ctx: Ctx) {
 	return run(ctx, async (tx, userId) => {
+		const main = (await readSettings(tx, userId)).currency;
 		const accounts = await tx
 			.select()
 			.from(account)
@@ -473,16 +580,28 @@ export async function accountBalances(ctx: Ctx) {
 			.orderBy(account.sortOrder, account.name);
 		const out = [];
 		for (const a of accounts) {
-			const b = await balanceFor(tx, userId, a.id);
+			const wallets: WalletBalance[] = [];
+			for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
+				const b = await balanceFor(tx, userId, a.id, currency);
+				wallets.push({
+					currency,
+					balance: b.balance,
+					countedAt: b.countedAt?.toISOString() ?? null
+				});
+			}
+			const own = wallets[0] as WalletBalance;
+			const inMain = wallets.find((w) => w.currency === main);
 			out.push({
 				id: a.id,
 				name: a.name,
 				kind: a.kind,
 				minBalance: a.minBalance,
 				purpose: a.purpose,
-				balance: b.balance,
-				countedAt: b.countedAt?.toISOString() ?? null,
-				belowMinimum: b.balance < a.minBalance
+				currency: a.currency,
+				balance: own.balance,
+				countedAt: own.countedAt,
+				belowMinimum: inMain ? inMain.balance < a.minBalance : false,
+				wallets
 			});
 		}
 		return out;
@@ -518,8 +637,8 @@ export async function listTransactions(
 /** What was spent between two Manila dates, by category, with the untracked part apart. */
 export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string }) {
 	const { from, to } = parse(rangeInput, raw);
-	const rows = await run(ctx, (tx, userId) =>
-		tx
+	const { all, currency } = await run(ctx, async (tx, userId) => ({
+		all: await tx
 			.select()
 			.from(ledgerTxn)
 			.where(
@@ -529,8 +648,16 @@ export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string 
 					gte(ledgerTxn.occurredAt, manilaStart(from)),
 					lt(ledgerTxn.occurredAt, manilaStart(addDays(to, 1)))
 				)
-			)
-	);
+			),
+		currency: (await readSettings(tx, userId)).currency
+	}));
+	// Amounts of different currencies are never added: this is the main currency, and the others are named so nothing is hidden
+	const rows = all.filter((r) => r.currency === currency);
+	const otherCurrencies = [
+		...new Set(
+			all.filter((r) => r.currency !== currency && r.type !== 'transfer').map((r) => r.currency)
+		)
+	].sort();
 	const byCategory: Record<string, number> = {};
 	for (const r of rows)
 		if (r.type === 'expense') {
@@ -540,7 +667,9 @@ export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string 
 	return {
 		from,
 		to,
-		spending: spendingOf(rows.map(toTxn)),
+		currency,
+		otherCurrencies,
+		spending: spendingOf(rows.map(toTxn), currency),
 		untracked: untrackedSpendingOf(
 			rows.filter((r) => r.type === 'adjustment' && r.category !== 'reset').map((r) => r.amount)
 		),
@@ -558,20 +687,25 @@ export async function weeklyCheckin(ctx: Ctx) {
 			.from(account)
 			.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
 			.orderBy(account.sortOrder, account.name);
+		const main = (await readSettings(tx, userId)).currency;
 		const list = [];
+		// One line for every wallet: each currency is counted on its own
 		for (const a of accounts) {
-			const b = await balanceFor(tx, userId, a.id, now);
-			const days = b.countedAt
-				? Math.floor((now.getTime() - b.countedAt.getTime()) / 86_400_000)
-				: null;
-			list.push({
-				accountId: a.id,
-				name: a.name,
-				expected: b.balance,
-				lastCountedAt: b.countedAt?.toISOString() ?? null,
-				daysSinceCount: days,
-				due: days === null || days >= CHECKIN_DAYS
-			});
+			for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
+				const b = await balanceFor(tx, userId, a.id, currency, now);
+				const days = b.countedAt
+					? Math.floor((now.getTime() - b.countedAt.getTime()) / 86_400_000)
+					: null;
+				list.push({
+					accountId: a.id,
+					name: a.name,
+					currency,
+					expected: b.balance,
+					lastCountedAt: b.countedAt?.toISOString() ?? null,
+					daysSinceCount: days,
+					due: days === null || days >= CHECKIN_DAYS
+				});
+			}
 		}
 		const drifts = await tx
 			.select({ amount: ledgerTxn.amount, category: ledgerTxn.category })
@@ -579,6 +713,7 @@ export async function weeklyCheckin(ctx: Ctx) {
 			.where(
 				and(
 					eq(ledgerTxn.userId, userId),
+					eq(ledgerTxn.currency, main),
 					eq(ledgerTxn.type, 'adjustment'),
 					isNull(ledgerTxn.voidedAt),
 					gte(ledgerTxn.occurredAt, since)

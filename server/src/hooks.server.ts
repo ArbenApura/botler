@@ -2,19 +2,21 @@
 import type { Handle, ServerInit } from '@sveltejs/kit/hooks';
 // -- ENVS -- //
 import { building } from '$app/env';
-import { BOTLER_BASE_URL } from '$app/env/private';
+import { BOTLER_BASE_URL, FX_RATES_URL } from '$app/env/private';
 // -- DEP-MODULES -- //
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 // -- MODULES -- //
 import { allowedUser } from '#lib/server/auth/allowlist.js';
 import { getAllowList, getAuth } from '#lib/server/auth/index.js';
 import { getDb } from '#lib/server/db/index.js';
+import { configureFx } from '#lib/server/fx/config.js';
+import { fxHandlers } from '#lib/server/jobs/fx.js';
 import { jobHandlers } from '#lib/server/jobs/handlers.js';
 import { createMemoryHandlers } from '#lib/server/jobs/memory.js';
 import { createPushHandlers } from '#lib/server/jobs/push.js';
 import { getPusher } from '#lib/server/push/index.js';
 import { activeEmbedder, getEmbedder, setActiveEmbedder } from '#lib/server/memory/embed.js';
-import { getModelClient } from '#lib/server/proxy/index.js';
+import { getModelClient, assertModelConfigured } from '#lib/server/proxy/index.js';
 import { startWorker } from '#lib/server/jobs/queue.js';
 
 // -- FUNCTIONS -- //
@@ -24,6 +26,8 @@ export const init: ServerInit = async () => {
 	if (building) return;
 	// Parsed at start, so a missing or malformed ALLOWED_EMAILS stops the server instead of opening registration
 	getAllowList();
+	// The provider key for MODEL_PROVIDER is checked at start: a missing key stops the server, not the first chat
+	assertModelConfigured();
 	// The embedding model loads on first use (about 15 s), not at start
 	setActiveEmbedder(getEmbedder());
 	const memoryHandlers = createMemoryHandlers({
@@ -34,7 +38,9 @@ export const init: ServerInit = async () => {
 	// A half set up push stops the start here; no push at all is allowed (the phone syncs on open and on a timer)
 	if (!getPusher()) console.warn(JSON.stringify({ event: 'push_not_configured' }));
 	const pushHandlers = createPushHandlers({ pusher: () => getPusher() });
-	startWorker(handle, { ...jobHandlers, ...memoryHandlers, ...pushHandlers });
+	// The exchange rate source is fixed at start; a bad address already stopped the server when the environment was read
+	configureFx({ url: FX_RATES_URL });
+	startWorker(handle, { ...jobHandlers, ...memoryHandlers, ...pushHandlers, ...fxHandlers });
 };
 
 /** Reads the session once per request (cookie or bearer token) and serves /api/auth/* through Better Auth. */

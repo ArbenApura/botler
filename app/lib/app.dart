@@ -77,6 +77,9 @@ GoRouter buildRouter(WidgetRef ref) {
                   ? values['amount']! as String
                   : null,
               note: values['note'] is String ? values['note']! as String : null,
+              currency: values['currency'] is String
+                  ? values['currency']! as String
+                  : null,
             ),
           );
         },

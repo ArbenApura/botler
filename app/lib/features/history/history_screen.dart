@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
+import '../../core/money.dart' show defaultCurrency;
 import '../../core/money_scope.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
@@ -74,8 +75,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       await context.push(
         '/expense',
         extra: <String, Object?>{
-          'amount': context.plainAmount(intOf(e['amount'])),
+          'amount': plainAmountIn(intOf(e['amount']), _currencyOf(e)),
           'note': str(e['note']),
+          'currency': _currencyOf(e),
         },
       );
     } catch (err) {
@@ -107,13 +109,33 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     context.t.historySpentThisMonth,
                     style: TextStyle(color: c.muted),
                   ),
-                  Amount(intOf(m['spending'])),
+                  Amount(
+                    intOf(m['spending']),
+                    currency: str(m['currency'], context.currencyCode),
+                  ),
+                  if (asList(m['otherCurrencies'])
+                      .whereType<String>()
+                      .isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        context.t.historyOtherCurrencies(
+                          asList(m['otherCurrencies'])
+                              .whereType<String>()
+                              .join(', '),
+                        ),
+                        style: TextStyle(color: c.muted),
+                      ),
+                    ),
                   if (intOf(m['untracked']) > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(
                         context.t.historyUntracked(
-                          context.money(intOf(m['untracked'])),
+                          context.moneyIn(
+                            intOf(m['untracked']),
+                            str(m['currency'], context.currencyCode),
+                          ),
                         ),
                         style: TextStyle(color: c.warning),
                       ),
@@ -141,7 +163,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   .where(
                     (e) =>
                         _query.isEmpty ||
-                        '${str(e['note'])} ${str(e['category'])} ${context.plainAmount(intOf(e['amount']))} ${str(e['type'])}'
+                        '${str(e['note'])} ${str(e['category'])} ${plainAmountIn(intOf(e['amount']), _currencyOf(e))} ${str(e['type'])} ${_currencyOf(e)}'
                             .toLowerCase()
                             .contains(_query),
                   )
@@ -168,6 +190,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 }
+
+/// The currency of a ledger row: its own, else the main one (an older server sends none).
+String _currencyOf(Json e) => str(e['currency'], defaultCurrency);
 
 class _Row extends StatelessWidget {
   const _Row({
@@ -226,7 +251,7 @@ class _Row extends StatelessWidget {
                 ? '+'
                 : sign < 0
                 ? '-'
-                : ''}${context.money(amount)}',
+                : ''}${context.moneyIn(amount, _currencyOf(entry))}',
             style: Theme.of(context).textTheme.titleMedium
                 ?.merge(style)
                 .copyWith(

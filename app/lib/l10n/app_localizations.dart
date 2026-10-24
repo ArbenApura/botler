@@ -182,6 +182,18 @@ abstract class AppLocalizations {
   /// **'Counted {when}'**
   String accountsCounted(String when);
 
+  /// No description provided for @accountsCurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get accountsCurrencyLabel;
+
+  /// No description provided for @accountsCurrencyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'What is in this account is counted in this currency unless you pick another when you enter something.'**
+  String get accountsCurrencyNote;
+
   /// No description provided for @accountsDaysAgo.
   ///
   /// In en, this message translates to:
@@ -224,6 +236,12 @@ abstract class AppLocalizations {
   /// **'Keep at least ({currency}, optional)'**
   String accountsMinimumLabel(String currency);
 
+  /// No description provided for @accountsMissingRate.
+  ///
+  /// In en, this message translates to:
+  /// **'No exchange rate yet for {currencies}. It is not in the total.'**
+  String accountsMissingRate(String currencies);
+
   /// No description provided for @accountsNameHint.
   ///
   /// In en, this message translates to:
@@ -242,11 +260,65 @@ abstract class AppLocalizations {
   /// **'Never counted'**
   String get accountsNeverCounted;
 
+  /// No description provided for @accountsNoMainWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in {currency} here, so the minimum is not checked.'**
+  String accountsNoMainWallet(String currency);
+
   /// No description provided for @accountsNotSaved.
   ///
   /// In en, this message translates to:
   /// **'Not saved.'**
   String get accountsNotSaved;
+
+  /// No description provided for @accountsRatesAsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rates as of {date}'**
+  String accountsRatesAsOf(String date);
+
+  /// No description provided for @accountsRatesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not update the rates. The last ones are still used.'**
+  String get accountsRatesFailed;
+
+  /// No description provided for @accountsRatesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No exchange rates yet. Tap to get them.'**
+  String get accountsRatesNone;
+
+  /// No description provided for @accountsRatesOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Showing the last total.'**
+  String get accountsRatesOffline;
+
+  /// No description provided for @accountsRatesRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Update rates'**
+  String get accountsRatesRefresh;
+
+  /// No description provided for @accountsRatesStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rates are old (from {date}). Tap to update.'**
+  String accountsRatesStale(String date);
+
+  /// No description provided for @accountsRatesTooSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'The rates were just updated.'**
+  String get accountsRatesTooSoon;
+
+  /// No description provided for @accountsRatesUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rates updated.'**
+  String get accountsRatesUpdated;
 
   /// No description provided for @accountsSaveCount.
   ///
@@ -266,6 +338,12 @@ abstract class AppLocalizations {
   /// **'Saved. {amount} went untracked since the last count.'**
   String accountsSavedUntracked(String amount);
 
+  /// No description provided for @accountsSubtotal.
+  ///
+  /// In en, this message translates to:
+  /// **'About {amount} in all'**
+  String accountsSubtotal(String amount);
+
   /// No description provided for @accountsTitle.
   ///
   /// In en, this message translates to:
@@ -277,6 +355,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'today'**
   String get accountsToday;
+
+  /// No description provided for @accountsTotalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything you have'**
+  String get accountsTotalTitle;
+
+  /// No description provided for @accountsTotalUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The total needs exchange rates, and there are none yet.'**
+  String get accountsTotalUnavailable;
+
+  /// No description provided for @accountsWalletAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a currency'**
+  String get accountsWalletAdd;
+
+  /// No description provided for @accountsWalletAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{currency} added.'**
+  String accountsWalletAdded(String currency);
+
+  /// No description provided for @accountsWalletsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Currencies in this account'**
+  String get accountsWalletsTitle;
 
   /// No description provided for @accountsYesterday.
   ///
@@ -979,6 +1087,12 @@ abstract class AppLocalizations {
   /// **'About how much? ({currency})'**
   String billsAboutLabel(String currency);
 
+  /// No description provided for @billsAboutMain.
+  ///
+  /// In en, this message translates to:
+  /// **'about {amount}'**
+  String billsAboutMain(String amount);
+
   /// No description provided for @billsAdd.
   ///
   /// In en, this message translates to:
@@ -1015,11 +1129,29 @@ abstract class AppLocalizations {
   /// **'amount?'**
   String get billsAmountUnknown;
 
+  /// No description provided for @billsChargedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Really charged ({currency})'**
+  String billsChargedLabel(String currency);
+
+  /// No description provided for @billsChargedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This bill is in {bill}, but you pay from a {wallet} wallet. Type what was really charged.'**
+  String billsChargedNote(String bill, String wallet);
+
   /// No description provided for @billsComingUp.
   ///
   /// In en, this message translates to:
   /// **'Coming up'**
   String get billsComingUp;
+
+  /// No description provided for @billsCurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency of this bill'**
+  String get billsCurrencyLabel;
 
   /// No description provided for @billsDateLabel.
   ///
@@ -1080,6 +1212,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Marked paid. It came in {amount} under the usual: you could set that aside.'**
   String billsMarkedPaidHint(String amount);
+
+  /// No description provided for @billsMissingRateTag.
+  ///
+  /// In en, this message translates to:
+  /// **'no exchange rate yet'**
+  String get billsMissingRateTag;
 
   /// No description provided for @billsMovedTag.
   ///
@@ -1177,6 +1315,12 @@ abstract class AppLocalizations {
   /// **'You changed how it repeats, so every date follows the new rule.'**
   String get billsRepeatChangedNote;
 
+  /// No description provided for @billsReserveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The payday split keeps the money for this bill in your main currency. Paying from another wallet can take that wallet below zero.'**
+  String get billsReserveNote;
+
   /// No description provided for @billsSave.
   ///
   /// In en, this message translates to:
@@ -1260,6 +1404,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The amount is different every time'**
   String get billsVaries;
+
+  /// No description provided for @billsWalletLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid in'**
+  String get billsWalletLabel;
 
   /// No description provided for @calAdd.
   ///
@@ -1458,6 +1608,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About {amount}'**
   String calForecastTotal(String amount);
+
+  /// No description provided for @calForecastUnconverted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} bills in other currencies are left out of this forecast because their exchange rate is missing.'**
+  String calForecastUnconverted(int count);
 
   /// No description provided for @calForecastUnknown.
   ///
@@ -1662,6 +1818,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancel;
+
+  /// No description provided for @changelogBuildHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String changelogBuildHeader(String version);
+
+  /// No description provided for @changelogGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get changelogGotIt;
+
+  /// No description provided for @changelogRowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the changes in the version you have now'**
+  String get changelogRowHint;
+
+  /// No description provided for @changelogRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What is new in this version'**
+  String get changelogRowTitle;
+
+  /// No description provided for @changelogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What is new in {version}'**
+  String changelogTitle(String version);
 
   /// No description provided for @chatAcrossAccounts.
   ///
@@ -2341,6 +2527,18 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get done;
 
+  /// No description provided for @entryCurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency'**
+  String get entryCurrencyLabel;
+
+  /// No description provided for @entryCurrencyOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other…'**
+  String get entryCurrencyOther;
+
   /// No description provided for @expenseAmountError.
   ///
   /// In en, this message translates to:
@@ -2520,6 +2718,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Moved {from} → {to}'**
   String historyMoved(String from, String to);
+
+  /// No description provided for @historyOtherCurrencies.
+  ///
+  /// In en, this message translates to:
+  /// **'Also spent in {currencies}. Those are not added here.'**
+  String historyOtherCurrencies(String currencies);
 
   /// No description provided for @historySearchHint.
   ///
@@ -2958,6 +3162,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You have a reminder'**
   String get notifHiddenBody;
+
+  /// No description provided for @outboxFailedDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get outboxFailedDismiss;
+
+  /// No description provided for @outboxFailedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} changes you made offline did not go through. Tap to see why.'**
+  String outboxFailedLine(int count);
+
+  /// No description provided for @outboxFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes the server refused'**
+  String get outboxFailedTitle;
 
   /// No description provided for @paydayAdd.
   ///
@@ -3939,7 +4161,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCurrencyConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'Your amounts will read in {name}. Nothing is converted: 100.00 stays 100.00, only the currency changes.'**
+  /// **'Your total will be shown in {name}. Your accounts keep the currencies they hold. Your income, goals, rules and minimum balances keep the same numbers, now read in {name}: nothing in them is converted. Your bills keep their own currency.'**
   String settingsCurrencyConfirmBody(String name);
 
   /// No description provided for @settingsCurrencyConfirmTitle.
@@ -4092,6 +4314,30 @@ abstract class AppLocalizations {
   /// **'Privacy'**
   String get settingsPrivacy;
 
+  /// No description provided for @settingsRatesLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetched {date} from {source}'**
+  String settingsRatesLine(String date, String source);
+
+  /// No description provided for @settingsRatesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No rates yet'**
+  String get settingsRatesNone;
+
+  /// No description provided for @settingsRatesTap.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to update'**
+  String get settingsRatesTap;
+
+  /// No description provided for @settingsRatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rates'**
+  String get settingsRatesTitle;
+
   /// No description provided for @settingsReminders.
   ///
   /// In en, this message translates to:
@@ -4236,6 +4482,23 @@ abstract class AppLocalizations {
   /// **'You could cut or move:'**
   String get splitCutOrMove;
 
+  /// No description provided for @splitForeignLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}: {amount} counted as {converted} ({rate})'**
+  String splitForeignLine(
+    String name,
+    String amount,
+    String converted,
+    String rate,
+  );
+
+  /// No description provided for @splitForeignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills in other currencies'**
+  String get splitForeignTitle;
+
   /// No description provided for @splitMarkSent.
   ///
   /// In en, this message translates to:
@@ -4271,6 +4534,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transfers to make'**
   String get splitTransfers;
+
+  /// No description provided for @summaryMissingRates.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} currencies are not in this total: no exchange rate yet.'**
+  String summaryMissingRates(int count);
+
+  /// No description provided for @transferArrivedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount that arrived ({currency})'**
+  String transferArrivedLabel(String currency);
+
+  /// No description provided for @transferDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved.'**
+  String get transferDone;
+
+  /// No description provided for @transferFeeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee ({currency}, optional)'**
+  String transferFeeLabel(String currency);
+
+  /// No description provided for @transferFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get transferFrom;
+
+  /// No description provided for @transferInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the amounts.'**
+  String get transferInvalid;
+
+  /// No description provided for @transferMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move money'**
+  String get transferMove;
+
+  /// No description provided for @transferQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on the phone. It is sent when you are back online.'**
+  String get transferQueued;
+
+  /// No description provided for @transferRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rate: {rate}'**
+  String transferRate(String rate);
+
+  /// No description provided for @transferSame.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick two different wallets.'**
+  String get transferSame;
+
+  /// No description provided for @transferSentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount sent ({currency})'**
+  String transferSentLabel(String currency);
+
+  /// No description provided for @transferSuggest.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'\'s rate suggests about {amount}. Change it to what really arrived.'**
+  String transferSuggest(String amount);
+
+  /// No description provided for @transferTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get transferTo;
 
   /// No description provided for @uiError.
   ///

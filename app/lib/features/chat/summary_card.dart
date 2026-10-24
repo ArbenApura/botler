@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
@@ -54,7 +55,15 @@ class SummaryCard extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               // The same light figure as every other balance in the app
-              Amount(intOf(summary['total'])),
+              Amount(
+                intOf(summary['total']),
+                currency: str(summary['currency'], context.currencyCode),
+              ),
+              if (intOf(summary['totalMissing']) > 0)
+                Text(
+                  context.t.summaryMissingRates(intOf(summary['totalMissing'])),
+                  style: TextStyle(color: context.colors.warning),
+                ),
               const SizedBox(height: 14),
               _Line(
                 icon: Icons.receipt_long_outlined,

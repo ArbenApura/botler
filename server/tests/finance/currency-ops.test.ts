@@ -57,6 +57,21 @@ describe('reading amounts from words', () => {
 		expect(parseExpenseText('rent 90k', accounts, 'JPY').amount).toBe(90_000);
 	});
 
+	it('reads a currency written before the amount, and never a word that happens to be a code', () => {
+		const text = (t: string) => parseExpenseText(t, accounts, 'PHP');
+		expect(text('coffee usd 5 wallet')).toMatchObject({ currency: 'USD', amount: 500 });
+		expect(text('coffee Eur 3.20 wallet')).toMatchObject({ currency: 'EUR', amount: 320 });
+		expect(text('rice $4 wallet')).toMatchObject({ currency: 'USD', amount: 400 });
+		expect(text('MOP 150 cash')).toMatchObject({ currency: 'MOP', amount: 15_000 });
+		// Ordinary words that are also codes are an expense in the account currency, not a foreign wallet
+		for (const word of ['mop', 'pen', 'top', 'cup', 'all', 'try', 'sos']) {
+			const r = text(`${word} 150 cash`);
+			expect(r.currency, word).toBeNull();
+			expect(r.amount, word).toBe(15_000);
+			expect(r.note, word).toContain(word);
+		}
+	});
+
 	it('drops a decimal part for a currency that has none, and never mistakes a word for a symbol', () => {
 		expect(parseExpenseText('ramen 1200.50', accounts, 'JPY').amount).toBe(1_200);
 		// "firm" ends in rm, the symbol of ringgit: it is a word here

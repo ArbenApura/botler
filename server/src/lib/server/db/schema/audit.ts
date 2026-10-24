@@ -5,7 +5,7 @@
 // from outside sources (the allow-lists below name every column that is copied).
 
 // -- DEP-MODULES -- //
-import { bigint, index, integer, jsonb, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { bigint, index, jsonb, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 // -- MODULES -- //
 import { user } from './auth';
 import { id, oneOf, userTable } from './helpers';
@@ -23,8 +23,11 @@ export type AuditedTable = {
 	migration?: string;
 	/** The columns the trigger had when its migration ran, kept when a later migration replaced the trigger with a longer list. */
 	firstColumns?: readonly string[];
-	/** The later migration that drops this table's trigger and creates it again with the current columns. */
-	redefined?: string;
+	/**
+	 * The later migrations that drop this table's trigger and create it again with a longer list of columns, oldest first. Each keeps the
+	 * list it had, so its migration file stays checkable after a newer one adds more; the last one is the current list.
+	 */
+	redefinitions?: readonly { migration: string; columns: readonly string[] }[];
 };
 
 // -- CONSTANTS -- //
@@ -60,12 +63,46 @@ export const AUDIT_ACTIONS = [
 export const AUDITED_TABLES: readonly AuditedTable[] = [
 	{
 		table: 'account',
-		columns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at', 'purpose'],
+		columns: [
+			'id',
+			'name',
+			'kind',
+			'min_balance',
+			'sort_order',
+			'archived_at',
+			'purpose',
+			'currency'
+		],
 		account: 'id',
 		amount: '',
 		// The label is typed by the person (24 characters, no long digit runs), so it is safe to copy
 		firstColumns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at'],
-		redefined: '0022'
+		redefinitions: [
+			{
+				migration: '0022',
+				columns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at', 'purpose']
+			},
+			{
+				migration: '0025',
+				columns: [
+					'id',
+					'name',
+					'kind',
+					'min_balance',
+					'sort_order',
+					'archived_at',
+					'purpose',
+					'currency'
+				]
+			}
+		]
+	},
+	{
+		table: 'account_wallet',
+		columns: ['id', 'account_id', 'currency'],
+		account: 'account_id',
+		amount: '',
+		migration: '0025'
 	},
 	{
 		table: 'ledger_txn',
@@ -82,16 +119,65 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'source',
 			'bill_id',
 			'split_id',
-			'voided_at'
+			'voided_at',
+			'currency',
+			'to_currency',
+			'to_amount'
 		],
 		account: 'account_id',
-		amount: 'txn'
+		amount: 'txn',
+		firstColumns: [
+			'id',
+			'type',
+			'account_id',
+			'to_account_id',
+			'amount',
+			'fee',
+			'category',
+			'note',
+			'occurred_at',
+			'source',
+			'bill_id',
+			'split_id',
+			'voided_at'
+		],
+		// The currency of a row travels inside the hashed before and after, so the chain covers it
+		redefinitions: [
+			{
+				migration: '0025',
+				columns: [
+					'id',
+					'type',
+					'account_id',
+					'to_account_id',
+					'amount',
+					'fee',
+					'category',
+					'note',
+					'occurred_at',
+					'source',
+					'bill_id',
+					'split_id',
+					'voided_at',
+					'currency',
+					'to_currency',
+					'to_amount'
+				]
+			}
+		]
 	},
 	{
 		table: 'balance_snapshot',
-		columns: ['id', 'account_id', 'amount', 'taken_at', 'expected_amount', 'source'],
+		columns: ['id', 'account_id', 'amount', 'taken_at', 'expected_amount', 'source', 'currency'],
 		account: 'account_id',
-		amount: ''
+		amount: '',
+		firstColumns: ['id', 'account_id', 'amount', 'taken_at', 'expected_amount', 'source'],
+		redefinitions: [
+			{
+				migration: '0025',
+				columns: ['id', 'account_id', 'amount', 'taken_at', 'expected_amount', 'source', 'currency']
+			}
+		]
 	},
 	{
 		table: 'bill',
@@ -106,7 +192,8 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'weekend_rule',
 			'deferrable',
 			'active',
-			'starts_on'
+			'starts_on',
+			'currency'
 		],
 		account: 'account_id',
 		amount: '',
@@ -123,13 +210,76 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'deferrable',
 			'active'
 		],
-		redefined: '0023'
+		redefinitions: [
+			{
+				migration: '0023',
+				columns: [
+					'id',
+					'name',
+					'category',
+					'account_id',
+					'kind',
+					'amount',
+					'schedule',
+					'weekend_rule',
+					'deferrable',
+					'active',
+					'starts_on'
+				]
+			},
+			{
+				migration: '0025',
+				columns: [
+					'id',
+					'name',
+					'category',
+					'account_id',
+					'kind',
+					'amount',
+					'schedule',
+					'weekend_rule',
+					'deferrable',
+					'active',
+					'starts_on',
+					'currency'
+				]
+			}
+		]
 	},
 	{
 		table: 'bill_payment',
-		columns: ['id', 'bill_id', 'due_date', 'window_start', 'window_end', 'amount', 'txn_id'],
+		columns: [
+			'id',
+			'bill_id',
+			'due_date',
+			'window_start',
+			'window_end',
+			'amount',
+			'txn_id',
+			'currency',
+			'paid_currency',
+			'paid_amount'
+		],
 		account: '',
-		amount: ''
+		amount: '',
+		firstColumns: ['id', 'bill_id', 'due_date', 'window_start', 'window_end', 'amount', 'txn_id'],
+		redefinitions: [
+			{
+				migration: '0025',
+				columns: [
+					'id',
+					'bill_id',
+					'due_date',
+					'window_start',
+					'window_end',
+					'amount',
+					'txn_id',
+					'currency',
+					'paid_currency',
+					'paid_amount'
+				]
+			}
+		]
 	},
 	{
 		table: 'bill_override',
@@ -267,7 +417,7 @@ export const auditEvent = userTable(
 		accountId: uuid('account_id'),
 		action: text('action', { enum: AUDIT_ACTIONS }).notNull(),
 		/** The effect on the account's balance of a ledger row, signed. */
-		amountDelta: integer('amount_delta'),
+		amountDelta: bigint('amount_delta', { mode: 'number' }),
 		before: jsonb('before'),
 		after: jsonb('after'),
 		note: text('note'),

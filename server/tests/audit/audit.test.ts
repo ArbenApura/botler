@@ -10,6 +10,7 @@ import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
+	auditBigintSql,
 	auditLaterTriggersSql,
 	auditMigrationSql,
 	auditRedefinedSql
@@ -113,7 +114,9 @@ describe('the registry of audited tables', () => {
 		// Every audited table has its trigger in exactly one of the migrations
 		for (const a of AUDITED_TABLES)
 			expect(
-				[auditMigrationSql(), file].filter((f) => f.includes(`TRIGGER "audit_${a.table}" `)),
+				[auditMigrationSql(), file, auditLaterTriggersSql('0025')].filter((f) =>
+					f.includes(`TRIGGER "audit_${a.table}" `)
+				),
 				a.table
 			).toHaveLength(1);
 	});
@@ -127,7 +130,7 @@ describe('the registry of audited tables', () => {
 		// 0016 keeps the columns it had; the current list is the one the replacement carries
 		expect(auditMigrationSql()).not.toContain('archived_at,purpose');
 		expect(auditRedefinedSql('0022')).toContain('archived_at,purpose');
-		for (const a of AUDITED_TABLES.filter((t) => t.redefined))
+		for (const a of AUDITED_TABLES.filter((t) => t.redefinitions))
 			expect(a.columns.slice(0, a.firstColumns?.length)).toEqual(a.firstColumns);
 	});
 
@@ -139,6 +142,38 @@ describe('the registry of audited tables', () => {
 		expect(file).toContain(auditRedefinedSql('0023'));
 		expect(auditMigrationSql()).not.toContain('active,starts_on');
 		expect(auditRedefinedSql('0023')).toContain('active,starts_on');
+	});
+
+	it('adds the wallet trigger and replaces the triggers that gained a currency in 0025, keeping every older list', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0025_account_wallets.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditLaterTriggersSql('0025'));
+		expect(file).toContain(auditRedefinedSql('0025'));
+		expect(auditLaterTriggersSql('0025')).toContain('"audit_account_wallet"');
+		for (const table of ['account', 'ledger_txn', 'balance_snapshot', 'bill', 'bill_payment'])
+			expect(auditRedefinedSql('0025'), table).toContain(`"audit_${table}"`);
+		// The older migrations keep the lists they ran with
+		expect(auditRedefinedSql('0022')).not.toContain('currency');
+		expect(auditRedefinedSql('0023')).not.toContain('currency');
+		expect(auditMigrationSql()).not.toContain('to_currency');
+		// The current list of every redefined table is the one its last redefinition carries
+		for (const a of AUDITED_TABLES)
+			if (a.redefinitions) expect(a.redefinitions.at(-1)?.columns, a.table).toEqual(a.columns);
+	});
+
+	it('replaces the three integer typed audit functions with bigint ones in 0024 and leaves 0016 as it ran', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0024_currencies_bigint.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditBigintSql());
+		expect(auditBigintSql()).toContain('DROP FUNCTION audit_hash(');
+		expect(auditBigintSql()).toContain('DROP FUNCTION audit_txn_effect(jsonb)');
+		// 0016 keeps the integer typed functions
+		expect(auditMigrationSql()).toContain('amount_delta integer');
+		expect(auditMigrationSql()).toContain('delta integer;');
 	});
 
 	it('copies no title or free text of an event, a task, a routine or a reminder', () => {
@@ -156,7 +191,15 @@ describe('who did it and where', () => {
 
 	it('writes a row for a person creating an account, in the same transaction', async () => {
 		const acc = await account(id, 'GCash');
-		const row = await last(id);
+		// The account, then the wallet in its currency that opened with it
+		const [row, walletRow] = await trail(id);
+		expect(walletRow).toMatchObject({
+			seq: 2,
+			entity: 'account_wallet',
+			action: 'create',
+			accountId: acc
+		});
+		expect(walletRow?.after).toMatchObject({ account_id: acc, currency: 'PHP' });
 		expect(row).toMatchObject({
 			seq: 1,
 			actorKind: 'person',
@@ -171,6 +214,19 @@ describe('who did it and where', () => {
 		expect(row?.requestId).toMatch(/^req-audit-/);
 		expect(row?.after).toMatchObject({ name: 'GCash', kind: 'ewallet' });
 		expect(row?.before).toBeNull();
+	});
+
+	it('audits an amount above 2^31 (rupiah, dong, rial) and the chain still verifies', async () => {
+		const big = await account('user_aud_0002', 'Rupiah');
+		await logExpense(as(person('user_aud_0002')), {
+			accountId: big,
+			amount: 5_000_000_000,
+			note: 'big'
+		});
+		const row = await last('user_aud_0002');
+		expect(row).toMatchObject({ entity: 'ledger_txn', amountDelta: -5_000_000_000 });
+		expect(typeof row?.amountDelta).toBe('number');
+		expect(await verifyAudit(person('user_aud_0002'))).toMatchObject({ ok: true, problem: null });
 	});
 
 	it('knows the widget, and reads an expense as money out of the account', async () => {

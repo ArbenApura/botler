@@ -1,4 +1,7 @@
-// ACCOUNTS: WHAT IS IN EACH ONE, ADD ONE, AND "I COUNTED THIS" TO CORRECT THE BALANCE.
+// ACCOUNTS: WHAT IS IN EACH ONE, THE TOTAL OF EVERYTHING, ADD ONE, AND "I COUNTED THIS" TO CORRECT THE BALANCE.
+// An account can hold several currencies (a Wise account with pesos and dollars): each currency is a wallet with its own balance and count.
+// The total at the top converts every wallet to the main currency with the stored exchange rates, and says when the rates are old or a
+// currency has no rate yet (it is then left out of the total, never counted as zero).
 // A count that differs a lot from what Botler expected is shown for a yes first; one ten times off asks twice. Money that went missing between two
 // counts is shown as "untracked", never hidden.
 
@@ -13,9 +16,12 @@ import '../../core/money_scope.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'currency_picker.dart';
 import 'purpose.dart';
+import 'rates.dart';
 
 // -- TYPES -- //
 
@@ -26,6 +32,12 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final accounts = ref.watch(balancesProvider);
+    final assets = ref.watch(assetsProvider);
+    // What each account comes to in all, from the same answer as the total
+    final subtotals = <String, Json>{
+      for (final a in asJsonList(assets.value?['accounts']))
+        str(a['accountId']): a,
+    };
     return Scaffold(
       appBar: AppBar(title: Text(context.t.accountsTitle)),
       body: AsyncBody<List<Json>>(
@@ -33,10 +45,15 @@ class AccountsScreen extends ConsumerWidget {
         skeleton: const SkeletonPage(
           child: SkeletonRows(count: 4, kind: SkeletonKind.tile),
         ),
-        onRetry: () => ref.invalidate(balancesProvider),
+        onRetry: () {
+          ref
+            ..invalidate(balancesProvider)
+            ..invalidate(assetsProvider);
+        },
         data: (list) => ListView(
           padding: pagePadding(context),
           children: <Widget>[
+            if (list.isNotEmpty) _TotalCard(assets: assets),
             if (list.isEmpty) Note(context.t.accountsEmpty),
             for (final a in list)
               Padding(
@@ -44,6 +61,7 @@ class AccountsScreen extends ConsumerWidget {
                 child: PaperCard(
                   onTap: () => context.push('/account/${str(a['id'])}'),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Expanded(
                         child: Column(
@@ -67,10 +85,22 @@ class AccountsScreen extends ConsumerWidget {
                                 context.t.accountsBelowMinimum,
                                 style: TextStyle(color: c.warning),
                               ),
+                            if (!hasWalletIn(a, context.currencyCode) &&
+                                intOf(a['minBalance']) > 0)
+                              Text(
+                                context.t.accountsNoMainWallet(
+                                  context.currencyCode,
+                                ),
+                                style: TextStyle(color: c.muted),
+                              ),
                           ],
                         ),
                       ),
-                      Amount(intOf(a['balance'])),
+                      _Wallets(
+                        account: a,
+                        subtotal: subtotals[str(a['id'])],
+                        main: context.currencyCode,
+                      ),
                     ],
                   ),
                 ),
@@ -91,6 +121,7 @@ class AccountsScreen extends ConsumerWidget {
     final name = TextEditingController();
     final min = TextEditingController();
     var kind = 'bank';
+    var currency = context.currencyCode;
     String? purpose;
     final done = await showFormSheet<bool>(
       context,
@@ -122,6 +153,33 @@ class AccountsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Text(
+              sheet.t.accountsCurrencyLabel,
+              style: TextStyle(color: sheet.colors.muted),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CurrencyButton(
+                code: currency,
+                label: sheet.t.accountsCurrencyLabel,
+                onPressed: () async {
+                  final picked = await pickCurrency(
+                    sheet,
+                    current: currency,
+                    first: <String>{sheet.currencyCode},
+                  );
+                  if (picked != null) setState(() => currency = picked);
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 12),
+              child: Text(
+                sheet.t.accountsCurrencyNote,
+                style: TextStyle(color: sheet.colors.muted),
+              ),
+            ),
             Field(
               controller: min,
               label: sheet.t.accountsMinimumLabel(sheet.currencyCode),
@@ -131,9 +189,10 @@ class AccountsScreen extends ConsumerWidget {
             PurposeField(value: null, onChanged: (v) => purpose = v),
             FilledButton(
               onPressed: () async {
+                // The minimum is a money plan rule, so it is typed in the main currency
                 final minimum = min.text.trim().isEmpty
                     ? 0
-                    : context.parseAmount(min.text);
+                    : context.parseAmountMain(min.text);
                 if (name.text.trim().isEmpty ||
                     minimum == null ||
                     !purposeValid(purpose)) {
@@ -147,6 +206,7 @@ class AccountsScreen extends ConsumerWidget {
                       'name': name.text.trim(),
                       'kind': kind,
                       'minBalance': minimum,
+                      'currency': currency,
                       'purpose': ?purpose,
                     },
                   );
@@ -161,16 +221,58 @@ class AccountsScreen extends ConsumerWidget {
         ),
       ),
     );
-    if (done == true) ref.invalidate(balancesProvider);
+    if (done == true) {
+      ref
+        ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider)
+        ..invalidate(syncProvider);
+    }
   }
 
-  /// The count sheet, also opened from an account's own screen.
-  static Future<void> count(
+  /// Adds a currency to an account (a Wise account with pesos and dollars). A currency the account already has is not offered.
+  static Future<void> addWallet(
     BuildContext context,
     WidgetRef ref,
     Json account,
   ) async {
+    final t = context.t;
+    final have = <String>{
+      for (final w in walletsOf(account)) str(w['currency']),
+    };
+    final picked = await pickCurrency(
+      context,
+      current: str(account['currency'], context.currencyCode),
+      first: <String>{context.currencyCode},
+      hide: have,
+    );
+    if (picked == null) return;
+    try {
+      await ref.read(apiProvider).verb('account_wallet_add', <String, Object?>{
+        'accountId': str(account['id']),
+        'currency': picked,
+      });
+      if (context.mounted) say(context, t.accountsWalletAdded(picked));
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+    }
+    ref
+      ..invalidate(balancesProvider)
+      ..invalidate(assetsProvider);
+  }
+
+  /// The count sheet, also opened from an account's own screen. [currency] is the wallet that is counted (the account's own when left out).
+  static Future<void> count(
+    BuildContext context,
+    WidgetRef ref,
+    Json account, {
+    String? currency,
+  }) async {
     final amount = TextEditingController();
+    final wallet = currency ?? str(account['currency'], context.currencyCode);
+    final shown = walletsOf(account).firstWhere(
+      (w) => str(w['currency']) == wallet,
+      orElse: () => <String, Object?>{'balance': account['balance']},
+    );
     final result = await showFormSheet<String>(
       context,
       title: context.t.accountsCountTitle(str(account['name'])),
@@ -179,24 +281,24 @@ class AccountsScreen extends ConsumerWidget {
         children: <Widget>[
           Text(
             sheet.t.accountsBotlerThinks(
-              sheet.money(intOf(account['balance'])),
+              sheet.moneyIn(intOf(shown['balance']), wallet),
             ),
             style: TextStyle(color: sheet.colors.muted),
           ),
           const SizedBox(height: 12),
           Field(
             controller: amount,
-            label: sheet.t.accountsCountLabel(sheet.currencyCode),
+            label: sheet.t.accountsCountLabel(wallet),
             keyboard: const TextInputType.numberWithOptions(decimal: true),
           ),
           FilledButton(
             onPressed: () async {
-              final cents = context.parseAmount(amount.text);
+              final cents = context.parseAmountIn(amount.text, wallet);
               if (cents == null) {
-                say(sheet, sheet.t.accountsCountInvalid(sheet.currencyCode));
+                say(sheet, sheet.t.accountsCountInvalid(wallet));
                 return;
               }
-              close(await _record(sheet, ref, account, cents));
+              close(await _record(sheet, ref, account, cents, wallet));
             },
             child: Text(sheet.t.accountsSaveCount),
           ),
@@ -204,7 +306,10 @@ class AccountsScreen extends ConsumerWidget {
       ),
     );
     if (result != null && context.mounted) say(context, result);
-    ref.invalidate(balancesProvider);
+    ref
+      ..invalidate(balancesProvider)
+      ..invalidate(assetsProvider)
+      ..invalidate(syncProvider);
   }
 
   /// Saves a count, asking for a yes (twice for a ten-times difference) when the server wants it.
@@ -213,13 +318,15 @@ class AccountsScreen extends ConsumerWidget {
     WidgetRef ref,
     Json account,
     int cents,
+    String code,
   ) async {
     final api = ref.read(apiProvider);
-    // The currency is read before any await, so no context is used after one
-    final code = sheet.currencyCode;
+    // The context is read before any await, so none is used after one
     final t = sheet.t;
     final base = <String, Object?>{
       'accountId': str(account['id']),
+      // Only when it is not the account's own currency, so an ordinary count is the same request as before
+      if (code != str(account['currency'], defaultCurrency)) 'currency': code,
       'amount': cents,
     };
     try {
@@ -254,6 +361,159 @@ class AccountsScreen extends ConsumerWidget {
     } catch (e) {
       return errorWords(e);
     }
+  }
+}
+
+// -- HELPERS -- //
+
+/// The wallets of an account row of `accounts_balances`. An older server has none: the account itself is the one wallet.
+List<Json> walletsOf(Json account) {
+  final list = asJsonList(account['wallets']);
+  if (list.isNotEmpty) return list;
+  return <Json>[
+    <String, Object?>{
+      'currency': str(account['currency'], defaultCurrency),
+      'balance': account['balance'],
+      'countedAt': account['countedAt'],
+    },
+  ];
+}
+
+/// Whether the account holds a wallet in this currency.
+bool hasWalletIn(Json account, String currency) =>
+    walletsOf(account).any((w) => str(w['currency']) == currency);
+
+// -- TOTAL -- //
+
+/// Everything the person has, in the main currency, with the date of the rates and what is missing. Tapping it updates the rates.
+class _TotalCard extends ConsumerWidget {
+  const _TotalCard({required this.assets});
+
+  final AsyncValue<Json> assets;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    final t = context.t;
+    final data = assets.value;
+    if (data == null) {
+      // Loading, or no answer and nothing stored: the accounts below still work
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: PaperCard(
+          child: assets.hasError
+              ? Text(
+                  t.accountsTotalUnavailable,
+                  style: TextStyle(color: c.muted),
+                )
+              : const SkeletonRows(count: 1, kind: SkeletonKind.tile),
+        ),
+      );
+    }
+    final rates = asJson(data['rates']);
+    final asOf = rates['asOf'] is String ? str(rates['asOf']) : null;
+    final age = ratesAgeDays(asOf);
+    final old =
+        asOf == null || boolOf(rates['stale']) && (age ?? 99) >= staleDays;
+    final missing = asList(data['missing']).whereType<String>().toList();
+    final offline = boolOf(data['offline']);
+    final main = str(data['currency'], context.currencyCode);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PaperCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(t.accountsTotalTitle, style: TextStyle(color: c.muted)),
+            const SizedBox(height: 4),
+            Amount(intOf(data['total']), currency: main),
+            if (missing.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(
+                t.accountsMissingRate(missing.join(', ')),
+                style: TextStyle(color: c.warning),
+              ),
+            ],
+            if (offline) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(t.accountsRatesOffline, style: TextStyle(color: c.muted)),
+            ],
+            const SizedBox(height: 6),
+            // The rates line is also the button that updates them (a 48 dp target)
+            Semantics(
+              button: true,
+              label: t.accountsRatesRefresh,
+              child: InkWell(
+                onTap: () => refreshRates(context, ref),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      asOf == null
+                          ? t.accountsRatesNone
+                          : old
+                          ? t.accountsRatesStale(ratesDate(context, asOf))
+                          : t.accountsRatesAsOf(ratesDate(context, asOf)),
+                      style: TextStyle(color: old ? c.warning : c.muted),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -- WALLETS OF ONE ACCOUNT -- //
+
+/// The right side of an account card: the balance of its one wallet, or every wallet with what the account comes to in all.
+class _Wallets extends StatelessWidget {
+  const _Wallets({
+    required this.account,
+    required this.subtotal,
+    required this.main,
+  });
+
+  final Json account;
+  final Json? subtotal;
+  final String main;
+
+  @override
+  Widget build(BuildContext context) {
+    final wallets = walletsOf(account);
+    final own = str(account['currency'], defaultCurrency);
+    if (wallets.length == 1) {
+      return Amount(
+        intOf(wallets.first['balance']),
+        currency: str(wallets.first['currency'], own),
+      );
+    }
+    final sub = subtotal;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        for (final w in wallets)
+          Amount(
+            intOf(w['balance']),
+            currency: str(w['currency'], own),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        if (sub != null)
+          Text(
+            context.t.accountsSubtotal(
+              context.moneyIn(intOf(sub['subtotal']), main),
+            ),
+            style: TextStyle(
+              color: context.colors.muted,
+              fontFeatures: tabular,
+            ),
+          ),
+      ],
+    );
   }
 }
 

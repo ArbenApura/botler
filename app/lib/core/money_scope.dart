@@ -24,17 +24,25 @@ class MoneyScope extends InheritedWidget {
 }
 
 extension MoneyContext on BuildContext {
-  /// The person's currency code.
+  /// The person's MAIN currency code: the currency of the plan (bills in it, income, goals) and of every total.
   String get currencyCode => MoneyScope.codeOf(this);
 
-  /// ₱1,234.50 in the person's currency.
-  String money(int minor) => formatMoney(minor, currencyCode);
+  /// ₱1,234.50 in the main currency. Only for an amount that IS in the main currency (a total, the plan). An amount of a wallet or of
+  /// a bill in another currency is shown with moneyIn and its own code, so a dollar is never written with a peso sign.
+  String moneyMain(int minor) => formatMoney(minor, currencyCode);
 
-  /// What the person typed as minor units, or null.
-  int? parseAmount(String text) => parseMoney(text, currencyCode);
+  /// An amount in the currency it is in (a wallet, a bill, an entry), with that currency's symbol.
+  String moneyIn(int minor, String currency) => formatMoney(minor, currency);
 
-  /// For a text field: 18000 is "180.00", and 180 yen is "180".
-  String plainAmount(int minor) => plainAmountIn(minor, currencyCode);
+  /// What the person typed as minor units of the main currency, or null.
+  int? parseAmountMain(String text) => parseMoney(text, currencyCode);
+
+  /// What the person typed as minor units of the given currency, or null. A yen amount refuses a decimal point.
+  int? parseAmountIn(String text, String currency) =>
+      parseMoney(text, currency);
+
+  /// For a text field: 18000 is "180.00", and 180 yen is "180", in the main currency.
+  String plainAmountMain(int minor) => plainAmountIn(minor, currencyCode);
 }
 
 /// The amount for a text field in a given currency (see plainAmount in money.dart).

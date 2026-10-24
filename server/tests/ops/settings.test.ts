@@ -68,7 +68,7 @@ describe('settings', () => {
 			replyLanguage: 'auto',
 			weekStartsOn: 1
 		});
-		expect(first.notice).toMatch(/Nothing was converted/);
+		expect(first.notice).toMatch(/nothing in the money plan was converted/);
 		// A later change of another field keeps the currency, with no notice
 		const second = await setSettings(as(a), { language: 'fil', weekStartsOn: 0 });
 		expect(second.settings).toEqual({

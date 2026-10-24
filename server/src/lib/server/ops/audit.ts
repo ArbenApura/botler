@@ -39,6 +39,8 @@ type Row = {
 };
 
 export type HistoryEntry = {
+	/** The currency of a ledger entry or a count; null for the rest (an account or a bill changing). */
+	currency: string | null;
 	seq: number;
 	at: string;
 	/** Who did it: the person, the assistant, a job or sync. */
@@ -82,7 +84,11 @@ const COLUMNS = `seq, at, actor_kind, on_behalf, actor_ref, channel, verb, entit
 
 // -- FUNCTIONS -- //
 
-const rowsOf = (r: unknown): Row[] => (r as { rows: Row[] }).rows;
+// A 64 bit column comes back from a raw query as text, so the amount is turned into a number here (it is a safe integer by the amount cap)
+const rowsOf = (r: unknown): Row[] =>
+	(r as { rows: Row[] }).rows.map((row) =>
+		typeof row.amount_delta === 'string' ? { ...row, amount_delta: Number(row.amount_delta) } : row
+	);
 
 /** Walks the whole trail of the person and recomputes every number and hash with the database's own function. */
 export async function verifyAudit(ctx: Ctx): Promise<VerifyResult> {
@@ -121,45 +127,74 @@ export async function verifyAudit(ctx: Ctx): Promise<VerifyResult> {
 const asDate = (v: unknown): Date => new Date(typeof v === 'string' ? v : 0);
 const asNum = (v: unknown): number => (typeof v === 'number' ? v : Number(v ?? 0));
 
-/** A ledger row of the trail as the engine's Txn. */
-function toTxn(j: Record<string, unknown>): Txn {
+/**
+ * A ledger row of the trail as the engine's Txn. A row written before wallets existed has no currency: it was in the currency of its
+ * account (the migration gave every old row its person's currency), so the account's own currency stands in.
+ */
+function toTxn(j: Record<string, unknown>, own: string): Txn {
+	const currency = typeof j.currency === 'string' ? j.currency : own;
 	return {
 		type: j.type as Txn['type'],
 		accountId: String(j.account_id ?? ''),
 		toAccountId: (j.to_account_id as string | null | undefined) ?? null,
 		amount: asNum(j.amount),
+		currency,
+		toCurrency: typeof j.to_currency === 'string' ? j.to_currency : currency,
+		toAmount: j.to_amount == null ? null : asNum(j.to_amount),
 		fee: asNum(j.fee),
 		occurredAt: asDate(j.occurred_at),
 		voided: j.voided_at != null
 	};
 }
 
-/** Replays the trail of one account in order and gives each entry the balance right after it. */
-function replay(accountId: string, rows: Row[]): HistoryEntry[] {
+/**
+ * Replays the trail of one wallet of an account (the account in one currency) in order and gives each entry the balance right after it.
+ * An entry of the account in another currency is left out, and so is a transfer that does not touch this wallet.
+ */
+function replay(accountId: string, currency: string, own: string, rows: Row[]): HistoryEntry[] {
 	const txns = new Map<string, Txn>();
 	const snaps = new Map<string, Snapshot>();
 	const balance = () => {
 		let latest: Snapshot | null = null;
 		for (const s of snaps.values())
-			if (!latest || s.takenAt.getTime() > latest.takenAt.getTime()) latest = s;
-		return balanceOf(accountId, latest, [...txns.values()]);
+			if (s.currency === currency && (!latest || s.takenAt.getTime() > latest.takenAt.getTime()))
+				latest = s;
+		return balanceOf(accountId, currency, latest, [...txns.values()]);
 	};
+	const snapCurrency = (j: Record<string, unknown>) =>
+		typeof j.currency === 'string' ? j.currency : own;
+	const kept: HistoryEntry[] = [];
 	let previous = 0;
-	return rows.map((r) => {
+	for (const r of rows) {
 		const after = r.after;
+		const side = after ?? r.before;
+		// Whether the entry is about this wallet: a ledger row in its currency (or landing in it), or a count of it
+		const about =
+			r.entity === 'ledger_txn' && side
+				? toTxn(side, own).currency === currency ||
+					(toTxn(side, own).toCurrency === currency && side.to_account_id === accountId)
+				: r.entity === 'balance_snapshot' && side
+					? snapCurrency(side) === currency
+					: true;
 		if (r.entity === 'ledger_txn') {
-			if (after) txns.set(r.entity_id, toTxn(after));
+			if (after) txns.set(r.entity_id, toTxn(after, own));
 			else txns.delete(r.entity_id);
 		} else if (r.entity === 'balance_snapshot') {
 			if (after)
-				snaps.set(r.entity_id, { amount: asNum(after.amount), takenAt: asDate(after.taken_at) });
+				snaps.set(r.entity_id, {
+					amount: asNum(after.amount),
+					takenAt: asDate(after.taken_at),
+					currency: snapCurrency(after)
+				});
 			else snaps.delete(r.entity_id);
 		}
 		const now = balance();
 		const delta = LEDGER_ENTITIES.includes(r.entity) ? now - previous : 0;
 		previous = now;
 		const note = (after?.note ?? r.before?.note ?? null) as string | null;
-		return {
+		if (!about) continue;
+		kept.push({
+			currency: LEDGER_ENTITIES.includes(r.entity) && side ? toTxn(side, own).currency : null,
 			seq: Number(r.seq),
 			at: new Date(r.at).toISOString(),
 			actor: r.actor_kind as HistoryEntry['actor'],
@@ -178,8 +213,9 @@ function replay(accountId: string, rows: Row[]): HistoryEntry[] {
 			undoOf: r.undo_of,
 			before: r.before,
 			after: r.after
-		};
-	});
+		});
+	}
+	return kept;
 }
 
 /**
@@ -189,7 +225,8 @@ function replay(accountId: string, rows: Row[]): HistoryEntry[] {
 export async function accountHistory(ctx: Ctx, raw: AccountHistoryInput) {
 	const input = parse(accountHistoryInput, raw);
 	return run(ctx, async (tx, userId) => {
-		await requireAccount(tx, userId, input.accountId);
+		const acc = await requireAccount(tx, userId, input.accountId);
+		const currency = input.currency ?? acc.currency;
 		const found = await tx.execute(sql`
 			select ${sql.raw(COLUMNS)}
 			from audit_event
@@ -200,10 +237,10 @@ export async function accountHistory(ctx: Ctx, raw: AccountHistoryInput) {
 			order by seq desc
 			limit ${REPLAY_LIMIT}
 		`);
-		const replayed = replay(input.accountId, rowsOf(found).reverse());
+		const replayed = replay(input.accountId, currency, acc.currency, rowsOf(found).reverse());
 		// The trail may not hold everything: money from before the trail began, or a very long history cut at the replay limit. The real balance
 		// is the anchor, so every running balance is moved by the same gap and the answer says it is partial.
-		const real = (await balanceFor(tx, userId, input.accountId)).balance;
+		const real = (await balanceFor(tx, userId, input.accountId, currency)).balance;
 		const gap = replayed.length > 0 ? real - (replayed.at(-1)?.balanceAfter ?? 0) : 0;
 		const all = replayed.map((e) => ({ ...e, balanceAfter: e.balanceAfter + gap }));
 		const partial = gap !== 0 || rowsOf(found).length >= REPLAY_LIMIT;
@@ -226,6 +263,7 @@ export async function accountHistory(ctx: Ctx, raw: AccountHistoryInput) {
 			entries: page,
 			nextCursor: kept.length > limit ? (page.at(-1)?.seq ?? null) : null,
 			balance: real,
+			currency,
 			/** True when the trail does not explain the whole balance, so the running balances are anchored on today's real one. */
 			partial
 		};

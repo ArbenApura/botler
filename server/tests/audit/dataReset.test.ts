@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
 	dataResetBillOverrideSql,
+	dataResetChatsSql,
 	dataResetLatestSql,
 	dataResetMigrationSql,
 	EVERYTHING_TABLES,
@@ -131,7 +132,7 @@ describe('the conversations copy of the function', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0021_chats.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		expect(file).toContain(dataResetChatsSql());
 		const mem = SCOPE_TABLES.memory_and_chat;
 		expect(mem.indexOf('chat')).toBeGreaterThan(mem.indexOf('chat_turn'));
 	});
@@ -148,6 +149,19 @@ describe('the bill override copy of the function', () => {
 		expect(money.indexOf('bill_override')).toBeGreaterThanOrEqual(0);
 		expect(money.indexOf('bill_override')).toBeLessThan(money.indexOf('bill'));
 		expect(money.indexOf('bill_override')).toBeLessThan(money.indexOf('account'));
+	});
+});
+
+describe('the account wallets copy of the function', () => {
+	it('is installed by migration 0025 and erases the wallets of an account before the account', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0025_account_wallets.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		const money = SCOPE_TABLES.money;
+		expect(money.indexOf('account_wallet')).toBeGreaterThanOrEqual(0);
+		expect(money.indexOf('account_wallet')).toBeLessThan(money.indexOf('account'));
 	});
 });
 

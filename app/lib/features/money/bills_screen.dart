@@ -14,9 +14,11 @@ import '../../core/money.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'bill_editor.dart';
 import 'bills_logic.dart';
+import 'accounts_screen.dart' show hasWalletIn, walletsOf;
 import 'bills_parts.dart';
 
 // -- CONSTANTS -- //
@@ -52,6 +54,7 @@ class BillsScreen extends ConsumerWidget {
       ..invalidate(_billsProvider)
       ..invalidate(_dueProvider)
       ..invalidate(balancesProvider)
+      ..invalidate(assetsProvider)
       ..invalidate(syncProvider);
   }
 
@@ -168,55 +171,160 @@ class BillsScreen extends ConsumerWidget {
   }
 
   Future<void> _pay(BuildContext context, WidgetRef ref, Json due) async {
+    // The bill's amounts are in its own currency; the account it is paid from may hold others
+    final billCode = str(due['currency'], context.currencyCode);
     final amount = TextEditingController(
       text: boolOf(due['unknownAmount'])
           ? ''
-          : context.plainAmount(intOf(due['amount'])),
+          : plainAmountIn(intOf(due['amount']), billCode),
     );
+    final charged = TextEditingController();
+    final accounts = ref.read(balancesProvider).value ?? <Json>[];
+    var accountId = str(due['accountId']);
+    // Paid in the bill's own currency when the account holds it, else in the account's own: never a new wallet by a plain tap
+    String startIn(String id) {
+      final a = accounts.firstWhere(
+        (x) => str(x['id']) == id,
+        orElse: () => <String, Object?>{},
+      );
+      if (a.isEmpty || hasWalletIn(a, billCode)) return billCode;
+      return str(a['currency'], billCode);
+    }
+
+    var paidIn = startIn(accountId);
     final result = await showFormSheet<String>(
       context,
       title: context.t.billsPaidTitle(str(due['name'])),
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Field(
-            controller: amount,
-            label: sheet.t.billsPayLabel(sheet.currencyCode),
-            keyboard: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final code = context.currencyCode;
-              final t = sheet.t;
-              final cents = parseMoney(amount.text, code);
-              if (cents == null || cents <= 0) {
-                say(sheet, t.billsPayInvalid(code));
-                return;
-              }
-              try {
-                final r = asJson(
-                  await ref.read(apiProvider).verb(
-                    'bill_mark_paid',
-                    <String, Object?>{
-                      'billId': str(due['billId']),
-                      'dueDate': str(due['dueDate']),
-                      'amount': cents,
-                    },
+      builder: (sheet, close) => StatefulBuilder(
+        builder: (_, setState) {
+          final account = accounts.firstWhere(
+            (a) => str(a['id']) == accountId,
+            orElse: () => <String, Object?>{},
+          );
+          final held = <String>[
+            if (account.isNotEmpty)
+              for (final w in walletsOf(account)) str(w['currency']),
+          ];
+          // The wallets to pay in: what the account holds, and the currency of the bill itself
+          final options = <String>{billCode, ...held}.toList();
+          final foreign = paidIn != billCode;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(
+                controller: amount,
+                label: sheet.t.billsPayLabel(billCode),
+                keyboard: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              if (accounts.length > 1) ...<Widget>[
+                Text(
+                  sheet.t.billsPaidFrom,
+                  style: TextStyle(color: sheet.colors.muted),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: <Widget>[
+                    for (final a in accounts)
+                      ChoiceChip(
+                        label: Text(str(a['name'])),
+                        selected: str(a['id']) == accountId,
+                        onSelected: (_) => setState(() {
+                          accountId = str(a['id']);
+                          paidIn = startIn(accountId);
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (options.length > 1) ...<Widget>[
+                Text(
+                  sheet.t.billsWalletLabel,
+                  style: TextStyle(color: sheet.colors.muted),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: <Widget>[
+                    for (final code in options)
+                      ChoiceChip(
+                        label: Text(code),
+                        selected: code == paidIn,
+                        onSelected: (_) => setState(() => paidIn = code),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (foreign) ...<Widget>[
+                Field(
+                  controller: charged,
+                  label: sheet.t.billsChargedLabel(paidIn),
+                  keyboard: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                );
-                final hint = r['savingsHint'];
-                close(
-                  hint is num
-                      ? t.billsMarkedPaidHint(formatMoney(hint.toInt(), code))
-                      : t.billsMarkedPaid,
-                );
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.billsMarkPaid),
-          ),
-        ],
+                ),
+                Text(
+                  sheet.t.billsChargedNote(billCode, paidIn),
+                  style: TextStyle(color: sheet.colors.muted),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  sheet.t.billsReserveNote,
+                  style: TextStyle(color: sheet.colors.muted),
+                ),
+                const SizedBox(height: 8),
+              ],
+              FilledButton(
+                onPressed: () async {
+                  final t = sheet.t;
+                  final cents = parseMoney(amount.text, billCode);
+                  if (cents == null || cents <= 0) {
+                    say(sheet, t.billsPayInvalid(billCode));
+                    return;
+                  }
+                  final paid = foreign
+                      ? parseMoney(charged.text, paidIn)
+                      : null;
+                  if (foreign && (paid == null || paid <= 0)) {
+                    say(sheet, t.billsPayInvalid(paidIn));
+                    return;
+                  }
+                  try {
+                    final r = asJson(
+                      await ref.read(apiProvider).verb(
+                        'bill_mark_paid',
+                        <String, Object?>{
+                          'billId': str(due['billId']),
+                          'dueDate': str(due['dueDate']),
+                          'amount': cents,
+                          if (accountId != str(due['accountId']))
+                            'accountId': accountId,
+                          if (foreign) 'paidCurrency': paidIn,
+                          'paidAmount': ?paid,
+                        },
+                      ),
+                    );
+                    final hint = r['savingsHint'];
+                    close(
+                      hint is num
+                          ? t.billsMarkedPaidHint(
+                              formatMoney(hint.toInt(), billCode),
+                            )
+                          : t.billsMarkedPaid,
+                    );
+                  } catch (e) {
+                    if (sheet.mounted) say(sheet, errorWords(e, context));
+                  }
+                },
+                child: Text(sheet.t.billsMarkPaid),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (result != null) {

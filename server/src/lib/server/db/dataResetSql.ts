@@ -35,6 +35,8 @@ export const SCOPE_TABLES: Record<
 		'bill_override',
 		'bill',
 		'income_schedule',
+		// A wallet points at its account, so it goes first
+		'account_wallet',
 		'account',
 		'undo_journal',
 		'agent_action'
@@ -48,7 +50,12 @@ export const SCOPE_TABLES: Record<
  * The money scope as migration 0017 shipped it, kept as it was so the 0017 file stays checkable. Later tables are added to SCOPE_TABLES
  * and reach the database through a newer copy of the function (0018 and on), never by editing an applied migration.
  */
-const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'bill_override');
+const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter(
+	(t) => t !== 'bill_override' && t !== 'account_wallet'
+);
+
+/** The money scope as migrations 0018 and 0021 shipped it, before account wallets existed (0025 adds the wallet table). */
+const MONEY_0021: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'account_wallet');
 
 /** The memory and chat scope as migrations 0017 and 0018 shipped it, before conversations existed (0021 adds the chat table). */
 const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter((t) => t !== 'chat');
@@ -169,15 +176,25 @@ export function dataResetMigrationSql(): string {
 
 /** The function migration 0018 installed (bill overrides, before conversations). */
 export function dataResetBillOverrideSql(): string {
-	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0017, [
-		...SCOPE_TABLES.money,
+	return resetFunctionSql(MONEY_0021, MEMORY_0017, [
+		...MONEY_0021,
 		...SCOPE_TABLES.schedule,
 		...MEMORY_0017,
 		...EVERYTHING_EXTRA
 	]);
 }
 
-/** The function as it is now: what the newest migration (0021, conversations) installs over the one of 0018. */
+/** The function migration 0021 installed (conversations, before account wallets). */
+export function dataResetChatsSql(): string {
+	return resetFunctionSql(MONEY_0021, SCOPE_TABLES.memory_and_chat, [
+		...MONEY_0021,
+		...SCOPE_TABLES.schedule,
+		...SCOPE_TABLES.memory_and_chat,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0025, account wallets) installs over the one of 0021. */
 export function dataResetLatestSql(): string {
 	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
 }

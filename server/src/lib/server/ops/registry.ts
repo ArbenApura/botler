@@ -15,6 +15,8 @@ import {
 	accountCreateInput,
 	accountIdInput,
 	accountUpdateInput,
+	fxConvertInput,
+	walletAddInput,
 	billCreateInput,
 	billMarkPaidInput,
 	billOccurrenceResetInput,
@@ -93,8 +95,11 @@ import {
 } from './chats';
 import { calendarRange } from './calendarRange';
 import { previewDataReset, resetData } from './dataReset';
+import { assetsSummary } from './assets';
+import { billPayOpensWallet, opensWallet, textOpensWallet } from './gates';
+import { fxConvert, fxRates, fxRatesRefresh } from './fx';
 import { getSettings, setSettings } from './settings';
-import { archiveAccount, createAccount, listAccounts, updateAccount } from './accounts';
+import { addWallet, archiveAccount, createAccount, listAccounts, updateAccount } from './accounts';
 import {
 	createBill,
 	listBills,
@@ -231,6 +236,22 @@ export const VERBS: readonly Verb[] = [
 		description: 'The balance of every account right now.',
 		input: emptyInput,
 		run: (ctx) => accountBalances(ctx)
+	}),
+	verb({
+		name: 'assets_summary',
+		kind: 'read',
+		description:
+			'The total of everything the person owns, in their main currency: every currency wallet of every account with its balance, its value in the main currency, the rate used and the date of the rates. A currency with no known rate is listed as missing and left out of the total. Use this for "how much do I have in total".',
+		input: emptyInput,
+		run: (ctx) => assetsSummary(ctx)
+	}),
+	verb({
+		name: 'fx_convert',
+		kind: 'read',
+		description:
+			'Convert an amount between two currencies at the stored exchange rates. amount is in the smallest unit of "from" (cents for dollars, whole yen for yen); the answer is in the smallest unit of "to", with the rate and its date. For a question like "how much is 50 dollars in pesos"; it never changes anything.',
+		input: fxConvertInput,
+		run: (ctx, a) => fxConvert(ctx, a)
 	}),
 	verb({
 		name: 'bills_list',
@@ -538,35 +559,44 @@ export const VERBS: readonly Verb[] = [
 		kind: 'free',
 		description: 'Log an expense with an amount in centavos on an account.',
 		input: expenseLogInput,
-		run: (ctx, a) => logExpense(ctx, a)
+		run: (ctx, a) => logExpense(ctx, a),
+		// An entry in a currency the account does not hold yet would open a wallet: a card the person approves
+		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
 	}),
 	verb({
 		name: 'expense_from_text',
 		kind: 'free',
 		description: 'Log an expense said in plain words, like "lunch 180 gcash".',
 		input: expenseFromTextInput,
-		run: (ctx, a) => logExpenseFromText(ctx, a)
+		run: (ctx, a) => logExpenseFromText(ctx, a),
+		gatedWhen: (ctx, a) => textOpensWallet(ctx, a.text, a.accountId)
 	}),
 	verb({
 		name: 'income_record',
 		kind: 'free',
 		description: 'Record money that arrived in an account.',
 		input: incomeRecordInput,
-		run: (ctx, a) => recordIncome(ctx, a)
+		run: (ctx, a) => recordIncome(ctx, a),
+		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
 	}),
 	verb({
 		name: 'refund_record',
 		kind: 'free',
 		description: 'Record money that came back from a purchase.',
 		input: incomeRecordInput,
-		run: (ctx, a) => recordRefund(ctx, a)
+		run: (ctx, a) => recordRefund(ctx, a),
+		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
 	}),
 	verb({
 		name: 'transfer_record',
 		kind: 'free',
 		description: 'Record a move between two of the accounts. Never spending.',
 		input: transferRecordInput,
-		run: (ctx, a) => recordTransfer(ctx, a)
+		run: (ctx, a) => recordTransfer(ctx, a),
+		// Either side landing in a currency its account does not hold yet opens a wallet
+		gatedWhen: async (ctx, a) =>
+			(await opensWallet(ctx, a.fromAccountId, a.currency)) ||
+			(await opensWallet(ctx, a.toAccountId, a.toCurrency))
 	}),
 	verb({
 		name: 'undo',
@@ -612,14 +642,14 @@ export const VERBS: readonly Verb[] = [
 		input: billMarkPaidInput,
 		run: (ctx, a) => markBillPaid(ctx, a),
 		gatedWhen: async (ctx, a) =>
-			run(ctx, async (tx, userId) => {
+			(await run(ctx, async (tx, userId) => {
 				try {
 					return (await requireBill(tx, userId, a.billId)).kind === 'variable';
 				} catch (e) {
 					if (e instanceof OpsError && e.code === 'NOT_FOUND') return false;
 					throw e;
 				}
-			})
+			})) || (await billPayOpensWallet(ctx, a.billId, a.accountId, a.paidCurrency))
 	}),
 	verb({
 		name: 'account_update',
@@ -627,7 +657,9 @@ export const VERBS: readonly Verb[] = [
 		description:
 			'Change an account: its name, kind, minimum balance, order or purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel; send purpose null to clear it). Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
 		input: accountUpdateInput,
-		run: (ctx, a) => updateAccount(ctx, a)
+		run: (ctx, a) => updateAccount(ctx, a),
+		// The currency an account is in is part of the money plan: changing it is a card
+		gatedWhen: async (_ctx, a) => a.currency !== undefined
 	}),
 	verb({
 		name: 'income_update',
@@ -643,7 +675,9 @@ export const VERBS: readonly Verb[] = [
 		description:
 			'Change a bill for ALL its dates: name, category, amount, the account it is paid from (accountId), the repeat rule, the weekend rule, or switch it off with active false. Only send the fields that change. Done at once, no card. The schedule is a whole rule, see schedule_preview for its fields. A new schedule, weekend rule, amount or account also drops the changes made to single dates from today on (clearedOverrides says how many). To change just ONE date, use bill_occurrence_update.',
 		input: billUpdateInput,
-		run: (ctx, a) => updateBill(ctx, a)
+		run: (ctx, a) => updateBill(ctx, a),
+		// The currency of a bill changes what the split reserves, so it is a card
+		gatedWhen: async (_ctx, a) => a.currency !== undefined
 	}),
 	verb({
 		name: 'bill_occurrence_update',
@@ -691,6 +725,14 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => createAccount(ctx, a)
 	}),
 	verb({
+		name: 'account_wallet_add',
+		kind: 'gated',
+		description:
+			'Add a currency to an account, for example a USD wallet on a Wise or PayPal account that holds several. The account keeps its other currencies.',
+		input: walletAddInput,
+		run: (ctx, a) => addWallet(ctx, a)
+	}),
+	verb({
 		name: 'account_archive',
 		kind: 'gated',
 		description: 'Hide an account.',
@@ -729,6 +771,22 @@ export const VERBS: readonly Verb[] = [
 	}),
 
 	// -- PERSON ONLY -- //
+	verb({
+		name: 'fx_rates',
+		kind: 'person',
+		description:
+			'The stored exchange rates (units of each currency per US dollar), the date they were fetched, and whether they are stale. For the screens: the assistant converts with fx_convert instead.',
+		input: emptyInput,
+		run: (ctx) => fxRates(ctx)
+	}),
+	verb({
+		name: 'fx_rates_refresh',
+		kind: 'person',
+		description:
+			'Fetch fresh exchange rates now. Does nothing if rates were fetched in the last ten minutes. A source that fails keeps the stored rates.',
+		input: emptyInput,
+		run: (ctx) => fxRatesRefresh(ctx)
+	}),
 	verb({
 		name: 'data_reset_preview',
 		kind: 'person',

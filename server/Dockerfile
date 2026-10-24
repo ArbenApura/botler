@@ -15,7 +15,8 @@ RUN yarn install --immutable
 COPY . .
 # The build checks the environment variables, so it gets placeholders. They stay in this stage and are never part of the image
 RUN BOTLER_BASE_URL=https://build.invalid BETTER_AUTH_SECRET=build-time-placeholder-0123456789abcdef \
-    GOOGLE_CLIENT_ID=build GOOGLE_CLIENT_SECRET=build ALLOWED_EMAILS=build@build.invalid DEEPSEEK_API_KEY=build \
+    GOOGLE_CLIENT_ID=build GOOGLE_CLIENT_SECRET=build ALLOWED_EMAILS=build@build.invalid \
+    MODEL_PROVIDER=anthropic ANTHROPIC_API_KEY=build DEEPSEEK_API_KEY=build \
     yarn run build && yarn run build:cli
 
 FROM node:24-slim AS deps

@@ -50,21 +50,39 @@ void main() {
       expect(parseMoney('abc'), isNull);
       expect(parseMoney('12.345'), isNull);
       expect(parseMoney(''), isNull);
-      expect(parseMoney('99999999'), isNull);
+      expect(parseMoney('99999999999999999'), isNull);
       expect(parseMoney(r'$5', 'USD'), 500);
       expect(parseMoney('usd 12.05', 'USD'), 1205);
     });
 
     test(
-      'a currency with no decimals takes none, and keeps the 32 bit cap',
+      'a currency with no decimals takes none, and keeps the safe integer cap',
       () {
         expect(parseMoney('1,500', 'JPY'), 1500);
         expect(parseMoney('¥200', 'JPY'), 200);
         expect(parseMoney('1500.50', 'JPY'), isNull);
-        expect(parseMoney('2147483647', 'JPY'), 2147483647);
-        expect(parseMoney('2147483648', 'JPY'), isNull);
+        expect(parseMoney('9007199254740991', 'JPY'), 9007199254740991);
+        expect(parseMoney('9007199254740992', 'JPY'), isNull);
       },
     );
+
+    test('knows about 160 currencies, three digit ones included', () {
+      expect(currencies.length, greaterThan(150));
+      expect(formatMoney(1234567, 'KWD'), 'KWD 1,234.567');
+      expect(parseMoney('1.5', 'KWD'), 1500);
+      expect(parseMoney('1.5555', 'KWD'), isNull);
+      expect(plainAmount(-1500, 'OMR'), '-1.500');
+      expect(formatMoney(9007199254740991, 'PHP'), '₱90,071,992,547,409.91');
+    });
+
+    test('no two currencies share a symbol a person could type', () {
+      final seen = <String, String>{};
+      for (final c in currencies) {
+        final token = c.symbol.trim().toLowerCase();
+        expect(seen[token], isNull, reason: '${c.code} shares "$token"');
+        seen[token] = c.code;
+      }
+    });
 
     test('puts an amount back in a field', () {
       expect(plainAmount(18000), '180.00');
@@ -272,6 +290,40 @@ void main() {
         api.chat(id: 'msg-00000002', text: 'hi').toList(),
         throwsA(isA<ApiException>().having((e) => e.code, 'code', 'CONFLICT')),
       );
+    });
+  });
+
+  group('the outbox keeps a refused payment', () {
+    test('a bill payment the server refuses for good is kept with the reason until it is dismissed', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      final outbox = Outbox(prefs);
+      await outbox.add('bill_mark_paid', <String, Object?>{'billId': 'b1'});
+      await outbox.add('undo', <String, Object?>{'journalId': 'j1'});
+      final api = ApiClient(
+        base: 'https://botler.test',
+        token: () async => 't',
+        client: MockClient(
+          (req) async => http.Response(
+            jsonEncode(<String, Object?>{
+              'error': <String, Object?>{
+                'code': 'INVALID',
+                'message': 'That bill is already paid.',
+              },
+            }),
+            400,
+          ),
+        ),
+      );
+      final report = await outbox.flush(api);
+      expect(report.dropped, hasLength(2));
+      expect(outbox.length, 0);
+      // Only the payment is kept; an undo that failed is just reported
+      final kept = outbox.failed();
+      expect(kept.single.verb, 'bill_mark_paid');
+      expect(kept.single.reason, 'That bill is already paid.');
+      await outbox.dismissFailed();
+      expect(outbox.failed(), isEmpty);
     });
   });
 

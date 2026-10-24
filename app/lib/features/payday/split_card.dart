@@ -87,7 +87,7 @@ class _SplitCardState extends ConsumerState<SplitCard> {
           const SizedBox(height: 12),
           if (_short) ...<Widget>[
             Text(
-              context.t.splitShort(context.money(intOf(_plan['gap']))),
+              context.t.splitShort(context.moneyMain(intOf(_plan['gap']))),
               style: TextStyle(color: c.warning),
             ),
             const SizedBox(height: 8),
@@ -98,7 +98,7 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 child: Row(
                   children: <Widget>[
                     Expanded(child: Text(str(o['label']))),
-                    Text(context.money(intOf(o['amount']))),
+                    Text(context.moneyMain(intOf(o['amount']))),
                   ],
                 ),
               ),
@@ -113,8 +113,26 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                         '${str(l['label'])}  ·  ${str(names[str(l['accountId'])], context.t.splitAccountFallback)}',
                       ),
                     ),
-                    Text(context.money(intOf(l['amount']))),
+                    Text(context.moneyMain(intOf(l['amount']))),
                   ],
+                ),
+              ),
+          ],
+          // Bills in another currency were counted at the rate of the day the split was made, and the split keeps that rate
+          if (!_short &&
+              asJsonList(_result['foreignBills']).isNotEmpty) ...<Widget>[
+            SectionTitle(context.t.splitForeignTitle),
+            for (final f in asJsonList(_result['foreignBills']))
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(
+                  context.t.splitForeignLine(
+                    str(f['name']),
+                    context.moneyIn(intOf(f['amount']), str(f['currency'])),
+                    context.moneyMain(intOf(f['converted'])),
+                    '1 ${str(f['currency'])} = ${str(f['rate'])} ${context.currencyCode}',
+                  ),
+                  style: TextStyle(color: c.muted),
                 ),
               ),
           ],
@@ -196,16 +214,21 @@ class _TransferRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text('$from → $to'),
-                Text(context.money(amount), style: TextStyle(color: c.muted)),
+                Text(
+                  context.moneyMain(amount),
+                  style: TextStyle(color: c.muted),
+                ),
               ],
             ),
           ),
           IconButton(
             tooltip: context.t.splitCopyTooltip,
             onPressed: () async {
-              final copied = context.t.splitCopied(context.plainAmount(amount));
+              final copied = context.t.splitCopied(
+                context.plainAmountMain(amount),
+              );
               await Clipboard.setData(
-                ClipboardData(text: context.plainAmount(amount)),
+                ClipboardData(text: context.plainAmountMain(amount)),
               );
               if (context.mounted) say(context, copied);
             },

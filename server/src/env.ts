@@ -3,6 +3,8 @@
 
 // -- DEP-MODULES -- //
 import { defineEnvVars } from '@sveltejs/kit/env';
+// -- MODULES -- //
+import { checkFxUrl } from './lib/server/fx/config';
 
 // -- CONSTANTS -- //
 
@@ -76,14 +78,51 @@ export const variables = defineEnvVars({
 			'The Tavily Search API key for the assistant web search. Left out, the search tool answers that it is not set up. Never returned or logged.',
 		schema: (value) => (value && value.trim() ? value.trim() : '')
 	},
+	FX_RATES_URL: {
+		description:
+			'The https address of the exchange rate feed: JSON with result "success", base_code "USD" and a rates table of units per dollar. Defaults to the free open.er-api.com feed. It holds no key and no person data is ever sent to it. A value that is not https stops the server.',
+		schema: (value) =>
+			checkFxUrl(value && value.trim() ? value.trim() : 'https://open.er-api.com/v6/latest/USD')
+	},
 	BOTLER_AUTO_MIGRATE: {
 		description: 'Set to 1 to run the migrations when the server starts (local development).',
 		schema: (value) => (value === '1' ? '1' : '0')
 	},
+	MODEL_PROVIDER: {
+		description:
+			'Which model provider the agent runs on: anthropic or deepseek. Empty means anthropic. Anything else stops the server.',
+		schema: (value) => {
+			if (!value || !value.trim()) return 'anthropic';
+			const v = value.trim().toLowerCase();
+			if (v !== 'anthropic' && v !== 'deepseek')
+				throw new Error('MODEL_PROVIDER must be anthropic or deepseek');
+			return v;
+		}
+	},
+	ANTHROPIC_API_KEY: {
+		description:
+			'The Anthropic API key, required when MODEL_PROVIDER is anthropic (the default). It lives only here, in the server environment, and is never returned, logged or put in the app.',
+		schema: (value) => (value && value.trim() ? value.trim() : '')
+	},
+	ANTHROPIC_BASE_URL: {
+		description: 'The Anthropic API address.',
+		schema: (value) =>
+			value && value.trim() ? value.trim().replace(/\/$/, '') : 'https://api.anthropic.com'
+	},
+	ANTHROPIC_MODEL: {
+		description:
+			'The model name sent to Anthropic, for example the Haiku the owner put in. Empty falls back to the built-in default.',
+		schema: (value) => (value && value.trim() ? value.trim() : 'claude-haiku-5-5')
+	},
+	ANTHROPIC_THINKING: {
+		description:
+			'1 or true: streamed chat answers think first and the app shows the thinking (costs more tokens; a tool round ends the turn, since thinking is display-only in this build). 0 or false: no thinking. Empty means off. Anything else stops the server.',
+		schema: (value) => flag(value, false, 'ANTHROPIC_THINKING')
+	},
 	DEEPSEEK_API_KEY: {
 		description:
-			'The DeepSeek API key. It lives only here, in the server environment, and is never returned, logged or put in the app.',
-		schema: (value) => required(value, 'DEEPSEEK_API_KEY')
+			'The DeepSeek API key, required only when MODEL_PROVIDER is deepseek. It lives only here, in the server environment, and is never returned, logged or put in the app.',
+		schema: (value) => (value && value.trim() ? value.trim() : '')
 	},
 	DEEPSEEK_BASE_URL: {
 		description: 'The DeepSeek API address.',

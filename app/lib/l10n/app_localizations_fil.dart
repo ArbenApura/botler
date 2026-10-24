@@ -68,6 +68,13 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get accountsCurrencyLabel => 'Pera';
+
+  @override
+  String get accountsCurrencyNote =>
+      'Sa perang ito binibilang ang laman ng account na ito maliban kung pumili ka ng iba kapag may inilagay ka.';
+
+  @override
   String accountsDaysAgo(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -99,6 +106,11 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String accountsMissingRate(String currencies) {
+    return 'Wala pang palitan para sa $currencies. Wala ito sa kabuuan.';
+  }
+
+  @override
   String get accountsNameHint => 'GCash';
 
   @override
@@ -108,7 +120,43 @@ class AppLocalizationsFil extends AppLocalizations {
   String get accountsNeverCounted => 'Hindi pa nabibilang';
 
   @override
+  String accountsNoMainWallet(String currency) {
+    return 'Walang $currency dito, kaya hindi sinusuri ang minimum.';
+  }
+
+  @override
   String get accountsNotSaved => 'Hindi na-save.';
+
+  @override
+  String accountsRatesAsOf(String date) {
+    return 'Palitan ng pera noong $date';
+  }
+
+  @override
+  String get accountsRatesFailed =>
+      'Hindi ma-update ang palitan. Gagamitin pa rin ang huli.';
+
+  @override
+  String get accountsRatesNone =>
+      'Wala pang palitan ng pera. I-tap para kunin.';
+
+  @override
+  String get accountsRatesOffline =>
+      'Walang koneksyon. Ipinapakita ang huling kabuuan.';
+
+  @override
+  String get accountsRatesRefresh => 'I-update ang palitan';
+
+  @override
+  String accountsRatesStale(String date) {
+    return 'Luma na ang palitan ng pera (noong $date). I-tap para i-update.';
+  }
+
+  @override
+  String get accountsRatesTooSoon => 'Kaka-update lang ng palitan.';
+
+  @override
+  String get accountsRatesUpdated => 'Na-update ang palitan ng pera.';
 
   @override
   String get accountsSaveCount => 'I-save ang bilang';
@@ -122,10 +170,33 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String accountsSubtotal(String amount) {
+    return 'Mga $amount lahat';
+  }
+
+  @override
   String get accountsTitle => 'Mga account';
 
   @override
   String get accountsToday => 'ngayon';
+
+  @override
+  String get accountsTotalTitle => 'Lahat ng meron ka';
+
+  @override
+  String get accountsTotalUnavailable =>
+      'Kailangan ng palitan ng pera ang kabuuan, at wala pa nito.';
+
+  @override
+  String get accountsWalletAdd => 'Magdagdag ng pera';
+
+  @override
+  String accountsWalletAdded(String currency) {
+    return 'Nadagdag ang $currency.';
+  }
+
+  @override
+  String get accountsWalletsTitle => 'Mga pera sa account na ito';
 
   @override
   String get accountsYesterday => 'kahapon';
@@ -513,6 +584,11 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String billsAboutMain(String amount) {
+    return 'mga $amount';
+  }
+
+  @override
   String get billsAdd => 'Magdagdag ng bill';
 
   @override
@@ -531,7 +607,20 @@ class AppLocalizationsFil extends AppLocalizations {
   String get billsAmountUnknown => 'halaga?';
 
   @override
+  String billsChargedLabel(String currency) {
+    return 'Talagang siningil ($currency)';
+  }
+
+  @override
+  String billsChargedNote(String bill, String wallet) {
+    return 'Nasa $bill ang bill na ito, pero sa $wallet wallet ka nagbabayad. I-type ang talagang siningil.';
+  }
+
+  @override
   String get billsComingUp => 'Paparating';
+
+  @override
+  String get billsCurrencyLabel => 'Pera ng bill na ito';
 
   @override
   String get billsDateLabel => 'Petsa ng due';
@@ -570,6 +659,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String billsMarkedPaidHint(String amount) {
     return 'Namarkahang bayad na. $amount ang baba nito sa karaniwan: puwede mo itong itabi.';
   }
+
+  @override
+  String get billsMissingRateTag => 'wala pang palitan';
 
   @override
   String get billsMovedTag => 'inilipat';
@@ -627,6 +719,10 @@ class AppLocalizationsFil extends AppLocalizations {
       'Binago mo ang pag-uulit, kaya susunod ang lahat ng petsa sa bagong patakaran.';
 
   @override
+  String get billsReserveNote =>
+      'Sa pangunahing pera mo itinatabi ng payday split ang pera para sa bill na ito. Kapag sa ibang wallet ka nagbayad, puwedeng bumaba sa zero ang wallet na iyon.';
+
+  @override
   String get billsSave => 'I-save';
 
   @override
@@ -675,6 +771,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get billsVaries => 'Iba-iba ang halaga tuwing magbabayad';
+
+  @override
+  String get billsWalletLabel => 'Binayaran sa';
 
   @override
   String get calAdd => 'Magdagdag';
@@ -841,6 +940,11 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String calForecastUnconverted(int count) {
+    return '$count bill sa ibang pera ang wala sa forecast na ito dahil wala pa silang palitan.';
+  }
+
+  @override
   String calForecastUnknown(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -958,6 +1062,26 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get cancel => 'Kanselahin';
+
+  @override
+  String changelogBuildHeader(String version) {
+    return 'Bersyon $version';
+  }
+
+  @override
+  String get changelogGotIt => 'Sige';
+
+  @override
+  String get changelogRowHint =>
+      'Basahin ang mga pagbabago sa bersyong gamit mo ngayon';
+
+  @override
+  String get changelogRowTitle => 'Ano ang bago sa bersyong ito';
+
+  @override
+  String changelogTitle(String version) {
+    return 'Ano ang bago sa $version';
+  }
 
   @override
   String get chatAcrossAccounts => 'Sa lahat ng account mo';
@@ -1361,6 +1485,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get done => 'Tapos na';
 
   @override
+  String get entryCurrencyLabel => 'Pera';
+
+  @override
+  String get entryCurrencyOther => 'Iba pa…';
+
+  @override
   String expenseAmountError(String code) {
     return 'I-type ang halaga sa $code, tulad ng 180 o 1,250.50.';
   }
@@ -1468,6 +1598,11 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String historyMoved(String from, String to) {
     return 'Inilipat mula $from → $to';
+  }
+
+  @override
+  String historyOtherCurrencies(String currencies) {
+    return 'May gastos din sa $currencies. Hindi ito idinagdag dito.';
   }
 
   @override
@@ -1703,6 +1838,17 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get notifHiddenBody => 'May paalala ka';
+
+  @override
+  String get outboxFailedDismiss => 'Sige';
+
+  @override
+  String outboxFailedLine(int count) {
+    return '$count pagbabagong ginawa mo habang offline ang hindi tumuloy. I-tap para makita kung bakit.';
+  }
+
+  @override
+  String get outboxFailedTitle => 'Mga pagbabagong tinanggihan ng server';
 
   @override
   String get paydayAdd => 'Magdagdag ng payday';
@@ -2286,7 +2432,7 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String settingsCurrencyConfirmBody(String name) {
-    return 'Babasahin na sa $name ang mga halaga mo. Walang kino-convert: nananatiling 100.00 ang 100.00, ang pera lang ang nagbabago.';
+    return 'Sa $name na ipapakita ang kabuuan mo. Nananatili sa account ang mga pera nito. Pareho pa rin ang numero ng kita, goal, rule at minimum na balanse mo pero babasahin na sa $name: walang kino-convert sa mga ito. Nananatili sa sarili nilang pera ang mga bill mo.';
   }
 
   @override
@@ -2372,6 +2518,20 @@ class AppLocalizationsFil extends AppLocalizations {
   String get settingsPrivacy => 'Privacy';
 
   @override
+  String settingsRatesLine(String date, String source) {
+    return 'Kinuha noong $date mula sa $source';
+  }
+
+  @override
+  String get settingsRatesNone => 'Wala pang palitan';
+
+  @override
+  String get settingsRatesTap => 'I-tap para i-update';
+
+  @override
+  String get settingsRatesTitle => 'Palitan ng pera';
+
+  @override
   String get settingsReminders => 'Mga paalala';
 
   @override
@@ -2448,6 +2608,19 @@ class AppLocalizationsFil extends AppLocalizations {
   String get splitCutOrMove => 'Puwede mong bawasan o ilipat:';
 
   @override
+  String splitForeignLine(
+    String name,
+    String amount,
+    String converted,
+    String rate,
+  ) {
+    return '$name: $amount ay binilang na $converted ($rate)';
+  }
+
+  @override
+  String get splitForeignTitle => 'Mga bill sa ibang pera';
+
+  @override
   String get splitMarkSent => 'Markahang naipadala';
 
   @override
@@ -2468,6 +2641,58 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get splitTransfers => 'Mga ililipat';
+
+  @override
+  String summaryMissingRates(int count) {
+    return '$count pera ang wala sa kabuuang ito: wala pa silang palitan.';
+  }
+
+  @override
+  String transferArrivedLabel(String currency) {
+    return 'Halagang dumating ($currency)';
+  }
+
+  @override
+  String get transferDone => 'Nailipat.';
+
+  @override
+  String transferFeeLabel(String currency) {
+    return 'Bayad ($currency, opsyonal)';
+  }
+
+  @override
+  String get transferFrom => 'Mula';
+
+  @override
+  String get transferInvalid => 'Tingnan ang mga halaga.';
+
+  @override
+  String get transferMove => 'Maglipat ng pera';
+
+  @override
+  String get transferQueued =>
+      'Naka-save sa phone. Ipapadala ito kapag may koneksyon ka na ulit.';
+
+  @override
+  String transferRate(String rate) {
+    return 'Rate mo: $rate';
+  }
+
+  @override
+  String get transferSame => 'Pumili ng dalawang magkaibang wallet.';
+
+  @override
+  String transferSentLabel(String currency) {
+    return 'Halagang ipinadala ($currency)';
+  }
+
+  @override
+  String transferSuggest(String amount) {
+    return 'Ayon sa rate ngayon, mga $amount. Palitan ito ng talagang dumating.';
+  }
+
+  @override
+  String get transferTo => 'Papunta';
 
   @override
   String get uiError => 'May nangyaring mali. Subukan ulit.';

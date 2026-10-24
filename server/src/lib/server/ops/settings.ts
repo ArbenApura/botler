@@ -79,7 +79,7 @@ export async function setSettings(
 			const settings = { ...before, ...changes };
 			const notice =
 				settings.currency !== before.currency
-					? `Your amounts now read in ${settings.currency}. Nothing was converted: 100.00 is still 100.00, only the currency changed.`
+					? `Your main currency is now ${settings.currency}. Your accounts keep the currencies they hold, and the total is shown in ${settings.currency}. Your income, goals, rules and minimum balances are the same numbers, now read in ${settings.currency}: nothing in the money plan was converted. Your bills keep their own currency.`
 					: null;
 			return { settings, notice };
 		})

@@ -2,13 +2,19 @@
 
 // -- CONSTANTS -- //
 
-/** The largest amount a column can hold (a 32 bit integer), about 21 million pesos. */
-export const MAX_CENTAVOS = 2_147_483_647;
+/** The largest amount a column can hold (a 64 bit column read back as a safe integer), enough for rupiah, dong and rial. */
+export const MAX_MINOR = Number.MAX_SAFE_INTEGER;
+
+/** The name the code used while amounts were 32 bit centavos; the same limit as MAX_MINOR. */
+export const MAX_CENTAVOS = MAX_MINOR;
 
 // -- FUNCTIONS -- //
 
-export const isCentavos = (n: unknown): n is number =>
-	typeof n === 'number' && Number.isSafeInteger(n) && Math.abs(n) <= MAX_CENTAVOS;
+export const isMinorAmount = (n: unknown): n is number =>
+	typeof n === 'number' && Number.isSafeInteger(n) && Math.abs(n) <= MAX_MINOR;
+
+/** The name the code used while amounts were centavos only. */
+export const isCentavos = isMinorAmount;
 
 /** Pesos typed by a person (180 or 180.5) to centavos, rounded to the nearest centavo. Used on input only. */
 export function pesosToCentavos(pesos: number): number {
