@@ -47,7 +47,7 @@ afterAll(async () => {
 
 describe('settings', () => {
 	it('answers the defaults for a person with no row, and writes nothing to read them', async () => {
-		expect(await getSettings(person('user_set_a_001'))).toEqual({
+		expect(await getSettings(person('user_set_a_001'))).toMatchObject({
 			currency: 'PHP',
 			language: 'en',
 			replyLanguage: 'auto',
@@ -62,7 +62,7 @@ describe('settings', () => {
 	it('changes only the fields given and says amounts are not converted', async () => {
 		const a = person('user_set_a_001');
 		const first = await setSettings(as(a), { currency: 'USD' });
-		expect(first.settings).toEqual({
+		expect(first.settings).toMatchObject({
 			currency: 'USD',
 			language: 'en',
 			replyLanguage: 'auto',
@@ -71,7 +71,7 @@ describe('settings', () => {
 		expect(first.notice).toMatch(/nothing in the money plan was converted/);
 		// A later change of another field keeps the currency, with no notice
 		const second = await setSettings(as(a), { language: 'fil', weekStartsOn: 0 });
-		expect(second.settings).toEqual({
+		expect(second.settings).toMatchObject({
 			currency: 'USD',
 			language: 'fil',
 			replyLanguage: 'auto',

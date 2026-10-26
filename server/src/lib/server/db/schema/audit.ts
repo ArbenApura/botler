@@ -367,9 +367,24 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 	},
 	{
 		table: 'user_setting',
-		columns: ['id', 'currency', 'language', 'reply_language', 'week_starts_on'],
+		columns: ['id', 'currency', 'language', 'reply_language', 'week_starts_on', 'model_provider'],
 		account: '',
-		amount: ''
+		amount: '',
+		firstColumns: ['id', 'currency', 'language', 'reply_language', 'week_starts_on'],
+		// Which host receives the person's chat is a choice worth a trail: only the provider name is copied
+		redefinitions: [
+			{
+				migration: '0029',
+				columns: [
+					'id',
+					'currency',
+					'language',
+					'reply_language',
+					'week_starts_on',
+					'model_provider'
+				]
+			}
+		]
 	},
 	{
 		table: 'agent_action',

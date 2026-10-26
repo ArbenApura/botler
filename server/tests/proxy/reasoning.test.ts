@@ -138,7 +138,7 @@ describe('streamed thinking', () => {
 		}));
 		expect(off.bodies[0]).not.toHaveProperty('thinking');
 		expect(off.bodies[0]?.temperature).toBe(0.2);
-		expect(off.bodies[0]?.max_tokens).toBe(2048);
+		expect(off.bodies[0]?.max_tokens).toBe(8192);
 	});
 
 	it('masks the thinking when it goes back to the model', async () => {

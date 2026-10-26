@@ -5,6 +5,7 @@ import { check, integer, text, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from '../../../finance/currency';
+import { SELECTABLE_PROVIDERS } from '../../../providers';
 import { user } from './auth';
 import { id, oneOf, stamps, userTable } from './helpers';
 
@@ -30,6 +31,8 @@ export const userSetting = userTable(
 		replyLanguage: text('reply_language', { enum: REPLY_LANGUAGES }).notNull().default('auto'),
 		/** 0 is Sunday, 1 is Monday. */
 		weekStartsOn: integer('week_starts_on').notNull().default(1),
+		/** The model host this person chose. Null means the server default (MODEL_PROVIDER). */
+		modelProvider: text('model_provider', { enum: SELECTABLE_PROVIDERS }),
 		...stamps()
 	},
 	(t) => [
@@ -37,6 +40,8 @@ export const userSetting = userTable(
 		oneOf('user_setting_currency_chk', t.currency, CURRENCY_CODES),
 		oneOf('user_setting_language_chk', t.language, APP_LANGUAGES),
 		oneOf('user_setting_reply_language_chk', t.replyLanguage, REPLY_LANGUAGES),
-		check('user_setting_week_chk', sql`${t.weekStartsOn} in (0, 1)`)
+		check('user_setting_week_chk', sql`${t.weekStartsOn} in (0, 1)`),
+		// A null passes a CHECK, so "use the server default" needs no special case
+		oneOf('user_setting_model_provider_chk', t.modelProvider, SELECTABLE_PROVIDERS)
 	]
 );

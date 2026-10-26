@@ -234,7 +234,7 @@ describe('model client', () => {
 		expect(text).toBe('Hi Maria!');
 		expect(done?.finishReason).toBe('tool_calls');
 		expect(done?.toolCalls[0]?.function.arguments).toBe('{"who":"Maria"}');
-		expect(done?.usage).toEqual({ promptTokens: 30, completionTokens: 12 });
+		expect(done?.usage).toMatchObject({ promptTokens: 30, completionTokens: 12 });
 	});
 
 	it('logs counts only, never the message text', async () => {

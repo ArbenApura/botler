@@ -4140,6 +4140,30 @@ abstract class AppLocalizations {
   /// **'Set the balance of {name}'**
   String setBalanceTitle(String name);
 
+  /// No description provided for @settingsAiServer.
+  ///
+  /// In en, this message translates to:
+  /// **'AI server'**
+  String get settingsAiServer;
+
+  /// No description provided for @settingsAiServerDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Server default'**
+  String get settingsAiServerDefault;
+
+  /// No description provided for @settingsAiServerHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Answers can differ a little between servers.'**
+  String get settingsAiServerHelp;
+
+  /// No description provided for @settingsAiServerUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{server} is not available on the server right now, so the default is used.'**
+  String settingsAiServerUnavailable(String server);
+
   /// No description provided for @settingsAppLanguage.
   ///
   /// In en, this message translates to:

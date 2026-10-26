@@ -2,6 +2,12 @@
 // Every shared rule (rate limit, monthly budget, masking, timeout, retries, usage recording, the log) lives in
 // proxy/core.ts. Message text is never logged. The key is read once from the server environment and is never
 // returned or written anywhere.
+//
+// PROMPT CACHING: DeepSeek caches automatically and on a best effort basis. A prefix is cached on disk after it is seen, in seconds, and
+// kept for hours to days, so a hit is never assumed in the cap. There are no markers to send. What helps is ORDER: the tool definitions,
+// then the system message, then the history (which only grows at its end), then the turn context and the new message last. Anything that
+// changes from call to call must sit after everything that does not. The usage fields prompt_cache_hit_tokens and
+// prompt_cache_miss_tokens say what was served from the cache.
 
 // -- TYPES -- //
 import type { Ctx } from '../ops/context';
@@ -26,6 +32,8 @@ import {
 	maskerFor,
 	maskMessages,
 	readWrittenCalls,
+	toolDetail,
+	toolsOffered,
 	within
 } from './core';
 import { defaultSleep } from './core';
@@ -46,14 +54,45 @@ type Wire = {
 		};
 		finish_reason?: string | null;
 	}[];
-	usage?: { prompt_tokens?: number; completion_tokens?: number };
+	usage?: {
+		prompt_tokens?: number;
+		completion_tokens?: number;
+		prompt_cache_hit_tokens?: number;
+		prompt_cache_miss_tokens?: number;
+	};
 };
+
+/** Reads the usage block. A reply with no cache fields counts as zero cache read and is noted once in the log, so an API change shows. */
+function readUsage(u: NonNullable<Wire['usage']>, fallbackPrompt: number): Usage {
+	const hit = u.prompt_cache_hit_tokens;
+	if (hit === undefined && !cacheFieldsNoted) {
+		cacheFieldsNoted = true;
+		console.warn(JSON.stringify({ event: 'cache_fields_missing', provider: 'deepseek' }));
+	}
+	return {
+		// With no prompt_tokens the hit and miss figures still say how much went in
+		promptTokens:
+			u.prompt_tokens ??
+			Math.max(
+				fallbackPrompt,
+				(u.prompt_cache_hit_tokens ?? 0) + (u.prompt_cache_miss_tokens ?? 0)
+			),
+		completionTokens: u.completion_tokens ?? 0,
+		cacheReadTokens: Math.max(0, hit ?? 0),
+		cacheWriteTokens: 0
+	};
+}
+
+let cacheFieldsNoted = false;
 
 // -- FUNCTIONS -- //
 
 export function createModelClient(config: ModelConfig) {
 	const core = createCore({
+		provider: 'deepseek',
+		model: config.model,
 		limits: config.limits,
+		rateLimiter: config.rateLimiter,
 		timeoutMs: config.timeoutMs ?? 60_000,
 		maxRetries: config.maxRetries ?? 2,
 		fetch: config.fetch ?? fetch,
@@ -61,6 +100,7 @@ export function createModelClient(config: ModelConfig) {
 	});
 	const defaultMaxTokens = config.defaultMaxTokens ?? 2048;
 	const thinkingMaxTokens = config.thinkingMaxTokens ?? 8192;
+	const chatMaxTokens = config.chatMaxTokens ?? 8192;
 	const timeoutMs = config.timeoutMs ?? 60_000;
 
 	/** The body for one call, with the masked messages. Thinking only for a streamed chat answer. */
@@ -73,10 +113,13 @@ export function createModelClient(config: ModelConfig) {
 			...(stream ? { stream_options: { include_usage: true } } : {}),
 			...(thinking ? { thinking: { type: 'enabled' } } : {}),
 			...(req.tools?.length ? { tools: req.tools } : {}),
+			...(req.tools?.length && req.toolChoice === 'none' ? { tool_choice: 'none' } : {}),
 			// A thinking model ignores sampling settings, so none are sent
 			...(req.temperature !== undefined && !thinking ? { temperature: req.temperature } : {}),
 			// Every call has a ceiling, so one call can never spend more than this. Thinking shares it with the answer
-			max_tokens: req.maxTokens ?? (thinking ? thinkingMaxTokens : defaultMaxTokens)
+			max_tokens:
+				req.maxTokens ??
+				(thinking ? thinkingMaxTokens : req.bucket === 'chat' ? chatMaxTokens : defaultMaxTokens)
 		};
 	}
 
@@ -104,18 +147,20 @@ export function createModelClient(config: ModelConfig) {
 			}
 			const choice = wire.choices?.[0];
 			const content = choice?.message?.content ?? '';
-			const usage: Usage = {
-				promptTokens:
-					wire.usage?.prompt_tokens ?? estimateTokens(JSON.stringify(body.messages).length),
-				completionTokens: wire.usage?.completion_tokens ?? estimateTokens(content.length)
-			};
+			const estimated = estimateTokens(JSON.stringify(body.messages).length);
+			const usage: Usage = wire.usage
+				? {
+						...readUsage(wire.usage, estimated),
+						completionTokens: wire.usage.completion_tokens ?? estimateTokens(content.length)
+					}
+				: { promptTokens: estimated, completionTokens: estimateTokens(content.length) };
 			await core.record(ctx, req.bucket, usage);
-			core.log(ctx, req.bucket, Date.now() - started, usage, true);
+			core.log(ctx, req.bucket, Date.now() - started, usage, true, toolDetail(req));
 			const written = readWrittenCalls(
 				content,
 				choice?.message?.tool_calls ?? [],
 				choice?.finish_reason ?? 'stop',
-				(req.tools?.length ?? 0) > 0
+				toolsOffered(req)
 			);
 			return finish(masker, written.content, written.calls, written.finishReason, usage);
 		},
@@ -171,11 +216,7 @@ export function createModelClient(config: ModelConfig) {
 						} catch {
 							continue;
 						}
-						if (wire.usage)
-							reported = {
-								promptTokens: wire.usage.prompt_tokens ?? 0,
-								completionTokens: wire.usage.completion_tokens ?? 0
-							};
+						if (wire.usage) reported = readUsage(wire.usage, 0);
 						const choice = wire.choices?.[0];
 						if (choice?.finish_reason) finishReason = choice.finish_reason;
 						const thought = choice?.delta?.reasoning_content;
@@ -224,13 +265,13 @@ export function createModelClient(config: ModelConfig) {
 					completionTokens: estimateTokens(content.length + reasoning.length)
 				};
 				await core.record(ctx, req.bucket, final);
-				core.log(ctx, req.bucket, Date.now() - started, final, completed);
+				core.log(ctx, req.bucket, Date.now() - started, final, completed, toolDetail(req));
 			}
 			const written = readWrittenCalls(
 				content,
 				calls.filter(Boolean),
 				finishReason,
-				(req.tools?.length ?? 0) > 0
+				toolsOffered(req)
 			);
 			yield {
 				type: 'done',

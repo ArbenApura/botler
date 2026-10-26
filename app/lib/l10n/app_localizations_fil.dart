@@ -2422,6 +2422,21 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get settingsAiServer => 'AI server';
+
+  @override
+  String get settingsAiServerDefault => 'Default ng server';
+
+  @override
+  String get settingsAiServerHelp =>
+      'Maaaring bahagyang magkaiba ang sagot ng bawat server.';
+
+  @override
+  String settingsAiServerUnavailable(String server) {
+    return 'Hindi available ang $server sa server ngayon, kaya ang default ang gamit.';
+  }
+
+  @override
   String get settingsAppLanguage => 'Wika ng app';
 
   @override

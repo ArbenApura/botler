@@ -26,8 +26,8 @@ describe('the assistant context', () => {
 		expect(SYSTEM_PREFIX).not.toMatch(/always Filipino|Taglish, a natural|\bUSD\b|\bJPY\b/);
 	});
 
-	it('puts the reply language and the currency in the second system message', () => {
-		const context = (build('fil', 'JPY')[1] as { content: string }).content;
+	it('puts the reply language and the currency in the context block of the last message', () => {
+		const context = (build('fil', 'JPY').at(-1) as { content: string }).content;
 		expect(context).toContain('Reply language: always Filipino.');
 		expect(context).toContain('Japanese yen (JPY, written ¥)');
 		expect(context).toContain('whole JPY');
@@ -47,7 +47,7 @@ describe('the assistant context', () => {
 
 	it('defaults to pesos and auto when nothing is given', () => {
 		const m = buildMessages({ now: NOW, history: [], userText: 'hi' });
-		const context = (m[1] as { content: string }).content;
+		const context = (m.at(-1) as { content: string }).content;
 		expect(context).toContain('Philippine peso (PHP');
 		expect(context).toContain('Reply language: English.');
 	});

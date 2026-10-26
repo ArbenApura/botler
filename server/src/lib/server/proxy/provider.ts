@@ -1,9 +1,55 @@
-// THE PROVIDER SWITCH: WHICH MODEL PROVIDER THE AGENT RUNS ON AND THE LOUD CHECK ITS KEY NEEDS.
-// The provider itself is fixed per process by MODEL_PROVIDER from the environment; this module keeps only the
-// check, so it can be called from the server start, from the script that builds its own environment and from
-// the tests, without touching the environment module.
+// THE PROVIDER SWITCH: WHICH MODEL PROVIDERS THE SERVER CAN RUN, WHICH ONE IS THE DEFAULT, AND THE LOUD CHECK THE KEYS NEED.
+// The default is MODEL_PROVIDER from the environment; a person may choose another one that has a key (settings). This module holds
+// only plain logic and the setup the server start passes in, so the start, the ops layer and the tests can use it without touching
+// the environment module.
 
-export type ProviderName = 'anthropic' | 'deepseek';
+// -- TYPES -- //
+import type { SelectableProvider } from '../../providers';
+// -- MODULES -- //
+import { isSelectableProvider, SELECTABLE_PROVIDERS } from '../../providers';
+
+export type ProviderName = SelectableProvider;
+
+export type ProviderSetup = {
+	/** The providers that have a key on this server, in the order of SELECTABLE_PROVIDERS. */
+	available: readonly SelectableProvider[];
+	/** MODEL_PROVIDER: who runs for a person who chose nothing. */
+	fallback: SelectableProvider;
+};
+
+// -- STATES -- //
+
+let setup: ProviderSetup | null = null;
+
+// -- FUNCTIONS -- //
+
+/** Set once when the server starts, and by tests. Null clears it. */
+export function configureProviders(next: ProviderSetup | null): void {
+	setup = next;
+}
+
+/** What the server was started with. Nothing set means nothing is offered: a choice is refused, never guessed. */
+export function providerSetup(): ProviderSetup | null {
+	return setup;
+}
+
+/** The providers whose key is present, from the keys the environment holds. */
+export function providersWithKeys(keys: Record<SelectableProvider, string>): SelectableProvider[] {
+	return SELECTABLE_PROVIDERS.filter((p) => keys[p].length > 0);
+}
+
+/**
+ * The provider that will run for a person: what they chose when its key is still there, otherwise the server default. A stored
+ * choice whose key was taken away falls back instead of locking the person out of chat; settings shows it as unavailable.
+ */
+export function effectiveProvider(
+	stored: string | null | undefined,
+	available: readonly SelectableProvider[],
+	fallback: SelectableProvider
+): SelectableProvider {
+	if (isSelectableProvider(stored) && available.includes(stored)) return stored;
+	return fallback;
+}
 
 /**
  * The provider whose turn it is must have a key; the provider left out may carry one but nothing calls it.

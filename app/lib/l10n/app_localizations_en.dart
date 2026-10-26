@@ -2404,6 +2404,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settingsAiServer => 'AI server';
+
+  @override
+  String get settingsAiServerDefault => 'Server default';
+
+  @override
+  String get settingsAiServerHelp =>
+      'Answers can differ a little between servers.';
+
+  @override
+  String settingsAiServerUnavailable(String server) {
+    return '$server is not available on the server right now, so the default is used.';
+  }
+
+  @override
   String get settingsAppLanguage => 'App language';
 
   @override

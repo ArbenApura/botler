@@ -142,9 +142,12 @@ describe('live events', () => {
 });
 
 describe('a reply cut off by the limit', () => {
-	it('never runs the tool calls of a cut-off round and says so', async () => {
+	const cut = { finish: 'length' as const };
+
+	it('never runs the tool calls of a cut-off round and says so when the second try is cut too', async () => {
 		const model = stubModel([
-			{ finish: 'length', think: 'long thought', calls: [['expense_log', '{"accountId": "']] }
+			{ finish: 'length', think: 'long thought', calls: [['expense_log', '{"accountId": "']] },
+			cut
 		]);
 		const events = await play({ f, model, text: 'log lunch' });
 		expect(types(events)).not.toContain('tool_start');
@@ -153,12 +156,56 @@ describe('a reply cut off by the limit', () => {
 		expect(done?.reply).toMatch(/more thinking/);
 	});
 
-	it('says so when the answer itself was cut off, and keeps what it wrote', async () => {
-		const model = stubModel([{ say: 'The first half of', finish: 'length' }]);
+	it('carries on once after a cut-off round and answers, without the apology', async () => {
+		const model = stubModel([
+			{ finish: 'length', calls: [['expense_log', '{"accountId": "']] },
+			{ say: 'Here is the answer.' }
+		]);
+		const events = await play({ f, model, text: 'log lunch' });
+		expect(types(events)).not.toContain('tool_start');
+		const done = doneEvent(events);
+		expect(done?.stopped).toBeUndefined();
+		expect(done?.reply).toBe('Here is the answer.');
+		const nudge = model.requests[1]!.messages.at(-1);
+		expect(nudge?.role).toBe('user');
+	});
+
+	it('keeps what a cut-off answer wrote and asks the model to carry on from there', async () => {
+		const model = stubModel([
+			{ say: 'The first half of', finish: 'length' },
+			{ say: ' the answer.' }
+		]);
+		const events = await play({ f, model, text: 'explain' });
+		const done = doneEvent(events);
+		expect(done?.stopped).toBeUndefined();
+		expect(done?.reply).toBe('The first half of the answer.');
+		const sent = model.requests[1]!.messages;
+		expect(sent.at(-2)).toMatchObject({ role: 'assistant', content: 'The first half of' });
+		expect(sent.at(-1)?.role).toBe('user');
+	});
+
+	it('says so when the answer is cut off again, and keeps what it wrote', async () => {
+		const model = stubModel([
+			{ say: 'The first half of', finish: 'length' },
+			{ say: ' the second', finish: 'length' }
+		]);
 		const events = await play({ f, model, text: 'explain' });
 		const done = doneEvent(events);
 		expect(done?.stopped).toBe('length');
-		expect(done?.reply).toContain('The first half of');
+		expect(done?.reply).toContain('The first half of the second');
+		expect(done?.reply).toMatch(/more thinking/);
+		// One carry-on only, never a loop
+		expect(model.requests).toHaveLength(2);
+	});
+
+	it('does not carry on when no model call is left, and says so', async () => {
+		const model = stubModel((_req, n) =>
+			n < 5 ? { calls: [['accounts_list', {}]] } : { say: 'Half an answer', finish: 'length' }
+		);
+		const events = await play({ f, model, text: 'accounts?', limits: { maxModelCalls: 6 } });
+		const done = doneEvent(events);
+		expect(model.requests).toHaveLength(6);
+		expect(done?.stopped).toBe('length');
 		expect(done?.reply).toMatch(/more thinking/);
 	});
 
@@ -168,9 +215,9 @@ describe('a reply cut off by the limit', () => {
 		expect(doneEvent(events)?.reply.trim()).not.toBe('');
 	});
 
-	it('is stored as failed and is not read for memory', async () => {
+	it('is stored as failed and is not read for memory when cut off twice', async () => {
 		const id = `client-live-${++n}-bbbb`;
-		const model = stubModel([{ finish: 'length' }]);
+		const model = stubModel([cut, cut]);
 		await chat(model, id);
 		expect((await stored(id))?.status).toBe('failed');
 	});

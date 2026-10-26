@@ -10,7 +10,7 @@ import type { Embedder } from '../memory/embed';
 import type { ChatMessage } from '../proxy/deepseek';
 import type { TurnEvent, TurnModel, TurnParams } from './turn';
 // -- DEP-MODULES -- //
-import { and, asc, desc, eq, gt, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
 import { chatTurn } from '../db/schema';
@@ -108,6 +108,14 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 	});
 }
 
+/**
+ * Where the history window starts, counted in done turns before this one. The window slides in steps of 5, so 6 to 10 turns are kept and
+ * the start stays the same for 5 turns in a row: the history only grows at its end, which keeps the host's prefix cache valid.
+ */
+export function historyStart(n: number): number {
+	return n <= HISTORY_TURNS ? 0 : 5 * Math.floor((n - 6) / 5);
+}
+
 async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 	const rows = await run(ctx, async (tx, userId) => {
 		const [self] = await tx
@@ -115,24 +123,34 @@ async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
 			.from(chatTurn)
 			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, beforeId)));
 		if (!self) return [];
+		const filter = and(
+			eq(chatTurn.userId, userId),
+			eq(chatTurn.status, 'done'),
+			eq(chatTurn.chatId, self.chatId),
+			lt(chatTurn.createdAt, self.at)
+		);
+		const [counted] = await tx
+			.select({ n: sql<number>`count(*)` })
+			.from(chatTurn)
+			.where(filter);
+		const start = historyStart(Number(counted?.n ?? 0));
 		return tx
 			.select({ userText: chatTurn.userText, reply: chatTurn.reply })
 			.from(chatTurn)
-			.where(
-				and(
-					eq(chatTurn.userId, userId),
-					eq(chatTurn.status, 'done'),
-					eq(chatTurn.chatId, self.chatId),
-					lt(chatTurn.createdAt, self.at)
-				)
-			)
-			.orderBy(desc(chatTurn.createdAt))
+			.where(filter)
+			.orderBy(asc(chatTurn.createdAt), asc(chatTurn.id))
+			.offset(start)
 			.limit(HISTORY_TURNS);
 	});
-	return rows.reverse().flatMap((r): ChatMessage[] => [
-		{ role: 'user', content: r.userText.slice(0, HISTORY_CHARS) },
-		{ role: 'assistant', content: r.reply.slice(0, HISTORY_CHARS) }
-	]);
+	// A turn that ended in the fallback text has no reply; an empty assistant message would be refused by the host
+	return rows.flatMap((r): ChatMessage[] =>
+		!r.reply.trim()
+			? []
+			: [
+					{ role: 'user', content: r.userText.slice(0, HISTORY_CHARS) },
+					{ role: 'assistant', content: r.reply.slice(0, HISTORY_CHARS) }
+				]
+	);
 }
 
 /**

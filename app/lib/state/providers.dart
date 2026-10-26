@@ -30,6 +30,9 @@ class Settings {
     this.language = 'en',
     this.replyLanguage = 'auto',
     this.weekStartsOn = 1,
+    this.modelProvider,
+    this.modelProviderChoice,
+    this.availableProviders = const <String>[],
   });
 
   final ThemeMode themeMode;
@@ -57,6 +60,16 @@ class Settings {
   /// The first day of the week: 0 is Sunday, 1 is Monday.
   final int weekStartsOn;
 
+  /// The AI server the assistant will use for this person, as the server says (null: not known yet, or the server has none set up).
+  final String? modelProvider;
+
+  /// What the person chose; null means the server default. It can name a server that is no longer available.
+  final String? modelProviderChoice;
+
+  /// The servers a person may choose from, by id. Empty from an older server or before the first pull.
+  final List<String> availableProviders;
+
+  /// [modelProvider] and [modelProviderChoice] can be set back to null, so they take Object? and the default keeps the old value.
   Settings copyWith({
     ThemeMode? themeMode,
     bool? lockOn,
@@ -67,6 +80,9 @@ class Settings {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    Object? modelProvider = _keep,
+    Object? modelProviderChoice = _keep,
+    List<String>? availableProviders,
   }) => Settings(
     themeMode: themeMode ?? this.themeMode,
     lockOn: lockOn ?? this.lockOn,
@@ -77,8 +93,18 @@ class Settings {
     language: language ?? this.language,
     replyLanguage: replyLanguage ?? this.replyLanguage,
     weekStartsOn: weekStartsOn ?? this.weekStartsOn,
+    modelProvider: identical(modelProvider, _keep)
+        ? this.modelProvider
+        : modelProvider as String?,
+    modelProviderChoice: identical(modelProviderChoice, _keep)
+        ? this.modelProviderChoice
+        : modelProviderChoice as String?,
+    availableProviders: availableProviders ?? this.availableProviders,
   );
 }
+
+/// Marks "leave this field as it is" in copyWith, for the fields that may also be set to null.
+const Object _keep = Object();
 
 // -- CONSTANTS -- //
 
@@ -163,6 +189,18 @@ const String _currency = 'settings.currency';
 const String _language = 'settings.language';
 const String _reply = 'settings.reply';
 const String _week = 'settings.week';
+const String _provider = 'settings.provider';
+const String _providerChoice = 'settings.providerChoice';
+const String _providers = 'settings.providers';
+
+/// The text of a server id from the answer, or null when it is missing or not text.
+String? _providerId(Object? v) => v is String && v.isNotEmpty ? v : null;
+
+/// The server ids from the answer. A missing field or a wrong type is an empty list, so an older server cannot break the screen.
+List<String> _providerIds(Object? v) => <String>[
+  for (final e in asList(v))
+    if (e is String && e.isNotEmpty) e,
+];
 
 /// The settings as stored. Also read by the background sync, which has no providers.
 Settings readSettings(SharedPreferences p) => Settings(
@@ -178,6 +216,9 @@ Settings readSettings(SharedPreferences p) => Settings(
   language: p.getString(_language) ?? 'en',
   replyLanguage: p.getString(_reply) ?? 'auto',
   weekStartsOn: p.getInt(_week) ?? 1,
+  modelProvider: p.getString(_provider),
+  modelProviderChoice: p.getString(_providerChoice),
+  availableProviders: p.getStringList(_providers) ?? const <String>[],
 );
 
 class SettingsNotifier extends Notifier<Settings> {
@@ -196,7 +237,13 @@ class SettingsNotifier extends Notifier<Settings> {
     await p.setString(_language, next.language);
     await p.setString(_reply, next.replyLanguage);
     await p.setInt(_week, next.weekStartsOn);
+    await _setOrRemove(p, _provider, next.modelProvider);
+    await _setOrRemove(p, _providerChoice, next.modelProviderChoice);
+    await p.setStringList(_providers, next.availableProviders);
   }
+
+  Future<void> _setOrRemove(SharedPreferences p, String key, String? value) =>
+      value == null ? p.remove(key) : p.setString(key, value);
 
   /// Takes what the server has for the four shared choices, so a second phone or a reinstall shows the same ones. Offline, nothing changes.
   Future<void> pullFromServer() async {
@@ -208,6 +255,9 @@ class SettingsNotifier extends Notifier<Settings> {
           language: str(s['language'], state.language),
           replyLanguage: str(s['replyLanguage'], state.replyLanguage),
           weekStartsOn: intOf(s['weekStartsOn'], state.weekStartsOn),
+          modelProvider: _providerId(s['modelProvider']),
+          modelProviderChoice: _providerId(s['modelProviderChoice']),
+          availableProviders: _providerIds(s['availableProviders']),
         ),
       );
     } on ApiException {
@@ -222,12 +272,14 @@ class SettingsNotifier extends Notifier<Settings> {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    String? modelProvider,
   }) async {
     final changes = <String, Object?>{
       'currency': ?currency,
       'language': ?language,
       'replyLanguage': ?replyLanguage,
       'weekStartsOn': ?weekStartsOn,
+      'modelProvider': ?modelProvider,
     };
     final answer = await ref
         .read(apiProvider)
@@ -239,6 +291,9 @@ class SettingsNotifier extends Notifier<Settings> {
         language: str(saved['language'], state.language),
         replyLanguage: str(saved['replyLanguage'], state.replyLanguage),
         weekStartsOn: intOf(saved['weekStartsOn'], state.weekStartsOn),
+        modelProvider: _providerId(saved['modelProvider']),
+        modelProviderChoice: _providerId(saved['modelProviderChoice']),
+        availableProviders: _providerIds(saved['availableProviders']),
         // The voice follows the app's language unless the person chose another
         speechLocale: language == null
             ? state.speechLocale

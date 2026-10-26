@@ -294,7 +294,14 @@ export const settingsSetInput = createInsertSchema(userSetting, {
 	currency: z.enum(CURRENCY_CODES as [string, ...string[]]),
 	weekStartsOn: z.number().int().min(0).max(1)
 })
-	.pick({ currency: true, language: true, replyLanguage: true, weekStartsOn: true })
+	.pick({
+		currency: true,
+		language: true,
+		replyLanguage: true,
+		weekStartsOn: true,
+		// Null puts the person back on the server default; whether the key exists is checked in the ops layer
+		modelProvider: true
+	})
 	.partial();
 
 // -- BILLS -- //

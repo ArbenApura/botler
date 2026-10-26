@@ -1730,6 +1730,17 @@
       }
     }
   },
+  "settingsAiServer": "AI server",
+  "settingsAiServerDefault": "Server default",
+  "settingsAiServerHelp": "Answers can differ a little between servers.",
+  "settingsAiServerUnavailable": "{server} is not available on the server right now, so the default is used.",
+  "@settingsAiServerUnavailable": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAppLanguage": "App language",
   "settingsCurrency": "Currency",
   "settingsCurrencyChange": "Change",

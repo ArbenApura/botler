@@ -28,5 +28,17 @@
       "Maglipat sa pagitan ng dalawang pera sa pag-type ng ipinadala at ng dumating. Puwede ring nasa ibang pera ang mga bill at makikita kung magkano ito sa pangunahing pera mo.",
       "Mga 155 na pera na ang suportado, kasama ang may tatlong decimal, at tama na ang pagproseso ng mas malalaking halaga."
     ]
+  },
+  {
+    "versionCode": 10,
+    "versionName": "1.0.9",
+    "en": [
+      "You can now choose which AI server answers you, DeepSeek or Anthropic, in Settings under Language and money.",
+      "If a server is not set up, it is not offered, and Botler keeps using the default one."
+    ],
+    "fil": [
+      "Puwede mo nang piliin kung aling AI server ang sasagot sa iyo, DeepSeek o Anthropic, sa Settings sa ilalim ng Wika at pera.",
+      "Kung hindi pa naka-set up ang isang server, hindi ito iaalok, at ang default na server ang patuloy na gagamitin ng Botler."
+    ]
   }
 ]

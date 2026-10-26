@@ -4,7 +4,7 @@
 
 // -- TYPES -- //
 import type { Ctx } from '../ops/context';
-import type { Bucket, Limits, Usage } from './limits';
+import type { Bucket, Limits, Provider, RateLimiter, Usage } from './limits';
 import type { ChatMessage, CompletionRequest, ToolCall } from './types';
 import type { Masker } from './mask';
 // -- DEP-MODULES -- //
@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 // -- MODULES -- //
 import { OpsError, run } from '../ops/context';
 import { splitDsml } from './dsml';
-import { assertBudget, createRateLimiter, recordUsage } from './limits';
+import { assertBudget, BudgetError, chargedTokens, createRateLimiter, recordUsage } from './limits';
 import { createMasker } from './mask';
 
 // -- TYPES -- //
@@ -26,7 +26,12 @@ export type CoreSend = (args: {
 
 /** Everything each provider hands over to the shared layer. */
 export type CoreConfig = {
+	/** Which host this client talks to: recorded with every call and named in the log. */
+	provider: Exclude<Provider, 'unknown'>;
+	model: string;
 	limits: Limits;
+	/** The per-minute counter. Left out, the client makes its own; the app passes one shared by every provider. */
+	rateLimiter?: RateLimiter;
 	timeoutMs: number;
 	maxRetries: number;
 	fetch: typeof fetch;
@@ -44,6 +49,24 @@ export const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(
 
 /** A rough token count for when the model reports none: about four characters per token. */
 export const estimateTokens = (chars: number) => Math.ceil(chars / 4);
+
+/** An estimate of the tokens in the stable prefix (the first `count` messages), for the log. 0 when the caller named no prefix. */
+export function stableTokens(messages: ChatMessage[], count?: number): number {
+	return count ? estimateTokens(JSON.stringify(messages.slice(0, count)).length) : 0;
+}
+
+/** True when the request offers tools the model may call. With toolChoice 'none' the tools stay in the body (for the cache) but no call is read. */
+export function toolsOffered(req: CompletionRequest): boolean {
+	return (req.tools?.length ?? 0) > 0 && req.toolChoice !== 'none';
+}
+
+/** The log detail every client adds to its model_call line. */
+export function toolDetail(req: CompletionRequest) {
+	return {
+		stableTokens: stableTokens(req.messages, req.stableCount),
+		toolsOff: (req.tools?.length ?? 0) > 0 && req.toolChoice === 'none'
+	};
+}
 
 /** Rejects with UNAVAILABLE when `work` takes longer than `ms`. Used between the pieces of a stream and for reading a body. */
 export function within<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -84,13 +107,38 @@ const userTag = (userId: string) => createHash('sha256').update(userId).digest('
  * builds for it.
  */
 export function createCore(config: CoreConfig) {
-	const rate = createRateLimiter(config.limits.ratePerMinute);
+	// One limiter can be shared by several clients, so a person cannot double the rate by switching provider
+	const rate = config.rateLimiter ?? createRateLimiter(config.limits.ratePerMinute);
+
+	/** One line when a call is refused, so a capped chat is visible in the log. Counts only. */
+	function refused(
+		ctx: Ctx,
+		bucket: Bucket,
+		why: { reason: 'rate' | 'person_cap' | 'global_cap'; used?: number; cap?: number }
+	) {
+		console.warn(
+			JSON.stringify({
+				event: 'model_call_refused',
+				u: userTag(ctx.actor.userId),
+				bucket,
+				reason: why.reason,
+				...(why.used !== undefined ? { used: why.used, cap: why.cap } : {})
+			})
+		);
+	}
 
 	/** Rate limit, then the monthly budget. Nothing leaves the server before both pass. */
 	async function admit(ctx: Ctx, bucket: Bucket): Promise<void> {
-		if (!rate.take(ctx.actor.userId))
+		if (!rate.take(ctx.actor.userId)) {
+			refused(ctx, bucket, { reason: 'rate' });
 			throw new OpsError('LIMIT', 'Too many requests. Try again in a minute.');
-		await run(ctx, (tx, userId) => assertBudget(tx, userId, bucket, config.limits));
+		}
+		try {
+			await run(ctx, (tx, userId) => assertBudget(tx, userId, bucket, config.limits));
+		} catch (e) {
+			if (e instanceof BudgetError) refused(ctx, bucket, e.detail);
+			throw e;
+		}
 	}
 
 	/**
@@ -134,7 +182,16 @@ export function createCore(config: CoreConfig) {
 		throw new OpsError('UNAVAILABLE', DOWN);
 	};
 
-	function log(ctx: Ctx, bucket: Bucket, startedMs: number, usage: Usage, ok: boolean) {
+	function log(
+		ctx: Ctx,
+		bucket: Bucket,
+		startedMs: number,
+		usage: Usage,
+		ok: boolean,
+		detail: { stableTokens?: number; toolsOff?: boolean } = {}
+	) {
+		const read = usage.cacheReadTokens ?? 0;
+		const write = usage.cacheWriteTokens ?? 0;
 		// Counts and timings only. Never message text, names or amounts.
 		console.info(
 			JSON.stringify({
@@ -143,8 +200,17 @@ export function createCore(config: CoreConfig) {
 				bucket,
 				ok,
 				ms: startedMs,
+				provider: config.provider,
+				model: config.model,
 				promptTokens: usage.promptTokens,
-				completionTokens: usage.completionTokens
+				completionTokens: usage.completionTokens,
+				cacheRead: read,
+				cacheWrite: write,
+				// Input that was neither read from nor written to the cache
+				miss: Math.max(0, usage.promptTokens - read - write),
+				charged: chargedTokens(usage, config.provider),
+				stableTokens: detail.stableTokens ?? 0,
+				toolsOff: detail.toolsOff === true
 			})
 		);
 	}
@@ -152,7 +218,7 @@ export function createCore(config: CoreConfig) {
 	/** Records the tokens. A failure here is logged loudly: the call was billed but the cap would not see it. */
 	async function record(ctx: Ctx, bucket: Bucket, usage: Usage): Promise<void> {
 		try {
-			await run(ctx, (tx, userId) => recordUsage(tx, userId, bucket, usage));
+			await run(ctx, (tx, userId) => recordUsage(tx, userId, bucket, usage, config.provider));
 		} catch (e) {
 			console.error(
 				JSON.stringify({

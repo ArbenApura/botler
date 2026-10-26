@@ -1,195 +1,216 @@
 {
-	"version": "7",
-	"dialect": "postgresql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1792559655976,
-			"tag": "0000_base",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "7",
-			"when": 1792559657469,
-			"tag": "0001_extensions",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "7",
-			"when": 1792560063230,
-			"tag": "0002_account_password",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "7",
-			"when": 1792560190672,
-			"tag": "0003_device_unique",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "7",
-			"when": 1792560428791,
-			"tag": "0004_model_usage",
-			"breakpoints": true
-		},
-		{
-			"idx": 5,
-			"version": "7",
-			"when": 1792560745282,
-			"tag": "0005_ops_bookkeeping",
-			"breakpoints": true
-		},
-		{
-			"idx": 6,
-			"version": "7",
-			"when": 1792561035456,
-			"tag": "0006_jobs",
-			"breakpoints": true
-		},
-		{
-			"idx": 7,
-			"version": "7",
-			"when": 1792562160658,
-			"tag": "0007_job_payload_limit",
-			"breakpoints": true
-		},
-		{
-			"idx": 8,
-			"version": "7",
-			"when": 1792562170155,
-			"tag": "0008_job_user_index",
-			"breakpoints": true
-		},
-		{
-			"idx": 9,
-			"version": "7",
-			"when": 1792575090661,
-			"tag": "0009_finance",
-			"breakpoints": true
-		},
-		{
-			"idx": 10,
-			"version": "7",
-			"when": 1792575925379,
-			"tag": "0010_agent",
-			"breakpoints": true
-		},
-		{
-			"idx": 11,
-			"version": "7",
-			"when": 1792577095420,
-			"tag": "0011_memory",
-			"breakpoints": true
-		},
-		{
-			"idx": 12,
-			"version": "7",
-			"when": 1792578561199,
-			"tag": "0012_schedule",
-			"breakpoints": true
-		},
-		{
-			"idx": 13,
-			"version": "7",
-			"when": 1792636752282,
-			"tag": "0013_bill_windows",
-			"breakpoints": true
-		},
-		{
-			"idx": 14,
-			"version": "7",
-			"when": 1792637706850,
-			"tag": "0014_user_setting",
-			"breakpoints": true
-		},
-		{
-			"idx": 15,
-			"version": "7",
-			"when": 1792639264561,
-			"tag": "0015_audit_event",
-			"breakpoints": true
-		},
-		{
-			"idx": 16,
-			"version": "7",
-			"when": 1792639299422,
-			"tag": "0016_audit_triggers",
-			"breakpoints": true
-		},
-		{
-			"idx": 17,
-			"version": "7",
-			"when": 1792640072880,
-			"tag": "0017_data_reset",
-			"breakpoints": true
-		},
-		{
-			"idx": 18,
-			"version": "7",
-			"when": 1792652416122,
-			"tag": "0018_bill_override",
-			"breakpoints": true
-		},
-		{
-			"idx": 19,
-			"version": "7",
-			"when": 1792674772093,
-			"tag": "0019_calendar_local_only",
-			"breakpoints": true
-		},
-		{
-			"idx": 20,
-			"version": "7",
-			"when": 1792676137977,
-			"tag": "0020_chat_turn_cleared",
-			"breakpoints": true
-		},
-		{
-			"idx": 21,
-			"version": "7",
-			"when": 1792714778558,
-			"tag": "0021_chats",
-			"breakpoints": true
-		},
-		{
-			"idx": 22,
-			"version": "7",
-			"when": 1792729999041,
-			"tag": "0022_account_purpose",
-			"breakpoints": true
-		},
-		{
-			"idx": 23,
-			"version": "7",
-			"when": 1792733311798,
-			"tag": "0023_bill_starts_on",
-			"breakpoints": true
-		},
-		{
-			"idx": 24,
-			"version": "7",
-			"when": 1792766060117,
-			"tag": "0024_currencies_bigint",
-			"breakpoints": true
-		},
-		{
-			"idx": 25,
-			"version": "7",
-			"when": 1792767111813,
-			"tag": "0025_account_wallets",
-			"breakpoints": true
-		},
-		{
-			"idx": 26,
-			"version": "7",
-			"when": 1792768413426,
-			"tag": "0026_fx_rates",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792559655976,
+      "tag": "0000_base",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792559657469,
+      "tag": "0001_extensions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792560063230,
+      "tag": "0002_account_password",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792560190672,
+      "tag": "0003_device_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792560428791,
+      "tag": "0004_model_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792560745282,
+      "tag": "0005_ops_bookkeeping",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792561035456,
+      "tag": "0006_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792562160658,
+      "tag": "0007_job_payload_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792562170155,
+      "tag": "0008_job_user_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792575090661,
+      "tag": "0009_finance",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792575925379,
+      "tag": "0010_agent",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792577095420,
+      "tag": "0011_memory",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792578561199,
+      "tag": "0012_schedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792636752282,
+      "tag": "0013_bill_windows",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792637706850,
+      "tag": "0014_user_setting",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792639264561,
+      "tag": "0015_audit_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792639299422,
+      "tag": "0016_audit_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792640072880,
+      "tag": "0017_data_reset",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792652416122,
+      "tag": "0018_bill_override",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792674772093,
+      "tag": "0019_calendar_local_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792676137977,
+      "tag": "0020_chat_turn_cleared",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792714778558,
+      "tag": "0021_chats",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792729999041,
+      "tag": "0022_account_purpose",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792733311798,
+      "tag": "0023_bill_starts_on",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792766060117,
+      "tag": "0024_currencies_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792767111813,
+      "tag": "0025_account_wallets",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792768413426,
+      "tag": "0026_fx_rates",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792978243134,
+      "tag": "0027_usage_providers_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792982603184,
+      "tag": "0028_usage_charged_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792990663249,
+      "tag": "0029_model_provider",
+      "breakpoints": true
+    }
+  ]
 }

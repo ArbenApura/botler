@@ -111,16 +111,28 @@ describe('anthropic client', () => {
 		expect(sent.body).not.toContain('Maria');
 		const body = JSON.parse(sent.body) as {
 			model: string;
-			system: string;
+			system: { type: string; text: string }[];
 			max_tokens: number;
 			messages: { role: string; content: unknown }[];
 		};
 		expect(body.model).toBe('claude-haiku-5-5');
-		expect(body.system).toContain('[ACCT_1]');
-		expect(body.system).toContain('[NAME_1]');
+		const system = body.system.map((b) => b.text).join(' ');
+		expect(system).toContain('[ACCT_1]');
+		expect(system).toContain('[NAME_1]');
 		// max_tokens is required on /v1/messages, and there is no stream_options on this wire
 		expect(body.max_tokens).toBeGreaterThan(0);
 		expect(sent.body).not.toContain('stream_options');
+	});
+
+	it('gives a chat call the chat ceiling and a memory call the small default', async () => {
+		const f = fakeFetch(() => textAnswer('ok'));
+		const c = client(f.fn);
+		const messages = [{ role: 'user' as const, content: 'hi' }];
+		await c.complete(anna, { bucket: 'chat', messages });
+		await c.complete(anna, { bucket: 'memory', messages });
+		await client(f.fn, {}, { chatMaxTokens: 4000 }).complete(anna, { bucket: 'chat', messages });
+		const ceilings = f.calls.map((c) => (JSON.parse(c.body) as { max_tokens: number }).max_tokens);
+		expect(ceilings).toEqual([8192, 2048, 4000]);
 	});
 
 	it('maps usage with the cached reads into the shared buckets, and restores the reply', async () => {
@@ -142,7 +154,12 @@ describe('anthropic client', () => {
 		});
 		expect(out.content).toBe(`Sent Maria to ${ACCOUNT}`);
 		// 30 + 10 cached read, 12 written
-		expect(out.usage).toEqual({ promptTokens: 40, completionTokens: 12 });
+		expect(out.usage).toMatchObject({
+			promptTokens: 40,
+			completionTokens: 12,
+			cacheReadTokens: 10,
+			cacheWriteTokens: 0
+		});
 	});
 
 	it('offers tools as input_schema, translates stop reasons, and never leaves a placeholder on the wire', async () => {
@@ -398,7 +415,7 @@ describe('anthropic client', () => {
 		expect(done?.finishReason).toBe('tool_calls');
 		expect(done?.toolCalls[0]?.function.arguments).toBe('{"note":"taxi Maria"}');
 		// Reported, not the estimate
-		expect(done?.usage).toEqual({ promptTokens: 30, completionTokens: 12 });
+		expect(done?.usage).toMatchObject({ promptTokens: 30, completionTokens: 12 });
 	});
 
 	it('shows the streamed thinking when ANTHROPIC_THINKING is on, and offers no tools while it thinks', async () => {
@@ -468,7 +485,7 @@ describe('anthropic client', () => {
 		expect(thought).toBe(' think Maria hard');
 		expect(text).toBe('So: done.');
 		expect(done?.finishReason).toBe('stop');
-		expect(done?.usage).toEqual({ promptTokens: 30, completionTokens: 40 });
+		expect(done?.usage).toMatchObject({ promptTokens: 30, completionTokens: 40 });
 	});
 
 	it('logs counts only, never the message text or the key', async () => {

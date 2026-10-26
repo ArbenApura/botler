@@ -837,11 +837,14 @@ const CASES: Case[] = [
 		},
 		script: () => [{ say: 'Okay.' }],
 		check: ({ requests }) => {
-			const system = requests[0]?.messages.filter((m) => m.role === 'system') ?? [];
-			// The cached prefix is the first system message and holds neither the language nor the currency
+			const messages = requests[0]?.messages ?? [];
+			const system = messages.filter((m) => m.role === 'system');
+			// The cached prefix is the only system message and holds neither the language nor the currency
+			expect(system).toHaveLength(1);
 			expect(system[0]?.content).not.toMatch(/always English|always Filipino|Taglish, a natural/);
-			expect(system[1]?.content).toContain(line);
-			expect(system[1]?.content).toContain(`(${currency},`);
+			// The language and the currency sit in the context block that starts the last message
+			expect(messages.at(-1)?.content).toContain(line);
+			expect(messages.at(-1)?.content).toContain(`(${currency},`);
 		}
 	})),
 	// Resetting a balance (BTL-20261022-0218, L.7): a card that says what will happen, never a refusal and never a delete

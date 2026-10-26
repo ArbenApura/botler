@@ -33,6 +33,8 @@ import {
 	maskerFor,
 	maskMessages,
 	readWrittenCalls,
+	toolDetail,
+	toolsOffered,
 	within
 } from './core';
 import { defaultSleep } from './core';
@@ -41,10 +43,13 @@ import { OpsError } from '../ops/context';
 
 // -- TYPES -- (local wire shapes)
 
-type Block =
+type CacheControl = { type: 'ephemeral'; ttl?: '1h' };
+
+type Block = (
 	| { type: 'text'; text: string }
 	| { type: 'tool_use'; id: string; name: string; input: unknown }
-	| { type: 'tool_result'; tool_use_id: string; content: string };
+	| { type: 'tool_result'; tool_use_id: string; content: string }
+) & { cache_control?: CacheControl };
 
 type WireMessage = { role: 'user' | 'assistant'; content: string | Block[] };
 
@@ -53,6 +58,7 @@ type UsageWire = {
 	output_tokens?: number;
 	cache_read_input_tokens?: number;
 	cache_creation_input_tokens?: number;
+	cache_creation?: { ephemeral_1h_input_tokens?: number };
 };
 
 type FullBody = {
@@ -76,7 +82,28 @@ type StreamChunk = {
 	usage?: UsageWire;
 };
 
+// -- CONSTANTS -- //
+
+/** The shortest prefix the host will cache, by model name. A marker on a shorter prefix is ignored by the API, so it is not sent. */
+export function cacheMinimum(model: string): number {
+	if (/haiku-5|sonnet-5|opus-5/.test(model)) return 512;
+	if (/haiku-4-5|opus-4-5|opus-4-6/.test(model)) return 4096;
+	if (/haiku-3-5|opus-4-7/.test(model)) return 2048;
+	return 1024;
+}
+
 // -- FUNCTIONS -- //
+
+const sizeOf = (v: unknown): number => estimateTokens(JSON.stringify(v).length);
+
+/** The last block of a wire turn, which is where a cache marker for the end of that turn goes. */
+function lastBlock(turn: WireMessage | undefined): Block | null {
+	if (!turn) return null;
+	if (typeof turn.content === 'string') {
+		turn.content = [{ type: 'text', text: turn.content }];
+	}
+	return turn.content[turn.content.length - 1] ?? null;
+}
 
 /**
  * Tool arguments go into a tool_use input object, from the originals (the turn loop sends the real values
@@ -114,10 +141,14 @@ function maskedArgs(argumentsJson: string, masker: Masker): unknown {
 function toWire(
 	messages: ChatMessage[],
 	originals: ChatMessage[],
-	masker: Masker
-): { system?: string; turns: WireMessage[] } {
-	let system: string | undefined;
+	masker: Masker,
+	stableCount = 0
+): { system: string[]; turns: WireMessage[]; stableTurns: number } {
+	// One text block per system message, never one joined string, so a cache breakpoint can sit on the end of the stable one
+	const system: string[] = [];
 	const turns: WireMessage[] = [];
+	// How many wire turns the first stableCount messages made
+	let stableTurns = 0;
 	const lastUser = (): Block[] | null => {
 		const last = turns[turns.length - 1];
 		if (last && last.role === 'user' && Array.isArray(last.content)) return last.content;
@@ -125,7 +156,7 @@ function toWire(
 	};
 	for (const [i, m] of messages.entries()) {
 		if (m.role === 'system') {
-			system = system ? `${system}\n\n${m.content}` : m.content;
+			system.push(m.content);
 		} else if (m.role === 'user') {
 			const merge = lastUser();
 			if (merge) merge.push({ type: 'text', text: m.content });
@@ -161,13 +192,17 @@ function toWire(
 				content: blocks.length ? blocks : [{ type: 'text', text: '' }]
 			});
 		}
+		if (i === stableCount - 1) stableTurns = turns.length;
 	}
-	return { system, turns };
+	return { system, turns, stableTurns };
 }
 
 export function createAnthropicClient(config: ModelConfig) {
 	const core = createCore({
+		provider: 'anthropic',
+		model: config.model,
 		limits: config.limits,
+		rateLimiter: config.rateLimiter,
 		timeoutMs: config.timeoutMs ?? 60_000,
 		maxRetries: config.maxRetries ?? 2,
 		fetch: config.fetch ?? fetch,
@@ -175,6 +210,7 @@ export function createAnthropicClient(config: ModelConfig) {
 	});
 	const defaultMaxTokens = config.defaultMaxTokens ?? 2048;
 	const thinkingMaxTokens = config.thinkingMaxTokens ?? 8192;
+	const chatMaxTokens = config.chatMaxTokens ?? 8192;
 	const timeoutMs = config.timeoutMs ?? 60_000;
 
 	/** The body for one call. max_tokens is required on /v1/messages. Thinking is offered only to a streamed
@@ -187,22 +223,61 @@ export function createAnthropicClient(config: ModelConfig) {
 	): Record<string, unknown> {
 		const thinking = stream && config.thinking === true && req.bucket === 'chat';
 		const masked = maskMessages(req.messages, masker);
-		const { system, turns } = toWire(masked, req.messages, masker);
+		const { system, turns, stableTurns } = toWire(masked, req.messages, masker, req.stableCount);
 		// The repo's tool definitions are OpenAI shaped; the wire wants input_schema
-		const wireTools = !thinking
+		const wireTools: {
+			name: string;
+			description: string;
+			input_schema: Record<string, unknown>;
+			cache_control?: CacheControl;
+		}[] = !thinking
 			? (req.tools ?? []).map((t) => ({
 					name: t.function.name,
 					description: t.function.description,
 					input_schema: t.function.parameters
 				}))
 			: [];
+		const systemBlocks: { type: 'text'; text: string; cache_control?: CacheControl }[] = system.map(
+			(text) => ({ type: 'text', text })
+		);
+		// Cache markers only on a chat request that names its stable prefix. The memory jobs send none, so they pay no write premium
+		if (config.caching !== false && req.stableCount) {
+			const long: CacheControl =
+				config.cacheTtl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' };
+			const short: CacheControl = { type: 'ephemeral' };
+			const minimum = cacheMinimum(config.model);
+			// Tokens before each breakpoint, counted from the start: tools, then system, then the turns
+			const toolsSize = sizeOf(wireTools);
+			const systemSize = sizeOf(systemBlocks);
+			// 1: the last tool definition
+			const lastTool = wireTools[wireTools.length - 1];
+			if (lastTool && toolsSize >= minimum) lastTool.cache_control = long;
+			// 2: the end of the stable system block
+			const lastSystem = systemBlocks[0];
+			if (lastSystem && toolsSize + systemSize >= minimum) lastSystem.cache_control = long;
+			// 3: the end of the history. Not on the first turn of a chat (no history) or on the same block as 4
+			const turnsBefore = (n: number) => sizeOf(turns.slice(0, n));
+			if (stableTurns > 0 && stableTurns < turns.length) {
+				const block = lastBlock(turns[stableTurns - 1]);
+				if (block && toolsSize + systemSize + turnsBefore(stableTurns) >= minimum)
+					block.cache_control = short;
+			}
+			// 4: the last block of the last message, so the next round of the same turn reads this one
+			const last = lastBlock(turns[turns.length - 1]);
+			if (last && toolsSize + systemSize + turnsBefore(turns.length) >= minimum)
+				last.cache_control = short;
+		}
 		return {
 			model: config.model,
 			// Every call has a ceiling, so one call can never spend more than this. Thinking shares it with the answer
-			max_tokens: req.maxTokens ?? (thinking ? thinkingMaxTokens : defaultMaxTokens),
-			...(system ? { system } : {}),
+			max_tokens:
+				req.maxTokens ??
+				(thinking ? thinkingMaxTokens : req.bucket === 'chat' ? chatMaxTokens : defaultMaxTokens),
+			...(systemBlocks.length ? { system: systemBlocks } : {}),
 			messages: turns,
 			...(wireTools.length ? { tools: wireTools } : {}),
+			// 'none' keeps the tools in the body (so their cache survives) and forbids any call. Never sent without tools
+			...(wireTools.length && req.toolChoice === 'none' ? { tool_choice: { type: 'none' } } : {}),
 			// A thinking model ignores sampling settings, so none are sent while thinking
 			...(req.temperature !== undefined && !thinking ? { temperature: req.temperature } : {}),
 			...(thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
@@ -228,6 +303,7 @@ export function createAnthropicClient(config: ModelConfig) {
 		return 'stop';
 	};
 
+	/** The total input is uncached + cache read + cache write, so promptTokens keeps its meaning. */
 	const promptTokensOf = (u: UsageWire | undefined): number =>
 		(u?.input_tokens ?? 0) +
 		(u?.cache_read_input_tokens ?? 0) +
@@ -263,22 +339,26 @@ export function createAnthropicClient(config: ModelConfig) {
 				throw new OpsError('UNAVAILABLE', DOWN);
 			}
 			const flat = blocksToCompletion(wire.content ?? []);
-			const usage: Usage = wire.usage?.input_tokens
+			// Tested on the usage being there, not on input_tokens being truthy: a full cache hit can report input_tokens 0
+			const usage: Usage = wire.usage
 				? {
 						promptTokens: promptTokensOf(wire.usage),
-						completionTokens: wire.usage.output_tokens ?? 0
+						completionTokens: wire.usage.output_tokens ?? 0,
+						cacheReadTokens: wire.usage.cache_read_input_tokens ?? 0,
+						cacheWriteTokens: wire.usage.cache_creation_input_tokens ?? 0,
+						cacheWrite1hTokens: wire.usage.cache_creation?.ephemeral_1h_input_tokens ?? 0
 					}
 				: {
 						promptTokens: estimateTokens(JSON.stringify(body.messages).length),
 						completionTokens: estimateTokens(flat.content.length)
 					};
 			await core.record(ctx, req.bucket, usage);
-			core.log(ctx, req.bucket, Date.now() - started, usage, true);
+			core.log(ctx, req.bucket, Date.now() - started, usage, true, toolDetail(req));
 			const written = readWrittenCalls(
 				flat.content,
 				flat.calls,
 				finishReasonOf(wire.stop_reason),
-				(req.tools?.length ?? 0) > 0
+				toolsOffered(req)
 			);
 			return finish(masker, written.content, written.calls, written.finishReason, usage);
 		},
@@ -306,6 +386,10 @@ export function createAnthropicClient(config: ModelConfig) {
 			let finishReason = 'stop';
 			// Usage arrives in pieces: input_tokens with message_start, output_tokens with message_delta
 			let reportedPrompt: number | null = null;
+			let reportedRead = 0;
+			let reportedWrite = 0;
+			let reportedWrite1h = 0;
+			let reportedUncached = 0;
 			let reportedOut: number | null = null;
 			const calls = new Map<number, { id: string; name: string; arguments: string }>();
 			let completed = false;
@@ -336,7 +420,13 @@ export function createAnthropicClient(config: ModelConfig) {
 							continue;
 						}
 						if (wire.type === 'message_start') {
-							if (wire.message?.usage) reportedPrompt = promptTokensOf(wire.message.usage);
+							if (wire.message?.usage) {
+								reportedPrompt = promptTokensOf(wire.message.usage);
+								reportedUncached = wire.message.usage.input_tokens ?? 0;
+								reportedRead = wire.message.usage.cache_read_input_tokens ?? 0;
+								reportedWrite = wire.message.usage.cache_creation_input_tokens ?? 0;
+								reportedWrite1h = wire.message.usage.cache_creation?.ephemeral_1h_input_tokens ?? 0;
+							}
 						} else if (wire.type === 'content_block_start') {
 							if (wire.index !== undefined && wire.content_block?.type === 'tool_use')
 								calls.set(wire.index, {
@@ -371,6 +461,24 @@ export function createAnthropicClient(config: ModelConfig) {
 						} else if (wire.type === 'message_delta') {
 							if (wire.delta?.stop_reason) finishReason = finishReasonOf(wire.delta.stop_reason);
 							if (wire.usage?.output_tokens) reportedOut = wire.usage.output_tokens;
+							// Some replies repeat the input figures here. Each figure that is present is the latest; one that is absent keeps its earlier value
+							const u = wire.usage;
+							if (u) {
+								// A figure counts only when it is a number: a null keeps the value from message_start
+								const num = (v: unknown): v is number => typeof v === 'number';
+								if (num(u.input_tokens)) reportedUncached = u.input_tokens;
+								if (num(u.cache_read_input_tokens)) reportedRead = u.cache_read_input_tokens;
+								if (num(u.cache_creation_input_tokens))
+									reportedWrite = u.cache_creation_input_tokens;
+								if (num(u.cache_creation?.ephemeral_1h_input_tokens))
+									reportedWrite1h = u.cache_creation.ephemeral_1h_input_tokens;
+								if (
+									num(u.input_tokens) ||
+									num(u.cache_read_input_tokens) ||
+									num(u.cache_creation_input_tokens)
+								)
+									reportedPrompt = reportedUncached + reportedRead + reportedWrite;
+							}
 						} else if (wire.type === 'message_stop') {
 							break read;
 						} else if (wire.type === 'error') {
@@ -395,14 +503,17 @@ export function createAnthropicClient(config: ModelConfig) {
 						? {
 								promptTokens:
 									reportedPrompt ?? estimateTokens(JSON.stringify(body.messages).length),
-								completionTokens: reportedOut ?? estimateTokens(content.length + reasoning.length)
+								completionTokens: reportedOut ?? estimateTokens(content.length + reasoning.length),
+								cacheReadTokens: reportedRead,
+								cacheWriteTokens: reportedWrite,
+								cacheWrite1hTokens: reportedWrite1h
 							}
 						: {
 								promptTokens: estimateTokens(JSON.stringify(body.messages).length),
 								completionTokens: estimateTokens(content.length + reasoning.length)
 							};
 				await core.record(ctx, req.bucket, final);
-				core.log(ctx, req.bucket, Date.now() - started, final, completed);
+				core.log(ctx, req.bucket, Date.now() - started, final, completed, toolDetail(req));
 			}
 			const written = readWrittenCalls(
 				content,
@@ -413,7 +524,7 @@ export function createAnthropicClient(config: ModelConfig) {
 				})),
 				finishReason,
 				// A thinking answer went out without tools on the wire, so its markup is only removed
-				(req.tools?.length ?? 0) > 0 && !(config.thinking === true && req.bucket === 'chat')
+				toolsOffered(req) && !(config.thinking === true && req.bucket === 'chat')
 			);
 			yield {
 				type: 'done',

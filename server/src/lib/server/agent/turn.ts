@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 import { createAction } from '../ops/actions';
 import { OpsError } from '../ops/context';
 import { invokeVerb } from '../ops/registry';
-import { getSettings, SETTING_DEFAULTS } from '../ops/settings';
+import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { buildMessages } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
@@ -162,6 +162,26 @@ function isPlainError(result: unknown): boolean {
 		keys[0] === 'error' &&
 		typeof (result as { error: unknown }).error === 'string'
 	);
+}
+
+/** Keys that are null when there is nothing to say, and mean nothing to the model then. A null that carries meaning is never on this list. */
+const NOISE_NULLS = new Set(['archivedAt', 'deletedAt', 'note', 'purpose']);
+
+/**
+ * A verb's result as the model reads it, without what only costs tokens: every `userId` (always the caller) and the null values of the
+ * keys in NOISE_NULLS. A null that means something (a variable bill's amount, a wallet with no rate) stays, and so does every array
+ * element. Only for verb results: web and calendar text and the app's own event data are never passed through here.
+ */
+export function trimForModel(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(trimForModel);
+	if (!value || typeof value !== 'object') return value;
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+		if (k === 'userId') continue;
+		if (v === null && NOISE_NULLS.has(k)) continue;
+		out[k] = trimForModel(v);
+	}
+	return out;
 }
 
 function capJson(value: unknown, max: number): string {
@@ -315,7 +335,7 @@ async function executeTool(
 		return {
 			status: 'ok',
 			data: result,
-			forModel: capJson(result, limits.maxResultChars)
+			forModel: capJson(trimForModel(result), limits.maxResultChars)
 		};
 	} catch (e) {
 		if (e instanceof OpsError) {
@@ -348,7 +368,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const settings =
 		p.currency && p.replyLanguage
 			? { currency: p.currency, replyLanguage: p.replyLanguage }
-			: await getSettings(p.ctx).catch(() => SETTING_DEFAULTS);
+			: await getSettings(p.ctx).catch(() => defaultSettingsView());
 	const messages = buildMessages({
 		now: p.now ?? new Date(),
 		persona: p.persona,
@@ -361,11 +381,15 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		currency: settings.currency,
 		replyLanguage: settings.replyLanguage
 	});
+	// The system message and the history: the part of the request that is the same from one call to the next
+	const stableCount = 1 + p.history.length;
 	const toolsRun: string[] = [];
 	let reply = '';
 	let seq = 0;
 	let stopped: 'depth' | 'tools' | 'cancelled' | 'length' | undefined;
 	let toolsOff = false;
+	// Whether a call cut off by the model's limit was already given its one second try
+	let continued = false;
 
 	for (let call = 0; call < limits.maxModelCalls; call++) {
 		if (p.signal?.aborted) {
@@ -382,7 +406,9 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 				messages,
 				masker,
 				signal: p.signal,
-				...(toolsOff ? {} : { tools: defs })
+				stableCount,
+				tools: defs,
+				...(toolsOff ? { toolChoice: 'none' as const } : {})
 			};
 			for await (const ev of p.model.stream(p.ctx, req)) {
 				if (ev.type === 'delta') {
@@ -411,8 +437,29 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			throw e;
 		}
 		if (!completion) throw new Error('The model ended without an answer.');
-		// The model ran out of room (its thinking shares the limit with the answer). Cut-off tool arguments are never run, and a
-		// cut-off answer says so and is not read for memory
+		// The model ran out of room (its thinking shares the limit with the answer). Cut-off tool arguments are never run. The first
+		// cut-off is given one carry-on; the second, or one with no model call left, says so and is not read for memory
+		if (
+			completion.finishReason === 'length' &&
+			!continued &&
+			call + 1 < limits.maxModelCalls &&
+			!p.signal?.aborted
+		) {
+			// The model is asked once to carry on from where it stopped, with what it wrote kept. A cut-off tool call is dropped (never
+			// run), so with nothing kept the nudge asks for a short answer instead of a continuation
+			continued = true;
+			const kept = completion.content.trim() !== '';
+			if (kept) messages.push({ role: 'assistant', content: completion.content });
+			// Once tools are turned off the nudge must not point at them
+			const data = toolsOff ? '' : ' Use the tools if you still need data.';
+			messages.push({
+				role: 'user',
+				content: kept
+					? `Your last message was cut off. Carry on exactly where it stopped without repeating anything, then finish briefly: the answer first, and no long tables.${data}`
+					: `Your last attempt ran out of room. Try again and answer briefly: the answer first, and no long tables.${data}`
+			});
+			continue;
+		}
 		if (completion.finishReason === 'length') {
 			const note =
 				'That took more thinking than I had room for. Please ask again, maybe a little simpler.';

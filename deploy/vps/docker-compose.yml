@@ -68,7 +68,10 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in .env}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-5-5}
       ANTHROPIC_THINKING: ${ANTHROPIC_THINKING:-}
-      # Required by compose only so the line stays filled; unused while MODEL_PROVIDER=anthropic
+      ANTHROPIC_CACHE_TTL: ${ANTHROPIC_CACHE_TTL:-}
+      # The most tokens one chat model call may write. Empty means 8192
+      CHAT_MAX_TOKENS: ${CHAT_MAX_TOKENS:-}
+      # Set this too so people can choose DeepSeek in the app (Settings, AI server). With it empty, DeepSeek is not offered
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
       DEEPSEEK_THINKING: ${DEEPSEEK_THINKING:-}

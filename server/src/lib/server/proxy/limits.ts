@@ -3,11 +3,12 @@
 // starve the memory jobs. Reaching a cap stops model calls only: expenses, bills and the schedule keep working without the model.
 
 // -- TYPES -- //
+import type { SelectableProvider } from '../../providers';
 import type { Tx } from '../db/client';
 // -- DEP-MODULES -- //
 import { and, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { modelSpend, modelUsage, type BUCKETS } from '../db/schema';
+import { modelSpend, modelUsage, type BUCKETS, type PROVIDERS } from '../db/schema';
 import { OpsError } from '../ops/context';
 
 // -- TYPES -- //
@@ -25,9 +26,49 @@ export type Limits = {
 	ratePerMinute: number;
 };
 
-export type Usage = { promptTokens: number; completionTokens: number };
+export type Provider = (typeof PROVIDERS)[number];
+
+export type RateLimiter = { take(key: string): boolean };
+
+/**
+ * What one call used. promptTokens is the TOTAL input (uncached + cache read + cache write), so every reader of it keeps its meaning.
+ * The cache fields default to 0 for a host or a reply that reports none.
+ */
+export type Usage = {
+	promptTokens: number;
+	completionTokens: number;
+	cacheReadTokens?: number;
+	cacheWriteTokens?: number;
+	/** The part of cacheWriteTokens written with the 1 hour lifetime, which the host bills at twice the input price. */
+	cacheWrite1hTokens?: number;
+};
+
+/** Why a call was refused, with the numbers, for the log. Counts only. */
+export type LimitDetail = { reason: 'person_cap' | 'global_cap'; used: number; cap: number };
+
+/** A LIMIT error that carries why it was thrown. */
+export class BudgetError extends OpsError {
+	constructor(
+		message: string,
+		readonly detail: LimitDetail
+	) {
+		super('LIMIT', message);
+	}
+}
 
 // -- CONSTANTS -- //
+
+/**
+ * What a cached token counts for against the cap, in hundredths of an uncached token. A cache read is much cheaper than a fresh token; an
+ * Anthropic cache write costs a quarter more. DeepSeek bills a hit at a fraction and a miss at the full price (it has no write fee).
+ */
+export const CACHE_WEIGHTS: Record<
+	SelectableProvider,
+	{ read: number; write: number; write1h?: number }
+> = {
+	anthropic: { read: 10, write: 125, write1h: 200 },
+	deepseek: { read: 2, write: 100 }
+};
 
 export const DEFAULT_LIMITS: Limits = {
 	chatTokenCap: 8_000_000,
@@ -37,6 +78,23 @@ export const DEFAULT_LIMITS: Limits = {
 };
 
 // -- FUNCTIONS -- //
+
+/**
+ * The tokens one call counts against the cap: uncached input + output + the weighted cache read and write, rounded up. Output counts 1 for 1.
+ * A provider with no weights (unknown) counts everything in full, as before caching existed.
+ */
+export function chargedTokens(usage: Usage, provider: Provider): number {
+	const read = Math.max(0, Math.trunc(usage.cacheReadTokens ?? 0));
+	const write = Math.max(0, Math.trunc(usage.cacheWriteTokens ?? 0));
+	const prompt = Math.max(0, Math.trunc(usage.promptTokens));
+	const completion = Math.max(0, Math.trunc(usage.completionTokens));
+	if (provider === 'unknown') return prompt + completion;
+	const w = CACHE_WEIGHTS[provider];
+	const uncached = Math.max(0, prompt - read - write);
+	const long = Math.min(write, Math.max(0, Math.trunc(usage.cacheWrite1hTokens ?? 0)));
+	const writeCost = (write - long) * w.write + long * (w.write1h ?? w.write);
+	return uncached + completion + Math.ceil((read * w.read + writeCost) / 100);
+}
 
 const monthFormat = new Intl.DateTimeFormat('en-CA', {
 	timeZone: 'Asia/Manila',
@@ -83,23 +141,32 @@ export async function assertBudget(
 	now: Date = new Date()
 ): Promise<void> {
 	const month = monthKey(now);
+	// Charged tokens over every provider the person used this month, so switching provider cannot reset the cap
 	const [mine] = await tx
-		.select({
-			tokens: sql<number>`coalesce(${modelUsage.promptTokens} + ${modelUsage.completionTokens}, 0)`
-		})
+		.select({ tokens: sql<number>`coalesce(sum(${modelUsage.chargedTokens}), 0)` })
 		.from(modelUsage)
 		.where(
 			and(eq(modelUsage.userId, userId), eq(modelUsage.bucket, bucket), eq(modelUsage.month, month))
 		);
 	const cap = bucket === 'chat' ? limits.chatTokenCap : limits.memoryTokenCap;
-	if (Number(mine?.tokens ?? 0) >= cap)
-		throw new OpsError('LIMIT', 'The monthly model limit for this account has been reached.');
+	const used = Number(mine?.tokens ?? 0);
+	if (used >= cap)
+		throw new BudgetError('The monthly model limit for this account has been reached.', {
+			reason: 'person_cap',
+			used,
+			cap
+		});
 	const [all] = await tx
-		.select({ tokens: sql<number>`coalesce(sum(${modelSpend.tokens}), 0)` })
+		.select({ tokens: sql<number>`coalesce(sum(${modelSpend.chargedTokens}), 0)` })
 		.from(modelSpend)
 		.where(eq(modelSpend.month, month));
-	if (Number(all?.tokens ?? 0) >= limits.globalTokenCap)
-		throw new OpsError('LIMIT', 'The monthly model limit for the whole service has been reached.');
+	const everyone = Number(all?.tokens ?? 0);
+	if (everyone >= limits.globalTokenCap)
+		throw new BudgetError('The monthly model limit for the whole service has been reached.', {
+			reason: 'global_cap',
+			used: everyone,
+			cap: limits.globalTokenCap
+		});
 }
 
 /** Adds one call and its tokens to the person's usage and to the global total. Atomic upserts, safe under concurrency. */
@@ -108,31 +175,57 @@ export async function recordUsage(
 	userId: string,
 	bucket: Bucket,
 	usage: Usage,
+	provider: Provider = 'unknown',
 	now: Date = new Date()
 ): Promise<void> {
 	const month = monthKey(now);
 	const prompt = Math.max(0, Math.trunc(usage.promptTokens));
 	const completion = Math.max(0, Math.trunc(usage.completionTokens));
+	const read = Math.max(0, Math.trunc(usage.cacheReadTokens ?? 0));
+	const write = Math.max(0, Math.trunc(usage.cacheWriteTokens ?? 0));
+	const charged = chargedTokens(usage, provider);
 	await tx
 		.insert(modelUsage)
-		.values({ userId, bucket, month, calls: 1, promptTokens: prompt, completionTokens: completion })
+		.values({
+			userId,
+			bucket,
+			month,
+			provider,
+			calls: 1,
+			promptTokens: prompt,
+			completionTokens: completion,
+			cacheReadTokens: read,
+			cacheWriteTokens: write,
+			chargedTokens: charged
+		})
 		.onConflictDoUpdate({
-			target: [modelUsage.userId, modelUsage.bucket, modelUsage.month],
+			target: [modelUsage.userId, modelUsage.bucket, modelUsage.month, modelUsage.provider],
 			set: {
 				calls: sql`${modelUsage.calls} + 1`,
 				promptTokens: sql`${modelUsage.promptTokens} + ${prompt}`,
 				completionTokens: sql`${modelUsage.completionTokens} + ${completion}`,
+				cacheReadTokens: sql`${modelUsage.cacheReadTokens} + ${read}`,
+				cacheWriteTokens: sql`${modelUsage.cacheWriteTokens} + ${write}`,
+				chargedTokens: sql`${modelUsage.chargedTokens} + ${charged}`,
 				updatedAt: sql`now()`
 			}
 		});
 	await tx
 		.insert(modelSpend)
-		.values({ month, bucket, calls: 1, tokens: prompt + completion })
+		.values({
+			month,
+			bucket,
+			provider,
+			calls: 1,
+			tokens: prompt + completion,
+			chargedTokens: charged
+		})
 		.onConflictDoUpdate({
-			target: [modelSpend.month, modelSpend.bucket],
+			target: [modelSpend.month, modelSpend.bucket, modelSpend.provider],
 			set: {
 				calls: sql`${modelSpend.calls} + 1`,
-				tokens: sql`${modelSpend.tokens} + ${prompt + completion}`
+				tokens: sql`${modelSpend.tokens} + ${prompt + completion}`,
+				chargedTokens: sql`${modelSpend.chargedTokens} + ${charged}`
 			}
 		});
 }

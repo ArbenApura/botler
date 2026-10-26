@@ -357,7 +357,7 @@ describe('approval cards', () => {
 			history: [],
 			userText: 'hi',
 			cards: lines
-		})[1];
+		}).at(-1);
 		expect(context?.content).toContain('- applied: Add the account "BPI".');
 		expect(context?.content).toContain('- rejected: Add the account "Maya2".');
 	});
@@ -466,8 +466,9 @@ describe('loop limits and the error contract', () => {
 		const events = await play({ f, model, text: 'many' });
 		expect(toolEvents(events)).toHaveLength(12);
 		expect(doneEvent(events)).toMatchObject({ stopped: 'tools', reply: 'Here is what I have.' });
-		// The call after the cap carries no tools at all
-		expect(model.requests.at(-1)?.tools).toBeUndefined();
+		// The call after the cap keeps the tools (so the host's cache of them survives) and forbids any call
+		expect(model.requests.at(-1)?.tools?.length).toBeGreaterThan(0);
+		expect(model.requests.at(-1)?.toolChoice).toBe('none');
 	});
 
 	it('reports a tool call with bad JSON to the model and carries on', async () => {
@@ -577,9 +578,9 @@ describe('the prompt', () => {
 		});
 		expect(a[0]).toEqual({ role: 'system', content: SYSTEM_PREFIX });
 		expect(b[0]).toEqual(a[0]);
-		expect(a[1]?.content).toContain('2026-10-21');
-		expect(b[1]?.content).toContain('Be brief.');
-		expect(b[1]?.content).toContain('Likes tea');
+		expect(a.at(-1)?.content).toContain('2026-10-21');
+		expect(b.at(-1)?.content).toContain('Be brief.');
+		expect(b.at(-1)?.content).toContain('Likes tea');
 		expect(SYSTEM_PREFIX).not.toMatch(/2026|2027/);
 	});
 
@@ -751,7 +752,9 @@ describe('the chat service answers each message once', () => {
 		await asker(fx, 'client-msg-hist2', 'what is my name?', model);
 		const sent =
 			model.requests[0]?.messages.map((m) => (m.role === 'tool' ? '' : String(m.content))) ?? [];
-		expect(sent).toEqual(expect.arrayContaining(['my name is Ana', 'Hi Ana.', 'what is my name?']));
+		expect(sent.slice(0, -1)).toEqual(expect.arrayContaining(['my name is Ana', 'Hi Ana.']));
+		// The new message is the last one and carries the turn context ahead of the person's words
+		expect(sent.at(-1)).toMatch(/^<context>[\s\S]*<\/context>\n\nwhat is my name\?$/);
 	});
 
 	it('rejects a message that is empty, too long, or has fields it should not', async () => {

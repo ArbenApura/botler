@@ -23,6 +23,7 @@ import '../money/account_detail_screen.dart';
 import '../money/currency_picker.dart';
 import 'changelog_row.dart';
 import 'failed_writes_row.dart';
+import 'provider_row.dart';
 import 'rates_row.dart';
 import 'reminder_status_row.dart';
 import 'update_row.dart';
@@ -129,6 +130,10 @@ class SettingsScreen extends ConsumerWidget {
                 r == null ? null : _save(context, ref, replyLanguage: r),
           ),
           const SizedBox(height: 12),
+          ProviderRow(
+            settings: s,
+            onChanged: (p) => _save(context, ref, modelProvider: p),
+          ),
           PaperCard(
             onTap: () => _pickCurrency(context, ref, s.currency),
             child: Row(
@@ -300,6 +305,7 @@ class SettingsScreen extends ConsumerWidget {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    String? modelProvider,
   }) async {
     try {
       final notice = await ref
@@ -309,6 +315,7 @@ class SettingsScreen extends ConsumerWidget {
             language: language,
             replyLanguage: replyLanguage,
             weekStartsOn: weekStartsOn,
+            modelProvider: modelProvider,
           );
       // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language
       if (notice != null) {

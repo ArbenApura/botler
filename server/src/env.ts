@@ -119,6 +119,11 @@ export const variables = defineEnvVars({
 			'1 or true: streamed chat answers think first and the app shows the thinking (costs more tokens; a tool round ends the turn, since thinking is display-only in this build). 0 or false: no thinking. Empty means off. Anything else stops the server.',
 		schema: (value) => flag(value, false, 'ANTHROPIC_THINKING')
 	},
+	ANTHROPIC_CACHE_TTL: {
+		description:
+			'How long Anthropic keeps the cached prompt prefix: 5m (default, renewed free on every read, so one chat session keeps it warm) or 1h (costs twice as much to write; only worth it when people start a chat less than once in five minutes but more than once an hour). Empty means 5m. Anything else stops the server.',
+		schema: (value) => cacheTtl(value)
+	},
 	DEEPSEEK_API_KEY: {
 		description:
 			'The DeepSeek API key, required only when MODEL_PROVIDER is deepseek. It lives only here, in the server environment, and is never returned, logged or put in the app.',
@@ -137,6 +142,11 @@ export const variables = defineEnvVars({
 		description:
 			'1 or true: chat answers think first and the app shows the thinking (costs more tokens and some time). 0 or false: no thinking. Empty means on. Anything else stops the server.',
 		schema: (value) => flag(value, true, 'DEEPSEEK_THINKING')
+	},
+	CHAT_MAX_TOKENS: {
+		description:
+			'The most tokens one chat model call may write (a tool round and the answer after it). Default 8192. Raise it if answers are still cut off; the monthly caps still apply. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 8192, 'CHAT_MAX_TOKENS')
 	},
 	BOTLER_CHAT_TOKEN_CAP: {
 		description:
@@ -184,6 +194,14 @@ function flag(value: string | undefined, fallback: boolean, name: string): boole
 	if (v === '1' || v === 'true') return true;
 	if (v === '0' || v === 'false') return false;
 	throw new Error(`${name} must be 1, 0, true or false`);
+}
+
+/** 5m or 1h. Empty gives 5m. A typo stops the server instead of silently choosing. */
+function cacheTtl(value: string | undefined): '5m' | '1h' {
+	if (!value || !value.trim()) return '5m';
+	const v = value.trim().toLowerCase();
+	if (v === '5m' || v === '1h') return v;
+	throw new Error('ANTHROPIC_CACHE_TTL must be 5m or 1h');
 }
 
 /** A whole number above zero, or the default when the variable is empty. A bad value stops the server. */
