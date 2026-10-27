@@ -7,7 +7,7 @@ import type { Commitment, SplitInput } from '../../src/lib/finance/split';
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { validateRules } from '../../src/lib/finance/rules';
-import { proposeSplit } from '../../src/lib/finance/split';
+import { bestEffortTransfers, proposeSplit } from '../../src/lib/finance/split';
 
 // -- CONSTANTS -- //
 
@@ -307,5 +307,118 @@ describe('rule validation', () => {
 		expect(validateRules([rule({ id: 'a', mode: 'percent', basisPoints: 10_001 })])).toHaveLength(
 			1
 		);
+	});
+});
+
+describe('best effort transfers on a shortfall', () => {
+	const short = () => {
+		const r = proposeSplit(
+			base({
+				pay: 1_900_000,
+				commitments: [bill('wifi', 150_000, 'gcash'), bill('meralco', 300_000, 'rcbc')],
+				rules: [
+					rule({
+						id: 'r1',
+						mode: 'fixed',
+						amount: 700_000,
+						position: 1,
+						target: { kind: 'account', id: 'stash' }
+					}),
+					rule({
+						id: 'r2',
+						mode: 'fixed',
+						amount: 1_000_000,
+						position: 2,
+						target: { kind: 'account', id: 'wise' }
+					}),
+					rule({ id: 'r3', mode: 'percent', basisPoints: 5000, base: 'remaining', position: 3 })
+				]
+			})
+		);
+		if (r.status !== 'shortfall') throw new Error('expected a shortfall');
+		return r;
+	};
+
+	it('funds commitments first, then rules in order, and caps the last one at what is left', () => {
+		const out = bestEffortTransfers(short(), 'rcbc');
+		const to = Object.fromEntries(out.map((t) => [t.toAccountId, t.amount]));
+		// 1,900,000 pay: wifi 150,000 to gcash, meralco 300,000 stays, stash 700,000, wise gets the remaining 750,000 of its 1,000,000
+		expect(to).toEqual({ gcash: 150_000, stash: 700_000, wise: 750_000 });
+		expect(out.every((t) => t.fromAccountId === 'rcbc')).toBe(true);
+	});
+
+	it('never moves more than the pay and gives the same answer every time', () => {
+		const a = bestEffortTransfers(short(), 'rcbc');
+		expect(a.reduce((s, t) => s + t.amount, 0)).toBeLessThanOrEqual(1_900_000);
+		expect(bestEffortTransfers(short(), 'rcbc')).toEqual(a);
+	});
+
+	it('lets a percent of the pay ahead of a fixed rule take its share first, in rule order', () => {
+		const r = proposeSplit(
+			base({
+				pay: 1_000_000,
+				commitments: [bill('rent', 400_000, 'rcbc')],
+				rules: [
+					rule({
+						id: 'p',
+						mode: 'percent',
+						basisPoints: 5000,
+						position: 1,
+						target: { kind: 'account', id: 'wise' }
+					}),
+					rule({
+						id: 'f',
+						mode: 'fixed',
+						amount: 600_000,
+						position: 2,
+						target: { kind: 'account', id: 'stash' }
+					})
+				]
+			})
+		);
+		if (r.status !== 'shortfall') throw new Error('expected a shortfall');
+		const to = Object.fromEntries(
+			bestEffortTransfers(r, 'rcbc').map((t) => [t.toAccountId, t.amount])
+		);
+		// Rent 400,000 stays; wise takes its 500,000 of the pay; stash gets the 100,000 left of its 600,000
+		expect(to).toEqual({ wise: 500_000, stash: 100_000 });
+	});
+
+	it('funds nothing for rules when the commitments alone use the pay, and skips the income account but spends from it', () => {
+		const r = proposeSplit(
+			base({
+				pay: 500_000,
+				commitments: [bill('a', 300_000, 'rcbc'), bill('b', 400_000, 'gcash')],
+				rules: [
+					rule({ id: 'f', mode: 'fixed', amount: 100_000, target: { kind: 'account', id: 'wise' } })
+				]
+			})
+		);
+		if (r.status !== 'shortfall') throw new Error('expected a shortfall');
+		const out = bestEffortTransfers(r, 'rcbc');
+		// 300,000 stays in rcbc, gcash gets the 200,000 left of its bill, wise nothing
+		expect(out).toEqual([
+			{ fromAccountId: 'rcbc', toAccountId: 'gcash', amount: 200_000, labels: ['b'] }
+		]);
+	});
+
+	it('merges lines to one account and treats fixed rules above the pay as a shortfall, not a bad rule set', () => {
+		const r = proposeSplit(
+			base({
+				pay: 300_000,
+				commitments: [bill('x', 100_000, 'gcash'), bill('y', 50_000, 'gcash')],
+				rules: [
+					rule({ id: 'f', mode: 'fixed', amount: 900_000, target: { kind: 'account', id: 'wise' } })
+				]
+			})
+		);
+		if (r.status !== 'shortfall') throw new Error('expected a shortfall');
+		expect(r.gap).toBe(750_000);
+		const out = bestEffortTransfers(r, 'rcbc');
+		expect(out.find((t) => t.toAccountId === 'gcash')).toMatchObject({
+			amount: 150_000,
+			labels: ['x', 'y']
+		});
+		expect(out.find((t) => t.toAccountId === 'wise')?.amount).toBe(150_000);
 	});
 });

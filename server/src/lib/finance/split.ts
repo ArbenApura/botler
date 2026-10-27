@@ -98,7 +98,8 @@ export function proposeSplit(input: SplitInput): SplitResult {
 		if (!isCentavos(c.amount) || c.amount <= 0)
 			throw new RangeError(`"${c.label}" needs an amount above zero.`);
 	const rules = rulesFor(input.rules, input.payday);
-	const problems = validateRules(rules, input.pay);
+	// Fixed amounts above the pay are not an invalid rule set: they are a shortfall, with the gap and the cut options below
+	const problems = validateRules(rules);
 	if (problems[0]) throw new RangeError(problems[0]);
 
 	const commitmentLines: SplitLine[] = input.commitments.map((c) => ({
@@ -223,4 +224,33 @@ export function proposeSplit(input: SplitInput): SplitResult {
 		transfers: [...moves.values()],
 		staysInIncomeAccount: stays
 	};
+}
+
+/**
+ * What a short pay can still do. The engine allocates nothing on a shortfall (the person decides what to cut), but a forecast must still
+ * say where the money will sit, so this walks the same lines in the same order (commitments, then rules by position) and gives each what
+ * is left of the pay, so the last line that fits gets a part and the rest get nothing. It never moves more than the pay.
+ */
+export function bestEffortTransfers(
+	result: Extract<SplitResult, { status: 'shortfall' }>,
+	incomeAccountId: string
+): Transfer[] {
+	let left = result.pay;
+	const moves = new Map<string, Transfer>();
+	for (const l of result.lines) {
+		const amount = Math.min(l.amount, left);
+		if (amount <= 0) continue;
+		left -= amount;
+		if (l.accountId === incomeAccountId) continue;
+		const t = moves.get(l.accountId) ?? {
+			fromAccountId: incomeAccountId,
+			toAccountId: l.accountId,
+			amount: 0,
+			labels: []
+		};
+		t.amount += amount;
+		t.labels.push(l.label);
+		moves.set(l.accountId, t);
+	}
+	return [...moves.values()];
 }

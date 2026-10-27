@@ -2,7 +2,7 @@
 // TRANSACTION AND HANDED TO THE PURE FORECAST (finance/forecast.ts). It reads only. The numbers come from the same sources as everything else:
 // the balances are the ledger's, the bills are bills.ts dueBills (per-date changes and paying accounts included, paid ones left out), the
 // paydays are the income schedules, and the moves are what the payday split engine makes of the active rules. A payday whose split cannot
-// be worked out (a bill with no amount yet, a missing rate, a shortfall) adds no moves and is named in the notes.
+// be worked out (a bill with no amount yet, a missing rate) adds no moves and is named in the notes. A shortfall still moves what the pay can fund.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
@@ -21,7 +21,7 @@ import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/date
 import { canConvert, convertUp } from '../../finance/fx';
 import { forecast, MAX_FORECAST_DAYS } from '../../finance/forecast';
 import { occurrencesBetween } from '../../finance/schedule';
-import { proposeSplit } from '../../finance/split';
+import { bestEffortTransfers, proposeSplit } from '../../finance/split';
 import { account, allocationRule, goal, incomeSchedule, ledgerTxn } from '../db/schema';
 import { cashflowForecastInput } from '../db/zod';
 import { loadRates, refreshInBackground } from '../fx/store';
@@ -171,7 +171,9 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 					currency: settings.currency,
 					amount: inc.expectedAmount
 				});
-				if (rules.length === 0) continue;
+
+				// A pay of nothing moves nothing (and the engine refuses it)
+				if (inc.expectedAmount <= 0) continue;
 
 				// The moves: what the split engine does with this pay, the bills of its period, the goals and the active rules
 				const next = occurrencesBetween(
@@ -218,6 +220,8 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 							deferrable: false
 						}))
 				];
+				// A bill that comes to nothing needs no money moved, and the engine refuses an amount of zero
+				const needed = commitments.filter((c) => c.amount > 0);
 				if (unrated) {
 					notes.push(
 						`The payday split of ${payday} is not in the moves: ${unrated} has no exchange rate.`
@@ -229,19 +233,22 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 						payday,
 						pay: inc.expectedAmount,
 						incomeAccountId: inc.accountId,
-						commitments,
+						commitments: needed,
 						rules: rules.map((r) =>
 							toRule(r, ruleNames[r.targetAccountId ?? r.targetGoalId ?? ''])
 						),
 						goalAccounts
 					});
-					if (split.status === 'shortfall') {
+					// A short pay still goes where the engine would put it first: the moves are what the pay can fund, in the engine's order
+					if (split.status === 'shortfall')
 						notes.push(
-							`The pay of ${payday} does not cover everything (short by ${split.gap} in the smallest unit), so its moves are not in the forecast.`
+							`The pay of ${payday} is short by ${split.gap} (smallest unit): its moves fund bills and goals first, then the rules in their order until the pay runs out.`
 						);
-						continue;
-					}
-					for (const t of split.transfers)
+					const transfers =
+						split.status === 'shortfall'
+							? bestEffortTransfers(split, inc.accountId)
+							: split.transfers;
+					for (const t of transfers)
 						flows.push({
 							kind: 'move',
 							date: payday,

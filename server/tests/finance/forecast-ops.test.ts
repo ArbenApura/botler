@@ -191,24 +191,24 @@ describe('the forecast of a person', () => {
 		expect(out.notes.join(' ')).toMatch(/no amount yet/);
 	});
 
-	it('shows no moves without an approved rule, and moves with one, the total never changing', async () => {
+	it('shows no rule moves without an approved rule, and a move to the rule target with one, the total never changing', async () => {
 		const g = await seedPerson(t);
 		await recordSnapshot(w(g), { accountId: g.rcbc, amount: 3_000_000 });
 		const plain = await cashflowForecast(g.ctx, { to, group: 'week' });
-		expect(plain.periods.flatMap((p) => p.moves)).toHaveLength(0);
+		// Bills and goals paid from other accounts still move with no rules: the moves are the commitments
+		const moved = (v: ForecastView) => sum(v.periods.flatMap((p) => p.moves).map((m) => m.amount));
+		const plainMoved = moved(plain);
 		const proposed = await proposeRule(w(g), {
 			mode: 'fixed',
 			amount: 500_000,
 			targetAccountId: g.maya
 		});
 		// A proposed rule changes nothing: only one in force does
-		expect(
-			(await cashflowForecast(g.ctx, { to, group: 'week' })).periods.flatMap((p) => p.moves)
-		).toHaveLength(0);
+		expect(moved(await cashflowForecast(g.ctx, { to, group: 'week' }))).toBe(plainMoved);
 		await approveRule(w(g), { ruleId: proposed.id });
 		const ruled = await cashflowForecast(g.ctx, { to, group: 'week' });
 		const moves = ruled.periods.flatMap((p) => p.moves);
-		expect(moves.length).toBeGreaterThan(0);
+		expect(moved(ruled)).toBeGreaterThan(plainMoved);
 		expect(moves.every((m) => m.kind === 'move' && m.accountId === g.rcbc)).toBe(true);
 		// The move to Maya is the rule's 5,000 or more (what no rule claims goes to the first rule), on the payday
 		const toMaya = moves.filter((m) => m.toAccountId === g.maya);
@@ -242,6 +242,41 @@ describe('the forecast of a person', () => {
 		const moves = out.periods.flatMap((p) => p.moves);
 		expect(moves.length).toBeGreaterThan(0);
 		expect(moves.some((m) => m.toAccountId === g.maya)).toBe(true);
+	});
+
+	it('still moves what a short pay can fund, in the split order, and says it is short', async () => {
+		const g = await seedPerson(t);
+		await recordSnapshot(w(g), { accountId: g.rcbc, amount: 3_000_000 });
+		for (const day of [5, 20])
+			await createBill(w(g), {
+				name: `Rent ${day}`,
+				category: 'bills',
+				accountId: g.rcbc,
+				kind: 'fixed',
+				amount: 500_000,
+				schedule: { kind: 'monthly', day },
+				weekendRule: 'none',
+				deferrable: false
+			});
+		for (const [amount, targetAccountId] of [
+			[1_500_000, g.maya],
+			[900_000, g.gcash]
+		] as const) {
+			const r = await proposeRule(w(g), { mode: 'fixed', amount, targetAccountId });
+			await approveRule(w(g), { ruleId: r.id });
+		}
+		const soon = addDays(today, 30);
+		const out = await cashflowForecast(g.ctx, { to: soon, group: 'week' });
+		expect(out.notes.join(' ')).toMatch(/is short by/);
+		const moves = out.periods.flatMap((p) => p.moves);
+		// Pay 25,000: the 5,000 bill stays in the income account, Maya's rule is whole, GCash gets the 5,000 left of its 9,000
+		// Maya's 15,000 rule is funded in full and the moves of one payday never add up to more than the 25,000 pay
+		expect(moves.some((m) => m.toAccountId === g.maya && m.amount >= 1_500_000)).toBe(true);
+		const byDate = new Map<string, number>();
+		for (const m of moves) byDate.set(m.date, (byDate.get(m.date) ?? 0) + m.amount);
+		expect(byDate.size).toBeGreaterThan(0);
+		for (const total of byDate.values()) expect(total).toBeLessThanOrEqual(2_500_000);
+		expect(out.itemsOmitted).toBeUndefined();
 	});
 
 	it('names a payday whose split cannot be worked out instead of guessing', async () => {
