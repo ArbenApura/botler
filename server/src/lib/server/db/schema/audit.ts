@@ -405,7 +405,10 @@ export const EXEMPT_FROM_AUDIT: Record<string, string> = {
 	chat: 'a conversation; its title can be message text, so it is kept out of the trail like the transcript',
 	memory_fact: 'memory has its own provenance, editing and wipe',
 	memory_profile: 'memory has its own provenance, editing and wipe',
-	memory_summary: 'memory has its own provenance, editing and wipe'
+	memory_summary: 'memory has its own provenance, editing and wipe',
+	notebook:
+		'personal text with its own revisions (who changed it, and the text it replaced) and its own wipe, kept out of the trail like the transcript',
+	notebook_revision: 'the revisions of the notebook: the notebook is the history, not the trail'
 };
 
 // -- AUDIT -- //

@@ -14,7 +14,8 @@ import type {
 	CompletionRequest,
 	ModelConfig,
 	StreamEvent,
-	ToolCall
+	ToolCall,
+	WireThinkingBlock
 } from './types';
 export type {
 	Completion,
@@ -40,6 +41,8 @@ import {
 import { defaultSleep } from './core';
 import { createDsmlGuard } from './dsml';
 import { OpsError } from '../ops/context';
+import { DEFAULT_CHAT_MAX_TOKENS } from './chatEnv';
+import { STREAM_TIMEOUT_MS } from './deepseek';
 
 // -- TYPES -- (local wire shapes)
 
@@ -49,6 +52,7 @@ type Block = (
 	| { type: 'text'; text: string }
 	| { type: 'tool_use'; id: string; name: string; input: unknown }
 	| { type: 'tool_result'; tool_use_id: string; content: string }
+	| WireThinkingBlock
 ) & { cache_control?: CacheControl };
 
 type WireMessage = { role: 'user' | 'assistant'; content: string | Block[] };
@@ -71,18 +75,22 @@ type StreamChunk = {
 	type: string;
 	message?: { usage?: UsageWire };
 	index?: number;
-	content_block?: { type: string; id?: string; name?: string };
+	content_block?: { type: string; id?: string; name?: string; data?: string };
 	delta?: {
 		type?: string;
 		text?: string;
 		partial_json?: string;
 		thinking?: string;
+		signature?: string;
 		stop_reason?: string;
 	};
 	usage?: UsageWire;
 };
 
 // -- CONSTANTS -- //
+
+/** The Claude 5 models, which answer a temperature with a 400. */
+const SAMPLING_REFUSED = /(haiku|sonnet|opus|fable)-5/;
 
 /** The shortest prefix the host will cache, by model name. A marker on a shorter prefix is ignored by the API, so it is not sent. */
 export function cacheMinimum(model: string): number {
@@ -132,8 +140,8 @@ function maskedArgs(argumentsJson: string, masker: Masker): unknown {
 /**
  * The internal messages, already masked, become Anthropic turns. System messages join into the top-level system
  * field; a run of user and tool results merges into one user turn (tool results carry the tool_use id they answer);
- * an assistant turn is its text block (when it has one) behind its tool_use blocks, and its thinking is never
- * sent back (Anthropic wants a signed thinking block on the way back, which this build does not keep).
+ * an assistant turn is its signed thinking blocks (only inside one message's tool rounds, never from history), then its text
+ * block (when it has one), then its tool_use blocks.
  * Tool arguments are taken from the originals (the turn loop sends the real values back) and masked into the
  * string leaves only: masking the whole arguments text could turn an unquoted number into a token and break
  * the JSON the input_schema expects. Messages and originals walk in step (maskMessages maps one to one).
@@ -171,7 +179,8 @@ function toWire(
 			if (merge) merge.push(result);
 			else turns.push({ role: 'user', content: [result] });
 		} else {
-			const blocks: Block[] = [];
+			// The signed thinking of this message goes first and unchanged: it was never masked here, and a changed byte fails the check
+			const blocks: Block[] = [...((m.role === 'assistant' ? m.wire_blocks : undefined) ?? [])];
 			if (m.content) blocks.push({ type: 'text', text: m.content });
 			const original = originals[i];
 			const calls = (m.role === 'assistant' ? m.tool_calls : undefined) ?? [];
@@ -203,25 +212,27 @@ export function createAnthropicClient(config: ModelConfig) {
 		model: config.model,
 		limits: config.limits,
 		rateLimiter: config.rateLimiter,
-		timeoutMs: config.timeoutMs ?? 60_000,
+		timeoutMs: config.timeoutMs ?? STREAM_TIMEOUT_MS,
 		maxRetries: config.maxRetries ?? 2,
 		fetch: config.fetch ?? fetch,
 		sleep: config.sleep ?? defaultSleep
 	});
 	const defaultMaxTokens = config.defaultMaxTokens ?? 2048;
-	const thinkingMaxTokens = config.thinkingMaxTokens ?? 8192;
-	const chatMaxTokens = config.chatMaxTokens ?? 8192;
-	const timeoutMs = config.timeoutMs ?? 60_000;
+	const chatMaxTokens = config.chatMaxTokens ?? DEFAULT_CHAT_MAX_TOKENS;
+	const thinkingMaxTokens = config.thinkingMaxTokens ?? chatMaxTokens;
+	const chatEffort = config.chatEffort ?? 'high';
+	const timeoutMs = config.timeoutMs ?? STREAM_TIMEOUT_MS;
 
-	/** The body for one call. max_tokens is required on /v1/messages. Thinking is offered only to a streamed
-	 * chat answer, and a thinking answer carries no tools: thinking is display-only in this build, because a
-	 * thinking block would have to go back signed on the next round. */
+	/** The body for one call. max_tokens is required on /v1/messages. Adaptive thinking is offered only to a streamed
+	 * chat answer, with the tools still offered: the signed thinking blocks go back unchanged inside the message's
+	 * tool rounds. The effort is the person's chat setting for a chat stream and always low for complete() (the jobs). */
 	function buildBody(
 		req: CompletionRequest,
 		masker: Masker,
 		stream: boolean
 	): Record<string, unknown> {
 		const thinking = stream && config.thinking === true && req.bucket === 'chat';
+		const effort = stream && req.bucket === 'chat' ? chatEffort : 'low';
 		const masked = maskMessages(req.messages, masker);
 		const { system, turns, stableTurns } = toWire(masked, req.messages, masker, req.stableCount);
 		// The repo's tool definitions are OpenAI shaped; the wire wants input_schema
@@ -230,13 +241,11 @@ export function createAnthropicClient(config: ModelConfig) {
 			description: string;
 			input_schema: Record<string, unknown>;
 			cache_control?: CacheControl;
-		}[] = !thinking
-			? (req.tools ?? []).map((t) => ({
-					name: t.function.name,
-					description: t.function.description,
-					input_schema: t.function.parameters
-				}))
-			: [];
+		}[] = (req.tools ?? []).map((t) => ({
+			name: t.function.name,
+			description: t.function.description,
+			input_schema: t.function.parameters
+		}));
 		const systemBlocks: { type: 'text'; text: string; cache_control?: CacheControl }[] = system.map(
 			(text) => ({ type: 'text', text })
 		);
@@ -278,9 +287,13 @@ export function createAnthropicClient(config: ModelConfig) {
 			...(wireTools.length ? { tools: wireTools } : {}),
 			// 'none' keeps the tools in the body (so their cache survives) and forbids any call. Never sent without tools
 			...(wireTools.length && req.toolChoice === 'none' ? { tool_choice: { type: 'none' } } : {}),
-			// A thinking model ignores sampling settings, so none are sent while thinking
-			...(req.temperature !== undefined && !thinking ? { temperature: req.temperature } : {}),
-			...(thinking ? { thinking: { type: 'enabled', budget_tokens: 4096 } } : {}),
+			// Claude 5 models refuse sampling settings, and a thinking model ignores them, so none are sent to either
+			...(req.temperature !== undefined && !thinking && !SAMPLING_REFUSED.test(config.model)
+				? { temperature: req.temperature }
+				: {}),
+			// Adaptive thinking, summarized for the screen. The budget_tokens form is refused by Claude 5 models
+			...(thinking ? { thinking: { type: 'adaptive', display: 'summarized' } } : {}),
+			output_config: { effort },
 			stream
 		};
 	}
@@ -392,6 +405,8 @@ export function createAnthropicClient(config: ModelConfig) {
 			let reportedUncached = 0;
 			let reportedOut: number | null = null;
 			const calls = new Map<number, { id: string; name: string; arguments: string }>();
+			// The thinking blocks as they arrive, by block index: the text, the signature, or the redacted data
+			const thoughts = new Map<number, WireThinkingBlock>();
 			let completed = false;
 			// Assigned in the finally block below, which always runs
 			let final: Usage;
@@ -434,8 +449,22 @@ export function createAnthropicClient(config: ModelConfig) {
 									name: wire.content_block.name ?? '',
 									arguments: ''
 								});
+							else if (wire.index !== undefined && wire.content_block?.type === 'thinking')
+								thoughts.set(wire.index, { type: 'thinking', thinking: '', signature: '' });
+							else if (wire.index !== undefined && wire.content_block?.type === 'redacted_thinking')
+								thoughts.set(wire.index, {
+									type: 'redacted_thinking',
+									data: wire.content_block.data ?? ''
+								});
 						} else if (wire.type === 'content_block_delta' && wire.delta?.type) {
-							if (wire.delta.type === 'thinking_delta' && wire.delta.thinking) {
+							if (wire.delta.type === 'signature_delta' && wire.index !== undefined) {
+								const block = thoughts.get(wire.index);
+								if (block?.type === 'thinking') block.signature += wire.delta.signature ?? '';
+							} else if (wire.delta.type === 'thinking_delta' && wire.delta.thinking) {
+								if (wire.index !== undefined) {
+									const block = thoughts.get(wire.index);
+									if (block?.type === 'thinking') block.thinking += wire.delta.thinking;
+								}
 								reasoning += wire.delta.thinking;
 								thinking = true;
 								const shown = thinkUnmasker.push(wire.delta.thinking);
@@ -523,13 +552,20 @@ export function createAnthropicClient(config: ModelConfig) {
 					function: { name: c.name, arguments: c.arguments || '{}' }
 				})),
 				finishReason,
-				// A thinking answer went out without tools on the wire, so its markup is only removed
-				toolsOffered(req) && !(config.thinking === true && req.bucket === 'chat')
+				toolsOffered(req)
 			);
+			// In the order they came, and only whole ones: a thinking block with no signature would be refused when it goes back
+			const wireBlocks = [...thoughts.entries()]
+				.sort((a, b) => a[0] - b[0])
+				.map(([, b]) => b)
+				.filter((b) => b.type === 'redacted_thinking' || b.signature !== '');
 			yield {
 				type: 'done',
 				completion: {
 					...finish(masker, written.content, written.calls, written.finishReason, final),
+					charged: core.charged(final),
+					provider: 'anthropic' as const,
+					...(wireBlocks.length ? { wireBlocks } : {}),
 					...(reasoning ? { reasoningRaw: masker.unmask(reasoning) } : {})
 				}
 			};

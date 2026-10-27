@@ -8,7 +8,7 @@ import type { ChatMessage } from '../../src/lib/server/proxy/types';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { historyStart } from '../../src/lib/server/agent/chat';
+import { buildHistory } from '../../src/lib/server/agent/transcript';
 import { buildMessages, SYSTEM_PREFIX } from '../../src/lib/server/agent/prompt';
 import { buildTools, toDefs } from '../../src/lib/server/agent/tools';
 import { maskMessages } from '../../src/lib/server/proxy/core';
@@ -123,18 +123,45 @@ describe('the context block', () => {
 	});
 });
 
+describe('the topic rules', () => {
+	it('tells the model that a short follow-up continues the topic, and that earlier data can be stale', () => {
+		expect(SYSTEM_PREFIX).toMatch(/TOPIC/);
+		expect(SYSTEM_PREFIX).toMatch(/"another", "proceed", "why\?"/);
+		expect(SYSTEM_PREFIX).toMatch(/continues the topic of your last answer/);
+		expect(SYSTEM_PREFIX).toMatch(/summary in a system message/);
+		expect(SYSTEM_PREFIX).toMatch(/Read the data again before you work out a new total/);
+	});
+
+	it('puts the notebook and summary system messages right after the prefix, before the history', () => {
+		const m = buildMessages({
+			now: new Date('2026-10-27T01:00:00Z'),
+			system: ['notebook text', 'summary text'],
+			history: [{ role: 'user', content: 'earlier' }],
+			userText: 'now'
+		});
+		expect(m.map((x) => x.role)).toEqual(['system', 'system', 'system', 'user', 'user']);
+		expect(m[1]?.content).toBe('notebook text');
+		expect(m[2]?.content).toBe('summary text');
+	});
+});
+
 describe('the history window', () => {
-	it('keeps 6 to 10 turns and only moves in steps of 5', () => {
-		const kept = (n: number) => n - historyStart(n);
-		for (let n = 0; n <= 10; n++) expect(historyStart(n)).toBe(0);
-		for (let n = 0; n <= 80; n++) {
-			expect(kept(n)).toBeLessThanOrEqual(10);
-			if (n > 10) expect(kept(n)).toBeGreaterThanOrEqual(6);
-		}
-		// The start is the same for five turns in a row, then moves by exactly 5
-		expect([11, 12, 13, 14, 15].map(historyStart)).toEqual([5, 5, 5, 5, 5]);
-		expect([16, 17, 18, 19, 20].map(historyStart)).toEqual([10, 10, 10, 10, 10]);
-		expect(historyStart(21)).toBe(15);
+	it('moves only in steps of 5 turns once the token budget is passed', () => {
+		const turn = (i: number) => ({
+			userText: `question ${i}`,
+			reply: 'a'.repeat(400),
+			transcript: null
+		});
+		const turns = Array.from({ length: 60 }, (_, i) => turn(i));
+		// About 100 tokens a turn, so a 1000 token budget holds about ten turns
+		const startOf = (n: number) =>
+			buildHistory(turns.slice(0, n), { provider: undefined, budget: 1000 }).start;
+		for (let n = 0; n <= 7; n++) expect(startOf(n)).toBe(0);
+		for (let n = 0; n <= 60; n++) expect(startOf(n) % 5).toBe(0);
+		// The start is the same for several turns in a row, then moves by exactly 5
+		const seen = [...new Set(Array.from({ length: 51 }, (_, i) => startOf(i + 10)))];
+		expect(seen.length).toBeGreaterThan(3);
+		for (let i = 1; i < seen.length; i++) expect(seen[i]! - seen[i - 1]!).toBe(5);
 	});
 });
 
@@ -202,5 +229,24 @@ describe('the efficient work lines', () => {
 		// The write was taken after untrusted text came in the same step, so it waits for the person
 		expect(cardEvents(events)).toHaveLength(1);
 		expect(toolEvents(events).length).toBeLessThanOrEqual(12);
+	});
+});
+
+describe('the math rules', () => {
+	it('sends every sum beyond a small addition to calc and every forecast to cashflow_forecast', () => {
+		expect(SYSTEM_PREFIX).toMatch(/MATH/);
+		expect(SYSTEM_PREFIX).toMatch(/beyond one small addition goes through the calc tool/);
+		expect(SYSTEM_PREFIX).toMatch(/cashflow_forecast/);
+		expect(SYSTEM_PREFIX).toMatch(/Never add up bills_due or balances by hand/);
+		expect(SYSTEM_PREFIX).toMatch(/Quote the numbers a tool returns as they are/);
+		expect(SYSTEM_PREFIX).toMatch(/"double check", run the tool again/);
+	});
+
+	it('names only tools that exist', async () => {
+		const { buildTools } = await import('../../src/lib/server/agent/tools');
+		const names = new Set(buildTools().map((t) => t.name));
+		const mentioned =
+			SYSTEM_PREFIX.match(/\b(?:calc|cashflow_forecast|bills_due|notebook_edit)\b/g) ?? [];
+		for (const n of mentioned) expect(names.has(n), n).toBe(true);
 	});
 });

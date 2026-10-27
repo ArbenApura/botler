@@ -1,6 +1,6 @@
 // -- TYPES -- //
 import type { Ctx } from '../../src/lib/server/ops/context';
-import type { ModelConfig } from '../../src/lib/server/proxy/anthropic';
+import type { ChatMessage, ModelConfig } from '../../src/lib/server/proxy/anthropic';
 import type { Limits } from '../../src/lib/server/proxy/limits';
 import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { user } from '../../src/lib/server/db/schema';
 import { createAnthropicClient } from '../../src/lib/server/proxy/anthropic';
 import { DEFAULT_LIMITS } from '../../src/lib/server/proxy/limits';
+import { createMasker } from '../../src/lib/server/proxy/mask';
 import { createTestDb } from '../support/testDb';
 
 // -- CONSTANTS -- //
@@ -132,7 +133,7 @@ describe('anthropic client', () => {
 		await c.complete(anna, { bucket: 'memory', messages });
 		await client(f.fn, {}, { chatMaxTokens: 4000 }).complete(anna, { bucket: 'chat', messages });
 		const ceilings = f.calls.map((c) => (JSON.parse(c.body) as { max_tokens: number }).max_tokens);
-		expect(ceilings).toEqual([8192, 2048, 4000]);
+		expect(ceilings).toEqual([64000, 2048, 4000]);
 	});
 
 	it('maps usage with the cached reads into the shared buckets, and restores the reply', async () => {
@@ -418,7 +419,7 @@ describe('anthropic client', () => {
 		expect(done?.usage).toMatchObject({ promptTokens: 30, completionTokens: 12 });
 	});
 
-	it('shows the streamed thinking when ANTHROPIC_THINKING is on, and offers no tools while it thinks', async () => {
+	it('shows the streamed thinking when ANTHROPIC_THINKING is on, and keeps the tools offered while it thinks', async () => {
 		const parts = [
 			sseLine({ type: 'message_start', message: { usage: { input_tokens: 30 } } }),
 			sseLine({ type: 'content_block_start', index: 0, content_block: { type: 'thinking' } }),
@@ -473,19 +474,139 @@ describe('anthropic client', () => {
 		}
 		const body = JSON.parse(f.calls[0]!.body) as {
 			thinking?: unknown;
-			tools?: unknown;
+			tools?: unknown[];
 			max_tokens: number;
+			output_config?: unknown;
+			temperature?: unknown;
 		};
-		expect(body.thinking).toBeTruthy();
-		// A thinking answer carries no tools in this build: the signed block cannot go back
-		expect(body.tools).toBeUndefined();
-		// The thinking ceiling applies
-		expect(body.max_tokens).toBe(8192);
+		// Adaptive thinking, summarized, at the chat effort, with the tools still offered
+		expect(body.thinking).toEqual({ type: 'adaptive', display: 'summarized' });
+		expect(body.output_config).toEqual({ effort: 'high' });
+		expect(body.tools).toHaveLength(1);
+		expect(body.temperature).toBeUndefined();
+		// The thinking ceiling follows the chat ceiling
+		expect(body.max_tokens).toBe(64000);
 		expect(f.calls[0]!.body).not.toContain('reasoning_content');
 		expect(thought).toBe(' think Maria hard');
 		expect(text).toBe('So: done.');
 		expect(done?.finishReason).toBe('stop');
 		expect(done?.usage).toMatchObject({ promptTokens: 30, completionTokens: 40 });
+	});
+
+	it('keeps the signed thinking blocks in order and sends them back unchanged in the same message', async () => {
+		const sse = (parts: string[]) =>
+			new Response(
+				new ReadableStream({
+					start(controller) {
+						for (const part of parts) controller.enqueue(new TextEncoder().encode(part));
+						controller.close();
+					}
+				}),
+				{ status: 200 }
+			);
+		const first = [
+			sseLine({ type: 'message_start', message: { usage: { input_tokens: 30 } } }),
+			sseLine({ type: 'content_block_start', index: 0, content_block: { type: 'thinking' } }),
+			sseLine({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'thinking_delta', thinking: 'about [NAME_1]' }
+			}),
+			sseLine({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'signature_delta', signature: 'sig-' }
+			}),
+			sseLine({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'signature_delta', signature: 'one' }
+			}),
+			sseLine({
+				type: 'content_block_start',
+				index: 1,
+				content_block: { type: 'redacted_thinking', data: 'opaque-data' }
+			}),
+			sseLine({
+				type: 'content_block_start',
+				index: 2,
+				content_block: { type: 'tool_use', id: 'tu_1', name: 'log_expense' }
+			}),
+			sseLine({
+				type: 'content_block_delta',
+				index: 2,
+				delta: { type: 'input_json_delta', partial_json: '{"note":"taxi"}' }
+			}),
+			sseLine({
+				type: 'message_delta',
+				delta: { stop_reason: 'tool_use' },
+				usage: { output_tokens: 20 }
+			}),
+			sseLine({ type: 'message_stop' })
+		];
+		const second = [
+			sseLine({ type: 'message_start', message: { usage: { input_tokens: 60 } } }),
+			sseLine({ type: 'content_block_start', index: 0, content_block: { type: 'text' } }),
+			sseLine({
+				type: 'content_block_delta',
+				index: 0,
+				delta: { type: 'text_delta', text: 'Done.' }
+			}),
+			sseLine({
+				type: 'message_delta',
+				delta: { stop_reason: 'end_turn' },
+				usage: { output_tokens: 5 }
+			}),
+			sseLine({ type: 'message_stop' })
+		];
+		const f = fakeFetch((_c, n) => sse(n === 1 ? first : second));
+		const c = client(f.fn, {}, { thinking: true });
+		const masker = createMasker(['Maria']);
+		const messages: ChatMessage[] = [{ role: 'user', content: 'Hello Maria' }];
+		let done;
+		for await (const ev of c.stream(ben, { bucket: 'chat', tools: defs, masker, messages }))
+			if (ev.type === 'done') done = ev.completion;
+		expect(done?.wireBlocks).toEqual([
+			{ type: 'thinking', thinking: 'about [NAME_1]', signature: 'sig-one' },
+			{ type: 'redacted_thinking', data: 'opaque-data' }
+		]);
+		messages.push({
+			role: 'assistant',
+			content: null,
+			tool_calls: done?.toolCalls,
+			wire_blocks: done?.wireBlocks
+		});
+		messages.push({ role: 'tool', tool_call_id: 'tu_1', content: '{"ok":true}' });
+		for await (const ev of c.stream(ben, { bucket: 'chat', tools: defs, masker, messages }))
+			void ev;
+		const sent = JSON.parse(f.calls[1]!.body) as {
+			messages: { role: string; content: { type: string }[] }[];
+		};
+		const assistant = sent.messages.find((m) => m.role === 'assistant');
+		// The blocks lead the turn, byte for byte as they came, before the tool call
+		expect(assistant?.content.map((b) => b.type)).toEqual([
+			'thinking',
+			'redacted_thinking',
+			'tool_use'
+		]);
+		expect(assistant?.content[0]).toEqual({
+			type: 'thinking',
+			thinking: 'about [NAME_1]',
+			signature: 'sig-one'
+		});
+	});
+
+	it('sends effort low for complete(), the chat effort for a chat stream, and no temperature to Claude 5', async () => {
+		const f = fakeFetch(() => textAnswer('ok'));
+		await client(f.fn, {}, { chatEffort: 'max' }).complete(ben, {
+			bucket: 'memory',
+			temperature: 0.3,
+			messages: [{ role: 'user', content: 'hi' }]
+		});
+		const body = JSON.parse(f.calls[0]!.body) as { output_config?: unknown; temperature?: unknown };
+		expect(body.output_config).toEqual({ effort: 'low' });
+		expect(body.temperature).toBeUndefined();
+		expect(body).not.toHaveProperty('thinking');
 	});
 
 	it('logs counts only, never the message text or the key', async () => {

@@ -24,6 +24,20 @@ export const purgeOld: JobHandler = async (_job, tx) => {
 		.where(lt(undoJournal.createdAt, sql`now() - ${UNDO_DAYS} * interval '1 day'`));
 };
 
+/**
+ * The jobs of the fact memory that the notebook replaced. Nothing schedules them any more; one that was queued before is closed here
+ * without running, instead of failing as a job nobody can handle. The old facts and digests stay in the database, unused.
+ */
+const retired: JobHandler = async () => undefined;
+
+export const RETIRED_JOB_KINDS = [
+	'memory.embed',
+	'memory.extract',
+	'memory.digest',
+	'memory.night'
+];
+
 export const jobHandlers: Record<string, JobHandler> = {
-	'maintenance.purge': purgeOld
+	'maintenance.purge': purgeOld,
+	...Object.fromEntries(RETIRED_JOB_KINDS.map((kind) => [kind, retired]))
 };

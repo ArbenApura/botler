@@ -40,5 +40,19 @@
       "Puwede mo nang piliin kung aling AI server ang sasagot sa iyo, DeepSeek o Anthropic, sa Settings sa ilalim ng Wika at pera.",
       "Kung hindi pa naka-set up ang isang server, hindi ito iaalok, at ang default na server ang patuloy na gagamitin ng Botler."
     ]
+  },
+  {
+    "versionCode": 11,
+    "versionName": "1.1.0",
+    "en": [
+      "Botler now keeps a Notebook about you. It writes lasting things in it while you talk, you can read and change all of it, and every change can be undone from Changes.",
+      "Botler thinks for much longer on hard questions, keeps the topic in long chats, and works out sums and week by week forecasts exactly instead of guessing.",
+      "You can now delete a savings goal for good: tap the three dots on the goal, or ask Botler and approve the card. The money you saved stays where it is."
+    ],
+    "fil": [
+      "May Kuwaderno na si Botler tungkol sa iyo. Isinusulat niya rito ang mga bagay na pangmatagalan habang nag-uusap kayo, mababasa at mababago mo ang lahat ng laman nito, at puwedeng bawiin ang bawat pagbabago sa Mga pagbabago.",
+      "Mas matagal nang nag-iisip si Botler sa mahihirap na tanong, napapanatili ang paksa sa mahahabang usapan, at eksakto nang kinukuwenta ang mga sum at forecast kada linggo sa halip na manghula.",
+      "Puwede mo nang burahin nang tuluyan ang isang savings goal: i-tap ang tatlong tuldok sa goal, o hilingin kay Botler at aprubahan ang card. Mananatili kung nasaan ang perang naipon mo."
+    ]
   }
 ]

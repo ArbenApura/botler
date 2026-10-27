@@ -5,7 +5,11 @@ import type { TransportResponse } from '../../src/lib/server/agent/fetchGuard';
 import type { WebDeps } from '../../src/lib/server/agent/tools';
 import type { TurnEvent, TurnModel } from '../../src/lib/server/agent/turn';
 import type { Ctx } from '../../src/lib/server/ops/context';
-import type { CompletionRequest, StreamEvent } from '../../src/lib/server/proxy/deepseek';
+import type {
+	CompletionRequest,
+	StreamEvent,
+	WireThinkingBlock
+} from '../../src/lib/server/proxy/types';
 import type { TestDb } from '../support/testDb';
 // -- MODULES -- //
 import { runTurn } from '../../src/lib/server/agent/turn';
@@ -24,6 +28,12 @@ export type Step = {
 	think?: string;
 	/** Overrides the finish reason (for example 'length'). */
 	finish?: string;
+	/** What the call used. Default 10 in and 5 out. `charged` is what it counts against the monthly cap. */
+	usage?: { promptTokens: number; completionTokens: number; charged?: number };
+	/** Which provider the stand-in answers as, so a stored transcript records it. */
+	provider?: 'anthropic' | 'deepseek';
+	/** Anthropic's signed thinking blocks of this answer. */
+	wireBlocks?: WireThinkingBlock[];
 };
 export type ScriptFn = (req: CompletionRequest, n: number) => Step;
 
@@ -66,7 +76,15 @@ export function stubModel(script: Step[] | ScriptFn): StubModel {
 						function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) }
 					})),
 					finishReason: step.finish ?? (step.calls?.length ? 'tool_calls' : 'stop'),
-					usage: { promptTokens: 10, completionTokens: 5 },
+					usage: step.usage
+						? {
+								promptTokens: step.usage.promptTokens,
+								completionTokens: step.usage.completionTokens
+							}
+						: { promptTokens: 10, completionTokens: 5 },
+					...(step.usage?.charged !== undefined ? { charged: step.usage.charged } : {}),
+					...(step.wireBlocks ? { wireBlocks: step.wireBlocks } : {}),
+					...(step.provider ? { provider: step.provider } : {}),
 					...(step.think ? { reasoningRaw: step.think } : {})
 				}
 			};

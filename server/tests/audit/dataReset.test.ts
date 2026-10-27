@@ -14,6 +14,7 @@ import {
 	dataResetChatsSql,
 	dataResetLatestSql,
 	dataResetMigrationSql,
+	dataResetWalletsSql,
 	EVERYTHING_TABLES,
 	KEPT_ON_RESET,
 	SCOPE_TABLES
@@ -158,10 +159,27 @@ describe('the account wallets copy of the function', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0025_account_wallets.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		// 0025 holds the function as it was then, before the notebook tables were added to the memory scope
+		expect(file).toContain(dataResetWalletsSql());
+		expect(dataResetWalletsSql()).not.toContain('notebook');
 		const money = SCOPE_TABLES.money;
 		expect(money.indexOf('account_wallet')).toBeGreaterThanOrEqual(0);
 		expect(money.indexOf('account_wallet')).toBeLessThan(money.indexOf('account'));
+	});
+});
+
+describe('the notebook copy of the function', () => {
+	it('is installed by migration 0031 and erases the revisions before the notebook', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0031_notebook.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		const memory = SCOPE_TABLES.memory_and_chat;
+		expect(memory.indexOf('notebook_revision')).toBeGreaterThanOrEqual(0);
+		expect(memory.indexOf('notebook_revision')).toBeLessThan(memory.indexOf('notebook'));
+		expect(EVERYTHING_TABLES).toContain('notebook');
+		expect(EVERYTHING_TABLES).toContain('notebook_revision');
 	});
 });
 

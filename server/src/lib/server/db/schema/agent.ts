@@ -60,6 +60,11 @@ export const chat = userTable(
 		/** Where a fork came from. Plain ids with no reference, so the source can be erased without touching the fork. */
 		forkedFromChatId: uuid('forked_from_chat_id'),
 		forkedAtTurnId: uuid('forked_at_turn_id'),
+		/** The background summary of the earlier part of a long chat. Message text: erased with the chat, never audited, never copied into a fork. */
+		summary: text('summary'),
+		/** The last message the summary covers: history carries every done message after it. A plain id, so erasing a turn never blocks. */
+		summaryThroughTurnId: uuid('summary_through_turn_id'),
+		summaryAt: timestamp('summary_at', { withTimezone: true }),
 		/** Bumped only by opening, creating, forking and a message. Never by rename, pin or archive. */
 		lastActiveAt: timestamp('last_active_at', { withTimezone: true }).notNull().defaultNow(),
 		...stamps()
@@ -89,6 +94,12 @@ export const chatTurn = userTable(
 		reply: text('reply').notNull().default(''),
 		/** The events sent to the app (tool results, cards, fallback), replayed as they were. */
 		events: jsonb('events').notNull().default([]),
+		/**
+		 * The tool rounds of this message (the assistant's tool calls and what the tools answered), so a later message in the chat still has the
+		 * data and the work. Results are shortened, web and calendar results are stubs. Null on a turn made before it, and on a turn that
+		 * did not finish. Message text: never audited, never logged.
+		 */
+		transcript: jsonb('transcript'),
 		finishedAt: timestamp('finished_at', { withTimezone: true }),
 		/** Set when the person starts a new chat: the turn is no longer shown or handed to the assistant, but it stays for memory. */
 		clearedAt: timestamp('cleared_at', { withTimezone: true }),

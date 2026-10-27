@@ -7,7 +7,6 @@ import type { Ctx } from '../ops/context';
 // -- DEP-MODULES -- //
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
 import { job, user } from '../db/schema';
 import { lockPerson, setAuditContext, withUser } from '../db/tenant';
 import { auditOf } from '../ops/context';
@@ -40,6 +39,13 @@ export type EnqueueInput = {
 // -- CONSTANTS -- //
 
 const CLAIM_MS = 5 * 60_000;
+
+/**
+ * Jobs that wait on the model for a long time. Every other job holds the person's lock for its whole run, so their own writes line up
+ * behind it; these would make the next chat message wait for a summary or a tidy. They read first without the lock, call the model, and take
+ * the lock themselves just before they write, checking again that nothing changed.
+ */
+export const UNLOCKED_JOBS: ReadonlySet<string> = new Set(['chat.compact', 'notebook.seed']);
 const BACKOFF_BASE_MS = 30_000;
 const BACKOFF_MAX_MS = 60 * 60_000;
 /** Finished jobs are kept a week, failed ones a month, then removed. */
@@ -159,7 +165,7 @@ export async function runBatch(
 				};
 				// The handler's transaction sets the owner's user id before its first query, then who is acting for the audit trail
 				await withUser(handle, row.userId, async (tx) => {
-					await lockPerson(tx, row.userId);
+					if (!UNLOCKED_JOBS.has(row.kind)) await lockPerson(tx, row.userId);
 					await setAuditContext(tx, { ...auditOf(ctx) });
 					return handler(row, tx, ctx);
 				});
@@ -191,8 +197,6 @@ export async function purgeFinished(handle: DbHandle, now: Date = new Date()): P
 export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date()): Promise<void> {
 	const people = await handle.db.select({ id: user.id }).from(user);
 	const day = now.toISOString().slice(0, 10);
-	// The memory jobs work on the Manila day that just ended, so they are keyed and given that day
-	const yesterday = addDays(toManilaDate(now), -1);
 	for (const p of people) {
 		await handle.db
 			.insert(job)
@@ -203,11 +207,6 @@ export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date
 			.insert(job)
 			.values({ userId: p.id, kind: 'fx.refresh', key: day })
 			.onConflictDoNothing();
-		for (const kind of ['memory.digest', 'memory.night'])
-			await handle.db
-				.insert(job)
-				.values({ userId: p.id, kind, key: yesterday, payload: { day: yesterday } })
-				.onConflictDoNothing();
 	}
 }
 

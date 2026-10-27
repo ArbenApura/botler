@@ -69,8 +69,14 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-5-5}
       ANTHROPIC_THINKING: ${ANTHROPIC_THINKING:-}
       ANTHROPIC_CACHE_TTL: ${ANTHROPIC_CACHE_TTL:-}
-      # The most tokens one chat model call may write. Empty means 8192
+      # The most tokens one chat model call may write, thinking and answer together. Empty means 64000
       CHAT_MAX_TOKENS: ${CHAT_MAX_TOKENS:-}
+      # How hard the chat model thinks: low, medium, high or max. Empty means high
+      CHAT_EFFORT: ${CHAT_EFFORT:-}
+      # The most charged tokens one chat message may use over all its model calls. Empty means 300000
+      TURN_TOKEN_BUDGET: ${TURN_TOKEN_BUDGET:-}
+      # The most tokens of earlier messages sent with a chat message, before the oldest drop and the chat is summarised. Empty means 40000
+      HISTORY_TOKENS: ${HISTORY_TOKENS:-}
       # Set this too so people can choose DeepSeek in the app (Settings, AI server). With it empty, DeepSeek is not offered
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}

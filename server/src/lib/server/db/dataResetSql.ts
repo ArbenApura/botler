@@ -43,8 +43,19 @@ export const SCOPE_TABLES: Record<
 	],
 	schedule: ['reminder', 'task', 'calendar_event', 'routine'],
 	// A chat is deleted after its turns (the turns point at it)
-	memory_and_chat: ['chat_turn', 'chat', 'memory_fact', 'memory_summary']
+	// The revisions of the notebook go before the notebook they point at
+	memory_and_chat: [
+		'chat_turn',
+		'chat',
+		'memory_fact',
+		'memory_summary',
+		'notebook_revision',
+		'notebook'
+	]
 };
+
+/** The notebook and its revisions: erased by a memory and chat reset since migration 0031. */
+const NOTEBOOK_TABLES: readonly string[] = ['notebook_revision', 'notebook'];
 
 /**
  * The money scope as migration 0017 shipped it, kept as it was so the 0017 file stays checkable. Later tables are added to SCOPE_TABLES
@@ -58,7 +69,14 @@ const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter(
 const MONEY_0021: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'account_wallet');
 
 /** The memory and chat scope as migrations 0017 and 0018 shipped it, before conversations existed (0021 adds the chat table). */
-const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter((t) => t !== 'chat');
+const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
+	(t) => t !== 'chat' && !NOTEBOOK_TABLES.includes(t)
+);
+
+/** The memory and chat scope as migrations 0021 and 0025 shipped it, before the notebook existed (0031 adds its two tables). */
+const MEMORY_0025: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
+	(t) => !NOTEBOOK_TABLES.includes(t)
+);
 
 /** What 'everything' empties on top of the three scopes: the persona and what the person told it about themselves. */
 export const EVERYTHING_EXTRA: readonly string[] = ['memory_profile'];
@@ -186,15 +204,25 @@ export function dataResetBillOverrideSql(): string {
 
 /** The function migration 0021 installed (conversations, before account wallets). */
 export function dataResetChatsSql(): string {
-	return resetFunctionSql(MONEY_0021, SCOPE_TABLES.memory_and_chat, [
+	return resetFunctionSql(MONEY_0021, MEMORY_0025, [
 		...MONEY_0021,
 		...SCOPE_TABLES.schedule,
-		...SCOPE_TABLES.memory_and_chat,
+		...MEMORY_0025,
 		...EVERYTHING_EXTRA
 	]);
 }
 
-/** The function as it is now: what the newest migration (0025, account wallets) installs over the one of 0021. */
+/** The function migration 0025 installed (account wallets, before the notebook). */
+export function dataResetWalletsSql(): string {
+	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0025, [
+		...SCOPE_TABLES.money,
+		...SCOPE_TABLES.schedule,
+		...MEMORY_0025,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0031, the notebook) installs over the one of 0025. */
 export function dataResetLatestSql(): string {
 	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
 }

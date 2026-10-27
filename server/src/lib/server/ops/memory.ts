@@ -12,7 +12,7 @@ import type { Tx } from '../db/client';
 import type { Plain } from './shared';
 import type { Ctx } from './context';
 // -- DEP-MODULES -- //
-import { and, desc, eq, inArray, isNull, like, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import {
 	account,
@@ -29,6 +29,8 @@ import {
 	memoryFact,
 	memoryProfile,
 	memorySummary,
+	notebook,
+	notebookRevision,
 	splitPlan
 } from '../db/schema';
 import {
@@ -431,6 +433,12 @@ export async function exportAll(ctx: Ctx) {
 			memory: {
 				facts: facts.map(view),
 				summaries: await tx.select().from(memorySummary).where(mine(memorySummary)),
+				notebook: await tx.select().from(notebook).where(mine(notebook)),
+				notebookRevisions: await tx
+					.select()
+					.from(notebookRevision)
+					.where(mine(notebookRevision))
+					.orderBy(notebookRevision.version),
 				conversations: await tx
 					.select({
 						clientMessageId: chatTurn.clientMessageId,
@@ -465,7 +473,7 @@ export async function exportAll(ctx: Ctx) {
 
 /**
  * Wipes the assistant's memory of the person: facts (with their vectors and tombstones), digests and the conversation transcripts,
- * and resets the mood. Queued memory jobs are dropped so nothing is rebuilt. Their settings (persona, about, names) and all finance
+ * and resets the mood. Queued memory jobs are dropped so nothing is rebuilt. The notebook and its changes go too, and the old persona and about lines are cleared; the private names and all finance
  * data stay. Only the person can do this.
  */
 export async function wipeMemory(ctx: Ctx, raw: unknown) {
@@ -487,14 +495,32 @@ export async function wipeMemory(ctx: Ctx, raw: unknown) {
 				.returning({ id: chatTurn.id });
 			// The conversations (their names can be message text) go with the messages
 			await tx.delete(chat).where(eq(chat.userId, userId));
+			// The notebook is what the assistant remembers of the person now: it goes with its revisions. The old persona and about lines
+			// were copied into it, so they are cleared too, or the next notebook would be built from them again. The private names stay
+			const notes = await tx
+				.delete(notebook)
+				.where(eq(notebook.userId, userId))
+				.returning({ id: notebook.id });
+			await tx.delete(notebookRevision).where(eq(notebookRevision.userId, userId));
 			await tx
 				.update(memoryProfile)
-				.set({ mood: 0, familiarity: 0, updatedAt: sql`now()` })
+				.set({ mood: 0, familiarity: 0, persona: '', about: '', updatedAt: sql`now()` })
 				.where(eq(memoryProfile.userId, userId));
 			await tx
 				.delete(job)
-				.where(and(eq(job.userId, userId), like(job.kind, 'memory.%'), eq(job.status, 'queued')));
-			return { facts: facts.length, summaries: summaries.length, conversations: turns.length };
+				.where(
+					and(
+						eq(job.userId, userId),
+						or(like(job.kind, 'memory.%'), inArray(job.kind, ['chat.compact', 'notebook.seed'])),
+						eq(job.status, 'queued')
+					)
+				);
+			return {
+				facts: facts.length,
+				summaries: summaries.length,
+				conversations: turns.length,
+				notebooks: notes.length
+			};
 		})
 	);
 }

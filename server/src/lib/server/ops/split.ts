@@ -34,6 +34,8 @@ export type StoredSplit = SplitResult & {
 	periodEnd: string;
 	incomeAccountId: string;
 	accountNames: Record<string, string>;
+	/** Rules in force that were left out because the goal they point at is switched off: what each was for, and a sentence to show. */
+	skippedRules?: { ruleId: string; goal: string; note: string }[];
 	/** The bills in another currency that were counted at a rate: what each is, what it came to in the main currency, the rate and its date. */
 	foreignBills?: {
 		billId: string;
@@ -93,14 +95,22 @@ export async function proposeSplitPlan(
 			.select({ id: account.id, name: account.name })
 			.from(account)
 			.where(eq(account.userId, userId));
-		const goals = await tx
-			.select()
-			.from(goal)
-			.where(and(eq(goal.userId, userId), eq(goal.active, true)));
-		const rules = await tx
+		const everyGoal = await tx.select().from(goal).where(eq(goal.userId, userId));
+		const goals = everyGoal.filter((g) => g.active);
+		const live = new Set(goals.map((g) => g.id));
+		const inForce = await tx
 			.select()
 			.from(allocationRule)
 			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')));
+		// A rule that points at a goal that is switched off cannot be placed: it is left out before the totals and the checks, so the pay it
+		// would have taken goes where unclaimed pay always goes, and the plan says which rule was skipped
+		const rules = inForce.filter((r) => !r.targetGoalId || live.has(r.targetGoalId));
+		const skipped = inForce
+			.filter((r) => r.targetGoalId && !live.has(r.targetGoalId))
+			.map((r) => ({
+				ruleId: r.id,
+				goal: everyGoal.find((g) => g.id === r.targetGoalId)?.name ?? 'a goal that is gone'
+			}));
 		return {
 			inc,
 			payday,
@@ -111,6 +121,7 @@ export async function proposeSplitPlan(
 			accounts,
 			goals,
 			rules,
+			skipped,
 			// The split is in the main currency, so a bill in another one is counted at the stored rate
 			main: (await readSettings(tx, userId)).currency,
 			rates: await loadRates(tx)
@@ -195,6 +206,14 @@ export async function proposeSplitPlan(
 		periodEnd: gathered.periodEnd,
 		incomeAccountId: gathered.inc.accountId,
 		accountNames: names,
+		...(gathered.skipped.length > 0
+			? {
+					skippedRules: gathered.skipped.map((s) => ({
+						...s,
+						note: `The rule for "${s.goal}" was skipped because that goal is switched off.`
+					}))
+				}
+			: {}),
 		...(foreignBills.length > 0 ? { foreignBills } : {})
 	};
 	return mapped(() =>

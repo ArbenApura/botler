@@ -31,6 +31,8 @@ import {
 	userSetting,
 	auditEvent,
 	memorySummary,
+	notebook,
+	notebookRevision,
 	modelUsage,
 	reminder,
 	requestLog,
@@ -163,6 +165,18 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		tx
 			.insert(memorySummary)
 			.values({ userId, period: 'day', periodStart: '2026-10-20', text: 'A day.' }),
+	notebook: (tx, userId) =>
+		tx.insert(notebook).values({ userId, text: '# About you\n- Likes tea\n' }),
+	notebook_revision: async (tx, userId) => {
+		const [book] = await tx
+			.insert(notebook)
+			.values({ userId, text: 'current' })
+			.onConflictDoUpdate({ target: notebook.userId, set: { updatedAt: new Date() } })
+			.returning({ id: notebook.id });
+		await tx
+			.insert(notebookRevision)
+			.values({ userId, notebookId: book!.id, version: 1, text: 'before', actor: 'user' });
+	},
 	chat: (tx, userId) => tx.insert(chat).values({ userId, title: 'A chat' }),
 	chat_turn: async (tx, userId) =>
 		tx.insert(chatTurn).values({

@@ -16,7 +16,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { SYSTEM_PREFIX } from '../../src/lib/server/agent/prompt';
 import { buildTools, toDefs } from '../../src/lib/server/agent/tools';
-import { historyStart } from '../../src/lib/server/agent/chat';
+import { DEFAULT_HISTORY_TOKENS } from '../../src/lib/server/agent/compact';
+import { buildHistory } from '../../src/lib/server/agent/transcript';
 import { runTurn } from '../../src/lib/server/agent/turn';
 import { createAnthropicClient } from '../../src/lib/server/proxy/anthropic';
 import { createModelClient } from '../../src/lib/server/proxy/deepseek';
@@ -132,12 +133,17 @@ const reports: Report[] = [];
 
 const est = (chars: number) => Math.ceil(chars / 4);
 
-/** The history the turn loop gets: the stepwise window of chat.ts history(), each side cut at 1,500 characters. */
+/** Where the history window started for each count of finished messages, so the cache check can tell when it slid. */
+const starts = new Map<number, number>();
+
+/** The history the turn loop gets: chat.ts history() under the token budget, replies in full, tool rounds left out of the simulation. */
 function historyFor(done: { user: string; reply: string }[]): ChatMessage[] {
-	return done.slice(historyStart(done.length)).flatMap((d): ChatMessage[] => [
-		{ role: 'user', content: d.user.slice(0, 1500) },
-		{ role: 'assistant', content: d.reply.slice(0, 1500) }
-	]);
+	const built = buildHistory(
+		done.map((d) => ({ userText: d.user, reply: d.reply, transcript: null })),
+		{ provider: undefined, budget: DEFAULT_HISTORY_TOKENS }
+	);
+	starts.set(done.length, built.start);
+	return built.messages;
 }
 
 /** One simulated clock shared by the fake network and the harness. */
@@ -562,7 +568,7 @@ describe('cache bench', () => {
 		for (const [i, c] of first.entries()) {
 			const next = first[i + 1];
 			if (!next || c.marks.length < 3) continue;
-			if (historyStart(c.turn - 1) !== historyStart(c.turn)) continue;
+			if (starts.get(c.turn - 1) !== starts.get(c.turn)) continue;
 			expect(next.all.has(c.marks.at(-2)!), `turn ${c.turn}`).toBe(true);
 		}
 	});

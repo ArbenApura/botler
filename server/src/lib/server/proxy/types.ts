@@ -11,6 +11,11 @@ export type ToolCall = {
 	function: { name: string; arguments: string };
 };
 
+/** A thinking block exactly as Anthropic sent it, signature included. */
+export type WireThinkingBlock =
+	| { type: 'thinking'; thinking: string; signature: string }
+	| { type: 'redacted_thinking'; data: string };
+
 export type ChatMessage =
 	| { role: 'system' | 'user'; content: string }
 	| {
@@ -19,6 +24,11 @@ export type ChatMessage =
 			tool_calls?: ToolCall[];
 			/** The model's own thinking. Masked like the rest on its way out; a provider that cannot take it back drops it. */
 			reasoning_content?: string;
+			/**
+			 * Anthropic only: the thinking and redacted_thinking blocks this message came with, signed and in order. They go back unchanged
+			 * (never masked again) inside the same message's tool rounds, and are never stored or put in history.
+			 */
+			wire_blocks?: WireThinkingBlock[];
 	  }
 	| { role: 'tool'; tool_call_id: string; content: string };
 
@@ -44,8 +54,10 @@ export type ModelConfig = {
 	chatMaxTokens?: number;
 	/** Streamed chat answers think first and show their thinking. Never applies to the memory bucket or to complete(). */
 	thinking?: boolean;
-	/** The ceiling when thinking is on: thinking tokens share max_tokens with the answer. */
+	/** The ceiling when thinking is on: thinking tokens share max_tokens with the answer. Follows chatMaxTokens when left out. */
 	thinkingMaxTokens?: number;
+	/** How hard a chat call thinks. Default 'high'. DeepSeek maps low and medium to high. A call to complete() (the jobs) always uses low. */
+	chatEffort?: 'low' | 'medium' | 'high' | 'max';
 	/** Anthropic only: how long a cached prefix lives. '5m' is renewed free on every read; '1h' costs more to write. Default '5m'. */
 	cacheTtl?: '5m' | '1h';
 	/** Anthropic only: send cache markers. On by default. */
@@ -80,6 +92,12 @@ export type Completion = {
 	usage: Usage;
 	/** The thinking with real values restored, like content: it is only kept to go back to the model in a tool round, where maskMessages masks it again. Never stored or logged. */
 	reasoningRaw?: string;
+	/** Anthropic only: the signed thinking blocks of this answer, to be passed back unchanged in the same message's tool rounds. */
+	wireBlocks?: WireThinkingBlock[];
+	/** What this call counted against the monthly cap (cache reads and writes weighted). Left out by a stand-in model. */
+	charged?: number;
+	/** Which host answered, so a stored transcript is only replayed to the same one. Left out by a stand-in model. */
+	provider?: 'anthropic' | 'deepseek';
 };
 
 export type StreamEvent =

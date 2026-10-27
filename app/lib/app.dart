@@ -19,7 +19,7 @@ import 'features/chat/chat_screen.dart';
 import 'features/chat/chat_state.dart';
 import 'features/expense/expense_screen.dart';
 import 'features/history/history_screen.dart';
-import 'features/memory/memory_screen.dart';
+import 'features/memory/notebook_screen.dart';
 import 'features/menu/menu_screen.dart';
 import 'features/money/account_detail_screen.dart';
 import 'features/money/accounts_screen.dart';
@@ -121,7 +121,7 @@ GoRouter buildRouter(WidgetRef ref) {
       ),
       GoRoute(
         path: '/memory',
-        pageBuilder: (_, state) => botlerPage(state, const MemoryScreen()),
+        pageBuilder: (_, state) => botlerPage(state, const NotebookScreen()),
       ),
       GoRoute(
         path: '/settings/reset',

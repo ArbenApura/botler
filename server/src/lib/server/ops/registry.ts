@@ -14,6 +14,8 @@ import type { Ctx } from './context';
 import {
 	accountCreateInput,
 	accountIdInput,
+	calcInput,
+	cashflowForecastInput,
 	accountUpdateInput,
 	fxConvertInput,
 	walletAddInput,
@@ -27,6 +29,7 @@ import {
 	expenseFromTextInput,
 	expenseLogInput,
 	goalCreateInput,
+	goalDeleteInput,
 	goalUpdateInput,
 	incomeCreateInput,
 	incomeRecordInput,
@@ -47,6 +50,9 @@ import {
 	timerCreateInput,
 	memoryEditInput,
 	memoryFactIdInput,
+	notebookEditInput,
+	notebookRestoreInput,
+	notebookSaveInput,
 	memoryListInput,
 	memoryRememberInput,
 	memoryResolveInput,
@@ -96,6 +102,8 @@ import {
 import { calendarRange } from './calendarRange';
 import { previewDataReset, resetData } from './dataReset';
 import { assetsSummary } from './assets';
+import { runCalc } from './calc';
+import { cashflowForecast } from './forecast';
 import { billPayOpensWallet, opensWallet, textOpensWallet } from './gates';
 import { fxConvert, fxRates, fxRatesRefresh } from './fx';
 import { getSettings, setSettings } from './settings';
@@ -127,6 +135,7 @@ import {
 import {
 	createGoal,
 	createIncome,
+	deleteGoal,
 	listGoals,
 	listIncome,
 	nextPaydays,
@@ -164,6 +173,13 @@ import {
 	updateTask
 } from './schedule';
 import { syncGet } from './sync';
+import {
+	editNotebook,
+	getNotebook,
+	listRevisions,
+	restoreRevision,
+	saveNotebook
+} from './notebook';
 import { approveRule, listRules, proposeRule, proposeRuleFromText, retireRule } from './rules';
 import { parse, requireBill } from './shared';
 import {
@@ -191,6 +207,11 @@ export type Verb = {
 	gatedWhen?(ctx: Ctx, args: unknown): Promise<boolean>;
 	/** What it returns can hold text someone else wrote (a calendar entry): reading it closes the turn to writes, like a web page. */
 	taints: boolean;
+	/**
+	 * False for a verb that is for the app only: it is never offered to the assistant as a tool, and the assistant is refused if it names it.
+	 * The app still calls it (the old memory screen, the notebook page). Left out, the assistant may use it unless it is person-only.
+	 */
+	agent: boolean;
 };
 
 // -- FUNCTIONS -- //
@@ -203,6 +224,7 @@ function verb<S extends z.ZodObject>(v: {
 	run: (ctx: Ctx, args: z.infer<S>) => Promise<unknown>;
 	gatedWhen?: (ctx: Ctx, args: z.infer<S>) => Promise<boolean>;
 	taints?: boolean;
+	agent?: boolean;
 }): Verb {
 	const strict = v.input.strict();
 	return {
@@ -210,6 +232,7 @@ function verb<S extends z.ZodObject>(v: {
 		description: v.description,
 		kind: v.kind,
 		taints: v.taints ?? false,
+		agent: v.agent ?? true,
 		input: strict,
 		run: (ctx, raw) => v.run(ctx, parse(strict, raw) as z.infer<S>),
 		...(v.gatedWhen
@@ -380,7 +403,40 @@ export const VERBS: readonly Verb[] = [
 	}),
 
 	verb({
+		name: 'calc',
+		kind: 'read',
+		description:
+			'A calculator that is exact (no rounding noise). Use it for every sum beyond one small addition: totals, percentages, splits, loans, how long until a goal, days between dates. Send the lines in order; a line may name its result (name) and later lines use the name, or line1, line2 and so on. Numbers are plain, no thousands commas. Operators + - * / ^ and brackets; 5% is 0.05, so 200 * 5% is 10. Functions: round(x, places) floor ceil abs min max sum avg sqrt pow ln exp, pmt(rate, periods, present) fv pv nper with the signs of a spreadsheet (money paid out is negative), and for dates between quotes: days(from, to), add_days(date, n), add_months(date, n). Pass currency (and unit minor when the number is already in centavos or cents) to get the line as written money. Quote the values it returns as they are.',
+		input: calcInput,
+		run: (ctx, a) => runCalc(ctx, a)
+	}),
+	verb({
+		name: 'cashflow_forecast',
+		kind: 'read',
+		description:
+			'What the accounts will hold from today to a date (at most 366 days), worked out by the server: the balance now of every wallet, the paydays, the unpaid bills by due date (with any date, amount or account changed for one date), and the payday moves of the approved rules. Group by day (up to 62 days), week or month. Each period gives its start and end totals in the main currency, every payment in, out and moved with its date, the wallets that changed, and the end balance of each account; warnings say when a wallet goes below zero. Wallets of other currencies are converted at the stored rates and one with no rate is named and left out. Use this, never bills_due added by hand, for "how much will I have by ..." and for week by week tallies, and quote its numbers as they are. Read its notes before quoting a total.',
+		input: cashflowForecastInput,
+		run: (ctx, a) => cashflowForecast(ctx, a)
+	}),
+	verb({
+		name: 'notebook_get',
+		kind: 'read',
+		agent: false,
+		description: 'The notebook: the text, its version and who wrote it last.',
+		input: emptyInput,
+		run: (ctx) => getNotebook(ctx)
+	}),
+	verb({
+		name: 'notebook_revisions',
+		kind: 'read',
+		agent: false,
+		description: 'The changes made to the notebook, newest first.',
+		input: emptyInput,
+		run: (ctx) => listRevisions(ctx)
+	}),
+	verb({
 		name: 'memory_list',
+		agent: false,
 		kind: 'read',
 		description:
 			'What is remembered about the person. history adds replaced facts, pending shows facts waiting for a choice.',
@@ -389,6 +445,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'memory_search',
+		agent: false,
 		kind: 'read',
 		description: 'Search the remembered facts for a question.',
 		input: memorySearchInput,
@@ -396,6 +453,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'profile_get',
+		agent: false,
 		kind: 'read',
 		description: 'The persona, the about lines and the private names the person set.',
 		input: emptyInput,
@@ -519,7 +577,16 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => closeReminder(ctx, a)
 	}),
 	verb({
+		name: 'notebook_edit',
+		kind: 'free',
+		description:
+			'Change your notebook, the notes you keep about the person that you read before every answer. Write a lasting preference, a rule, a person or an ongoing plan here as soon as the person says it or asks you to remember it. op add: heading and line (one short sentence; the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Never put a balance, an account number or anything one-off in it. It applies from the next message.',
+		input: notebookEditInput,
+		run: (ctx, a) => editNotebook(ctx, a)
+	}),
+	verb({
 		name: 'memory_remember',
+		agent: false,
 		kind: 'free',
 		description: 'Remember a lasting fact the person asked you to remember.',
 		input: memoryRememberInput,
@@ -527,6 +594,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'memory_edit',
+		agent: false,
 		kind: 'free',
 		description: 'Change the words of a remembered fact. The old words are kept as history.',
 		input: memoryEditInput,
@@ -534,6 +602,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'memory_forget',
+		agent: false,
 		kind: 'free',
 		description: 'Forget a remembered fact for good, when the person asks.',
 		input: memoryFactIdInput,
@@ -541,6 +610,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'memory_resolve',
+		agent: false,
 		kind: 'free',
 		description:
 			'Settle two facts that disagree: keep the new one or the old one, as the person chooses.',
@@ -549,6 +619,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'profile_set',
+		agent: false,
 		kind: 'free',
 		description: 'Set how you talk, the about lines, or the private names, when the person asks.',
 		input: profileSetInput,
@@ -762,6 +833,14 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => createGoal(ctx, a)
 	}),
 	verb({
+		name: 'goal_delete',
+		kind: 'gated',
+		description:
+			'Remove a savings goal for good, with the payday rules that point at it. It makes a card the person approves. The money saved for it stays where it is. To stop saving for a goal without deleting it, use goal_update with active false. Never forget a memory or change the notebook instead of deleting a goal.',
+		input: goalDeleteInput,
+		run: (ctx, a) => deleteGoal(ctx, a)
+	}),
+	verb({
 		name: 'snapshot_record',
 		kind: 'gated',
 		description:
@@ -899,6 +978,20 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => retireRule(ctx, a)
 	}),
 	verb({
+		name: 'notebook_save',
+		kind: 'person',
+		description: 'Save the whole text of the notebook, from the version that was opened.',
+		input: notebookSaveInput,
+		run: (ctx, a) => saveNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_restore',
+		kind: 'person',
+		description: 'Put an earlier text of the notebook back.',
+		input: notebookRestoreInput,
+		run: (ctx, a) => restoreRevision(ctx, a)
+	}),
+	verb({
 		name: 'memory_wipe',
 		kind: 'person',
 		description: 'Wipe all memory and conversations.',
@@ -926,7 +1019,8 @@ const BY_NAME = new Map(VERBS.map((v) => [v.name, v]));
 export const verbByName = (name: string): Verb | undefined => BY_NAME.get(name);
 
 /** What the assistant may be offered: everything except the person-only verbs. */
-export const agentVerbs = (): readonly Verb[] => VERBS.filter((v) => v.kind !== 'person');
+export const agentVerbs = (): readonly Verb[] =>
+	VERBS.filter((v) => v.kind !== 'person' && v.agent);
 
 /**
  * Runs a verb for the caller in `ctx`. An assistant caller is refused a gated or person-only verb here, before any input is read,
@@ -936,7 +1030,8 @@ export async function invokeVerb(ctx: Ctx, name: string, raw: unknown): Promise<
 	const v = BY_NAME.get(name);
 	if (!v) throw new OpsError('NOT_FOUND', `There is no such operation: ${name}`);
 	if (ctx.actor.kind === 'agent') {
-		if (v.kind === 'gated' || v.kind === 'person')
+		// A verb that is for the app only is refused here as well, not only left out of the tool list
+		if (v.kind === 'gated' || v.kind === 'person' || !v.agent)
 			throw new OpsError(
 				'FORBIDDEN',
 				'The assistant cannot do that on its own. It needs your approval.'

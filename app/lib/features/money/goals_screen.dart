@@ -79,6 +79,19 @@ class GoalsScreen extends ConsumerWidget {
                           }
                         },
                       ),
+                      PopupMenuButton<String>(
+                        tooltip: context.t.goalsMenu,
+                        onSelected: (_) => _delete(context, ref, g),
+                        itemBuilder: (_) => <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Text(
+                              context.t.goalsDelete,
+                              style: TextStyle(color: c.danger),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -92,6 +105,28 @@ class GoalsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Removes a goal for good, after asking. Its payday rules go with it; the money saved for it stays where it is.
+  Future<void> _delete(BuildContext context, WidgetRef ref, Json g) async {
+    final deleted = context.t.goalsDeleted;
+    final ok = await confirm(
+      context,
+      title: context.t.goalsDeleteTitle,
+      body: context.t.goalsDeleteBody(str(g['name'])),
+      yes: context.t.goalsDeleteYes,
+      danger: true,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(apiProvider).verb('goal_delete', <String, Object?>{
+        'goalId': str(g['id']),
+      });
+      ref.invalidate(_goalsProvider);
+      if (context.mounted) say(context, deleted);
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+    }
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {

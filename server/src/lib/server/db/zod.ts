@@ -20,6 +20,7 @@ import {
 	goal,
 	incomeSchedule,
 	ledgerTxn,
+	NOTEBOOK_MAX_CHARS,
 	userSetting
 } from './schema';
 
@@ -659,6 +660,59 @@ export const profileSetInput = z.object({
 	/** Names of family and contacts to keep out of what the model sees. */
 	people: z.array(z.string().trim().min(1).max(60)).max(50).optional()
 });
+
+// -- GOAL DELETE -- //
+
+/** A goal removed for good, with the payday rules that point at it. */
+export const goalDeleteInput = z.object({ goalId: idField });
+
+// -- FORECAST -- //
+
+/** The cash-flow forecast from today to a date, by day (up to 62 days), by week (the person's week start) or by month. */
+export const cashflowForecastInput = z.object({
+	to: dayField,
+	group: z.enum(['day', 'week', 'month']).optional()
+});
+
+// -- CALCULATOR -- //
+
+/** Lines for the calculator. A line may name its result, and may ask for it as money in a currency (in that currency's own unit, or `minor`). */
+export const calcInput = z.object({
+	lines: z
+		.array(
+			z.strictObject({
+				name: z.string().trim().max(40).optional(),
+				expr: z.string().max(500),
+				currency: currencyField.optional(),
+				unit: z.enum(['major', 'minor']).optional()
+			})
+		)
+		.min(1)
+		.max(60)
+});
+
+// -- NOTEBOOK -- //
+
+/** The whole text of the notebook, from the version the editor was opened on (0 when there was no notebook yet). */
+export const notebookSaveInput = z.object({
+	text: z.string().max(NOTEBOOK_MAX_CHARS),
+	expectVersion: z.number().int().min(0)
+});
+
+/** One change to the notebook that the assistant makes: add a line under a heading, or replace or remove exact text. */
+export const notebookEditInput = z.object({
+	op: z.enum(['add', 'replace', 'remove']),
+	/** For add: the heading to add the line under. It is made when it is not there yet. */
+	heading: z.string().trim().min(1).max(80).optional(),
+	/** For add: the line, one short sentence. */
+	line: z.string().trim().min(1).max(400).optional(),
+	/** For replace and remove: the exact text to change. It must appear once in the notebook. */
+	find: z.string().min(1).max(2000).optional(),
+	/** For replace: the text that takes its place. */
+	replacement: z.string().max(2000).optional()
+});
+
+export const notebookRestoreInput = z.object({ revisionId: idField });
 
 export const wipeInput = z.object({ confirm: z.literal(true) });
 

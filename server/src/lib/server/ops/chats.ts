@@ -338,6 +338,8 @@ export async function chatFork(ctx: Ctx, raw: ChatForkInput) {
 					status: t.status,
 					reply: t.reply,
 					events: t.events,
+					// The tool rounds travel with the messages; the summary does not, so a fork starts with none
+					transcript: t.transcript,
 					finishedAt: t.finishedAt,
 					copiedFromTurnId: t.id,
 					createdAt: t.createdAt,

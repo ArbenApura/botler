@@ -9,6 +9,7 @@ export * from './finance';
 export * from './fx';
 export * from './agent';
 export * from './memory';
+export * from './notebook';
 export * from './schedule';
 export * from './settings';
 export * from './audit';

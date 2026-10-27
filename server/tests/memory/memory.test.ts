@@ -758,27 +758,31 @@ describe('the jobs', () => {
 });
 
 describe('the assistant uses memory', () => {
-	it('puts persona, tone, the core block and the right facts in the prompt', async () => {
+	it('puts the notebook, made from the old memory, in the second system message and nothing of memory in the context', async () => {
 		const c = await newUser();
 		await setProfile(as(c), {
 			persona: 'Talk like a friendly older sister.',
 			about: 'Ana, 29, Makati.'
 		});
-		await withUser(t.handle, c.actor.userId, (tx) =>
-			tx.update(memoryProfile).set({ mood: -50 }).where(eq(memoryProfile.userId, c.actor.userId))
-		);
 		await rememberFact(as(c), { text: 'My mother Nena has diabetes' });
 		const model = stubModel([{ say: 'Hi.' }]);
 		for await (const _ of handleChat(
 			c,
 			{ clientMessageId: 'msg-prompt-0001', text: 'how is my mother doing?' },
-			{ model, embedder: null }
+			{ model }
 		));
-		const system = String(model.requests[0]?.messages[1]?.content);
+		const messages = model.requests[0]!.messages;
+		const system = String(messages[1]?.content);
+		expect(messages[1]?.role).toBe('system');
+		expect(system).toContain('<notebook>');
+		expect(system).toContain('# How Botler talks to you');
 		expect(system).toContain('Talk like a friendly older sister.');
-		expect(system).toContain('Be gentle and brief.');
-		expect(system).toContain('- About the person: Ana, 29, Makati.');
+		expect(system).toContain('Ana, 29, Makati.');
 		expect(system).toContain('- My mother Nena has diabetes');
+		// The facts are no longer fetched for the message: its context block holds none of them
+		const last = String(messages.at(-1)?.content);
+		expect(last).not.toContain('Nena');
+		expect(last).not.toContain('What you remember');
 	});
 
 	it('hides the names the person listed, from the persona and the facts too', async () => {
@@ -812,7 +816,7 @@ describe('the assistant uses memory', () => {
 		for await (const _ of handleChat(
 			c,
 			{ clientMessageId: 'msg-names-0001', text: 'tell Nena Reyes I said hi' },
-			{ model, embedder: null }
+			{ model }
 		));
 		expect(bodies).toHaveLength(1);
 		expect(bodies[0]).not.toContain('Maria Santos');
@@ -820,12 +824,12 @@ describe('the assistant uses memory', () => {
 		expect(bodies[0]).toContain('[NAME_');
 	});
 
-	it('queues the reading of what the person said, with only the turn id', async () => {
+	it('no longer queues the reading of what the person said: Botler writes the notebook during the chat', async () => {
 		const c = await newUser();
 		for await (const _ of handleChat(
 			c,
 			{ clientMessageId: 'msg-queue-0001', text: 'I always pay the rent on the first' },
-			{ model: stubModel([{ say: 'Ok.' }]), embedder: null }
+			{ model: stubModel([{ say: 'Ok.' }]) }
 		));
 		// The job table is shared by everyone (it holds ids only), so this person's jobs are picked out by user
 		const jobs = await withUser(t.handle, c.actor.userId, (tx) =>
@@ -834,9 +838,7 @@ describe('the assistant uses memory', () => {
 				.from(job)
 				.where(and(eq(job.kind, 'memory.extract'), eq(job.userId, c.actor.userId)))
 		);
-		expect(jobs).toHaveLength(1);
-		expect(Object.keys(jobs[0]?.payload as object)).toEqual(['turnId']);
-		expect(JSON.stringify(jobs[0])).not.toContain('rent');
+		expect(jobs).toHaveLength(0);
 	});
 
 	it('writes no message text to any log, in a chat or in the jobs', async () => {
@@ -873,7 +875,7 @@ describe('the assistant uses memory', () => {
 		for await (const _ of handleChat(
 			c,
 			{ clientMessageId: 'msg-logs-00001', text: `Remember ${secret} for me please` },
-			{ model, embedder: null }
+			{ model }
 		));
 		const turn = await withUser(t.handle, c.actor.userId, (tx) =>
 			tx
@@ -956,7 +958,8 @@ describe('persona, export and wipe', () => {
 		expect(left.facts).toHaveLength(0);
 		expect(left.turns).toHaveLength(0);
 		expect(left.queued).toHaveLength(0);
-		expect(await getProfile(c)).toMatchObject({ persona: 'Be brief.', mood: 0, familiarity: 0 });
+		// The persona and about lines now live in the notebook, which the wipe erases, so they are cleared with it; the names stay
+		expect(await getProfile(c)).toMatchObject({ persona: '', about: '', mood: 0, familiarity: 0 });
 		expect((await exportAll(c)).finance.accounts).toHaveLength(1);
 	});
 });
@@ -985,15 +988,23 @@ describe('isolation between people', () => {
 });
 
 describe('the assistant and memory writes', () => {
-	it("may remember and forget on the person's word, but not wipe or export", async () => {
+	it('is refused the old memory verbs, which are for the app only now, as well as wipe and export', async () => {
 		const c = await newUser();
-		const r = (await invokeVerb({ ...agentOf(c), requestId: rid() }, 'memory_remember', {
+		for (const [verb, args] of [
+			['memory_remember', { text: 'I prefer tea' }],
+			['memory_forget', { factId: '11111111-1111-4111-8111-111111111111' }],
+			['profile_set', { persona: 'x' }],
+			['memory_wipe', { confirm: true }],
+			['memory_export', {}]
+		] as const)
+			await expect(
+				invokeVerb({ ...agentOf(c), requestId: rid() }, verb, args)
+			).rejects.toMatchObject({ code: 'FORBIDDEN' });
+		// The person still can, over the API, for an older app
+		const r = (await invokeVerb({ ...c, requestId: rid() }, 'memory_remember', {
 			text: 'I prefer tea'
 		})) as { status: string; id: string };
 		expect(r.status).toBe('created');
-		await invokeVerb({ ...agentOf(c), requestId: rid() }, 'memory_forget', { factId: r.id });
-		await expect(invokeVerb(agentOf(c), 'memory_wipe', { confirm: true })).rejects.toMatchObject({
-			code: 'FORBIDDEN'
-		});
+		await invokeVerb({ ...c, requestId: rid() }, 'memory_forget', { factId: r.id });
 	});
 });

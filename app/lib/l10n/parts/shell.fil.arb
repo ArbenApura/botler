@@ -12,8 +12,8 @@
   "menuHistoryLine": "Lahat ng ginastos mo, at i-undo",
   "menuAgenda": "Agenda",
   "menuAgendaLine": "Mga gawain, event, routine at paalala",
-  "menuMemory": "Alaala",
-  "menuMemoryLine": "Ang natatandaan ni Botler, at kung paano siya magsalita",
+  "menuNotebook": "Kuwaderno",
+  "menuNotebookLine": "Ang itinatago ni Botler sa isip tungkol sa iyo",
   "menuSettings": "Mga setting",
   "menuSettingsLine": "Wika, pera, lock, notification, itsura",
 

@@ -1543,12 +1543,32 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get goalsDelete => 'Burahin nang tuluyan';
+
+  @override
+  String goalsDeleteBody(String name) {
+    return 'Buburahin nang tuluyan ang “$name” at ang anumang payday rule na tumutukoy dito. Mananatili kung nasaan ang perang naipon mo para dito.';
+  }
+
+  @override
+  String get goalsDeleteTitle => 'Burahin ang goal na ito?';
+
+  @override
+  String get goalsDeleteYes => 'Burahin';
+
+  @override
+  String get goalsDeleted => 'Nabura na.';
+
+  @override
   String goalsEachPayday(String amount) {
     return '$amount bawat payday';
   }
 
   @override
   String get goalsEmpty => 'Wala pang goal. Para saan mo gustong mag-ipon?';
+
+  @override
+  String get goalsMenu => 'Higit pa tungkol sa goal na ito';
 
   @override
   String get goalsNameHint => 'Pondo para sa emergency';
@@ -1635,120 +1655,34 @@ class AppLocalizationsFil extends AppLocalizations {
   String get lockUnlock => 'I-unlock';
 
   @override
-  String get memoryAboutLabel => 'Ilang linya tungkol sa iyo';
-
-  @override
-  String memoryBefore(String text) {
-    return 'Dati: $text';
-  }
-
-  @override
-  String get memoryChange => 'Baguhin';
-
-  @override
-  String get memoryChangeTitle => 'Baguhin ang memory na ito';
-
-  @override
   String get memoryCopied => 'Nakopya ang lahat sa clipboard.';
 
   @override
   String get memoryCopyAll =>
-      'Kopyahin ang lahat (memory at pera) bilang teksto';
-
-  @override
-  String get memoryEmpty =>
-      'Wala pa. Natututo si Botler habang nag-uusap kayo, o sabihin mo: “tandaan mo na…”.';
-
-  @override
-  String get memoryForget => 'Kalimutan';
-
-  @override
-  String memoryForgetBody(String text) {
-    return 'Buburahin ang “$text” at hindi na ito babalik.';
-  }
-
-  @override
-  String get memoryForgetTitle => 'Kalimutan ito?';
-
-  @override
-  String get memoryForgetYes => 'Kalimutan';
-
-  @override
-  String get memoryForgotten => 'Nakalimutan na.';
-
-  @override
-  String get memoryInSentence => 'Sa isang pangungusap';
-
-  @override
-  String get memoryKeepOld => 'Panatilihin ang luma';
-
-  @override
-  String get memoryLearned => 'Natutunan sa usapan';
+      'Kopyahin ang lahat (kuwaderno at pera) bilang teksto';
 
   @override
   String get memoryMore => 'Higit pa';
 
   @override
-  String get memoryNotSure => 'Hindi sigurado si Botler';
-
-  @override
-  String memoryNow(String text) {
-    return 'Ngayon: $text';
-  }
-
-  @override
   String get memoryPeopleHint => 'Mama, Ate Liza';
-
-  @override
-  String get memoryPeopleLabel =>
-      'Mga pangalang itatago (paghiwalayin ng kuwit)';
 
   @override
   String get memoryPeopleNote =>
       'Itinatago ni Botler ang mga pangalang ito sa AI na sumusulat ng mga sagot niya.';
 
   @override
-  String get memoryPersonaHint => 'Parang mabait na ate, maiikling sagot';
-
-  @override
-  String get memoryPersonaLabel => 'Paano dapat makipag-usap si Botler?';
-
-  @override
-  String get memoryRememberTitle => 'Magpatanda ng bagay';
-
-  @override
-  String get memoryRemembers => 'Ang natatandaan ni Botler';
-
-  @override
   String get memorySaved => 'Nai-save na.';
-
-  @override
-  String get memorySearchHint => 'Hanapin sa mga memory';
-
-  @override
-  String get memoryTalks => 'Paano makipag-usap si Botler sa iyo';
-
-  @override
-  String get memoryTellSomething => 'Sabihan si Botler ng dapat tandaan';
-
-  @override
-  String get memoryTitle => 'Memory';
-
-  @override
-  String get memoryUseNew => 'Gamitin ang bago';
-
-  @override
-  String get memoryWhichRight => 'Alin ang tama?';
 
   @override
   String get memoryWipe => 'Burahin';
 
   @override
   String get memoryWipeBody =>
-      'Buburahin nito ang lahat ng memory, buod at ang mga usapan ninyo ni Botler. Mananatili ang iyong mga account, bayarin at talaan ng pera. Hindi na ito mababawi.';
+      'Buburahin nito ang kuwaderno mo at ang mga pagbabago nito, at ang mga usapan ninyo ni Botler. Mananatili ang mga pribadong pangalan, mga account, bill at ang iba pa sa pera mo.';
 
   @override
-  String get memoryWipeButton => 'Burahin ang natatandaan ni Botler';
+  String get memoryWipeButton => 'Burahin ang kuwaderno at mga usapan';
 
   @override
   String get memoryWipeTitle => 'Burahin ang lahat ng natatandaan ni Botler?';
@@ -1761,12 +1695,6 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get memoryWiped => 'Nabura na.';
-
-  @override
-  String get memoryYouSaid => 'Sinabi mo';
-
-  @override
-  String get memoryYourData => 'Ang iyong data';
 
   @override
   String get menuAccounts => 'Mga account';
@@ -1805,11 +1733,11 @@ class AppLocalizationsFil extends AppLocalizations {
   String get menuHistoryLine => 'Lahat ng ginastos mo, at i-undo';
 
   @override
-  String get menuMemory => 'Alaala';
+  String get menuNotebook => 'Kuwaderno';
 
   @override
-  String get menuMemoryLine =>
-      'Ang natatandaan ni Botler, at kung paano siya magsalita';
+  String get menuNotebookLine =>
+      'Ang itinatago ni Botler sa isip tungkol sa iyo';
 
   @override
   String get menuPayday => 'Sweldo';
@@ -1829,6 +1757,109 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get no => 'Hindi';
+
+  @override
+  String get notebookByBotler => 'Botler';
+
+  @override
+  String get notebookBySeed => 'Pag-aayos';
+
+  @override
+  String get notebookByYou => 'Ikaw';
+
+  @override
+  String get notebookChanges => 'Mga pagbabago';
+
+  @override
+  String get notebookChangesEmpty => 'Wala pang pagbabago.';
+
+  @override
+  String get notebookConflictBody =>
+      'Binago ito ni Botler, o ng ibang telepono, pagkabukas mo. Nandito pa rin ang isinulat mo. Kopyahin ito, o i-save sa ibabaw ng bagong bersyon: mananatili sa Mga pagbabago ang kabilang pagbabago.';
+
+  @override
+  String get notebookConflictCopy => 'Kopyahin ang akin';
+
+  @override
+  String get notebookConflictSave => 'I-save ang akin';
+
+  @override
+  String get notebookConflictTitle => 'Nagbago ang kuwaderno';
+
+  @override
+  String get notebookCopiedText => 'Nakopya ang isinulat mo.';
+
+  @override
+  String notebookCount(String count, String max) {
+    return '$count sa $max na character';
+  }
+
+  @override
+  String get notebookDiscardBody => 'Mawawala ang mga pagbabagong tinype mo.';
+
+  @override
+  String get notebookDiscardTitle => 'Aalis nang hindi nagse-save?';
+
+  @override
+  String get notebookDiscardYes => 'Umalis';
+
+  @override
+  String get notebookEdit => 'Baguhin';
+
+  @override
+  String get notebookEditHint =>
+      'Isulat ang dapat tandaan ni Botler tungkol sa iyo';
+
+  @override
+  String get notebookEditTitle => 'Baguhin ang kuwaderno mo';
+
+  @override
+  String get notebookEmpty =>
+      'Wala pa rito. Sabihan si Botler ng dapat tandaan, o i-tap ang Baguhin.';
+
+  @override
+  String get notebookKeepEditing => 'Ituloy ang pag-edit';
+
+  @override
+  String notebookNameRemove(String name) {
+    return 'Alisin si $name';
+  }
+
+  @override
+  String get notebookNames => 'Mga pribadong pangalan';
+
+  @override
+  String get notebookNamesAdd => 'Magdagdag ng pangalan';
+
+  @override
+  String get notebookNamesAddButton => 'Idagdag';
+
+  @override
+  String get notebookOffline =>
+      'Walang koneksyon. Nandito pa rin ang isinulat mo: subukan ulit kapag online ka na.';
+
+  @override
+  String get notebookRestore => 'Ibalik';
+
+  @override
+  String get notebookRestoreBody =>
+      'Magiging ang tekstong nasa ibaba ang kuwaderno mo. Mananatili sa Mga pagbabago ang laman nito ngayon, kaya puwede mo itong bawiin.';
+
+  @override
+  String get notebookRestoreTitle => 'Ibalik ang tekstong ito?';
+
+  @override
+  String get notebookRestored => 'Naibalik na.';
+
+  @override
+  String get notebookSectionEmpty => 'Wala pa';
+
+  @override
+  String get notebookSeeding =>
+      'Ginawa mula sa dating natatandaan ni Botler. Inaayos ito sa background, at puwede mong baguhin ang kahit alin dito.';
+
+  @override
+  String get notebookTitle => 'Kuwaderno';
 
   @override
   String get notifChannel => 'Mga paalala';

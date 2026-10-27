@@ -1,11 +1,13 @@
 // -- DEP-TYPES -- //
 import type { RequestHandler } from './$types';
+// -- ENVS -- //
+import { HISTORY_TOKENS, TURN_TOKEN_BUDGET } from '$app/env/private';
 // -- MODULES -- //
 import { callerCtx, fail, json, readJson } from '#lib/server/api/http.js';
 import { chatStatus, handleChat } from '#lib/server/agent/chat.js';
 import { webDeps } from '#lib/server/agent/webDeps.js';
 import { OpsError } from '#lib/server/ops/context.js';
-import { getModelClient } from '#lib/server/proxy/index.js';
+import { getModelClient, getProviderOf } from '#lib/server/proxy/index.js';
 
 // -- CONSTANTS -- //
 
@@ -28,7 +30,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		events = handleChat(c.ctx, body, {
 			model: getModelClient(),
 			signal: request.signal,
-			web: webDeps()
+			web: webDeps(),
+			provider: getProviderOf(),
+			historyTokens: HISTORY_TOKENS,
+			limits: { turnTokenBudget: TURN_TOKEN_BUDGET }
 		});
 		first = await events.next();
 	} catch (e) {

@@ -16,9 +16,10 @@ import { and, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { describeSchedule, occurrencesBetween, previewOccurrences } from '../../finance/schedule';
-import { goal, incomeSchedule } from '../db/schema';
+import { allocationRule, goal, incomeSchedule } from '../db/schema';
 import {
 	goalCreateInput,
+	goalDeleteInput,
 	goalUpdateInput,
 	incomeCreateInput,
 	incomeUpdateInput,
@@ -149,6 +150,33 @@ export async function updateGoal(ctx: Ctx, raw: GoalUpdateInput): Promise<GoalVi
 				.returning();
 			if (!row) throw new OpsError('NOT_FOUND', 'That goal does not exist.');
 			return plain(row);
+		})
+	);
+}
+
+/**
+ * Removes a goal for good. Every payday rule that points at it goes first, whatever its status (the reference from a rule to its goal
+ * allows no delete), then the goal, in one transaction. No money moves: what was saved stays in its account. The audit trail keeps both
+ * deletes, and a stored payday split that names the goal stays readable (it holds only the goal's id and label). Only a person can, or the
+ * person's approval of a card the assistant made.
+ */
+export async function deleteGoal(
+	ctx: Ctx,
+	raw: unknown
+): Promise<{ deleted: true; name: string; rulesRemoved: number }> {
+	requirePerson(ctx.actor.kind, 'remove a goal');
+	const input = parse(goalDeleteInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'goal.delete', input, async (tx, userId) => {
+			const current = await requireGoal(tx, userId, input.goalId);
+			const removed = await tx
+				.delete(allocationRule)
+				.where(
+					and(eq(allocationRule.userId, userId), eq(allocationRule.targetGoalId, input.goalId))
+				)
+				.returning({ id: allocationRule.id });
+			await tx.delete(goal).where(and(eq(goal.userId, userId), eq(goal.id, input.goalId)));
+			return { deleted: true as const, name: current.name, rulesRemoved: removed.length };
 		})
 	);
 }

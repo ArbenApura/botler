@@ -111,6 +111,9 @@ export function describeAction(
 			return `Add the goal "${text(args.name)}" in ${nm(args.accountId)}${num(args.perPayday) ? `, setting aside ${money(args.perPayday)} each payday` : ''}.`;
 		case 'goal_update':
 			return `Change the goal ${nm(args.goalId)}${args.name ? ` ("${text(args.name)}")` : ''}${num(args.perPayday) !== null ? `, ${money(args.perPayday)} each payday` : ''}.`;
+		case 'goal_delete':
+			// What is saved stays in its account: only the goal and the payday rules that point at it go
+			return `Delete the goal ${names.get(typeof args.goalId === 'string' ? args.goalId : '') ?? 'a goal'} for good, with any payday rules that point at it. The money saved for it stays where it is.`;
 		case 'snapshot_record': {
 			const target = num(args.amount);
 			const diff =
@@ -131,6 +134,14 @@ export function describeAction(
 			return `Record a refund of ${money(args.amount)} into ${nm(args.accountId)}.`;
 		case 'transfer_record':
 			return `Move ${money(args.amount)} from ${nm(args.fromAccountId)} to ${nm(args.toAccountId)}${typeof args.toCurrency === 'string' && num(args.toAmount) ? `, where ${moneyIn(args.toCurrency, args.toAmount)} arrives` : ''}${num(args.fee) ? ` (fee ${money(args.fee)})` : ''}.`;
+		case 'notebook_edit':
+			// All of the text is on the card, up to the most the verb accepts (heading 80, line 400, find and replacement 2000): a note written
+			// into the prompt of every later message is judged by its words, so nothing the person approves is hidden from them
+			return args.op === 'add'
+				? `Add this line to your notebook under "${text(args.heading, 80)}": "${text(args.line, 400)}".`
+				: args.op === 'replace'
+					? `In your notebook, change "${text(args.find, 2000)}" to "${text(args.replacement, 2000)}".`
+					: `Remove this from your notebook: "${text(args.find, 2000)}".`;
 		default:
 			return `Run "${verbName.replaceAll('_', ' ')}".`;
 	}

@@ -262,7 +262,7 @@ describe('who may ask', () => {
 });
 
 describe('the model prompt', () => {
-	it('is not made bigger by a long stored conversation: still at most 10 turns of 1500 characters', async () => {
+	it('is held under the history token budget however long the stored conversation is', async () => {
 		const p = await seedPerson(t);
 		for (let i = 0; i < 40; i++)
 			await turn({ who: p, text: 'q'.repeat(3000), reply: 'a'.repeat(3000), minutesAgo: 200 - i });
@@ -270,14 +270,24 @@ describe('the model prompt', () => {
 		for await (const _ of handleChat(
 			p.ctx,
 			{ clientMessageId: `hist-prompt-${++n}-aaaa`, text: 'and now?' },
-			{ model, noMemory: true }
+			// About 1500 tokens a turn: a 20000 token budget keeps nine turns, in steps of five from the start
+			{ model, noMemory: true, historyTokens: 20_000 }
 		));
 		const sent = model.requests[0]!.messages.filter(
 			(m) => m.role === 'user' || m.role === 'assistant'
 		);
-		// 10 turns of two messages, then the new question
-		expect(sent.length).toBeLessThanOrEqual(21);
-		for (const m of sent.slice(0, -1))
-			expect(typeof m.content === 'string' ? m.content.length : 0).toBeLessThanOrEqual(1500);
+		const tokens = sent
+			.slice(0, -1)
+			.reduce(
+				(sum, m) => sum + Math.ceil((typeof m.content === 'string' ? m.content.length : 0) / 4),
+				0
+			);
+		expect(tokens).toBeLessThanOrEqual(20_000);
+		// Replies are no longer cut at 1500 characters
+		expect(sent.some((m) => m.role === 'assistant' && String(m.content).length === 3000)).toBe(
+			true
+		);
+		expect(sent.length).toBeGreaterThan(4);
+		expect(sent.at(-1)?.role).toBe('user');
 	});
 });

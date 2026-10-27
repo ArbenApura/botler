@@ -12,8 +12,8 @@
   "menuHistoryLine": "Everything you spent, and undo",
   "menuAgenda": "Agenda",
   "menuAgendaLine": "Tasks, events, routines and reminders",
-  "menuMemory": "Memory",
-  "menuMemoryLine": "What Botler remembers, and how it talks",
+  "menuNotebook": "Notebook",
+  "menuNotebookLine": "What Botler keeps in mind about you",
   "menuSettings": "Settings",
   "menuSettingsLine": "Language, money, lock, notifications, look",
 

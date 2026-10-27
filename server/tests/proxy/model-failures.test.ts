@@ -54,7 +54,7 @@ describe('model client failures', () => {
 			return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }], usage: {} }));
 		}) as unknown as typeof fetch;
 		await ask(make(f));
-		expect(JSON.parse(body).max_tokens).toBe(8192);
+		expect(JSON.parse(body).max_tokens).toBe(64000);
 		await make(f, { defaultMaxTokens: 100 }).complete(anna, {
 			bucket: 'chat',
 			maxTokens: 50,

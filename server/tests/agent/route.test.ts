@@ -19,7 +19,10 @@ let model = stubModel([{ say: 'hi' }]);
 // -- LIFECYCLES -- //
 
 vi.mock('../../src/lib/server/db', () => ({ getDb: async () => t.handle }));
-vi.mock('../../src/lib/server/proxy/index', () => ({ getModelClient: () => model }));
+vi.mock('../../src/lib/server/proxy/index', () => ({
+	getModelClient: () => model,
+	getProviderOf: () => async () => 'anthropic'
+}));
 
 beforeAll(async () => {
 	t = await createTestDb();

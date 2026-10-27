@@ -64,13 +64,23 @@ export async function migrate(db: SqlExecutor, dir = MIGRATIONS_DIR): Promise<st
 		}
 		applied.push(tag);
 	}
-	await secure(db);
+	// A journal of another folder is a test's earlier copy of the schema: only the tables it made are secured
+	await secure(db, dir !== MIGRATIONS_DIR);
 	return applied;
 }
 
 /** Roles, grants and forced row level security. Safe to run again, and run after every migration. */
-export async function secure(db: SqlExecutor): Promise<void> {
-	for (const s of securityStatements()) await db.exec(s);
+export async function secure(db: SqlExecutor, onlyExisting = false): Promise<void> {
+	const only = onlyExisting
+		? new Set(
+				(
+					await db.query<{ tablename: string }>(
+						`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+					)
+				).map((r) => r.tablename)
+			)
+		: undefined;
+	for (const s of securityStatements(only)) await db.exec(s);
 }
 
 /** An arbitrary constant: the advisory lock key that serialises migrations of this database. */

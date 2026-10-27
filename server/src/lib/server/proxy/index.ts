@@ -6,6 +6,7 @@
 
 // -- TYPES -- //
 import type { SelectableProvider } from '../../providers';
+import type { Ctx } from '../ops/context';
 import type { ModelClient } from './deepseek';
 import type { Limits } from './limits';
 // -- ENVS -- //
@@ -19,6 +20,7 @@ import {
 	BOTLER_GLOBAL_TOKEN_CAP,
 	BOTLER_MEMORY_TOKEN_CAP,
 	BOTLER_RATE_PER_MINUTE,
+	CHAT_EFFORT,
 	CHAT_MAX_TOKENS,
 	DEEPSEEK_API_KEY,
 	DEEPSEEK_BASE_URL,
@@ -38,6 +40,7 @@ import { assertProviderKeys, configureProviders, providersWithKeys } from './pro
 
 const clients = new Map<SelectableProvider, ModelClient>();
 let router: ModelClient | null = null;
+let providerOfFn: ((ctx: Ctx) => Promise<SelectableProvider>) | null = null;
 
 // -- CONSTANTS -- //
 
@@ -81,6 +84,8 @@ function clientFor(provider: SelectableProvider): ModelClient {
 				model: DEEPSEEK_MODEL || 'deepseek-flash',
 				thinking: DEEPSEEK_THINKING,
 				chatMaxTokens: CHAT_MAX_TOKENS,
+				thinkingMaxTokens: CHAT_MAX_TOKENS,
+				chatEffort: CHAT_EFFORT,
 				limits: LIMITS,
 				rateLimiter: RATE_LIMITER
 			});
@@ -95,6 +100,8 @@ function clientFor(provider: SelectableProvider): ModelClient {
 				thinking: ANTHROPIC_THINKING,
 				cacheTtl: ANTHROPIC_CACHE_TTL,
 				chatMaxTokens: CHAT_MAX_TOKENS,
+				thinkingMaxTokens: CHAT_MAX_TOKENS,
+				chatEffort: CHAT_EFFORT,
 				limits: LIMITS,
 				rateLimiter: RATE_LIMITER
 			});
@@ -115,10 +122,21 @@ function clientFor(provider: SelectableProvider): ModelClient {
  */
 export function getModelClient(): ModelClient {
 	assertModelConfigured();
-	router ??= createProviderRouter({
-		clientFor,
-		available: () => providersWithKeys(keys()),
-		fallback: MODEL_PROVIDER as SelectableProvider
-	}).client;
+	if (!router) {
+		const made = createProviderRouter({
+			clientFor,
+			available: () => providersWithKeys(keys()),
+			fallback: MODEL_PROVIDER as SelectableProvider
+		});
+		router = made.client;
+		providerOfFn = made.providerOf;
+	}
 	return router;
+}
+
+/** The provider that answers a person, found the same way a model call finds it. Stored tool rounds are replayed only to that provider. */
+export function getProviderOf(): (ctx: Ctx) => Promise<SelectableProvider> {
+	getModelClient();
+	if (!providerOfFn) throw new Error('The model router is not set up.');
+	return providerOfFn;
 }

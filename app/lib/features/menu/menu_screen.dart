@@ -37,8 +37,8 @@ class MenuScreen extends StatelessWidget {
       ('/agenda', t.menuAgenda, t.menuAgendaLine, Icons.event_note_outlined),
       (
         '/memory',
-        t.menuMemory,
-        t.menuMemoryLine,
+        t.menuNotebook,
+        t.menuNotebookLine,
         Icons.psychology_alt_outlined,
       ),
       ('/settings', t.menuSettings, t.menuSettingsLine, Icons.tune),

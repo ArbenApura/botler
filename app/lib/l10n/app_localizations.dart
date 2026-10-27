@@ -2623,6 +2623,36 @@ abstract class AppLocalizations {
   /// **' · aim {amount}'**
   String goalsAim(String amount);
 
+  /// No description provided for @goalsDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete for good'**
+  String get goalsDelete;
+
+  /// No description provided for @goalsDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” and any payday rules that point at it will be deleted for good. The money you saved for it stays where it is.'**
+  String goalsDeleteBody(String name);
+
+  /// No description provided for @goalsDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this goal?'**
+  String get goalsDeleteTitle;
+
+  /// No description provided for @goalsDeleteYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete it'**
+  String get goalsDeleteYes;
+
+  /// No description provided for @goalsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted.'**
+  String get goalsDeleted;
+
   /// No description provided for @goalsEachPayday.
   ///
   /// In en, this message translates to:
@@ -2634,6 +2664,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No goals yet. What would you like to save for?'**
   String get goalsEmpty;
+
+  /// No description provided for @goalsMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'More about this goal'**
+  String get goalsMenu;
 
   /// No description provided for @goalsNameHint.
   ///
@@ -2779,30 +2815,6 @@ abstract class AppLocalizations {
   /// **'Unlock'**
   String get lockUnlock;
 
-  /// No description provided for @memoryAboutLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'A few lines about you'**
-  String get memoryAboutLabel;
-
-  /// No description provided for @memoryBefore.
-  ///
-  /// In en, this message translates to:
-  /// **'Before: {text}'**
-  String memoryBefore(String text);
-
-  /// No description provided for @memoryChange.
-  ///
-  /// In en, this message translates to:
-  /// **'Change'**
-  String get memoryChange;
-
-  /// No description provided for @memoryChangeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Change this memory'**
-  String get memoryChangeTitle;
-
   /// No description provided for @memoryCopied.
   ///
   /// In en, this message translates to:
@@ -2812,62 +2824,8 @@ abstract class AppLocalizations {
   /// No description provided for @memoryCopyAll.
   ///
   /// In en, this message translates to:
-  /// **'Copy everything (memory and money) as text'**
+  /// **'Copy everything (notebook and money) as text'**
   String get memoryCopyAll;
-
-  /// No description provided for @memoryEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing yet. Botler learns as you talk, or tell it: “remember that…”.'**
-  String get memoryEmpty;
-
-  /// No description provided for @memoryForget.
-  ///
-  /// In en, this message translates to:
-  /// **'Forget'**
-  String get memoryForget;
-
-  /// No description provided for @memoryForgetBody.
-  ///
-  /// In en, this message translates to:
-  /// **'“{text}” will be deleted and will not come back.'**
-  String memoryForgetBody(String text);
-
-  /// No description provided for @memoryForgetTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Forget this?'**
-  String get memoryForgetTitle;
-
-  /// No description provided for @memoryForgetYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Forget it'**
-  String get memoryForgetYes;
-
-  /// No description provided for @memoryForgotten.
-  ///
-  /// In en, this message translates to:
-  /// **'Forgotten.'**
-  String get memoryForgotten;
-
-  /// No description provided for @memoryInSentence.
-  ///
-  /// In en, this message translates to:
-  /// **'In a sentence'**
-  String get memoryInSentence;
-
-  /// No description provided for @memoryKeepOld.
-  ///
-  /// In en, this message translates to:
-  /// **'Keep the old one'**
-  String get memoryKeepOld;
-
-  /// No description provided for @memoryLearned.
-  ///
-  /// In en, this message translates to:
-  /// **'Learned from chat'**
-  String get memoryLearned;
 
   /// No description provided for @memoryMore.
   ///
@@ -2875,29 +2833,11 @@ abstract class AppLocalizations {
   /// **'More'**
   String get memoryMore;
 
-  /// No description provided for @memoryNotSure.
-  ///
-  /// In en, this message translates to:
-  /// **'Botler is not sure'**
-  String get memoryNotSure;
-
-  /// No description provided for @memoryNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Now: {text}'**
-  String memoryNow(String text);
-
   /// No description provided for @memoryPeopleHint.
   ///
   /// In en, this message translates to:
   /// **'Mama, Ate Liza'**
   String get memoryPeopleHint;
-
-  /// No description provided for @memoryPeopleLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Names to keep private (separate with commas)'**
-  String get memoryPeopleLabel;
 
   /// No description provided for @memoryPeopleNote.
   ///
@@ -2905,71 +2845,11 @@ abstract class AppLocalizations {
   /// **'Botler hides these names from the AI that writes its replies.'**
   String get memoryPeopleNote;
 
-  /// No description provided for @memoryPersonaHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Like a friendly older sister, short answers'**
-  String get memoryPersonaHint;
-
-  /// No description provided for @memoryPersonaLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'How should Botler talk?'**
-  String get memoryPersonaLabel;
-
-  /// No description provided for @memoryRememberTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Remember something'**
-  String get memoryRememberTitle;
-
-  /// No description provided for @memoryRemembers.
-  ///
-  /// In en, this message translates to:
-  /// **'What Botler remembers'**
-  String get memoryRemembers;
-
   /// No description provided for @memorySaved.
   ///
   /// In en, this message translates to:
   /// **'Saved.'**
   String get memorySaved;
-
-  /// No description provided for @memorySearchHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Search the memories'**
-  String get memorySearchHint;
-
-  /// No description provided for @memoryTalks.
-  ///
-  /// In en, this message translates to:
-  /// **'How Botler talks to you'**
-  String get memoryTalks;
-
-  /// No description provided for @memoryTellSomething.
-  ///
-  /// In en, this message translates to:
-  /// **'Tell Botler something to remember'**
-  String get memoryTellSomething;
-
-  /// No description provided for @memoryTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Memory'**
-  String get memoryTitle;
-
-  /// No description provided for @memoryUseNew.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the new one'**
-  String get memoryUseNew;
-
-  /// No description provided for @memoryWhichRight.
-  ///
-  /// In en, this message translates to:
-  /// **'Which is right?'**
-  String get memoryWhichRight;
 
   /// No description provided for @memoryWipe.
   ///
@@ -2980,13 +2860,13 @@ abstract class AppLocalizations {
   /// No description provided for @memoryWipeBody.
   ///
   /// In en, this message translates to:
-  /// **'This deletes all memories, summaries and your conversations with Botler. Your accounts, bills and money records stay. It cannot be undone.'**
+  /// **'This deletes your notebook and its changes, and your conversations with Botler. Your private names, accounts, bills and the rest of your money stay.'**
   String get memoryWipeBody;
 
   /// No description provided for @memoryWipeButton.
   ///
   /// In en, this message translates to:
-  /// **'Wipe what Botler remembers'**
+  /// **'Wipe the notebook and conversations'**
   String get memoryWipeButton;
 
   /// No description provided for @memoryWipeTitle.
@@ -3012,18 +2892,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wiped.'**
   String get memoryWiped;
-
-  /// No description provided for @memoryYouSaid.
-  ///
-  /// In en, this message translates to:
-  /// **'You said'**
-  String get memoryYouSaid;
-
-  /// No description provided for @memoryYourData.
-  ///
-  /// In en, this message translates to:
-  /// **'Your data'**
-  String get memoryYourData;
 
   /// No description provided for @menuAccounts.
   ///
@@ -3097,17 +2965,17 @@ abstract class AppLocalizations {
   /// **'Everything you spent, and undo'**
   String get menuHistoryLine;
 
-  /// No description provided for @menuMemory.
+  /// No description provided for @menuNotebook.
   ///
   /// In en, this message translates to:
-  /// **'Memory'**
-  String get menuMemory;
+  /// **'Notebook'**
+  String get menuNotebook;
 
-  /// No description provided for @menuMemoryLine.
+  /// No description provided for @menuNotebookLine.
   ///
   /// In en, this message translates to:
-  /// **'What Botler remembers, and how it talks'**
-  String get menuMemoryLine;
+  /// **'What Botler keeps in mind about you'**
+  String get menuNotebookLine;
 
   /// No description provided for @menuPayday.
   ///
@@ -3144,6 +3012,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No'**
   String get no;
+
+  /// No description provided for @notebookByBotler.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler'**
+  String get notebookByBotler;
+
+  /// No description provided for @notebookBySeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tidy-up'**
+  String get notebookBySeed;
+
+  /// No description provided for @notebookByYou.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get notebookByYou;
+
+  /// No description provided for @notebookChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes'**
+  String get notebookChanges;
+
+  /// No description provided for @notebookChangesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No changes yet.'**
+  String get notebookChangesEmpty;
+
+  /// No description provided for @notebookConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler, or another phone, changed it after you opened it. Your text is still here. Copy it, or save it over the new version: the other change stays in Changes.'**
+  String get notebookConflictBody;
+
+  /// No description provided for @notebookConflictCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy my text'**
+  String get notebookConflictCopy;
+
+  /// No description provided for @notebookConflictSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save mine'**
+  String get notebookConflictSave;
+
+  /// No description provided for @notebookConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The notebook changed'**
+  String get notebookConflictTitle;
+
+  /// No description provided for @notebookCopiedText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied your text.'**
+  String get notebookCopiedText;
+
+  /// No description provided for @notebookCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {max} characters'**
+  String notebookCount(String count, String max);
+
+  /// No description provided for @notebookDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The changes you typed will be lost.'**
+  String get notebookDiscardBody;
+
+  /// No description provided for @notebookDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave without saving?'**
+  String get notebookDiscardTitle;
+
+  /// No description provided for @notebookDiscardYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get notebookDiscardYes;
+
+  /// No description provided for @notebookEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get notebookEdit;
+
+  /// No description provided for @notebookEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write what Botler should keep in mind about you'**
+  String get notebookEditHint;
+
+  /// No description provided for @notebookEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit your notebook'**
+  String get notebookEditTitle;
+
+  /// No description provided for @notebookEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet. Tell Botler something to remember, or tap Edit.'**
+  String get notebookEmpty;
+
+  /// No description provided for @notebookKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get notebookKeepEditing;
+
+  /// No description provided for @notebookNameRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}'**
+  String notebookNameRemove(String name);
+
+  /// No description provided for @notebookNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Private names'**
+  String get notebookNames;
+
+  /// No description provided for @notebookNamesAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a name'**
+  String get notebookNamesAdd;
+
+  /// No description provided for @notebookNamesAddButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get notebookNamesAddButton;
+
+  /// No description provided for @notebookOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Your text is still here: try again when you are online.'**
+  String get notebookOffline;
+
+  /// No description provided for @notebookRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get notebookRestore;
+
+  /// No description provided for @notebookRestoreBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your notebook becomes the text below. What it says now stays in Changes, so you can undo this.'**
+  String get notebookRestoreBody;
+
+  /// No description provided for @notebookRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Put this text back?'**
+  String get notebookRestoreTitle;
+
+  /// No description provided for @notebookRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored.'**
+  String get notebookRestored;
+
+  /// No description provided for @notebookSectionEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get notebookSectionEmpty;
+
+  /// No description provided for @notebookSeeding.
+  ///
+  /// In en, this message translates to:
+  /// **'Made from what Botler remembered before. It is tidied in the background, and you can change any of it.'**
+  String get notebookSeeding;
+
+  /// No description provided for @notebookTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebook'**
+  String get notebookTitle;
 
   /// No description provided for @notifChannel.
   ///

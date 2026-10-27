@@ -5,7 +5,9 @@
 // - Once untrusted text enters the turn (a web page, a photo's text, anything a tool marks untrusted), every write verb for the rest of
 //   the turn becomes a card too, and web reading is closed except for addresses the person typed themselves, so the model cannot carry
 //   private text out in an address. Web search stays open but short: a plain query of a few words, none with a run of digits.
-// - Bounded: at most 6 model calls, 12 tool calls, 3 web searches, a time limit per tool. A cancelled request stops the model call and runs no more tools.
+// - Bounded: at most 20 model calls, 40 tool calls, 3 web searches, a time limit per tool, a token budget for the whole message and a guard on
+//   how big the prompt may grow. When tools, the budget or the guard run out, the last call is told to answer from what it has and say what it
+//   could not check. A cancelled request stops the model call and runs no more tools.
 // - A model that is down or over its cap ends the turn with a fallback event: the app shows the manual form, and the verbs still work.
 
 // -- TYPES -- //
@@ -18,6 +20,7 @@ import type {
 	ToolCall
 } from '../proxy/deepseek';
 import type { AgentTool, WebDeps } from './tools';
+import type { TranscriptMessage } from './transcript';
 // -- DEP-MODULES -- //
 import { createHash } from 'node:crypto';
 // -- MODULES -- //
@@ -28,6 +31,7 @@ import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { buildMessages } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
+import { capReasoning, shortenResult, untrustedStub } from './transcript';
 
 // -- TYPES -- //
 
@@ -54,6 +58,8 @@ export type TurnEvent =
 			reply: string;
 			stopped?: 'depth' | 'tools' | 'cancelled' | 'length';
 			toolsRun: string[];
+			/** The tool rounds of the message, for the chat to store. Left out when no tool ran. Never sent to the app. */
+			transcript?: TranscriptMessage[];
 	  };
 
 export type TurnModel = { stream(ctx: Ctx, req: CompletionRequest): AsyncGenerator<StreamEvent> };
@@ -70,6 +76,8 @@ export type TurnParams = {
 	turnKey: string;
 	names?: string[];
 	persona?: string;
+	/** System messages that follow the fixed prefix and come before the history: the notebook, the chat summary. Stable for the whole message. */
+	system?: string[];
 	memories?: string[];
 	/** Recent approval cards and how each was answered, so the assistant knows what was approved, rejected or is still waiting. */
 	cards?: string[];
@@ -96,15 +104,21 @@ type Outcome = {
 // -- CONSTANTS -- //
 
 export const LIMITS = {
-	maxModelCalls: 6,
-	maxToolCalls: 12,
+	maxModelCalls: 20,
+	maxToolCalls: 40,
+	/** Charged tokens (as the monthly cap counts them) one message may use over all its model calls. The server sets it from TURN_TOKEN_BUDGET. */
+	turnTokenBudget: 300_000,
+	/** When the last call's prompt was this big, tools are closed: the next call answers from what it has, before a provider refuses the size. */
+	contextGuardTokens: 100_000,
+	/** From this share of the tool calls used on, every tool result says how many are left. */
+	toolsLeftNoteShare: 0.75,
 	/** Web searches in one message, so a poor result can be tried again with other words but quota and what a search can carry out stay small. */
 	maxWebSearches: 3,
 	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
 	maxTaintedQueryChars: 80,
 	toolTimeoutMs: 15_000,
 	webTimeoutMs: 25_000,
-	maxResultChars: 6_000,
+	maxResultChars: 16_000,
 	maxEventChars: 20_000
 };
 
@@ -183,6 +197,33 @@ export function trimForModel(value: unknown): unknown {
 	}
 	return out;
 }
+
+/**
+ * Whether a final reply says anything: after the dates, times, markup tags and numbers are taken out it still holds a word of two letters
+ * or more. A reply of two stray dates, or of markup alone, is not an answer.
+ */
+export function hasRealWords(text: string): boolean {
+	const bare = text
+		.replace(/<[^>]*>/g, ' ')
+		.replace(/\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)?/g, ' ')
+		.replace(/[\d.,:/\-+%]+/g, ' ');
+	return /\p{L}{2,}/u.test(bare);
+}
+
+/** What the model is told once it may not call tools any more. Plain words, no names, no amounts. */
+const WRAP_UP =
+	'No more tools can be used in this message. Answer now from what you already have, and say plainly what you could not check.';
+
+/** The note that replaces a final reply with no words in it, and the one shown when the monthly chat allowance is used up. */
+function couldNotFinish(toolsRun: string[]): string {
+	const ran = toolsRun.length
+		? `I ran: ${[...new Set(toolsRun)].join(', ')}.`
+		: 'I did not run anything.';
+	return `I could not finish that in one go. ${ran} Ask me again to continue.`;
+}
+
+const CAPPED_NOTE =
+	'The chat allowance for this month is used up, so I cannot answer now. Your expenses, bills and schedule still work, and chat opens again on the first of the month.';
 
 function capJson(value: unknown, max: number): string {
 	const text = JSON.stringify(value) ?? 'null';
@@ -372,6 +413,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const messages = buildMessages({
 		now: p.now ?? new Date(),
 		persona: p.persona,
+		system: p.system,
 		memories: p.memories,
 		cards: p.cards,
 		rewindNote: p.rewindNote,
@@ -382,7 +424,10 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		replyLanguage: settings.replyLanguage
 	});
 	// The system message and the history: the part of the request that is the same from one call to the next
-	const stableCount = 1 + p.history.length;
+	// The extra system messages sit inside it, so the host's history breakpoint lands on the real end of the history
+	const stableCount = 1 + (p.system?.length ?? 0) + p.history.length;
+	// What the message keeps for later messages of the chat
+	const transcript: TranscriptMessage[] = [];
 	const toolsRun: string[] = [];
 	let reply = '';
 	let seq = 0;
@@ -390,11 +435,25 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	let toolsOff = false;
 	// Whether a call cut off by the model's limit was already given its one second try
 	let continued = false;
+	// What the message has used so far, from the model's own usage reports
+	let charged = 0;
+	let lastPrompt = 0;
 
 	for (let call = 0; call < limits.maxModelCalls; call++) {
 		if (p.signal?.aborted) {
 			stopped = 'cancelled';
 			break;
+		}
+		// Out of room (the token budget, the size of the prompt, or the last model call): tools close and the model is told once to answer
+		if (
+			!toolsOff &&
+			(charged >= limits.turnTokenBudget ||
+				lastPrompt >= limits.contextGuardTokens ||
+				call === limits.maxModelCalls - 1)
+		) {
+			toolsOff = true;
+			stopped ??= call === limits.maxModelCalls - 1 ? 'depth' : 'tools';
+			messages.push({ role: 'user', content: WRAP_UP });
 		}
 		let completion: Completion | null = null;
 		// The model is working; the screen shows it until the first word of the answer arrives
@@ -431,12 +490,20 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			if (e instanceof OpsError && (e.code === 'UNAVAILABLE' || e.code === 'LIMIT')) {
 				const reason = /minute/i.test(e.message) ? 'rate' : e.code === 'LIMIT' ? 'capped' : 'down';
 				yield { type: 'fallback', reason, form: 'expense' };
-				yield { type: 'done', reply, toolsRun };
+				// A used-up monthly allowance says so in words, and is never retried by the app
+				if (reason === 'capped') {
+					reply += reply.trim() ? `\n\n${CAPPED_NOTE}` : CAPPED_NOTE;
+					yield { type: 'delta', text: reply };
+				}
+				yield { type: 'done', reply, toolsRun, ...(transcript.length ? { transcript } : {}) };
 				return;
 			}
 			throw e;
 		}
 		if (!completion) throw new Error('The model ended without an answer.');
+		charged +=
+			completion.charged ?? completion.usage.promptTokens + completion.usage.completionTokens;
+		lastPrompt = completion.usage.promptTokens;
 		// The model ran out of room (its thinking shares the limit with the answer). Cut-off tool arguments are never run. The first
 		// cut-off is given one carry-on; the second, or one with no model call left, says so and is not read for memory
 		if (
@@ -449,7 +516,12 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			// run), so with nothing kept the nudge asks for a short answer instead of a continuation
 			continued = true;
 			const kept = completion.content.trim() !== '';
-			if (kept) messages.push({ role: 'assistant', content: completion.content });
+			if (kept)
+				messages.push({
+					role: 'assistant',
+					content: completion.content,
+					...(completion.wireBlocks ? { wire_blocks: completion.wireBlocks } : {})
+				});
 			// Once tools are turned off the nudge must not point at them
 			const data = toolsOff ? '' : ' Use the tools if you still need data.';
 			messages.push({
@@ -479,11 +551,18 @@ ${note}`
 				reply = 'I did not come up with an answer. Please ask me again.';
 				yield { type: 'delta', text: reply };
 			}
+			let final = reply || completion.content;
+			// A reply of stray dates or markup is not an answer either: it is replaced by a plain note of what ran
+			if (toolsRun.length > 0 && !hasRealWords(final)) {
+				final = couldNotFinish(toolsRun);
+				yield { type: 'delta', text: `\n\n${final}` };
+			}
 			yield {
 				type: 'done',
-				reply: reply || completion.content,
+				reply: final,
 				toolsRun,
-				...(stopped ? { stopped } : {})
+				...(stopped ? { stopped } : {}),
+				...(transcript.length ? { transcript } : {})
 			};
 			return;
 		}
@@ -492,8 +571,28 @@ ${note}`
 			content: completion.content || null,
 			tool_calls: completion.toolCalls,
 			// DeepSeek wants the thinking back while a tool round continues. It is the masked text it sent
-			...(completion.reasoningRaw ? { reasoning_content: completion.reasoningRaw } : {})
+			...(completion.reasoningRaw ? { reasoning_content: completion.reasoningRaw } : {}),
+			// Anthropic wants its signed thinking back unchanged while a tool round continues
+			...(completion.wireBlocks ? { wire_blocks: completion.wireBlocks } : {})
 		});
+		// What this round keeps for later messages of the chat (see transcript.ts)
+		const roundResults: TranscriptMessage[] = [];
+		let roundUntrusted = false;
+		const finished: Completion = completion;
+		const keepRound = () =>
+			transcript.push(
+				{
+					role: 'assistant',
+					// The words around a stranger's text are dropped with it
+					content: roundUntrusted ? null : finished.content || null,
+					tool_calls: finished.toolCalls,
+					...(finished.provider === 'deepseek' && finished.reasoningRaw
+						? { reasoning_content: capReasoning(finished.reasoningRaw) }
+						: {}),
+					...(finished.provider ? { provider: finished.provider } : {})
+				},
+				...roundResults
+			);
 		for (const tc of completion.toolCalls) {
 			if (p.signal?.aborted) {
 				stopped = 'cancelled';
@@ -502,14 +601,12 @@ ${note}`
 			if (seq >= limits.maxToolCalls) {
 				stopped = 'tools';
 				toolsOff = true;
-				messages.push({
-					role: 'tool',
-					tool_call_id: tc.id,
-					content: JSON.stringify({
-						error: 'tool_limit',
-						message: 'Too many tool calls in one message. Answer with what you have.'
-					})
+				const limit = JSON.stringify({
+					error: 'tool_limit',
+					message: 'Too many tool calls in one message. Answer with what you have.'
 				});
+				messages.push({ role: 'tool', tool_call_id: tc.id, content: limit });
+				roundResults.push({ role: 'tool', tool_call_id: tc.id, content: limit });
 				continue;
 			}
 			seq++;
@@ -529,8 +626,24 @@ ${note}`
 					: {})
 			};
 			if (out.card) yield { type: 'card', actionId: out.card.actionId, summary: out.card.summary };
-			messages.push({ role: 'tool', tool_call_id: tc.id, content: out.forModel });
+			// Late in the message every result says how many tool calls are left, so the model plans its last ones
+			const left = limits.maxToolCalls - seq;
+			const note =
+				seq >= Math.ceil(limits.maxToolCalls * limits.toolsLeftNoteShare)
+					? `\n(${left} tool call${left === 1 ? '' : 's'} left in this message)`
+					: '';
+			messages.push({ role: 'tool', tool_call_id: tc.id, content: out.forModel + note });
+			// Web and calendar text is untrusted: only a stub naming the tool is kept
+			const named = byName.get(tc.function.name);
+			const outside = named?.kind === 'web' || named?.taints === true;
+			if (outside) roundUntrusted = true;
+			roundResults.push({
+				role: 'tool',
+				tool_call_id: tc.id,
+				content: outside ? untrustedStub(tc.function.name) : shortenResult(out.forModel)
+			});
 		}
+		keepRound();
 		if (stopped === 'cancelled') break;
 	}
 
@@ -540,11 +653,14 @@ ${note}`
 		const ran = toolsRun.length
 			? `I ran: ${[...new Set(toolsRun)].join(', ')}.`
 			: 'I did not run anything.';
-		reply =
-			stopped === 'cancelled'
-				? `Stopped. ${ran}`
-				: `I could not finish that in one go. ${ran} Ask me again to continue.`;
+		reply = stopped === 'cancelled' ? `Stopped. ${ran}` : couldNotFinish(toolsRun);
 		yield { type: 'delta', text: reply };
 	}
-	yield { type: 'done', reply, stopped, toolsRun };
+	yield {
+		type: 'done',
+		reply,
+		stopped,
+		toolsRun,
+		...(transcript.length ? { transcript } : {})
+	};
 }

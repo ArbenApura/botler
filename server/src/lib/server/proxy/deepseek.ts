@@ -39,6 +39,12 @@ import {
 import { defaultSleep } from './core';
 import { createDsmlGuard } from './dsml';
 import { OpsError } from '../ops/context';
+import { DEFAULT_CHAT_MAX_TOKENS, deepseekEffort } from './chatEnv';
+
+// -- CONSTANTS -- //
+
+/** The wait for the first byte, and the longest silence inside a streamed answer. A long thinking phase can be quiet for a while. */
+export const STREAM_TIMEOUT_MS = 120_000;
 
 type Wire = {
 	choices?: {
@@ -93,15 +99,16 @@ export function createModelClient(config: ModelConfig) {
 		model: config.model,
 		limits: config.limits,
 		rateLimiter: config.rateLimiter,
-		timeoutMs: config.timeoutMs ?? 60_000,
+		timeoutMs: config.timeoutMs ?? STREAM_TIMEOUT_MS,
 		maxRetries: config.maxRetries ?? 2,
 		fetch: config.fetch ?? fetch,
 		sleep: config.sleep ?? defaultSleep
 	});
 	const defaultMaxTokens = config.defaultMaxTokens ?? 2048;
-	const thinkingMaxTokens = config.thinkingMaxTokens ?? 8192;
-	const chatMaxTokens = config.chatMaxTokens ?? 8192;
-	const timeoutMs = config.timeoutMs ?? 60_000;
+	const chatMaxTokens = config.chatMaxTokens ?? DEFAULT_CHAT_MAX_TOKENS;
+	const thinkingMaxTokens = config.thinkingMaxTokens ?? chatMaxTokens;
+	const chatEffort = config.chatEffort ?? 'high';
+	const timeoutMs = config.timeoutMs ?? STREAM_TIMEOUT_MS;
 
 	/** The body for one call, with the masked messages. Thinking only for a streamed chat answer. */
 	function buildBody(req: CompletionRequest, masker: Masker, stream: boolean) {
@@ -111,7 +118,9 @@ export function createModelClient(config: ModelConfig) {
 			messages: maskMessages(req.messages, masker),
 			stream,
 			...(stream ? { stream_options: { include_usage: true } } : {}),
-			...(thinking ? { thinking: { type: 'enabled' } } : {}),
+			...(thinking
+				? { thinking: { type: 'enabled' }, reasoning_effort: deepseekEffort(chatEffort) }
+				: {}),
 			...(req.tools?.length ? { tools: req.tools } : {}),
 			...(req.tools?.length && req.toolChoice === 'none' ? { tool_choice: 'none' } : {}),
 			// A thinking model ignores sampling settings, so none are sent
@@ -277,6 +286,8 @@ export function createModelClient(config: ModelConfig) {
 				type: 'done',
 				completion: {
 					...finish(masker, written.content, written.calls, written.finishReason, final),
+					charged: core.charged(final),
+					provider: 'deepseek' as const,
 					...(reasoning ? { reasoningRaw: masker.unmask(reasoning) } : {})
 				}
 			};

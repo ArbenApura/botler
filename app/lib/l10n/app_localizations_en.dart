@@ -1534,12 +1534,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get goalsDelete => 'Delete for good';
+
+  @override
+  String goalsDeleteBody(String name) {
+    return '“$name” and any payday rules that point at it will be deleted for good. The money you saved for it stays where it is.';
+  }
+
+  @override
+  String get goalsDeleteTitle => 'Delete this goal?';
+
+  @override
+  String get goalsDeleteYes => 'Delete it';
+
+  @override
+  String get goalsDeleted => 'Deleted.';
+
+  @override
   String goalsEachPayday(String amount) {
     return '$amount each payday';
   }
 
   @override
   String get goalsEmpty => 'No goals yet. What would you like to save for?';
+
+  @override
+  String get goalsMenu => 'More about this goal';
 
   @override
   String get goalsNameHint => 'Emergency fund';
@@ -1626,119 +1646,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockUnlock => 'Unlock';
 
   @override
-  String get memoryAboutLabel => 'A few lines about you';
-
-  @override
-  String memoryBefore(String text) {
-    return 'Before: $text';
-  }
-
-  @override
-  String get memoryChange => 'Change';
-
-  @override
-  String get memoryChangeTitle => 'Change this memory';
-
-  @override
   String get memoryCopied => 'Copied everything to the clipboard.';
 
   @override
-  String get memoryCopyAll => 'Copy everything (memory and money) as text';
-
-  @override
-  String get memoryEmpty =>
-      'Nothing yet. Botler learns as you talk, or tell it: “remember that…”.';
-
-  @override
-  String get memoryForget => 'Forget';
-
-  @override
-  String memoryForgetBody(String text) {
-    return '“$text” will be deleted and will not come back.';
-  }
-
-  @override
-  String get memoryForgetTitle => 'Forget this?';
-
-  @override
-  String get memoryForgetYes => 'Forget it';
-
-  @override
-  String get memoryForgotten => 'Forgotten.';
-
-  @override
-  String get memoryInSentence => 'In a sentence';
-
-  @override
-  String get memoryKeepOld => 'Keep the old one';
-
-  @override
-  String get memoryLearned => 'Learned from chat';
+  String get memoryCopyAll => 'Copy everything (notebook and money) as text';
 
   @override
   String get memoryMore => 'More';
 
   @override
-  String get memoryNotSure => 'Botler is not sure';
-
-  @override
-  String memoryNow(String text) {
-    return 'Now: $text';
-  }
-
-  @override
   String get memoryPeopleHint => 'Mama, Ate Liza';
-
-  @override
-  String get memoryPeopleLabel =>
-      'Names to keep private (separate with commas)';
 
   @override
   String get memoryPeopleNote =>
       'Botler hides these names from the AI that writes its replies.';
 
   @override
-  String get memoryPersonaHint => 'Like a friendly older sister, short answers';
-
-  @override
-  String get memoryPersonaLabel => 'How should Botler talk?';
-
-  @override
-  String get memoryRememberTitle => 'Remember something';
-
-  @override
-  String get memoryRemembers => 'What Botler remembers';
-
-  @override
   String get memorySaved => 'Saved.';
-
-  @override
-  String get memorySearchHint => 'Search the memories';
-
-  @override
-  String get memoryTalks => 'How Botler talks to you';
-
-  @override
-  String get memoryTellSomething => 'Tell Botler something to remember';
-
-  @override
-  String get memoryTitle => 'Memory';
-
-  @override
-  String get memoryUseNew => 'Use the new one';
-
-  @override
-  String get memoryWhichRight => 'Which is right?';
 
   @override
   String get memoryWipe => 'Wipe';
 
   @override
   String get memoryWipeBody =>
-      'This deletes all memories, summaries and your conversations with Botler. Your accounts, bills and money records stay. It cannot be undone.';
+      'This deletes your notebook and its changes, and your conversations with Botler. Your private names, accounts, bills and the rest of your money stay.';
 
   @override
-  String get memoryWipeButton => 'Wipe what Botler remembers';
+  String get memoryWipeButton => 'Wipe the notebook and conversations';
 
   @override
   String get memoryWipeTitle => 'Wipe everything Botler remembers?';
@@ -1751,12 +1685,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get memoryWiped => 'Wiped.';
-
-  @override
-  String get memoryYouSaid => 'You said';
-
-  @override
-  String get memoryYourData => 'Your data';
 
   @override
   String get menuAccounts => 'Accounts';
@@ -1795,10 +1723,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuHistoryLine => 'Everything you spent, and undo';
 
   @override
-  String get menuMemory => 'Memory';
+  String get menuNotebook => 'Notebook';
 
   @override
-  String get menuMemoryLine => 'What Botler remembers, and how it talks';
+  String get menuNotebookLine => 'What Botler keeps in mind about you';
 
   @override
   String get menuPayday => 'Payday';
@@ -1817,6 +1745,109 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get no => 'No';
+
+  @override
+  String get notebookByBotler => 'Botler';
+
+  @override
+  String get notebookBySeed => 'Tidy-up';
+
+  @override
+  String get notebookByYou => 'You';
+
+  @override
+  String get notebookChanges => 'Changes';
+
+  @override
+  String get notebookChangesEmpty => 'No changes yet.';
+
+  @override
+  String get notebookConflictBody =>
+      'Botler, or another phone, changed it after you opened it. Your text is still here. Copy it, or save it over the new version: the other change stays in Changes.';
+
+  @override
+  String get notebookConflictCopy => 'Copy my text';
+
+  @override
+  String get notebookConflictSave => 'Save mine';
+
+  @override
+  String get notebookConflictTitle => 'The notebook changed';
+
+  @override
+  String get notebookCopiedText => 'Copied your text.';
+
+  @override
+  String notebookCount(String count, String max) {
+    return '$count of $max characters';
+  }
+
+  @override
+  String get notebookDiscardBody => 'The changes you typed will be lost.';
+
+  @override
+  String get notebookDiscardTitle => 'Leave without saving?';
+
+  @override
+  String get notebookDiscardYes => 'Leave';
+
+  @override
+  String get notebookEdit => 'Edit';
+
+  @override
+  String get notebookEditHint =>
+      'Write what Botler should keep in mind about you';
+
+  @override
+  String get notebookEditTitle => 'Edit your notebook';
+
+  @override
+  String get notebookEmpty =>
+      'Nothing here yet. Tell Botler something to remember, or tap Edit.';
+
+  @override
+  String get notebookKeepEditing => 'Keep editing';
+
+  @override
+  String notebookNameRemove(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String get notebookNames => 'Private names';
+
+  @override
+  String get notebookNamesAdd => 'Add a name';
+
+  @override
+  String get notebookNamesAddButton => 'Add';
+
+  @override
+  String get notebookOffline =>
+      'No connection. Your text is still here: try again when you are online.';
+
+  @override
+  String get notebookRestore => 'Restore';
+
+  @override
+  String get notebookRestoreBody =>
+      'Your notebook becomes the text below. What it says now stays in Changes, so you can undo this.';
+
+  @override
+  String get notebookRestoreTitle => 'Put this text back?';
+
+  @override
+  String get notebookRestored => 'Restored.';
+
+  @override
+  String get notebookSectionEmpty => 'Nothing yet';
+
+  @override
+  String get notebookSeeding =>
+      'Made from what Botler remembered before. It is tidied in the background, and you can change any of it.';
+
+  @override
+  String get notebookTitle => 'Notebook';
 
   @override
   String get notifChannel => 'Reminders';

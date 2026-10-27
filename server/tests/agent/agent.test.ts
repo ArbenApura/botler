@@ -106,6 +106,8 @@ describe('the verb registry', () => {
 			'fx_rates_refresh',
 			'memory_export',
 			'memory_wipe',
+			'notebook_restore',
+			'notebook_save',
 			'rule_approve',
 			'rule_retire',
 			'settings_set',
@@ -117,6 +119,7 @@ describe('the verb registry', () => {
 			'account_wallet_add',
 			'bill_create',
 			'goal_create',
+			'goal_delete',
 			'income_create',
 			'snapshot_record'
 		]);
@@ -140,6 +143,7 @@ describe('the verb registry', () => {
 				'memory_forget',
 				'memory_remember',
 				'memory_resolve',
+				'notebook_edit',
 				'profile_set',
 				'refund_record',
 				'reminder_cancel',
@@ -157,7 +161,7 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(29);
+		expect(by('read')).toHaveLength(33);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {
@@ -449,10 +453,10 @@ describe('approval cards', () => {
 });
 
 describe('loop limits and the error contract', () => {
-	it('stops after six model calls when the model never finishes', async () => {
+	it('stops after twenty model calls when the model never finishes', async () => {
 		const model = stubModel(() => ({ calls: [['accounts_list', {}]] }));
 		const events = await play({ f, model, text: 'loop' });
-		expect(model.requests).toHaveLength(6);
+		expect(model.requests).toHaveLength(20);
 		expect(doneEvent(events)).toMatchObject({ stopped: 'depth' });
 		// An answer is still given, saying what was done
 		expect(doneEvent(events)?.reply).toMatch(/could not finish.*accounts_list/);
@@ -463,7 +467,7 @@ describe('loop limits and the error contract', () => {
 		const model = stubModel((req, n) =>
 			n < 3 ? { calls: many } : { say: 'Here is what I have.' }
 		);
-		const events = await play({ f, model, text: 'many' });
+		const events = await play({ f, model, text: 'many', limits: { maxToolCalls: 12 } });
 		expect(toolEvents(events)).toHaveLength(12);
 		expect(doneEvent(events)).toMatchObject({ stopped: 'tools', reply: 'Here is what I have.' });
 		// The call after the cap keeps the tools (so the host's cache of them survives) and forbids any call

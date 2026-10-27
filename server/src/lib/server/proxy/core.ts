@@ -229,7 +229,10 @@ export function createCore(config: CoreConfig) {
 		}
 	}
 
-	return { admit, send, log, record };
+	/** What a call counts against the monthly cap, for the turn's own per-message budget. */
+	const charged = (usage: Usage): number => chargedTokens(usage, config.provider);
+
+	return { admit, send, log, record, charged };
 }
 
 /** Builds the masker for a request: one masker per turn when the caller brought one. */

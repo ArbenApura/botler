@@ -6,23 +6,30 @@
 
 // -- TYPES -- //
 import type { Ctx } from '../ops/context';
-import type { Embedder } from '../memory/embed';
 import type { ChatMessage } from '../proxy/deepseek';
 import type { TurnEvent, TurnModel, TurnParams } from './turn';
+import type { TranscriptProvider } from './transcript';
 // -- DEP-MODULES -- //
 import { and, asc, eq, gt, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
 import { chatTurn } from '../db/schema';
 import { lockPerson } from '../db/tenant';
-import { enqueue } from '../jobs/queue';
-import { activeEmbedder } from '../memory/embed';
-import { loadMemoryContext } from '../memory/retrieve';
 import { recentCardLines } from '../ops/actions';
 import { forkSource, resolveChat, touchChat } from '../ops/chats';
+import { loadNotebookContext } from '../ops/notebook';
 import { OpsError, run } from '../ops/context';
 import { verbByName } from '../ops/registry';
 import { parse } from '../ops/shared';
+import {
+	afterTurn,
+	DEFAULT_HISTORY_TOKENS,
+	HISTORY_LOAD_MAX,
+	queueCompactionIfDue,
+	summaryState
+} from './compact';
+import { notebookMessage } from './prompt';
+import { buildHistory } from './transcript';
 import { runTurn } from './turn';
 
 // -- TYPES -- //
@@ -36,9 +43,13 @@ export type ChatDeps = {
 	memories?: string[];
 	names?: string[];
 	tools?: TurnParams['tools'];
-	/** The embedder for memory search. Left out, the one the server turned on is used; null means keywords only. */
-	embedder?: Embedder | null;
-	/** Turn memory off for this call (tests of the loop alone). */
+	/** Which provider answers this person, so stored tool rounds are replayed only to the one that wrote them. Left out, history is text only. */
+	provider?: (ctx: Ctx) => Promise<TranscriptProvider | undefined>;
+	/** The token budget of the history sent with a message (HISTORY_TOKENS). Left out, 40000. */
+	historyTokens?: number;
+	/** Overrides of the turn limits, such as the token budget of one message from TURN_TOKEN_BUDGET. */
+	limits?: TurnParams['limits'];
+	/** Leave the notebook and the private names out of this call (tests of the loop alone). */
 	noMemory?: boolean;
 };
 
@@ -53,8 +64,6 @@ export const chatInput = z.strictObject({
 	ocrText: z.string().max(8000).optional()
 });
 
-const HISTORY_TURNS = 10;
-const HISTORY_CHARS = 1500;
 const STALE_RUNNING_MS = 120_000;
 const NOTE_TOOLS = 20;
 /** The only events kept with a finished message. Thinking, phases and start are live only: never stored, never replayed. */
@@ -109,49 +118,58 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 }
 
 /**
- * Where the history window starts, counted in done turns before this one. The window slides in steps of 5, so 6 to 10 turns are kept and
- * the start stays the same for 5 turns in a row: the history only grows at its end, which keeps the host's prefix cache valid.
+ * What a chat sends before the new message, from the finished messages after the chat's summary: each message with its tool rounds when they
+ * fit the live provider, held under the token budget (see buildHistory). The summary, when there is one, comes back on its own to be
+ * placed as a system message ahead of the history.
  */
-export function historyStart(n: number): number {
-	return n <= HISTORY_TURNS ? 0 : 5 * Math.floor((n - 6) / 5);
-}
-
-async function history(ctx: Ctx, beforeId: string): Promise<ChatMessage[]> {
-	const rows = await run(ctx, async (tx, userId) => {
+async function history(
+	ctx: Ctx,
+	beforeId: string,
+	options: { provider: TranscriptProvider | undefined; budget: number }
+): Promise<{ messages: ChatMessage[]; summary: string | null }> {
+	const found = await run(ctx, async (tx, userId) => {
 		const [self] = await tx
 			.select({ at: chatTurn.createdAt, chatId: chatTurn.chatId })
 			.from(chatTurn)
 			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, beforeId)));
-		if (!self) return [];
+		if (!self) return null;
+		const state = await summaryState(tx, userId, self.chatId);
 		const filter = and(
 			eq(chatTurn.userId, userId),
 			eq(chatTurn.status, 'done'),
 			eq(chatTurn.chatId, self.chatId),
-			lt(chatTurn.createdAt, self.at)
+			lt(chatTurn.createdAt, self.at),
+			afterTurn(state?.after ?? null)
 		);
 		const [counted] = await tx
 			.select({ n: sql<number>`count(*)` })
 			.from(chatTurn)
 			.where(filter);
-		const start = historyStart(Number(counted?.n ?? 0));
-		return tx
-			.select({ userText: chatTurn.userText, reply: chatTurn.reply })
+		// A chat that never got a summary is read from its newest messages, in steps of five so the start holds still
+		const n = Number(counted?.n ?? 0);
+		const skip = n > HISTORY_LOAD_MAX ? 5 * Math.ceil((n - HISTORY_LOAD_MAX) / 5) : 0;
+		const rows = await tx
+			.select({
+				userText: chatTurn.userText,
+				reply: chatTurn.reply,
+				transcript: chatTurn.transcript
+			})
 			.from(chatTurn)
 			.where(filter)
 			.orderBy(asc(chatTurn.createdAt), asc(chatTurn.id))
-			.offset(start)
-			.limit(HISTORY_TURNS);
+			.offset(skip)
+			.limit(HISTORY_LOAD_MAX);
+		return { rows, summary: state?.summary ?? null };
 	});
-	// A turn that ended in the fallback text has no reply; an empty assistant message would be refused by the host
-	return rows.flatMap((r): ChatMessage[] =>
-		!r.reply.trim()
-			? []
-			: [
-					{ role: 'user', content: r.userText.slice(0, HISTORY_CHARS) },
-					{ role: 'assistant', content: r.reply.slice(0, HISTORY_CHARS) }
-				]
-	);
+	if (!found) return { messages: [], summary: null };
+	// A turn that ended in the fallback text has no reply and no rounds: it is left out, an empty assistant message would be refused
+	return { messages: buildHistory(found.rows, options).messages, summary: found.summary };
 }
+
+/** The summary as a system message: the model is told it was written by itself and may be stale. */
+const summaryMessage = (summary: string) =>
+	`Earlier in this chat (a summary you wrote; numbers in it were true on the day they name, so read the data again before a new total):
+${summary}`;
 
 /**
  * When the chat is a branch, one line for the assistant: what the messages that were cut off had already done. Those changes stay in force,
@@ -225,69 +243,84 @@ export async function* handleChat(
 	const kept: TurnEvent[] = [];
 	let reply = '';
 	try {
-		// What is remembered that matters for this message. Memory trouble never stops a chat: it is logged by class and skipped
-		const memory = deps.noMemory
+		// The notebook and the private names. Trouble reading them never stops a chat: it is logged by class and skipped
+		const known = deps.noMemory
 			? null
-			: await loadMemoryContext(ctx, {
-					query: input.text,
-					embedder: deps.embedder === undefined ? activeEmbedder() : deps.embedder,
-					now: deps.now?.()
-				}).catch((e: unknown) => {
+			: await loadNotebookContext(ctx).catch((e: unknown) => {
 					console.error(
 						JSON.stringify({
-							event: 'memory_unavailable',
+							event: 'notebook_unavailable',
 							error: e instanceof Error ? e.name : 'Error'
 						})
 					);
 					return null;
 				});
+		const provider = await deps.provider?.(ctx).catch(() => undefined);
+		const earlier = await history(ctx, claimed.id, {
+			provider,
+			budget: deps.historyTokens ?? DEFAULT_HISTORY_TOKENS
+		});
 		const turn = runTurn({
 			ctx,
 			model: deps.model,
-			history: await history(ctx, claimed.id),
+			history: earlier.messages,
+			// The notebook is the second system message and the summary the third: both are the same for every call of this message, even
+			// when the assistant edits the notebook meanwhile, so the cached prefix holds
+			system: [
+				...(known ? [notebookMessage(known.text)] : []),
+				...(earlier.summary ? [summaryMessage(earlier.summary)] : [])
+			],
 			rewindNote: await rewindNote(ctx, claimed.chatId).catch(() => undefined),
 			userText: input.text,
 			ocrText: input.ocrText,
 			turnKey: input.clientMessageId,
-			names: [...new Set([...(deps.names ?? []), ...(memory?.names ?? [])])],
-			persona:
-				[deps.persona, memory?.persona, memory?.tone].filter(Boolean).join('\n') || undefined,
-			memories: [...(deps.memories ?? []), ...(memory?.lines ?? [])],
+			names: [...new Set([...(deps.names ?? []), ...(known?.names ?? [])])],
+			persona: deps.persona,
+			memories: deps.memories,
 			// Which cards the person approved or turned down since the last message. A read that fails never stops a chat
 			cards: await recentCardLines(ctx, 12, 3, claimed.chatId).catch(() => []),
 			signal: deps.signal,
 			now: deps.now?.(),
 			tools: deps.tools,
-			web: deps.web
+			web: deps.web,
+			limits: deps.limits
 		});
 		for await (const e of turn) {
 			// The text arrives in pieces for the screen; the stored copy keeps the tool results, cards and fallback only
 			if (e.type === 'done') {
 				reply = e.reply;
+				const ended = e.stopped !== 'cancelled' && e.stopped !== 'length';
 				await run(ctx, (tx, userId) =>
 					tx
 						.update(chatTurn)
 						.set({
-							status: e.stopped === 'cancelled' || e.stopped === 'length' ? 'failed' : 'done',
+							status: ended ? 'done' : 'failed',
 							reply,
 							events: kept,
+							// The tool rounds stay for the next messages of the chat; a cancelled or cut-off message keeps none
+							transcript: ended && e.transcript ? e.transcript : null,
 							finishedAt: sql`now()`,
 							updatedAt: sql`now()`
 						})
 						.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, claimed.id)))
 				);
-				// What the person said is read for lasting facts later, by a job that carries only the turn id
-				if (e.stopped !== 'cancelled' && e.stopped !== 'length' && !deps.noMemory)
+				// A long chat is folded into its summary in the background, never inside a message. A failure here never stops the reply
+				if (ended)
 					await run(ctx, (tx, userId) =>
-						enqueue(tx, {
+						queueCompactionIfDue(
+							tx,
 							userId,
-							kind: 'memory.extract',
-							key: input.clientMessageId,
-							payload: { turnId: claimed.id }
-						})
+							claimed.chatId,
+							claimed.id,
+							deps.historyTokens ?? DEFAULT_HISTORY_TOKENS
+						)
 					).catch(() => undefined);
 			} else if (STORED.has(e.type)) kept.push(e);
-			yield e;
+			// The tool rounds are for the database only: the app never gets them
+			if (e.type === 'done' && e.transcript) {
+				const { transcript: _kept, ...rest } = e;
+				yield rest;
+			} else yield e;
 		}
 	} catch (e) {
 		await run(ctx, (tx, userId) =>

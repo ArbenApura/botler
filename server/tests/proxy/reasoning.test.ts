@@ -117,8 +117,24 @@ describe('streamed thinking', () => {
 			messages: [{ role: 'user', content: 'hi' }]
 		}));
 		expect(on.bodies[0]?.thinking).toEqual({ type: 'enabled' });
-		expect(on.bodies[0]?.max_tokens).toBe(8192);
+		expect(on.bodies[0]?.max_tokens).toBe(64000);
+		expect(on.bodies[0]?.reasoning_effort).toBe('high');
 		expect(on.bodies[0]).not.toHaveProperty('temperature');
+
+		// Low and medium map to high, max stays max, and a smaller ceiling is honoured
+		for (const [asked, sent] of [
+			['low', 'high'],
+			['medium', 'high'],
+			['max', 'max']
+		] as const) {
+			const run = setup(PARTS, { thinking: true, chatEffort: asked, thinkingMaxTokens: 5000 });
+			for await (const _ of run.client.stream(cara, {
+				bucket: 'chat',
+				messages: [{ role: 'user', content: 'hi' }]
+			}));
+			expect(run.bodies[0]?.reasoning_effort).toBe(sent);
+			expect(run.bodies[0]?.max_tokens).toBe(5000);
+		}
 
 		const memory = setup(PARTS, { thinking: true });
 		for await (const _ of memory.client.stream(cara, {
@@ -126,6 +142,7 @@ describe('streamed thinking', () => {
 			messages: [{ role: 'user', content: 'hi' }]
 		}));
 		expect(memory.bodies[0]).not.toHaveProperty('thinking');
+		expect(memory.bodies[0]).not.toHaveProperty('reasoning_effort');
 		expect(memory.bodies[0]?.max_tokens).toBe(2048);
 	});
 
@@ -137,8 +154,9 @@ describe('streamed thinking', () => {
 			messages: [{ role: 'user', content: 'hi' }]
 		}));
 		expect(off.bodies[0]).not.toHaveProperty('thinking');
+		expect(off.bodies[0]).not.toHaveProperty('reasoning_effort');
 		expect(off.bodies[0]?.temperature).toBe(0.2);
-		expect(off.bodies[0]?.max_tokens).toBe(8192);
+		expect(off.bodies[0]?.max_tokens).toBe(64000);
 	});
 
 	it('masks the thinking when it goes back to the model', async () => {

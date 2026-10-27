@@ -5,6 +5,13 @@
 import { defineEnvVars } from '@sveltejs/kit/env';
 // -- MODULES -- //
 import { checkFxUrl } from './lib/server/fx/config';
+import { DEFAULT_HISTORY_TOKENS } from './lib/server/agent/compact';
+import {
+	DEFAULT_CHAT_MAX_TOKENS,
+	DEFAULT_TURN_TOKEN_BUDGET,
+	parseChatEffort,
+	positiveInt
+} from './lib/server/proxy/chatEnv';
 
 // -- CONSTANTS -- //
 
@@ -116,8 +123,8 @@ export const variables = defineEnvVars({
 	},
 	ANTHROPIC_THINKING: {
 		description:
-			'1 or true: streamed chat answers think first and the app shows the thinking (costs more tokens; a tool round ends the turn, since thinking is display-only in this build). 0 or false: no thinking. Empty means off. Anything else stops the server.',
-		schema: (value) => flag(value, false, 'ANTHROPIC_THINKING')
+			'1 or true: streamed chat answers think first (adaptive thinking at CHAT_EFFORT, summarized for the app) and tools stay offered while they think. 0 or false: no thinking. Empty means on. Anything else stops the server.',
+		schema: (value) => flag(value, true, 'ANTHROPIC_THINKING')
 	},
 	ANTHROPIC_CACHE_TTL: {
 		description:
@@ -145,8 +152,23 @@ export const variables = defineEnvVars({
 	},
 	CHAT_MAX_TOKENS: {
 		description:
-			'The most tokens one chat model call may write (a tool round and the answer after it). Default 8192. Raise it if answers are still cut off; the monthly caps still apply. A bad value stops the server.',
-		schema: (value) => positiveInt(value, 8192, 'CHAT_MAX_TOKENS')
+			'The most tokens one chat model call may write, thinking and answer together. Default 64000. The monthly caps and TURN_TOKEN_BUDGET still apply. A bad value stops the server.',
+		schema: (value) => positiveInt(value, DEFAULT_CHAT_MAX_TOKENS, 'CHAT_MAX_TOKENS')
+	},
+	CHAT_EFFORT: {
+		description:
+			'How hard the chat model thinks: low, medium, high or max. Empty means high. DeepSeek maps low and medium to high. Anything else stops the server.',
+		schema: (value) => parseChatEffort(value)
+	},
+	TURN_TOKEN_BUDGET: {
+		description:
+			'The most charged tokens (cache reads and writes weighted, as the monthly cap counts them) one chat message may use over all its model calls. Default 300000. When it runs out the model is told to answer from what it has. A bad value stops the server.',
+		schema: (value) => positiveInt(value, DEFAULT_TURN_TOKEN_BUDGET, 'TURN_TOKEN_BUDGET')
+	},
+	HISTORY_TOKENS: {
+		description:
+			'The most tokens of earlier messages (with their tool results) sent with a chat message. Past it the oldest messages drop, and a background job folds the earlier part of a long chat into a summary. Default 40000. A bad value stops the server.',
+		schema: (value) => positiveInt(value, DEFAULT_HISTORY_TOKENS, 'HISTORY_TOKENS')
 	},
 	BOTLER_CHAT_TOKEN_CAP: {
 		description:
@@ -202,12 +224,4 @@ function cacheTtl(value: string | undefined): '5m' | '1h' {
 	const v = value.trim().toLowerCase();
 	if (v === '5m' || v === '1h') return v;
 	throw new Error('ANTHROPIC_CACHE_TTL must be 5m or 1h');
-}
-
-/** A whole number above zero, or the default when the variable is empty. A bad value stops the server. */
-function positiveInt(value: string | undefined, fallback: number, name: string): number {
-	if (!value || !value.trim()) return fallback;
-	const n = Number(value);
-	if (!Number.isInteger(n) || n <= 0) throw new Error(`${name} must be a whole number above zero`);
-	return n;
 }

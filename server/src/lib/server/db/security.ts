@@ -15,21 +15,25 @@ const USER = "nullif(current_setting('app.user_id', true), '')";
 
 const q = (name: string) => `"${name}"`;
 
-/** Every statement, in order, safe to run again. */
-export function securityStatements(): string[] {
+/**
+ * Every statement, in order, safe to run again. `only` limits it to the tables that exist: a test that applies the journal up to an
+ * earlier migration has none of the later tables yet. The real runner never passes it, so a table that is missing there stops the start.
+ */
+export function securityStatements(only?: ReadonlySet<string>): string[] {
 	const out: string[] = [];
+	const has = (name: string) => !only || only.has(name);
 	out.push(
 		`DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${RUNTIME_ROLE}') THEN CREATE ROLE ${RUNTIME_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS; END IF; END $$`
 	);
 	out.push(`GRANT USAGE ON SCHEMA public TO ${RUNTIME_ROLE}`);
-	for (const name of PLAIN_TABLES) {
+	for (const name of PLAIN_TABLES.filter(has)) {
 		// A table that must never lose rows is also stripped of any wider grant it may have had before
 		if (PLAIN_NO_DELETE.has(name)) {
 			out.push(`REVOKE DELETE, TRUNCATE ON ${q(name)} FROM ${RUNTIME_ROLE}`);
 			out.push(`GRANT SELECT, INSERT, UPDATE ON ${q(name)} TO ${RUNTIME_ROLE}`);
 		} else out.push(`GRANT SELECT, INSERT, UPDATE, DELETE ON ${q(name)} TO ${RUNTIME_ROLE}`);
 	}
-	for (const t of USER_TABLES) {
+	for (const t of USER_TABLES.filter((x) => has(x.name))) {
 		const col = q(t.userColumn);
 		out.push(`ALTER TABLE ${q(t.name)} ENABLE ROW LEVEL SECURITY`);
 		out.push(`ALTER TABLE ${q(t.name)} FORCE ROW LEVEL SECURITY`);
@@ -49,7 +53,7 @@ export function securityStatements(): string[] {
 	}
 	// The owner runs the erase function (data_reset). Forced row level security binds the owner too, so it gets narrow policies of its own:
 	// it can read and delete only the rows of the person set in the session, and add the one tombstone row to the trail. Nothing else.
-	for (const t of USER_TABLES) {
+	for (const t of USER_TABLES.filter((x) => has(x.name))) {
 		const col = t.userColumn;
 		const own = `${col} = nullif(current_setting(''app.user_id'', true), '''')`;
 		for (const [name, command, clause] of [
