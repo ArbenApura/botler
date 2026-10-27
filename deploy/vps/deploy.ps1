@@ -1,5 +1,5 @@
 # DEPLOY THE WORKING TREE TO THE VPS: yarn deploy:vps (from server/) or powershell deploy/vps/deploy.ps1
-# Sends tracked and untracked (not ignored) files, keeps the server's .env, takes an encrypted backup first, rebuilds, migrates and waits for /healthz.
+# Builds the image on this PC (never on the VPS), sends it with the tracked and untracked (not ignored) files, keeps the server's .env, takes an encrypted backup first, rebuilds, migrates and waits for /healthz.
 # This reaches the live server: the user confirms immediately before every run (VPS.md). Botler's compose project only; AFB is never touched.
 param(
 	[string]$Server = 'ubuntu@15.235.241.169',
@@ -22,6 +22,15 @@ tar -czf "$tmp\botler.tgz" -T "$tmp\files.txt"
 Check 'tar'
 Write-Host ("Packed {0:N1} MB" -f ((Get-Item "$tmp\botler.tgz").Length / 1MB))
 
+# -- BUILD THE IMAGE HERE -- #
+# The VPS (3.7 GB shared with AFB) must never compile the app: a build there exhausted its memory and took the whole host down.
+# The image is built on this PC, sent as a tar and loaded on the server, which only runs it.
+docker build -t botler-server:local server
+Check 'docker build'
+docker save -o "$tmp\image.tar" botler-server:local
+Check 'docker save'
+Write-Host ("Image {0:N0} MB" -f ((Get-Item "$tmp\image.tar").Length / 1MB))
+
 # -- REMOTE SCRIPT (no BOM, LF only) -- #
 # The build id is written next to the code so /healthz can be compared with it after the deploy
 $build = (Get-Date -Format 'yyyyMMddHHmmss')
@@ -38,9 +47,10 @@ fi
 rsync -a --delete --exclude 'deploy/vps/.env' --exclude 'backups' ~/botler-incoming/ ~/botler/
 rm -rf ~/botler-incoming
 cd ~/botler/deploy/vps
-# Build once and alone (the host has 3.7 GB shared with AFB), then start
-docker compose build botler-app
-docker compose up -d
+# The image was built on the deploy PC and arrives as a tar. Nothing is built on this host
+docker load -i /tmp/botler-image.tar
+rm -f /tmp/botler-image.tar
+docker compose up -d --no-build
 # The egress wall lives inside the app container, so it is set again after every start (see egress.sh)
 bash ~/botler/deploy/vps/egress.sh
 docker image prune -f >/dev/null
@@ -51,6 +61,8 @@ docker compose ps --format '{{.Service}} {{.Status}}'
 # -- SEND AND RUN -- #
 scp "$tmp\botler.tgz" "${Server}:/tmp/botler.tgz"
 Check 'scp of the code'
+scp -C "$tmp\image.tar" "${Server}:/tmp/botler-image.tar"
+Check 'scp of the image'
 scp "$tmp\remote.sh" "${Server}:/tmp/botler-remote.sh"
 Check 'scp of the script'
 ssh $Server 'bash /tmp/botler-remote.sh; code=$?; rm -f /tmp/botler-remote.sh; exit $code'

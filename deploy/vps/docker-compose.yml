@@ -30,7 +30,7 @@ services:
     mem_limit: 768m
 
   botler-migrate:
-    # The image is built once, by the botler-app service (docker compose build botler-app). This service only runs it
+    # The image is built on the deploy PC (deploy.ps1) and loaded on the VPS, never built there. This service only runs it
     image: botler-server:local
     pull_policy: never
     command: ["node", "cli/migrate.mjs"]
