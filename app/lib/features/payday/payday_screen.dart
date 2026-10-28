@@ -143,41 +143,44 @@ class PaydayScreen extends ConsumerWidget {
                 for (final r in list.where(
                   (r) => str(r['status']) != 'retired',
                 ))
-                  PaperCard(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(str(r['summary'])),
-                              if (str(r['status']) == 'proposed')
-                                Text(
-                                  context.t.paydayWaiting,
-                                  style: TextStyle(color: c.warning),
-                                ),
-                            ],
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: PaperCard(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(str(r['summary'])),
+                                if (str(r['status']) == 'proposed')
+                                  Text(
+                                    context.t.paydayWaiting,
+                                    style: TextStyle(color: c.warning),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (str(r['status']) == 'proposed')
-                          FilledButton(
+                          if (str(r['status']) == 'proposed')
+                            FilledButton(
+                              onPressed: () =>
+                                  _do(context, ref, 'rule_approve', r),
+                              child: Text(context.t.paydayApprove),
+                            ),
+                          TextButton(
                             onPressed: () =>
-                                _do(context, ref, 'rule_approve', r),
-                            child: Text(context.t.paydayApprove),
+                                _do(context, ref, 'rule_retire', r),
+                            child: Text(
+                              str(r['status']) == 'proposed'
+                                  ? context.t.paydayDecline
+                                  : context.t.paydayStop,
+                            ),
                           ),
-                        TextButton(
-                          onPressed: () => _do(context, ref, 'rule_retire', r),
-                          child: Text(
-                            str(r['status']) == 'proposed'
-                                ? context.t.paydayDecline
-                                : context.t.paydayStop,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: () => _addRule(context, ref),
                   icon: const Icon(Icons.add),
