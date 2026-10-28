@@ -1385,6 +1385,8 @@
   "paydayRuleAddButton": "Add the rule",
   "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",
   "paydayRuleHint": "20% to emergency fund",
+  "paydayRuleNameLabel": "Name (optional)",
+  "paydayRuleNameHint": "Emergency fund",
   "paydayRuleLabel": "Say it in your own words",
   "paydayRuleTitle": "Add a rule",
   "paydayRulesEmpty": "No rules yet. Say what should happen to what is left, like “20% to emergency fund”.",

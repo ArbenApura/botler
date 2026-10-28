@@ -3427,6 +3427,18 @@ abstract class AppLocalizations {
   /// **'20% to emergency fund'**
   String get paydayRuleHint;
 
+  /// No description provided for @paydayRuleNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (optional)'**
+  String get paydayRuleNameLabel;
+
+  /// No description provided for @paydayRuleNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency fund'**
+  String get paydayRuleNameHint;
+
   /// No description provided for @paydayRuleLabel.
   ///
   /// In en, this message translates to:

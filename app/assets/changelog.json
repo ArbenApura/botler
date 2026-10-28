@@ -78,5 +78,15 @@
     "fil": [
       "May espasyo na ang pagitan ng mga payday rule sa ilalim ng Rules for the rest, kaya hindi na magkakadikit ang mga ito."
     ]
+  },
+  {
+    "versionCode": 14,
+    "versionName": "1.1.3",
+    "en": [
+      "A payday rule can now have a name, like Emergency fund, so you can tell what each rule is for. Botler names the rules it adds, and you can name your own when you add a rule."
+    ],
+    "fil": [
+      "Puwede nang bigyan ng pangalan ang payday rule, tulad ng Emergency fund, para malaman kung para saan ang bawat rule. Pinapangalanan ng Botler ang mga rule na idinaragdag nito, at maaari mo ring pangalanan ang sarili mong rule."
+    ]
   }
 ]

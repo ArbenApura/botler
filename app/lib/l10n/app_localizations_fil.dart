@@ -2010,6 +2010,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayRuleHint => '20% sa emergency fund';
 
   @override
+  String get paydayRuleNameLabel => 'Pangalan (opsyonal)';
+
+  @override
+  String get paydayRuleNameHint => 'Emergency fund';
+
+  @override
   String get paydayRuleLabel => 'Sabihin sa sarili mong salita';
 
   @override

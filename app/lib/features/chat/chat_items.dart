@@ -621,7 +621,12 @@ class _RuleCardState extends ConsumerState<_RuleCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(str(widget.rule['summary'])),
+          if (str(widget.rule['label']).isNotEmpty)
+            Text(
+              str(widget.rule['label']),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          Text(ruleSentence(widget.rule)),
           const SizedBox(height: 8),
           if (status == 'proposed')
             FilledButton(

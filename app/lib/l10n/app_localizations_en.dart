@@ -1998,6 +1998,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayRuleHint => '20% to emergency fund';
 
   @override
+  String get paydayRuleNameLabel => 'Name (optional)';
+
+  @override
+  String get paydayRuleNameHint => 'Emergency fund';
+
+  @override
   String get paydayRuleLabel => 'Say it in your own words';
 
   @override

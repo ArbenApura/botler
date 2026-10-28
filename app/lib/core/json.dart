@@ -32,6 +32,15 @@ List<Object?> asList(Object? v) => v is List<Object?> ? v : <Object?>[];
 
 String str(Object? v, [String fallback = '']) => v is String ? v : fallback;
 
+/// A payday rule's sentence without the name the server puts in front of it (the name is drawn on its own line).
+String ruleSentence(Json rule) {
+  final summary = str(rule['summary']);
+  final label = str(rule['label']);
+  return label.isNotEmpty && summary.startsWith('$label: ')
+      ? summary.substring(label.length + 2)
+      : summary;
+}
+
 int intOf(Object? v, [int fallback = 0]) => v is num ? v.toInt() : fallback;
 
 bool boolOf(Object? v, [bool fallback = false]) => v is bool ? v : fallback;

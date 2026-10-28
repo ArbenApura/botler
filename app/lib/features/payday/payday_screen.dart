@@ -153,7 +153,14 @@ class PaydayScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text(str(r['summary'])),
+                                if (str(r['label']).isNotEmpty)
+                                  Text(
+                                    str(r['label']),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                Text(ruleSentence(r)),
                                 if (str(r['status']) == 'proposed')
                                   Text(
                                     context.t.paydayWaiting,
@@ -294,12 +301,18 @@ class PaydayScreen extends ConsumerWidget {
 
   Future<void> _addRule(BuildContext context, WidgetRef ref) async {
     final words = TextEditingController();
+    final name = TextEditingController();
     final done = await showFormSheet<bool>(
       context,
       title: context.t.paydayRuleTitle,
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Field(
+            controller: name,
+            label: sheet.t.paydayRuleNameLabel,
+            hint: sheet.t.paydayRuleNameHint,
+          ),
           Field(
             controller: words,
             label: sheet.t.paydayRuleLabel,
@@ -315,7 +328,10 @@ class PaydayScreen extends ConsumerWidget {
               try {
                 await ref.read(apiProvider).verb(
                   'rule_from_text',
-                  <String, Object?>{'text': words.text.trim()},
+                  <String, Object?>{
+                    'text': words.text.trim(),
+                    if (name.text.trim().isNotEmpty) 'label': name.text.trim(),
+                  },
                 );
                 close(true);
               } catch (e) {

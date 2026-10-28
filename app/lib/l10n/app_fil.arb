@@ -554,6 +554,8 @@
   "paydayRuleAddButton": "Idagdag ang rule",
   "paydayRuleExamples": "Mga halimbawa: “500 sa GCash”, “10% ng matitira sa Maya”, “ang natitira sa RCBC”.",
   "paydayRuleHint": "20% sa emergency fund",
+  "paydayRuleNameLabel": "Pangalan (opsyonal)",
+  "paydayRuleNameHint": "Emergency fund",
   "paydayRuleLabel": "Sabihin sa sarili mong salita",
   "paydayRuleTitle": "Magdagdag ng rule",
   "paydayRulesEmpty": "Wala pang rule. Sabihin kung ano ang gagawin sa matitira, tulad ng “20% sa emergency fund”.",
