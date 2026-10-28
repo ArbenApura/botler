@@ -51,33 +51,37 @@ const List<Json> _accounts = <Json>[
   },
 ];
 
-Json _assets({List<String> missing = const <String>[], bool stale = false}) =>
+Json _assets({
+  List<String> missing = const <String>[],
+  bool stale = false,
+  List<Json> wallets = const <Json>[],
+}) => <String, Object?>{
+  'currency': 'PHP',
+  'total': 410000,
+  'missing': missing,
+  'wallets': wallets,
+  'accounts': <Json>[
     <String, Object?>{
-      'currency': 'PHP',
-      'total': 410000,
-      'missing': missing,
-      'accounts': <Json>[
-        <String, Object?>{
-          'accountId': 'acc-wise',
-          'name': 'Wise',
-          'subtotal': 380000,
-        },
-        <String, Object?>{
-          'accountId': 'acc-cash',
-          'name': 'Cash',
-          'subtotal': 30000,
-        },
-      ],
-      'rates': <String, Object?>{
-        'asOf': DateTime.now()
-            .subtract(Duration(days: stale ? 9 : 0))
-            .toUtc()
-            .toIso8601String(),
-        'stale': stale,
-        'source': 'rates.test',
-        'configured': true,
-      },
-    };
+      'accountId': 'acc-wise',
+      'name': 'Wise',
+      'subtotal': 380000,
+    },
+    <String, Object?>{
+      'accountId': 'acc-cash',
+      'name': 'Cash',
+      'subtotal': 30000,
+    },
+  ],
+  'rates': <String, Object?>{
+    'asOf': DateTime.now()
+        .subtract(Duration(days: stale ? 9 : 0))
+        .toUtc()
+        .toIso8601String(),
+    'stale': stale,
+    'source': 'rates.test',
+    'configured': true,
+  },
+};
 
 // -- FUNCTIONS -- //
 
@@ -249,6 +253,41 @@ void main() {
         expect(find.textContaining('Exchange rates as of'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'shows the rate of each added currency once, and none for the main currency, a missing rate or no foreign wallet',
+      (tester) async {
+        Json wallet(String currency, Object? rate) => <String, Object?>{
+          'accountId': 'acc-wise',
+          'currency': currency,
+          'rate': rate,
+        };
+        final c = await _container(
+          assets: _assets(
+            wallets: <Json>[
+              wallet('PHP', null),
+              wallet('USD', '56.12'),
+              wallet('USD', '56.12'),
+              wallet('ZAR', null),
+            ],
+          ),
+        );
+        await tester.pumpWidget(_app(c, const AccountsScreen()));
+        await tester.pumpAndSettle();
+        expect(find.text('1 USD = 56.12 PHP'), findsOneWidget);
+        expect(find.textContaining('ZAR ='), findsNothing);
+        expect(find.textContaining('1 PHP ='), findsNothing);
+      },
+    );
+
+    testWidgets('shows no rate lines when no foreign currency is held', (
+      tester,
+    ) async {
+      final c = await _container();
+      await tester.pumpWidget(_app(c, const AccountsScreen()));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(' = '), findsNothing);
+    });
 
     testWidgets('says a currency has no rate and says the rates are old', (
       tester,

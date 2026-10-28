@@ -385,6 +385,22 @@ bool hasWalletIn(Json account, String currency) =>
 
 // -- TOTAL -- //
 
+/// The rate of each added currency against the main one, by currency code. Read from the wallets of the assets answer; a currency without a
+/// rate (or the main currency itself) is left out, and the missing-rate warning names those.
+Map<String, String> rateLinesOf(Json assets, String main) {
+  final out = <String, String>{};
+  for (final w in asJsonList(assets['wallets'])) {
+    final code = str(w['currency']);
+    final rate = w['rate'];
+    if (code.isEmpty || code == main || rate is! String || rate.isEmpty)
+      continue;
+    out[code] = rate;
+  }
+  return Map<String, String>.fromEntries(
+    out.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+  );
+}
+
 /// Everything the person has, in the main currency, with the date of the rates and what is missing. Tapping it updates the rates.
 class _TotalCard extends ConsumerWidget {
   const _TotalCard({required this.assets});
@@ -438,6 +454,15 @@ class _TotalCard extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(t.accountsRatesOffline, style: TextStyle(color: c.muted)),
             ],
+            // One line per added currency with its rate against the main currency (display only, shown as the server sent it)
+            for (final e in rateLinesOf(data, main).entries)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  t.accountsRateLine(e.key, e.value, main),
+                  style: TextStyle(color: c.muted, fontFeatures: tabular),
+                ),
+              ),
             const SizedBox(height: 6),
             // The rates line is also the button that updates them (a 48 dp target)
             Semantics(

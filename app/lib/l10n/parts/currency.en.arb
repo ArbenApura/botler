@@ -13,6 +13,8 @@
   "accountsRatesOffline": "No connection. Showing the last total.",
   "accountsMissingRate": "No exchange rate yet for {currencies}. It is not in the total.",
   "@accountsMissingRate": { "placeholders": { "currencies": { "type": "String" } } },
+  "accountsRateLine": "1 {from} = {rate} {main}",
+  "@accountsRateLine": { "placeholders": { "from": { "type": "String" }, "rate": { "type": "String" }, "main": { "type": "String" } } },
   "accountsSubtotal": "About {amount} in all",
   "@accountsSubtotal": { "placeholders": { "amount": { "type": "String" } } },
   "accountsWalletAdd": "Add a currency",

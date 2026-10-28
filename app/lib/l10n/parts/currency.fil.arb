@@ -10,6 +10,7 @@
   "accountsRatesFailed": "Hindi ma-update ang palitan. Gagamitin pa rin ang huli.",
   "accountsRatesOffline": "Walang koneksyon. Ipinapakita ang huling kabuuan.",
   "accountsMissingRate": "Wala pang palitan para sa {currencies}. Wala ito sa kabuuan.",
+  "accountsRateLine": "1 {from} = {rate} {main}",
   "accountsSubtotal": "Mga {amount} lahat",
   "accountsWalletAdd": "Magdagdag ng pera",
   "accountsWalletAdded": "Nadagdag ang {currency}.",
