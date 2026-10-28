@@ -384,7 +384,10 @@ export const goalUpdateInput = goalCreateInput.partial().extend({
 
 // -- ALLOCATION RULES -- //
 
+const ruleLabelField = z.string().trim().min(1).max(60);
+
 export const ruleProposeInput = createInsertSchema(allocationRule, {
+	label: ruleLabelField.nullable(),
 	amount: amountField.nullable(),
 	basisPoints: z.number().int().min(1).max(10_000).nullable(),
 	targetAccountId: idField.nullable(),
@@ -393,6 +396,7 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 	position: z.number().int().min(1).max(999)
 })
 	.pick({
+		label: true,
 		mode: true,
 		amount: true,
 		basisPoints: true,
@@ -403,6 +407,7 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 		position: true
 	})
 	.partial({
+		label: true,
 		amount: true,
 		basisPoints: true,
 		base: true,
@@ -414,11 +419,19 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 
 export const ruleFromTextInput = z.object({
 	text: z.string().trim().min(3).max(200),
+	label: ruleLabelField.nullable().optional(),
 	effectiveFrom: dayField.optional(),
 	position: z.number().int().min(1).max(999).optional()
 });
 
 export const ruleIdInput = z.object({ ruleId: idField });
+
+/** Renames a rule. Only the label changes: the money and the target stay as approved. */
+export const ruleUpdateInput = z.object({
+	ruleId: idField,
+	label: ruleLabelField.nullable()
+});
+export type RuleUpdateInput = z.infer<typeof ruleUpdateInput>;
 
 // -- LEDGER -- //
 

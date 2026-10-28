@@ -225,6 +225,13 @@
       "when": 1793060517798,
       "tag": "0031_notebook",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793171299061,
+      "tag": "0032_rule_label",
+      "breakpoints": true
     }
   ]
 }

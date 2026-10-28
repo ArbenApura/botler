@@ -227,6 +227,8 @@ export const allocationRule = userTable(
 	{
 		id: id(),
 		position: integer('position').notNull(),
+		/** A short name saying what the rule is for, like "Emergency fund". Optional. */
+		label: text('label'),
 		mode: text('mode', { enum: RULE_MODE_VALUES }).notNull(),
 		amount: centavos('amount'),
 		/** Hundredths of a percent: 2000 is 20%. */
@@ -259,6 +261,10 @@ export const allocationRule = userTable(
 		oneOf('allocation_rule_mode_chk', t.mode, RULE_MODE_VALUES),
 		oneOf('allocation_rule_base_chk', t.base, RULE_BASE_VALUES),
 		oneOf('allocation_rule_status_chk', t.status, RULE_STATUSES),
+		check(
+			'allocation_rule_label_chk',
+			sql`${t.label} is null or length(${t.label}) between 1 and 60`
+		),
 		check(
 			'allocation_rule_target_chk',
 			sql`(${t.targetAccountId} is not null)::int + (${t.targetGoalId} is not null)::int = 1`

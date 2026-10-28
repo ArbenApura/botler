@@ -642,6 +642,7 @@ const EXPECTED_TOOLS = [
 	'rule_delete',
 	'rule_from_text',
 	'rule_propose',
+	'rule_update',
 	'rules_list',
 	'schedule_preview',
 	'settings_get',

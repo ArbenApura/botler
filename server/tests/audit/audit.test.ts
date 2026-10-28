@@ -134,6 +134,16 @@ describe('the registry of audited tables', () => {
 			expect(a.columns.slice(0, a.firstColumns?.length)).toEqual(a.firstColumns);
 	});
 
+	it('replaces the trigger of allocation_rule when it gained a label (0032)', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0032_rule_label.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditRedefinedSql('0032'));
+		expect(auditMigrationSql()).not.toContain('approved_at,label');
+		expect(auditRedefinedSql('0032')).toContain('approved_at,label');
+	});
+
 	it('replaces the trigger of bill when it gained its start date (0023)', () => {
 		const file = readFileSync(
 			join(__dirname, '../../src/lib/server/db/migrations/0023_bill_starts_on.sql'),

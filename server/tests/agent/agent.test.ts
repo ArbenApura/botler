@@ -156,6 +156,7 @@ describe('the verb registry', () => {
 				'routine_update',
 				'rule_from_text',
 				'rule_propose',
+				'rule_update',
 				'split_mark_sent',
 				'split_propose',
 				'task_create',

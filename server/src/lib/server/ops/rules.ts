@@ -16,7 +16,13 @@ import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
 import { account, allocationRule, goal } from '../db/schema';
-import { ruleDeleteInput, ruleFromTextInput, ruleIdInput, ruleProposeInput } from '../db/zod';
+import {
+	ruleDeleteInput,
+	ruleFromTextInput,
+	ruleIdInput,
+	ruleProposeInput,
+	ruleUpdateInput
+} from '../db/zod';
 import { readSettings } from './settings';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, plain, requireAccount, requireGoal, requirePerson } from './shared';
@@ -51,7 +57,7 @@ export function describeRule(
 /** A saved row as the engine's Rule. */
 export const toRule = (r: RuleRow, label?: string): Rule => ({
 	id: r.id,
-	label,
+	label: label ?? r.label ?? undefined,
 	position: r.position,
 	target: r.targetAccountId
 		? { kind: 'account', id: r.targetAccountId }
@@ -84,7 +90,8 @@ async function targetNames(tx: Tx, userId: string): Promise<Targets> {
 
 const view = (r: RuleRow, t: Targets): RuleView => {
 	const targetName = t.names.get(r.targetAccountId ?? r.targetGoalId ?? '') ?? 'an account';
-	return { ...plain(r), summary: describeRule(r, targetName, t.currency), targetName };
+	const sentence = describeRule(r, targetName, t.currency);
+	return { ...plain(r), summary: r.label ? `${r.label}: ${sentence}` : sentence, targetName };
 };
 
 async function activeRules(tx: Tx, userId: string) {
@@ -115,6 +122,7 @@ export async function proposeRule(
 				.insert(allocationRule)
 				.values({
 					userId,
+					label: input.label ?? null,
 					mode: input.mode,
 					amount: input.amount ?? null,
 					basisPoints: input.basisPoints ?? null,
@@ -162,6 +170,7 @@ export async function proposeRuleFromText(ctx: Ctx, raw: RuleFromTextInput): Pro
 	return proposeRule(
 		ctx,
 		{
+			label: input.label,
 			mode: parsed.mode,
 			amount: parsed.amount,
 			basisPoints: parsed.basisPoints,
@@ -229,6 +238,22 @@ export async function retireRule(ctx: Ctx, raw: { ruleId: string }): Promise<Rul
 				)
 				.returning();
 			if (!done) throw new OpsError('NOT_FOUND', 'There is no such rule to retire.');
+			return view(done, await targetNames(tx, userId));
+		})
+	);
+}
+
+/** Gives a rule a name, or clears it (null). Only the label changes, so the assistant may do it without a card. */
+export async function updateRule(ctx: Ctx, raw: unknown): Promise<RuleView> {
+	const { ruleId, label } = parse(ruleUpdateInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'rule.update', { ruleId, label }, async (tx, userId) => {
+			const [done] = await tx
+				.update(allocationRule)
+				.set({ label, version: sql`${allocationRule.version} + 1`, updatedAt: sql`now()` })
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)))
+				.returning();
+			if (!done) throw new OpsError('NOT_FOUND', 'That rule does not exist.');
 			return view(done, await targetNames(tx, userId));
 		})
 	);

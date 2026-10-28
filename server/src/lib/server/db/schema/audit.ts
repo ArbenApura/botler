@@ -315,10 +315,44 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'target_goal_id',
 			'effective_from',
 			'status',
-			'approved_at'
+			'approved_at',
+			'label'
 		],
 		account: 'target_account_id',
-		amount: ''
+		amount: '',
+		firstColumns: [
+			'id',
+			'position',
+			'mode',
+			'amount',
+			'basis_points',
+			'base',
+			'target_account_id',
+			'target_goal_id',
+			'effective_from',
+			'status',
+			'approved_at'
+		],
+		// The label is a short name the person or the assistant chose, so it is safe to copy
+		redefinitions: [
+			{
+				migration: '0032',
+				columns: [
+					'id',
+					'position',
+					'mode',
+					'amount',
+					'basis_points',
+					'base',
+					'target_account_id',
+					'target_goal_id',
+					'effective_from',
+					'status',
+					'approved_at',
+					'label'
+				]
+			}
+		]
 	},
 	{
 		table: 'income_schedule',

@@ -84,6 +84,7 @@ import {
 	ruleFromTextInput,
 	ruleIdInput,
 	ruleProposeInput,
+	ruleUpdateInput,
 	rulesListInput,
 	snapshotRecordInput,
 	splitApproveInput,
@@ -202,6 +203,7 @@ import {
 	listRules,
 	proposeRule,
 	proposeRuleFromText,
+	updateRule,
 	retireRule
 } from './rules';
 import { parse, requireBill } from './shared';
@@ -867,6 +869,14 @@ export const VERBS: readonly Verb[] = [
 			'Remove a payday schedule. Done at once, no card. One that a payday split was made for keeps that history and is switched off instead. The answer holds the removed schedule. Name what you removed.',
 		input: incomeDeleteInput,
 		run: (ctx, a) => deleteIncome(ctx, a)
+	}),
+	verb({
+		name: 'rule_update',
+		kind: 'free',
+		description:
+			'Give a payday rule a short label saying what it is for (like "Emergency fund"), or clear it with null. Only the label changes; amounts and targets need a new rule.',
+		input: ruleUpdateInput,
+		run: (ctx, a) => updateRule(ctx, a)
 	}),
 	verb({
 		name: 'rule_delete',

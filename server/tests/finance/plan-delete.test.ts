@@ -172,6 +172,33 @@ describe('rule_delete', () => {
 	});
 });
 
+describe('rule label', () => {
+	it('is saved on a proposal, shown in the summary and changed by rule_update', async () => {
+		const f = await seedPerson(t);
+		const proposed = await proposeRule(w(f), {
+			label: 'Emergency fund',
+			mode: 'fixed',
+			amount: 100_000,
+			targetGoalId: f.goalId
+		});
+		expect(proposed).toMatchObject({ label: 'Emergency fund' });
+		expect(proposed.summary).toMatch(/^Emergency fund: Put /);
+		const renamed = (await invokeVerb(agentOf(f), 'rule_update', {
+			ruleId: proposed.id,
+			label: 'Travel'
+		})) as { label: string; amount: number; status: string };
+		expect(renamed).toMatchObject({ label: 'Travel', amount: 100_000, status: 'proposed' });
+		const cleared = (await invokeVerb(agentOf(f), 'rule_update', {
+			ruleId: proposed.id,
+			label: null
+		})) as { label: string | null };
+		expect(cleared.label).toBeNull();
+		await expect(
+			invokeVerb(agentOf(f), 'rule_update', { ruleId: proposed.id, label: 'x'.repeat(61) })
+		).rejects.toBeDefined();
+	});
+});
+
 describe('account_delete', () => {
 	it('removes a clean account with its wallets', async () => {
 		const f = await seedPerson(t);
