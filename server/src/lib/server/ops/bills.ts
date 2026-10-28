@@ -27,9 +27,10 @@ import {
 	occurrenceOn,
 	OVERRIDE_REACH_DAYS
 } from '../../finance/occurrence';
-import { accountWallet, bill, billOverride, billPayment } from '../db/schema';
+import { accountWallet, bill, billOverride, billPayment, ledgerTxn } from '../db/schema';
 import {
 	billCreateInput,
+	billDeleteInput,
 	billMarkPaidInput,
 	billOccurrenceResetInput,
 	billOccurrenceUpdateInput,
@@ -107,7 +108,6 @@ export async function estimateOf(
 }
 
 export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillView> {
-	requirePerson(ctx.actor.kind, 'add a bill');
 	const input = parse(billCreateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'bill.create', input, async (tx, userId) => {
@@ -126,6 +126,44 @@ export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillVi
 				.returning();
 			if (!row) throw new OpsError('CONFLICT', 'The bill could not be saved.');
 			return plain(row);
+		})
+	);
+}
+
+/**
+ * Removes a bill. A bill that was ever paid, or that has a ledger entry, keeps its history: it is switched off instead (active false) and
+ * the answer says so. A bill with none of that goes, and its changed dates with it. The assistant may call it (owner decision 2026-10-28);
+ * the removed bill is returned whole, so it can be added again.
+ */
+export async function deleteBill(ctx: Ctx, raw: unknown) {
+	const { billId } = parse(billDeleteInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'bill.delete', { billId }, async (tx, userId) => {
+			const current = await requireBill(tx, userId, billId);
+			const [entries] = await tx
+				.select({ n: sql<number>`count(*)::int` })
+				.from(ledgerTxn)
+				.where(and(eq(ledgerTxn.userId, userId), eq(ledgerTxn.billId, billId)));
+			const [paid] = await tx
+				.select({ n: sql<number>`count(*)::int` })
+				.from(billPayment)
+				.where(and(eq(billPayment.userId, userId), eq(billPayment.billId, billId)));
+			if ((entries?.n ?? 0) + (paid?.n ?? 0) > 0) {
+				const [row] = await tx
+					.update(bill)
+					.set({ active: false, version: sql`${bill.version} + 1`, updatedAt: sql`now()` })
+					.where(and(eq(bill.userId, userId), eq(bill.id, billId)))
+					.returning();
+				if (!row) throw new OpsError('NOT_FOUND', 'That bill does not exist.');
+				return {
+					deleted: false as const,
+					switchedOff: true as const,
+					reason: 'The bill has payments, so its history is kept and it is switched off instead.',
+					bill: plain(row)
+				};
+			}
+			await tx.delete(bill).where(and(eq(bill.userId, userId), eq(bill.id, billId)));
+			return { deleted: true as const, switchedOff: false as const, bill: plain(current) };
 		})
 	);
 }

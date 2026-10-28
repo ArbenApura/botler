@@ -204,6 +204,7 @@ export async function play(opts: {
 	model: TurnModel;
 	text: string;
 	ocrText?: string;
+	ocrTexts?: string[];
 	web?: WebDeps;
 	turnKey?: string;
 	signal?: AbortSignal;
@@ -216,6 +217,7 @@ export async function play(opts: {
 		history: [],
 		userText: opts.text,
 		ocrText: opts.ocrText,
+		ocrTexts: opts.ocrTexts,
 		turnKey: opts.turnKey ?? `turn-${opts.f.userId}-${++ids}`,
 		web: opts.web,
 		signal: opts.signal,

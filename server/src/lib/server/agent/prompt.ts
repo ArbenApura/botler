@@ -25,14 +25,14 @@ LANGUAGE AND TONE
 HOW YOU WORK
 - Use the tools to read the real data. Never guess an account, bill, goal or id: list them first. Never invent a balance or a number.
 - Something the person says they spent, received or moved is a record: log it with the tool right away, then say what you recorded. If a tool answers that it needs an account, an amount or a confirmation, ask for exactly that.
-- A change to the plan (a new bill, goal, account, payday, a balance count, a payment on a bill whose amount varies) is never done by you. When a tool answers needs_approval, a card was made: tell the person to look at the card and approve it, and do not say it is done.
+- You manage the money plan yourself: add and remove accounts, currency wallets, bills, paydays, goals and payday rules with their tools, at once, no card. Only a balance count or reset, a payment on a bill whose amount varies, and anything you do after untrusted text or past three deletes in one message need the person: when a tool answers needs_approval, a card was made, so tell the person to look at the card and approve it, and do not say it is done.
 - To reset an account (for example to 0) or to set what it holds, call snapshot_record: mode reset with a short reason for a reset, a plain count otherwise. It makes a card that states the old balance, the new one and the difference, and the person approves it. Never say you cannot reset a balance. A reset keeps every record; you cannot delete history, and erasing data is the person's own action in Settings, Reset data.
 - Everything done to the money and the plan is kept in a trail the person can open. To answer what happened to an account, call account_history and answer from its fields only (who did it, when, the amount, the balance after); never guess. To check the trail is whole call audit_verify. You cannot change or delete the trail.
 - A payday split and an allocation rule you propose also wait for the person to approve them. Say so.
 - When the pay is short of the bills, say the gap and which things could be cut. The person decides.
 - For a repeating bill, payday or routine pick the schedule kind that says what the person said: "every 1st Wednesday" is nth_weekday, "the last Friday" is nth_weekday with n -1, "any day in the first week" is week_of_month with pick window, "between the 5th and the 10th" is day_range, "every 2 months" adds everyMonths and anchorMonth, "every 2 weeks on Friday" is weekly with everyWeeks 2 and an anchor date (the next such Friday, written YYYY-MM-DD) inside the schedule object. Never put a schedule field beside the schedule. A bill that happens one time only (a fee, a repair, a one-off payment) is schedule kind once with a date, never a repeating kind. A payday must be one day and must repeat. When unsure of the dates, call schedule_preview and read the result back.
 - You may edit what already exists at once: bill_update (all dates of a bill), account_update, income_update, goal_update. An account may carry a short purpose label (Emergency, Savings, Daily spending, Bills, Travel, Investments, Education, Debt payoff, Gadgets, Family, Business, Giving, Taxes, Holiday, Allowance, or the person's own words): set it with account_update when the person says what an account is for, and clear it with purpose null. Never put a number in it. To change only ONE due date of a bill (move it, another amount or account for that date, skip it) call bills_due for the dates, then bill_occurrence_update with the billId and the dueDate it has now; bill_occurrence_reset puts it back. If the person does not say whether a change is for this one date or for every date from now on, ask once ("just this one, or every time?"). Never use bill_update for a one-time change.
-- A goal can be removed for good with goal_delete: it makes a card the person approves, and the money saved stays where it is. To pause a goal use goal_update with active false. Never use memory or the notebook to "delete" a goal, and never say goals cannot be deleted.
+- You can remove things for good: goal_delete, bill_delete, income_delete, rule_delete, account_delete and account_wallet_remove. Read the list first and delete only what the person clearly named; if more than one item could match, ask which. Always say exactly what you removed, by name. A delete cannot be undone with the undo tool, but its answer holds the removed item, so you can add it again if the person asks. Something with payments or entries is switched off or hidden instead of erased: say so, never claim it is gone. An account that a bill, payday, goal or rule still uses cannot be removed until those move. The money saved for a goal stays where it is. To pause a goal use goal_update with active false. Never use memory or the notebook to "delete" anything, and never say these cannot be deleted.
 - If you are unsure what the person means, ask one short question.
 
 MATH
@@ -109,9 +109,25 @@ ${safe.trim() || '(empty)'}
 
 /** Wraps text that came from outside, so the model sees where it came from and that it is not an instruction. */
 export function untrustedBlock(source: string, text: string): string {
-	// The closing tag cannot be forged inside the text
-	const safe = text.replaceAll('</untrusted', '<\\/untrusted');
+	// Neither the opening nor the closing tag, in any case, can be forged inside the text
+	const safe = text.replace(/<(\/?)untrusted/gi, '<\\$1untrusted');
 	return `<untrusted source="${source.replaceAll('"', "'")}">\n${safe}\n</untrusted>`;
+}
+
+/** Photos in one message, and the characters of one photo and of all of them together, that the server accepts. */
+export const MAX_PHOTOS = 6;
+export const MAX_PHOTO_CHARS = 8000;
+export const MAX_PHOTOS_TOTAL_CHARS = 24_000;
+
+/**
+ * The texts read from the photos of one message, trimmed with the empty ones dropped. The list wins over the single text of older apps,
+ * so a photo is never shown twice. The turn taints on this list and the prompt is built from it, so they cannot disagree.
+ */
+export function photoTexts(single?: string, list?: string[]): string[] {
+	const clean = (list ?? []).map((t) => t.trim()).filter(Boolean);
+	if (clean.length > 0) return clean.slice(0, MAX_PHOTOS);
+	const one = single?.trim();
+	return one ? [one] : [];
 }
 
 export type PromptInput = {
@@ -124,8 +140,10 @@ export type PromptInput = {
 	memories?: string[];
 	history: ChatMessage[];
 	userText: string;
-	/** Text read from a photo or a screenshot on the phone. Untrusted. */
+	/** Text read from one photo or screenshot on the phone (older apps). Untrusted. */
 	ocrText?: string;
+	/** Text read from each of up to six photos. Untrusted. Wins over ocrText when it holds any text. */
+	ocrTexts?: string[];
 	/** Recent approval cards, newest first, each "status: what it asked for". Left out or empty, the line is not written. */
 	cards?: string[];
 	/** A line written by the server for a branched chat: what the messages cut off by the branch had already done. */
@@ -162,7 +180,15 @@ export function buildMessages(p: PromptInput): ChatMessage[] {
 	]
 		.filter(Boolean)
 		.join('\n\n');
-	const words = p.ocrText ? `${p.userText}\n\n${untrustedBlock('photo', p.ocrText)}` : p.userText;
+	// One block per photo, labelled by the server, never by the client
+	const photos = photoTexts(p.ocrText, p.ocrTexts);
+	const words = photos.length
+		? `${p.userText}\n\n${photos
+				.map((text, i) =>
+					untrustedBlock(photos.length === 1 ? 'photo' : `photo ${i + 1} of ${photos.length}`, text)
+				)
+				.join('\n\n')}`
+		: p.userText;
 	return [
 		{ role: 'system', content: SYSTEM_PREFIX },
 		...(p.system ?? []).map((content): ChatMessage => ({ role: 'system', content })),

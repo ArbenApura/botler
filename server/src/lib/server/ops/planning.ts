@@ -16,12 +16,13 @@ import { and, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { describeSchedule, occurrencesBetween, previewOccurrences } from '../../finance/schedule';
-import { allocationRule, goal, incomeSchedule } from '../db/schema';
+import { allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
 import {
 	goalCreateInput,
 	goalDeleteInput,
 	goalUpdateInput,
 	incomeCreateInput,
+	incomeDeleteInput,
 	incomeUpdateInput,
 	schedulePreviewInput
 } from '../db/zod';
@@ -34,8 +35,7 @@ import {
 	plain,
 	requireActiveAccount,
 	requireGoal,
-	requireIncome,
-	requirePerson
+	requireIncome
 } from './shared';
 
 // -- TYPES -- //
@@ -46,7 +46,6 @@ export type GoalView = Plain<typeof goal.$inferSelect>;
 // -- INCOME -- //
 
 export async function createIncome(ctx: Ctx, raw: IncomeCreateInput): Promise<IncomeView> {
-	requirePerson(ctx.actor.kind, 'set up an income');
 	const input = parse(incomeCreateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'income.create', input, async (tx, userId) => {
@@ -75,6 +74,46 @@ export async function updateIncome(ctx: Ctx, raw: IncomeUpdateInput): Promise<In
 				.returning();
 			if (!row) throw new OpsError('NOT_FOUND', 'That income does not exist.');
 			return plain(row);
+		})
+	);
+}
+
+/**
+ * Removes a payday schedule. One that a payday split was made for keeps that history: it is switched off instead (active false) and the
+ * answer says so. The assistant may call it (owner decision 2026-10-28); the removed schedule is returned whole.
+ */
+export async function deleteIncome(ctx: Ctx, raw: unknown) {
+	const { incomeId } = parse(incomeDeleteInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'income.delete', { incomeId }, async (tx, userId) => {
+			const current = await requireIncome(tx, userId, incomeId);
+			const [plans] = await tx
+				.select({ n: sql<number>`count(*)::int` })
+				.from(splitPlan)
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.incomeScheduleId, incomeId)));
+			if ((plans?.n ?? 0) > 0) {
+				const [row] = await tx
+					.update(incomeSchedule)
+					.set({
+						active: false,
+						version: sql`${incomeSchedule.version} + 1`,
+						updatedAt: sql`now()`
+					})
+					.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, incomeId)))
+					.returning();
+				if (!row) throw new OpsError('NOT_FOUND', 'That income does not exist.');
+				return {
+					deleted: false as const,
+					switchedOff: true as const,
+					reason:
+						'A payday split was made for it, so its history is kept and it is switched off instead.',
+					income: plain(row)
+				};
+			}
+			await tx
+				.delete(incomeSchedule)
+				.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, incomeId)));
+			return { deleted: true as const, switchedOff: false as const, income: plain(current) };
 		})
 	);
 }
@@ -121,7 +160,6 @@ export async function schedulePreview(ctx: Ctx, raw: SchedulePreviewInput) {
 // -- GOALS -- //
 
 export async function createGoal(ctx: Ctx, raw: GoalCreateInput): Promise<GoalView> {
-	requirePerson(ctx.actor.kind, 'add a goal');
 	const input = parse(goalCreateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'goal.create', input, async (tx, userId) => {
@@ -157,14 +195,13 @@ export async function updateGoal(ctx: Ctx, raw: GoalUpdateInput): Promise<GoalVi
 /**
  * Removes a goal for good. Every payday rule that points at it goes first, whatever its status (the reference from a rule to its goal
  * allows no delete), then the goal, in one transaction. No money moves: what was saved stays in its account. The audit trail keeps both
- * deletes, and a stored payday split that names the goal stays readable (it holds only the goal's id and label). Only a person can, or the
- * person's approval of a card the assistant made.
+ * deletes, and a stored payday split that names the goal stays readable (it holds only the goal's id and label). The assistant may call
+ * it (owner decision 2026-10-28); the removed goal is returned whole, so it can be added again.
  */
 export async function deleteGoal(
 	ctx: Ctx,
 	raw: unknown
-): Promise<{ deleted: true; name: string; rulesRemoved: number }> {
-	requirePerson(ctx.actor.kind, 'remove a goal');
+): Promise<{ deleted: true; name: string; rulesRemoved: number; goal: GoalView }> {
 	const input = parse(goalDeleteInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'goal.delete', input, async (tx, userId) => {
@@ -176,7 +213,12 @@ export async function deleteGoal(
 				)
 				.returning({ id: allocationRule.id });
 			await tx.delete(goal).where(and(eq(goal.userId, userId), eq(goal.id, input.goalId)));
-			return { deleted: true as const, name: current.name, rulesRemoved: removed.length };
+			return {
+				deleted: true as const,
+				name: current.name,
+				rulesRemoved: removed.length,
+				goal: plain(current)
+			};
 		})
 	);
 }

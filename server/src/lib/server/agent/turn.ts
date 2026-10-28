@@ -1,7 +1,8 @@
 // THE TURN LOOP: ONE MESSAGE FROM THE PERSON, THE MODEL CALLED UP TO A FEW TIMES, TOOLS RUN BETWEEN THE CALLS.
 // What this loop guarantees, whatever the model says:
 // - The caller is the session's person, set here. A tool call can never name another user (the schemas hold no user id and are strict).
-// - Reads run. Records (free verbs) run. A change to the money plan (gated) only ever becomes an approval card. Person-only verbs are not offered.
+// - Reads run. Records and changes to the money plan (free verbs) run, including deletes (owner decision 2026-10-28), but only three deletes
+//   per message: the fourth and later become cards. A balance count (gated) only ever becomes an approval card. Person-only verbs are not offered.
 // - Once untrusted text enters the turn (a web page, a photo's text, anything a tool marks untrusted), every write verb for the rest of
 //   the turn becomes a card too, and web reading is closed except for addresses the person typed themselves, so the model cannot carry
 //   private text out in an address. Web search stays open but short: a plain query of a few words, none with a run of digits.
@@ -29,7 +30,7 @@ import { OpsError } from '../ops/context';
 import { invokeVerb } from '../ops/registry';
 import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
-import { buildMessages } from './prompt';
+import { buildMessages, photoTexts } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
 import { capReasoning, shortenResult, untrustedStub } from './transcript';
 
@@ -70,8 +71,10 @@ export type TurnParams = {
 	model: TurnModel;
 	history: ChatMessage[];
 	userText: string;
-	/** Text read from a photo on the phone. Untrusted. */
+	/** Text read from one photo on the phone (older apps). Untrusted. */
 	ocrText?: string;
+	/** Text read from each photo of the message, up to six. Untrusted. Wins over ocrText. */
+	ocrTexts?: string[];
 	/** The chat message id: the request ids of this turn's writes are made from it, so a re-run repeats nothing. */
 	turnKey: string;
 	names?: string[];
@@ -114,6 +117,8 @@ export const LIMITS = {
 	toolsLeftNoteShare: 0.75,
 	/** Web searches in one message, so a poor result can be tried again with other words but quota and what a search can carry out stay small. */
 	maxWebSearches: 3,
+	/** Deletes the assistant may make in one message before the rest become cards, so one misread message cannot empty the money plan. */
+	maxDeletes: 3,
 	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
 	maxTaintedQueryChars: 80,
 	toolTimeoutMs: 15_000,
@@ -125,10 +130,23 @@ export const LIMITS = {
 // -- FUNCTIONS -- //
 
 /** What untrusted text did to a turn so far. */
+/** The verbs that remove or hide something in the money plan. */
+export const DELETE_VERBS: ReadonlySet<string> = new Set([
+	'bill_delete',
+	'income_delete',
+	'rule_delete',
+	'account_delete',
+	'account_wallet_remove',
+	'goal_delete',
+	'account_archive'
+]);
+
 export class TurnState {
 	tainted = false;
 	/** Web searches started in this message, counted before each runs so a failed or slow one still counts. */
 	searches = 0;
+	/** Deletes started in this message: past the limit they wait for the person. */
+	deletes = 0;
 	readonly reasons = new Set<string>();
 	constructor(readonly userUrls: ReadonlySet<string> = new Set()) {}
 	taint(reason: string) {
@@ -352,6 +370,13 @@ async function executeTool(
 		return asCard('This changes the plan, so it needs the person to approve it.');
 	if (tool.kind === 'free' && state.tainted)
 		return asCard('Untrusted text was read in this message, so even records wait for approval.');
+	if (tool.kind === 'free' && DELETE_VERBS.has(tool.name)) {
+		state.deletes += 1;
+		if (state.deletes > limits.maxDeletes)
+			return asCard(
+				`At most ${limits.maxDeletes} deletes are done at once in one message, so this one waits for approval.`
+			);
+	}
 
 	// -- A READ OR A RECORD -- //
 	try {
@@ -403,7 +428,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const byName = new Map(tools.map((t) => [t.name, t]));
 	const defs = toDefs(tools);
 	const state = new TurnState(urlsIn(p.userText));
-	if (p.ocrText) state.taint('photo');
+	if (photoTexts(p.ocrText, p.ocrTexts).length > 0) state.taint('photo');
 	const masker = createMasker(p.names);
 	// The person's currency and reply language. A settings read that fails never stops a chat: it falls back to the defaults
 	const settings =
@@ -420,6 +445,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		history: p.history,
 		userText: p.userText,
 		ocrText: p.ocrText,
+		ocrTexts: p.ocrTexts,
 		currency: settings.currency,
 		replyLanguage: settings.replyLanguage
 	});

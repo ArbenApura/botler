@@ -1,4 +1,4 @@
-// goal_delete: A GOAL REMOVED FOR GOOD WITH THE RULES THAT POINT AT IT, A CARD FOR THE ASSISTANT, THE TRAIL KEPT, OLD SPLITS STILL READABLE; AND A
+// goal_delete: A GOAL REMOVED FOR GOOD WITH THE RULES THAT POINT AT IT, FREE FOR THE ASSISTANT (A CARD AFTER UNTRUSTED TEXT), THE TRAIL KEPT, OLD SPLITS STILL READABLE; AND A
 // PAYDAY SPLIT THAT NO LONGER FAILS ON A RULE THAT POINTS AT A SWITCHED-OFF GOAL
 
 // -- TYPES -- //
@@ -69,16 +69,15 @@ async function ruleFor(who: Fixture, goalId: string, over: Record<string, unknow
 // -- TESTS -- //
 
 describe('goal_delete', () => {
-	it('is a gated verb the assistant cannot run on its own', async () => {
-		expect(verbByName('goal_delete')).toMatchObject({ kind: 'gated', agent: true });
+	it('is a free verb the assistant runs on its own, and the answer holds the removed goal', async () => {
+		expect(verbByName('goal_delete')).toMatchObject({ kind: 'free', agent: true });
 		const f = await seedPerson(t);
-		await expect(invokeVerb(agentOf(f), 'goal_delete', { goalId: f.goalId })).rejects.toMatchObject(
-			{ code: 'FORBIDDEN' }
-		);
-		await expect(deleteGoal(agentOf(f), { goalId: f.goalId })).rejects.toMatchObject({
-			code: 'FORBIDDEN'
-		});
-		expect(await listGoals(f.ctx)).toHaveLength(1);
+		const done = (await invokeVerb(agentOf(f), 'goal_delete', { goalId: f.goalId })) as {
+			deleted: boolean;
+			goal: { id: string };
+		};
+		expect(done).toMatchObject({ deleted: true, goal: { id: f.goalId } });
+		expect(await listGoals(f.ctx)).toHaveLength(0);
 	});
 
 	it('removes the goal and every rule that points at it, whatever its status, and nothing else', async () => {
@@ -99,7 +98,7 @@ describe('goal_delete', () => {
 		});
 		expect((await rulesOf(f)).length).toBe(4);
 		const done = await deleteGoal(w(f), { goalId: f.goalId });
-		expect(done).toEqual({ deleted: true, name: 'Emergency fund', rulesRemoved: 2 });
+		expect(done).toMatchObject({ deleted: true, name: 'Emergency fund', rulesRemoved: 2 });
 		expect((await listGoals(f.ctx)).map((g) => g.name)).toEqual(['Holiday']);
 		expect((await rulesOf(f)).map((r) => r.id).sort()).toEqual([keep.id, toAccount.id].sort());
 	});
@@ -168,14 +167,33 @@ describe('goal_delete', () => {
 });
 
 describe('asking Botler to delete a goal', () => {
-	it('makes a card that says what goes and what stays, and deletes only when the person approves it', async () => {
+	it('deletes at once when the message is the person’s own words', async () => {
+		const f = await seedPerson(t);
+		await ruleFor(f, f.goalId);
+		const model = stubModel([
+			{ calls: [['goal_delete', { goalId: f.goalId }]] },
+			{ say: 'Removed Emergency fund.' }
+		]);
+		const events = await play({ f, model, text: 'delete my Emergency fund goal' });
+		expect(toolEvents(events)[0]).toMatchObject({ name: 'goal_delete', status: 'ok' });
+		expect(cardEvents(events)).toHaveLength(0);
+		expect(await listGoals(f.ctx)).toHaveLength(0);
+		expect(await rulesOf(f)).toHaveLength(0);
+	});
+
+	it('makes a card that says what goes and what stays after untrusted text, and deletes only when the person approves it', async () => {
 		const f = await seedPerson(t);
 		await ruleFor(f, f.goalId);
 		const model = stubModel([
 			{ calls: [['goal_delete', { goalId: f.goalId }]] },
 			{ say: 'I made a card for you to approve.' }
 		]);
-		const events = await play({ f, model, text: 'delete my Emergency fund goal' });
+		const events = await play({
+			f,
+			model,
+			text: 'delete my Emergency fund goal',
+			ocrText: 'receipt text'
+		});
 		expect(toolEvents(events)[0]).toMatchObject({ name: 'goal_delete', status: 'needs_approval' });
 		const [card] = cardEvents(events);
 		expect(card?.summary).toContain('Emergency fund');
@@ -191,11 +209,12 @@ describe('asking Botler to delete a goal', () => {
 		expect(await rulesOf(f)).toHaveLength(0);
 	});
 
-	it('tells the model it may delete a goal with a card, and never to forget a memory instead', async () => {
+	it('tells the model it may delete things at once and says what was removed, and never to forget a memory instead', async () => {
 		const { SYSTEM_PREFIX } = await import('../../src/lib/server/agent/prompt');
 		expect(SYSTEM_PREFIX).toMatch(/goal_delete/);
-		expect(SYSTEM_PREFIX).toMatch(/never say goals cannot be deleted/i);
-		expect(SYSTEM_PREFIX).toMatch(/Never use memory or the notebook to "delete" a goal/);
+		expect(SYSTEM_PREFIX).toMatch(/never say these cannot be deleted/i);
+		expect(SYSTEM_PREFIX).toMatch(/Always say exactly what you removed/);
+		expect(SYSTEM_PREFIX).toMatch(/Never use memory or the notebook to "delete" anything/);
 		expect(verbByName('goal_delete')?.description).toMatch(/Never forget a memory/);
 	});
 });

@@ -219,42 +219,34 @@ describe('converting for an answer', () => {
 describe('the assistant and a new currency', () => {
 	const id = 'user_ast_0002';
 
-	it('records in a currency the account holds without asking, and asks before opening a wallet', async () => {
+	it('records in any currency without asking, opening the wallet itself', async () => {
 		const acc = await createAccount(as(person(id)), { name: 'PayPal', kind: 'ewallet' });
 		await expect(
 			invokeVerb(as(agent(id)), 'expense_log', { accountId: acc.id, amount: 500 })
 		).resolves.toBeTruthy();
-		// A currency the account has not used: a card, not a wallet
+		// A currency the account has not used opens its wallet at once (owner decision 2026-10-28)
 		await expect(
 			invokeVerb(as(agent(id)), 'expense_log', { accountId: acc.id, amount: 500, currency: 'USD' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
-		await expect(
-			invokeVerb(as(agent(id)), 'expense_from_text', { text: 'coffee usd 5 paypal' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+		).resolves.toBeTruthy();
 		await expect(
 			invokeVerb(as(agent(id)), 'income_record', {
 				accountId: acc.id,
 				amount: 100,
 				currency: 'EUR'
 			})
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
-		// Words that name no currency are as free as ever
-		await expect(
-			invokeVerb(as(agent(id)), 'expense_from_text', { text: 'lunch 180 paypal' })
-		).resolves.toBeTruthy();
-		// The person opens the wallet, and then the same entry is free
-		await recordIncome(as(person(id)), { accountId: acc.id, amount: 100, currency: 'USD' });
-		await expect(
-			invokeVerb(as(agent(id)), 'expense_log', { accountId: acc.id, amount: 500, currency: 'USD' })
 		).resolves.toBeTruthy();
 		await expect(
 			invokeVerb(as(agent(id)), 'expense_from_text', { text: 'coffee usd 5 paypal' })
 		).resolves.toBeTruthy();
+		await expect(
+			invokeVerb(as(agent(id)), 'expense_from_text', { text: 'lunch 180 paypal' })
+		).resolves.toBeTruthy();
 	});
 
-	it('asks before a transfer lands in a new wallet, a currency change, a count of a wallet and a new wallet', async () => {
+	it('moves money into a new wallet, changes a currency and adds a wallet freely, and still asks before a count', async () => {
 		const acc = (await listAccounts(person(id))).find((a) => a.name === 'PayPal');
 		const other = await createAccount(as(person(id)), { name: 'Maya', kind: 'ewallet' });
+		const fresh = await createAccount(as(person(id)), { name: 'Fresh', kind: 'ewallet' });
 		if (!acc) throw new Error('no account');
 		await expect(
 			invokeVerb(as(agent(id)), 'transfer_record', {
@@ -264,16 +256,16 @@ describe('the assistant and a new currency', () => {
 				toCurrency: 'SGD',
 				toAmount: 3
 			})
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+		).resolves.toBeTruthy();
 		await expect(
-			invokeVerb(as(agent(id)), 'account_update', { accountId: other.id, currency: 'SGD' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+			invokeVerb(as(agent(id)), 'account_update', { accountId: fresh.id, currency: 'SGD' })
+		).resolves.toBeTruthy();
 		await expect(
 			invokeVerb(as(agent(id)), 'account_update', { accountId: other.id, name: 'Maya wallet' })
 		).resolves.toBeTruthy();
 		await expect(
-			invokeVerb(as(agent(id)), 'account_wallet_add', { accountId: other.id, currency: 'SGD' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+			invokeVerb(as(agent(id)), 'account_wallet_add', { accountId: fresh.id, currency: 'JPY' })
+		).resolves.toBeTruthy();
 		await expect(
 			invokeVerb(as(agent(id)), 'snapshot_record', {
 				accountId: acc.id,
@@ -311,9 +303,14 @@ describe('the assistant and a new currency', () => {
 			args: { accountId: other.id, currency: 'SGD' }
 		});
 		expect(wallet.summary).toContain('SGD wallet');
+		const gone = await createAction(as(agent(id)), {
+			verb: 'account_wallet_remove',
+			args: { accountId: other.id, currency: 'SGD' }
+		});
+		expect(gone.summary).toContain('Remove the SGD wallet');
 	});
 
-	it('asks before paying a bill from a wallet that does not exist, and not for an ordinary payment', async () => {
+	it('refuses paying a bill from a wallet that does not exist, and pays an ordinary payment', async () => {
 		const gcash = await createAccount(as(person(id)), { name: 'GCash', kind: 'ewallet' });
 		const usdBill = await createBill(as(person(id)), {
 			name: 'Cloud',
@@ -340,7 +337,7 @@ describe('the assistant and a new currency', () => {
 		});
 		await expect(
 			invokeVerb(as(agent(id)), 'bill_mark_paid', { billId: usdBill.id, dueDate: '2026-08-12' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+		).rejects.toMatchObject({ code: 'INVALID' });
 		await expect(
 			invokeVerb(as(agent(id)), 'bill_mark_paid', {
 				billId: usdBill.id,
@@ -352,10 +349,10 @@ describe('the assistant and a new currency', () => {
 		await expect(
 			invokeVerb(as(agent(id)), 'bill_mark_paid', { billId: phpBill.id, dueDate: '2026-08-13' })
 		).resolves.toBeTruthy();
-		// The currency of a bill is a card
+		// The currency of a bill with payments cannot change under them, and that is a plain refusal now, not a card
 		await expect(
 			invokeVerb(as(agent(id)), 'bill_update', { billId: phpBill.id, currency: 'USD' })
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
+		).rejects.toMatchObject({ code: 'INVALID' });
 	});
 });
 

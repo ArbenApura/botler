@@ -770,6 +770,9 @@ export async function undo(ctx: Ctx, raw: { journalId: string }) {
 			if (entry.undoneAt) throw new OpsError('CONFLICT', 'That was already undone.');
 			if (entry.before !== null)
 				throw new OpsError('INVALID', 'That change cannot be undone automatically.');
+			// A balance count is the person's own: undoing one removes the count, so the assistant only asks (a card)
+			if (entry.entity === 'balance_snapshot')
+				requirePerson(ctx.actor.kind, 'undo a balance count');
 			const after = (entry.after ?? {}) as Record<string, unknown>;
 			const voidTxn = async (txnId: string) => {
 				const [t] = await tx

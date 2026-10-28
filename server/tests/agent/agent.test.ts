@@ -113,20 +113,24 @@ describe('the verb registry', () => {
 			'settings_set',
 			'split_approve'
 		]);
-		expect(by('gated')).toEqual([
-			'account_archive',
-			'account_create',
-			'account_wallet_add',
-			'bill_create',
-			'goal_create',
-			'goal_delete',
-			'income_create',
-			'snapshot_record'
-		]);
+		// Only a balance count or reset is gated since the owner decision of 2026-10-28
+		expect(by('gated')).toEqual(['snapshot_record']);
 		expect(by('free')).toEqual(
 			[
+				'account_archive',
+				'account_create',
+				'account_delete',
 				'account_update',
+				'account_wallet_add',
+				'account_wallet_remove',
 				'alarm_create',
+				'bill_create',
+				'bill_delete',
+				'goal_create',
+				'goal_delete',
+				'income_create',
+				'income_delete',
+				'rule_delete',
 				'bill_update',
 				'bill_mark_paid',
 				'bill_occurrence_update',
@@ -188,24 +192,30 @@ describe('the verb registry', () => {
 			});
 	});
 
-	it('also refuses the assistant inside the verbs themselves, not only at the registry', async () => {
-		const ctx = { ...agentOf(f), requestId: 'req-direct-0001' };
-		await expect(
-			createBill(ctx, {
-				name: 'x',
-				category: 'x',
-				accountId: f.rcbc,
-				kind: 'fixed',
-				amount: 100,
-				schedule: { kind: 'monthly', day: 1 },
-				weekendRule: 'none',
-				deferrable: false
-			})
-		).rejects.toMatchObject({ code: 'FORBIDDEN' });
-		await expect(archiveAccount(ctx, { accountId: f.gcash })).rejects.toMatchObject({
-			code: 'FORBIDDEN'
+	it('lets the assistant add and hide plan items itself, and still refuses it a balance count inside the verb', async () => {
+		const fx = await seedPerson(t);
+		const ctx = { ...agentOf(fx), requestId: 'req-direct-0001' };
+		const made = await createBill(ctx, {
+			name: 'x',
+			category: 'x',
+			accountId: fx.rcbc,
+			kind: 'fixed',
+			amount: 100,
+			schedule: { kind: 'monthly', day: 1 },
+			weekendRule: 'none',
+			deferrable: false
 		});
-		expect(await listBills(f.ctx)).toHaveLength(2);
+		expect(made.name).toBe('x');
+		await expect(
+			archiveAccount({ ...ctx, requestId: 'req-direct-0002' }, { accountId: fx.gcash })
+		).resolves.toMatchObject({ archivedAt: expect.anything() });
+		expect(await listBills(fx.ctx)).toHaveLength(3);
+		await expect(
+			recordSnapshot({ ...ctx, requestId: 'req-direct-0003' }, {
+				accountId: fx.rcbc,
+				amount: 100
+			} as never)
+		).rejects.toMatchObject({ code: 'FORBIDDEN' });
 	});
 
 	it('refuses an unknown operation and an input with a key the schema does not have', async () => {
@@ -782,11 +792,11 @@ describe('cards in the turn', () => {
 	it('lists the card events the app shows', async () => {
 		const fx = await seedPerson(t);
 		const model = stubModel([
-			{ calls: [['account_create', { name: 'BPI', kind: 'bank' }]] },
+			{ calls: [['snapshot_record', { accountId: fx.rcbc, amount: 50_000 }]] },
 			{ say: 'Approve the card.' }
 		]);
-		const events = await play({ f: fx, model, text: 'add bpi' });
+		const events = await play({ f: fx, model, text: 'count my rcbc' });
 		expect(cardEvents(events)).toHaveLength(1);
-		expect(cardEvents(events)[0]?.summary).toBe('Add the account "BPI".');
+		expect(cardEvents(events)[0]?.summary).toContain('RCBC');
 	});
 });

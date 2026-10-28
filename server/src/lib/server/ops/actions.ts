@@ -1,4 +1,4 @@
-// APPROVAL CARDS: THE ASSISTANT MAY ONLY ASK FOR A CHANGE TO THE MONEY PLAN. IT BECOMES A CARD; THE PERSON APPROVES OR REJECTS IT; ONLY THEN THE VERB RUNS, AS THE PERSON.
+// APPROVAL CARDS: THE ASSISTANT ASKS FOR A BALANCE COUNT, AND FOR ANY WRITE AFTER UNTRUSTED TEXT OR PAST THE DELETE CAP OF A TURN. IT BECOMES A CARD; THE PERSON APPROVES OR REJECTS IT; ONLY THEN THE VERB RUNS, AS THE PERSON.
 // The text on a card is built here from the validated arguments and names looked up in the person's own data. Free text from the model is
 // never the card text, and a model can neither approve a card nor mint anything that approves one: this verb needs a person caller.
 
@@ -11,7 +11,15 @@ import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { describeSchedule, validateSchedule } from '../../finance/schedule';
-import { account, agentAction, bill, chatTurn, goal } from '../db/schema';
+import {
+	account,
+	agentAction,
+	allocationRule,
+	bill,
+	chatTurn,
+	goal,
+	incomeSchedule
+} from '../db/schema';
 import { OpsError, run } from './context';
 import { balanceFor } from './ledger';
 import { readSettings } from './settings';
@@ -67,6 +75,27 @@ async function namesFor(ctx: Ctx, args: Args): Promise<Map<string, string>> {
 				.from(bill)
 				.where(and(eq(bill.userId, userId), eq(bill.id, args.billId))))
 				names.set(b.id, b.name);
+		if (typeof args.incomeId === 'string')
+			for (const i of await tx
+				.select({ id: incomeSchedule.id, name: incomeSchedule.label })
+				.from(incomeSchedule)
+				.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, args.incomeId))))
+				names.set(i.id, i.name);
+		// A rule has no name of its own: the card says what it does and where it goes
+		if (typeof args.ruleId === 'string')
+			for (const r of await tx
+				.select()
+				.from(allocationRule)
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, args.ruleId)))) {
+				const target = names.get(r.targetAccountId ?? r.targetGoalId ?? '') ?? 'its target';
+				const what =
+					r.mode === 'percent'
+						? `${(r.basisPoints ?? 0) / 100}%`
+						: r.mode === 'rest'
+							? 'the rest'
+							: 'a fixed amount';
+				names.set(r.id, `${what} to ${target} (${r.status})`);
+			}
 		return names;
 	});
 }
@@ -111,6 +140,16 @@ export function describeAction(
 			return `Add the goal "${text(args.name)}" in ${nm(args.accountId)}${num(args.perPayday) ? `, setting aside ${money(args.perPayday)} each payday` : ''}.`;
 		case 'goal_update':
 			return `Change the goal ${nm(args.goalId)}${args.name ? ` ("${text(args.name)}")` : ''}${num(args.perPayday) !== null ? `, ${money(args.perPayday)} each payday` : ''}.`;
+		case 'bill_delete':
+			return `Remove the bill "${names.get(typeof args.billId === 'string' ? args.billId : '') ?? 'a bill'}". If it was ever paid it is switched off instead, so its history stays.`;
+		case 'income_delete':
+			return `Remove the payday schedule "${names.get(typeof args.incomeId === 'string' ? args.incomeId : '') ?? 'a payday'}". If a split was made for it, it is switched off instead.`;
+		case 'rule_delete':
+			return `Remove the payday rule ${names.get(typeof args.ruleId === 'string' ? args.ruleId : '') ?? 'a rule'} for good.`;
+		case 'account_delete':
+			return `Remove the account ${nm(args.accountId)}. If it has entries or balance counts it is hidden instead and its history stays; if a bill, payday, goal or rule still uses it, nothing happens.`;
+		case 'account_wallet_remove':
+			return `Remove the ${text(args.currency, 3)} wallet from the account ${nm(args.accountId)}. Only an empty one goes.`;
 		case 'goal_delete':
 			// What is saved stays in its account: only the goal and the payday rules that point at it go
 			return `Delete the goal ${names.get(typeof args.goalId === 'string' ? args.goalId : '') ?? 'a goal'} for good, with any payday rules that point at it. The money saved for it stays where it is.`;
@@ -148,7 +187,7 @@ export function describeAction(
 }
 
 /**
- * Turns a request for a gated change into a card. Nothing is changed. The arguments are validated against the verb's own strict input
+ * Turns a request for a change that needs the person (a balance count, or any write after untrusted text) into a card. Nothing is changed. The arguments are validated against the verb's own strict input
  * first, so a card can always be shown and a bad request never reaches the person. Allowed for the assistant and for the person.
  */
 export async function createAction(

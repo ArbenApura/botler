@@ -666,6 +666,23 @@ export const profileSetInput = z.object({
 /** A goal removed for good, with the payday rules that point at it. */
 export const goalDeleteInput = z.object({ goalId: idField });
 
+// -- PLAN DELETES -- //
+
+/** A bill removed. A bill that has payments or ledger entries is switched off instead, so its history stays. */
+export const billDeleteInput = z.object({ billId: idField });
+
+/** A payday schedule removed. One that a payday split was made for is switched off instead. */
+export const incomeDeleteInput = z.object({ incomeId: idField });
+
+/** A payday rule removed for good, whatever its status. */
+export const ruleDeleteInput = z.object({ ruleId: idField });
+
+/** An account removed. One with entries, counts or things that point at it is hidden instead. */
+export const accountDeleteInput = z.object({ accountId: idField });
+
+/** A currency taken off an account. Only an empty wallet that is not the account's own currency. */
+export const walletRemoveInput = z.object({ accountId: idField, currency: currencyField });
+
 // -- FORECAST -- //
 
 /** The cash-flow forecast from today to a date, by day (up to 62 days), by week (the person's week start) or by month. */
@@ -740,6 +757,7 @@ export const splitSentInput = z.object({
 });
 
 export type WalletAddInput = z.infer<typeof walletAddInput>;
+export type WalletRemoveInput = z.infer<typeof walletRemoveInput>;
 export type FxConvertInput = z.infer<typeof fxConvertInput>;
 export type AccountCreateInput = z.infer<typeof accountCreateInput>;
 export type AccountUpdateInput = z.infer<typeof accountUpdateInput>;

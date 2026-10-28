@@ -28,7 +28,7 @@ import {
 	queueCompactionIfDue,
 	summaryState
 } from './compact';
-import { notebookMessage } from './prompt';
+import { MAX_PHOTO_CHARS, MAX_PHOTOS, MAX_PHOTOS_TOTAL_CHARS, notebookMessage } from './prompt';
 import { buildHistory } from './transcript';
 import { runTurn } from './turn';
 
@@ -60,8 +60,16 @@ export const chatInput = z.strictObject({
 	text: z.string().trim().min(1).max(4000),
 	/** The conversation this message belongs to. Old apps leave it out and get the newest one. */
 	chatId: z.uuid().optional(),
-	/** Text the phone read from a photo or screenshot. Untrusted. */
-	ocrText: z.string().max(8000).optional()
+	/** Text the phone read from one photo or screenshot (older apps). Untrusted. */
+	ocrText: z.string().max(MAX_PHOTO_CHARS).optional(),
+	/** Text the phone read from each of up to six photos. Untrusted. Wins over ocrText when it holds any text. */
+	ocrTexts: z
+		.array(z.string().max(MAX_PHOTO_CHARS))
+		.max(MAX_PHOTOS)
+		.refine((l) => l.reduce((n, t) => n + t.length, 0) <= MAX_PHOTOS_TOTAL_CHARS, {
+			message: 'The photos hold too much text together.'
+		})
+		.optional()
 });
 
 const STALE_RUNNING_MS = 120_000;
@@ -273,6 +281,7 @@ export async function* handleChat(
 			rewindNote: await rewindNote(ctx, claimed.chatId).catch(() => undefined),
 			userText: input.text,
 			ocrText: input.ocrText,
+			ocrTexts: input.ocrTexts,
 			turnKey: input.clientMessageId,
 			names: [...new Set([...(deps.names ?? []), ...(known?.names ?? [])])],
 			persona: deps.persona,

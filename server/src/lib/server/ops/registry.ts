@@ -1,9 +1,11 @@
 // THE VERB REGISTRY: EVERY OPERATION THE APP, THE API AND THE ASSISTANT CAN RUN, EACH CLASSIFIED ONCE.
 // - read:   returns data, changes nothing.
-// - free:   records something (an expense, a transfer, a proposal) or edits what the person already set up (an account, a bill, a goal, a
-//           payday: name, amount, linked account). The assistant runs it on its own; the audit trail names the assistant as the actor.
-// - gated:  adds to or removes from the money plan (a new account, bill, goal or payday, hiding an account) or counts a balance. The assistant can only ask: it becomes an approval
-//           card and runs, as the person, after they approve. The ops verb itself also refuses an assistant caller.
+// - free:   records something (an expense, a transfer, a proposal), edits what the person already set up (an account, a bill, a goal, a
+//           payday: name, amount, linked account), or adds to and removes from the money plan (an account, bill, goal, payday, rule or
+//           currency wallet; owner decision 2026-10-28). The assistant runs it on its own; the audit trail names the assistant as the actor.
+//           After untrusted text in a turn, and after the third delete of a turn, a free write becomes a card instead (agent/turn.ts).
+// - gated:  counts or resets a balance. The assistant can only ask: it becomes an approval card and runs, as the person, after they
+//           approve. The ops verb itself also refuses an assistant caller.
 // - person: approving or retiring. Never offered to the assistant at all.
 // Inputs are strict objects: a key that is not in the schema (a forged user_id, say) is refused, and the caller is never read from input.
 
@@ -13,12 +15,17 @@ import type { Ctx } from './context';
 // -- MODULES -- //
 import {
 	accountCreateInput,
+	accountDeleteInput,
 	accountIdInput,
 	calcInput,
 	cashflowForecastInput,
 	accountUpdateInput,
 	fxConvertInput,
 	walletAddInput,
+	walletRemoveInput,
+	billDeleteInput,
+	incomeDeleteInput,
+	ruleDeleteInput,
 	billCreateInput,
 	billMarkPaidInput,
 	billOccurrenceResetInput,
@@ -104,12 +111,20 @@ import { previewDataReset, resetData } from './dataReset';
 import { assetsSummary } from './assets';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
-import { billPayOpensWallet, opensWallet, textOpensWallet } from './gates';
 import { fxConvert, fxRates, fxRatesRefresh } from './fx';
 import { getSettings, setSettings } from './settings';
-import { addWallet, archiveAccount, createAccount, listAccounts, updateAccount } from './accounts';
+import {
+	addWallet,
+	archiveAccount,
+	createAccount,
+	deleteAccount,
+	listAccounts,
+	removeWallet,
+	updateAccount
+} from './accounts';
 import {
 	createBill,
+	deleteBill,
 	listBills,
 	listDueBills,
 	markBillPaid,
@@ -136,6 +151,7 @@ import {
 	createGoal,
 	createIncome,
 	deleteGoal,
+	deleteIncome,
 	listGoals,
 	listIncome,
 	nextPaydays,
@@ -180,7 +196,14 @@ import {
 	restoreRevision,
 	saveNotebook
 } from './notebook';
-import { approveRule, listRules, proposeRule, proposeRuleFromText, retireRule } from './rules';
+import {
+	approveRule,
+	deleteRule,
+	listRules,
+	proposeRule,
+	proposeRuleFromText,
+	retireRule
+} from './rules';
 import { parse, requireBill } from './shared';
 import {
 	approveSplit,
@@ -630,44 +653,35 @@ export const VERBS: readonly Verb[] = [
 		kind: 'free',
 		description: 'Log an expense with an amount in centavos on an account.',
 		input: expenseLogInput,
-		run: (ctx, a) => logExpense(ctx, a),
-		// An entry in a currency the account does not hold yet would open a wallet: a card the person approves
-		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
+		run: (ctx, a) => logExpense(ctx, a)
 	}),
 	verb({
 		name: 'expense_from_text',
 		kind: 'free',
 		description: 'Log an expense said in plain words, like "lunch 180 gcash".',
 		input: expenseFromTextInput,
-		run: (ctx, a) => logExpenseFromText(ctx, a),
-		gatedWhen: (ctx, a) => textOpensWallet(ctx, a.text, a.accountId)
+		run: (ctx, a) => logExpenseFromText(ctx, a)
 	}),
 	verb({
 		name: 'income_record',
 		kind: 'free',
 		description: 'Record money that arrived in an account.',
 		input: incomeRecordInput,
-		run: (ctx, a) => recordIncome(ctx, a),
-		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
+		run: (ctx, a) => recordIncome(ctx, a)
 	}),
 	verb({
 		name: 'refund_record',
 		kind: 'free',
 		description: 'Record money that came back from a purchase.',
 		input: incomeRecordInput,
-		run: (ctx, a) => recordRefund(ctx, a),
-		gatedWhen: (ctx, a) => opensWallet(ctx, a.accountId, a.currency)
+		run: (ctx, a) => recordRefund(ctx, a)
 	}),
 	verb({
 		name: 'transfer_record',
 		kind: 'free',
 		description: 'Record a move between two of the accounts. Never spending.',
 		input: transferRecordInput,
-		run: (ctx, a) => recordTransfer(ctx, a),
-		// Either side landing in a currency its account does not hold yet opens a wallet
-		gatedWhen: async (ctx, a) =>
-			(await opensWallet(ctx, a.fromAccountId, a.currency)) ||
-			(await opensWallet(ctx, a.toAccountId, a.toCurrency))
+		run: (ctx, a) => recordTransfer(ctx, a)
 	}),
 	verb({
 		name: 'undo',
@@ -712,15 +726,16 @@ export const VERBS: readonly Verb[] = [
 			'Mark one due date of a bill paid. For a bill whose amount varies this moves its usual amount, so it needs approval.',
 		input: billMarkPaidInput,
 		run: (ctx, a) => markBillPaid(ctx, a),
-		gatedWhen: async (ctx, a) =>
-			(await run(ctx, async (tx, userId) => {
+		// A payment on a bill whose amount varies moves its usual amount, so it is a card; opening a wallet is not
+		gatedWhen: (ctx, a) =>
+			run(ctx, async (tx, userId) => {
 				try {
 					return (await requireBill(tx, userId, a.billId)).kind === 'variable';
 				} catch (e) {
 					if (e instanceof OpsError && e.code === 'NOT_FOUND') return false;
 					throw e;
 				}
-			})) || (await billPayOpensWallet(ctx, a.billId, a.accountId, a.paidCurrency))
+			})
 	}),
 	verb({
 		name: 'account_update',
@@ -728,9 +743,7 @@ export const VERBS: readonly Verb[] = [
 		description:
 			'Change an account: its name, kind, minimum balance, order or purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel; send purpose null to clear it). Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
 		input: accountUpdateInput,
-		run: (ctx, a) => updateAccount(ctx, a),
-		// The currency an account is in is part of the money plan: changing it is a card
-		gatedWhen: async (_ctx, a) => a.currency !== undefined
+		run: (ctx, a) => updateAccount(ctx, a)
 	}),
 	verb({
 		name: 'income_update',
@@ -746,9 +759,7 @@ export const VERBS: readonly Verb[] = [
 		description:
 			'Change a bill for ALL its dates: name, category, amount, the account it is paid from (accountId), the repeat rule, the weekend rule, or switch it off with active false. Only send the fields that change. Done at once, no card. The schedule is a whole rule, see schedule_preview for its fields. A new schedule, weekend rule, amount or account also drops the changes made to single dates from today on (clearedOverrides says how many). To change just ONE date, use bill_occurrence_update.',
 		input: billUpdateInput,
-		run: (ctx, a) => updateBill(ctx, a),
-		// The currency of a bill changes what the split reserves, so it is a card
-		gatedWhen: async (_ctx, a) => a.currency !== undefined
+		run: (ctx, a) => updateBill(ctx, a)
 	}),
 	verb({
 		name: 'bill_occurrence_update',
@@ -786,10 +797,10 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => updateGoal(ctx, a)
 	}),
 
-	// -- GATED -- //
+	// -- THE MONEY PLAN: ADD, HIDE AND REMOVE (FREE FOR THE ASSISTANT SINCE 2026-10-28) -- //
 	verb({
 		name: 'account_create',
-		kind: 'gated',
+		kind: 'free',
 		description:
 			'Add an account. It may carry a purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel).',
 		input: accountCreateInput,
@@ -797,7 +808,7 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'account_wallet_add',
-		kind: 'gated',
+		kind: 'free',
 		description:
 			'Add a currency to an account, for example a USD wallet on a Wise or PayPal account that holds several. The account keeps its other currencies.',
 		input: walletAddInput,
@@ -805,21 +816,22 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'account_archive',
-		kind: 'gated',
-		description: 'Hide an account.',
+		kind: 'free',
+		description:
+			'Hide an account from lists and new entries. Its history stays. Done at once, no card.',
 		input: accountIdInput,
 		run: (ctx, a) => archiveAccount(ctx, a)
 	}),
 	verb({
 		name: 'income_create',
-		kind: 'gated',
+		kind: 'free',
 		description: 'Set up a payday schedule.',
 		input: incomeCreateInput,
 		run: (ctx, a) => createIncome(ctx, a)
 	}),
 	verb({
 		name: 'bill_create',
-		kind: 'gated',
+		kind: 'free',
 		description:
 			'Add a bill. A bill that happens one time only uses schedule kind once with its date. A new bill counts from today; set startsOn (YYYY-MM-DD) only when it began earlier and the earlier dates are really unpaid.',
 		input: billCreateInput,
@@ -827,19 +839,61 @@ export const VERBS: readonly Verb[] = [
 	}),
 	verb({
 		name: 'goal_create',
-		kind: 'gated',
+		kind: 'free',
 		description: 'Add a savings goal.',
 		input: goalCreateInput,
 		run: (ctx, a) => createGoal(ctx, a)
 	}),
 	verb({
 		name: 'goal_delete',
-		kind: 'gated',
+		kind: 'free',
 		description:
-			'Remove a savings goal for good, with the payday rules that point at it. It makes a card the person approves. The money saved for it stays where it is. To stop saving for a goal without deleting it, use goal_update with active false. Never forget a memory or change the notebook instead of deleting a goal.',
+			'Remove a savings goal for good, with the payday rules that point at it. Done at once, no card. The money saved for it stays where it is. The answer holds the removed goal, so it can be added again. To stop saving for a goal without deleting it, use goal_update with active false. Never forget a memory or change the notebook instead of deleting a goal.',
 		input: goalDeleteInput,
 		run: (ctx, a) => deleteGoal(ctx, a)
 	}),
+	verb({
+		name: 'bill_delete',
+		kind: 'free',
+		description:
+			'Remove a bill. Done at once, no card. A bill that was ever paid keeps its history and is switched off instead (the answer says switchedOff). The answer holds the removed bill, so it can be added again. Name what you removed.',
+		input: billDeleteInput,
+		run: (ctx, a) => deleteBill(ctx, a)
+	}),
+	verb({
+		name: 'income_delete',
+		kind: 'free',
+		description:
+			'Remove a payday schedule. Done at once, no card. One that a payday split was made for keeps that history and is switched off instead. The answer holds the removed schedule. Name what you removed.',
+		input: incomeDeleteInput,
+		run: (ctx, a) => deleteIncome(ctx, a)
+	}),
+	verb({
+		name: 'rule_delete',
+		kind: 'free',
+		description:
+			'Remove a payday rule for good, whatever its status. Done at once, no card. The answer holds the removed rule. Name what you removed.',
+		input: ruleDeleteInput,
+		run: (ctx, a) => deleteRule(ctx, a)
+	}),
+	verb({
+		name: 'account_delete',
+		kind: 'free',
+		description:
+			'Remove an account. Done at once, no card. An account with entries or balance counts keeps everything and is hidden instead (the answer says archived and why). One that a bill, payday, goal or rule still uses is refused with what uses it: move or remove those first. Name what you removed.',
+		input: accountDeleteInput,
+		run: (ctx, a) => deleteAccount(ctx, a)
+	}),
+	verb({
+		name: 'account_wallet_remove',
+		kind: 'free',
+		description:
+			'Take a currency off an account. Done at once, no card. Only an empty wallet that is not the account own currency; otherwise it is refused with the reason.',
+		input: walletRemoveInput,
+		run: (ctx, a) => removeWallet(ctx, a)
+	}),
+
+	// -- GATED -- //
 	verb({
 		name: 'snapshot_record',
 		kind: 'gated',

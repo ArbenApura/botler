@@ -16,7 +16,7 @@ import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
 import { account, allocationRule, goal } from '../db/schema';
-import { ruleFromTextInput, ruleIdInput, ruleProposeInput } from '../db/zod';
+import { ruleDeleteInput, ruleFromTextInput, ruleIdInput, ruleProposeInput } from '../db/zod';
 import { readSettings } from './settings';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, plain, requireAccount, requireGoal, requirePerson } from './shared';
@@ -230,6 +230,29 @@ export async function retireRule(ctx: Ctx, raw: { ruleId: string }): Promise<Rul
 				.returning();
 			if (!done) throw new OpsError('NOT_FOUND', 'There is no such rule to retire.');
 			return view(done, await targetNames(tx, userId));
+		})
+	);
+}
+
+/**
+ * Removes a payday rule for good, whatever its status. Nothing points at a rule (a stored split holds only its own copy of the numbers), so
+ * the delete is clean. The assistant may call it (owner decision 2026-10-28); the audit trail keeps the removed row.
+ */
+export async function deleteRule(ctx: Ctx, raw: unknown) {
+	const { ruleId } = parse(ruleDeleteInput, raw);
+	return mapped(() =>
+		runWrite(ctx, 'rule.delete', { ruleId }, async (tx, userId) => {
+			const [row] = await tx
+				.select()
+				.from(allocationRule)
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)));
+			if (!row) throw new OpsError('NOT_FOUND', 'That rule does not exist.');
+			const names = await targetNames(tx, userId);
+			await tx
+				.delete(allocationRule)
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)));
+			// The removed rule is returned whole, so it can be made again if it was a mistake
+			return { deleted: true as const, rule: view(row, names) };
 		})
 	);
 }
