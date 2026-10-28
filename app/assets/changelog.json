@@ -68,5 +68,15 @@
       "Kaya nang magdagdag, magbago at magtanggal ng Botler ng mga account, currency, bill, sahod, goal at payday rule nang mag-isa, at sasabihin nito kung ano mismo ang inalis. Hihingin pa rin ang oo mo para sa pagbibilang o pag-reset ng balanse.",
       "Ang may bayad o entry ay ino-off o itinatago sa halip na buburahin, kaya nananatili ang history mo."
     ]
+  },
+  {
+    "versionCode": 13,
+    "versionName": "1.1.2",
+    "en": [
+      "The payday rules under Rules for the rest now have a gap between them, so they no longer touch."
+    ],
+    "fil": [
+      "May espasyo na ang pagitan ng mga payday rule sa ilalim ng Rules for the rest, kaya hindi na magkakadikit ang mga ito."
+    ]
   }
 ]
