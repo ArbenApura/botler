@@ -128,6 +128,11 @@ class AppLocalizationsFil extends AppLocalizations {
   String get accountsNotSaved => 'Hindi na-save.';
 
   @override
+  String accountsRateLine(String from, String rate, String main) {
+    return '1 $from = $rate $main';
+  }
+
+  @override
   String accountsRatesAsOf(String date) {
     return 'Palitan ng pera noong $date';
   }
@@ -1261,18 +1266,49 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatPhotoFailed => 'Hindi mabasa ang litrato.';
 
   @override
-  String chatPhotoRead(int count) {
+  String chatPhotoItem(int number, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count karakter',
       one: '$count karakter',
     );
-    return 'Nabasa ang litrato ($_temp0)';
+    return 'Litrato $number ($_temp0)';
+  }
+
+  @override
+  String chatPhotoRemove(int number) {
+    return 'Alisin ang litrato $number';
   }
 
   @override
   String get chatPhotoTooltip => 'Litrato ng resibo';
+
+  @override
+  String chatPhotosLimit(int count) {
+    return 'Hanggang $count litrato lang sa isang mensahe.';
+  }
+
+  @override
+  String get chatPhotosReading => 'Binabasa ang mga litrato…';
+
+  @override
+  String chatPhotosSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count litrato ang hindi nabasa at hindi isinama.',
+      one: '$count litrato ang hindi nabasa at hindi isinama.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatPhotosTrimmed =>
+      'Mahaba ang teksto ng mga litrato, kaya unang bahagi lang ng bawat isa ang ipapadala.';
+
+  @override
+  String get chatPhotosWait => 'Hintaying mabasa ang mga litrato.';
 
   @override
   String get chatPleaseCheck => 'Pakisuri';
@@ -1353,8 +1389,14 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
-  String chatWithPhoto(String text) {
-    return '$text\n(may litrato)';
+  String chatWithPhotos(String text, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count litrato',
+      one: '$count litrato',
+    );
+    return '$text\n($_temp0)';
   }
 
   @override

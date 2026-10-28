@@ -54,5 +54,19 @@
       "Mas matagal nang nag-iisip si Botler sa mahihirap na tanong, napapanatili ang paksa sa mahahabang usapan, at eksakto nang kinukuwenta ang mga sum at forecast kada linggo sa halip na manghula.",
       "Puwede mo nang burahin nang tuluyan ang isang savings goal: i-tap ang tatlong tuldok sa goal, o hilingin kay Botler at aprubahan ang card. Mananatili kung nasaan ang perang naipon mo."
     ]
+  },
+  {
+    "versionCode": 12,
+    "versionName": "1.1.1",
+    "en": [
+      "You can now add up to six photos to one message, from the camera or the gallery. Each one is read on your phone and Botler answers about all of them.",
+      "Botler can now add, change and remove accounts, currencies, bills, paydays, goals and payday rules by itself, and tells you exactly what it removed. A balance count or reset still asks for your yes.",
+      "Something with payments or entries is switched off or hidden instead of erased, so your history stays."
+    ],
+    "fil": [
+      "Puwede ka nang magdagdag ng hanggang anim na litrato sa isang mensahe, mula sa camera o gallery. Binabasa ang bawat isa sa phone mo at sasagot ang Botler tungkol sa lahat.",
+      "Kaya nang magdagdag, magbago at magtanggal ng Botler ng mga account, currency, bill, sahod, goal at payday rule nang mag-isa, at sasabihin nito kung ano mismo ang inalis. Hihingin pa rin ang oo mo para sa pagbibilang o pag-reset ng balanse.",
+      "Ang may bayad o entry ay ino-off o itinatago sa halip na buburahin, kaya nananatili ang history mo."
+    ]
   }
 ]

@@ -1,4 +1,4 @@
-// THE PHONE'S OWN SENSES: LISTENING (ENGLISH OR FILIPINO) AND READING A PHOTO OF A RECEIPT. BOTH STAY ON THE PHONE.
+// THE PHONE'S OWN SENSES: LISTENING (ENGLISH OR FILIPINO) AND READING THE PHOTOS OF RECEIPTS. BOTH STAY ON THE PHONE.
 // Only the words that come out are ever sent: the recording and the picture are not. The server treats text read from a photo as untrusted and the
 // amount in it is always shown for a yes before it is saved.
 
@@ -6,6 +6,9 @@
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+
+// -- MODULES -- //
+import 'photo_budget.dart';
 
 // -- TYPES -- //
 
@@ -16,27 +19,44 @@ typedef HeardCallback = void Function(String text, {required bool finished});
 
 // -- FUNCTIONS -- //
 
-/// Takes or picks a photo and reads the text on it with the on-device reader. Null when the person cancelled.
-Future<String?> readPhotoText(PhotoSource source) async {
-  final file = await ImagePicker().pickImage(
-    source: source == PhotoSource.camera
-        ? ImageSource.camera
-        : ImageSource.gallery,
+/// Takes one photo with the camera, or picks up to [room] from the gallery. Only the paths come back; empty when the person cancelled.
+Future<List<String>> pickPhotos(PhotoSource source, {required int room}) async {
+  final picker = ImagePicker();
+  if (source == PhotoSource.camera || room < 2) {
+    final file = await picker.pickImage(
+      source: source == PhotoSource.camera
+          ? ImageSource.camera
+          : ImageSource.gallery,
+      maxWidth: 2000,
+      imageQuality: 85,
+    );
+    return file == null ? const <String>[] : <String>[file.path];
+  }
+  final files = await picker.pickMultiImage(
     maxWidth: 2000,
     imageQuality: 85,
+    limit: room,
   );
-  if (file == null) return null;
-  final recognizer = TextRecognizer();
-  try {
-    final result = await recognizer.processImage(
-      InputImage.fromFilePath(file.path),
+  // Some phones ignore the limit, so it is kept here as well
+  return <String>[for (final f in files.take(room)) f.path];
+}
+
+/// Reads the text on photos with the on-device reader, one after another. Close it when the photos are done.
+class PhotoReader {
+  final TextRecognizer _recognizer = TextRecognizer();
+
+  /// The text on the photo at [path], trimmed and cut at the most one photo may send. Empty when it holds no text.
+  Future<String> read(String path) async {
+    final result = await _recognizer.processImage(
+      InputImage.fromFilePath(path),
     );
     final text = result.text.trim();
-    // A receipt is short; a very long read is not one, and the server caps it too
-    return text.length > 6000 ? text.substring(0, 6000) : text;
-  } finally {
-    await recognizer.close();
+    return text.length > maxPhotoChars
+        ? text.substring(0, maxPhotoChars)
+        : text;
   }
+
+  Future<void> close() => _recognizer.close();
 }
 
 /// Speech to text with a locale the person chose (en_PH for English, fil_PH for Filipino and Taglish).

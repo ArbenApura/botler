@@ -63,7 +63,7 @@ class ChatItemView extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     return switch (item) {
-      UserItem(:final text, :final photo, :final turnId) => Align(
+      UserItem(:final text, :final photos, :final turnId) => Align(
         alignment: Alignment.centerRight,
         child: _Actionable(
           text: text,
@@ -83,7 +83,9 @@ class ChatItemView extends ConsumerWidget {
                   horizontal: 14,
                   vertical: 10,
                 ),
-                child: Text(photo ? context.t.chatWithPhoto(text) : text),
+                child: Text(
+                  photos > 0 ? context.t.chatWithPhotos(text, photos) : text,
+                ),
               ),
             ),
           ),

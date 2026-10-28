@@ -109,6 +109,20 @@
     }
   },
   "accountsNotSaved": "Not saved.",
+  "accountsRateLine": "1 {from} = {rate} {main}",
+  "@accountsRateLine": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "String"
+      },
+      "main": {
+        "type": "String"
+      }
+    }
+  },
   "accountsRatesAsOf": "Exchange rates as of {date}",
   "@accountsRatesAsOf": {
     "placeholders": {
@@ -934,15 +948,45 @@
   },
   "chatPhotoEmpty": "I could not read any text on that photo.",
   "chatPhotoFailed": "The photo could not be read.",
-  "chatPhotoRead": "Photo read ({count, plural, =1{{count} character} other{{count} characters}})",
-  "@chatPhotoRead": {
+  "chatPhotoItem": "Photo {number} ({count, plural, =1{{count} character} other{{count} characters}})",
+  "@chatPhotoItem": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoRemove": "Remove photo {number}",
+  "@chatPhotoRemove": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoTooltip": "Photo of a receipt",
+  "chatPhotosLimit": "At most {count} photos in one message.",
+  "@chatPhotosLimit": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "chatPhotoTooltip": "Photo of a receipt",
+  "chatPhotosReading": "Reading the photos…",
+  "chatPhotosSkipped": "{count, plural, =1{{count} photo could not be read and was left out.} other{{count} photos could not be read and were left out.}}",
+  "@chatPhotosSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotosTrimmed": "The photos hold a lot of text, so only the first part of each is sent.",
+  "chatPhotosWait": "Wait until the photos are read.",
   "chatPleaseCheck": "Please check",
   "chatReceiptMessage": "Here is a receipt.",
   "chatRecorded": "Recorded {amount}",
@@ -988,11 +1032,14 @@
       }
     }
   },
-  "chatWithPhoto": "{text}\n(with a photo)",
-  "@chatWithPhoto": {
+  "chatWithPhotos": "{text}\n({count, plural, =1{{count} photo attached} other{{count} photos attached}})",
+  "@chatWithPhotos": {
     "placeholders": {
       "text": {
         "type": "String"
+      },
+      "count": {
+        "type": "int"
       }
     }
   },

@@ -214,7 +214,7 @@ class ApiClient {
   Stream<Json> chat({
     required String id,
     required String text,
-    String? ocrText,
+    List<String> ocrTexts = const <String>[],
     String? chatId,
     Future<void>? abort,
     Duration idle = _idle,
@@ -232,7 +232,7 @@ class ApiClient {
             'clientMessageId': id,
             'text': text,
             'chatId': ?chatId,
-            if (ocrText != null && ocrText.isNotEmpty) 'ocrText': ocrText,
+            if (ocrTexts.isNotEmpty) 'ocrTexts': ocrTexts,
           });
     final http.StreamedResponse res;
     try {

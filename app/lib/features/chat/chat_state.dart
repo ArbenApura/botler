@@ -31,18 +31,18 @@ sealed class ChatItem {
 }
 
 final class UserItem extends ChatItem {
-  const UserItem(super.id, this.text, {this.photo = false, this.turnId});
+  const UserItem(super.id, this.text, {this.photos = 0, this.turnId});
 
   final String text;
 
-  /// Text from a photo went along with it.
-  final bool photo;
+  /// How many photos' text went along with it.
+  final int photos;
 
   /// The server's id for this message, known once the server has accepted it. Branching and editing start from it.
   final String? turnId;
 
   UserItem withTurn(String turn) =>
-      UserItem(id, text, photo: photo, turnId: turn);
+      UserItem(id, text, photos: photos, turnId: turn);
 }
 
 final class AgentItem extends ChatItem {
@@ -618,8 +618,11 @@ class ChatNotifier extends Notifier<ChatState> {
     _turnId = null;
   }
 
-  /// Sends one message. [ocrText] is text the phone read from a photo.
-  Future<void> send(String text, {String? ocrText}) async {
+  /// Sends one message. [photoTexts] is the text the phone read from each photo, already within the budget of photo_budget.dart.
+  Future<void> send(
+    String text, {
+    List<String> photoTexts = const <String>[],
+  }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return;
     final messageId = newRequestId();
@@ -627,13 +630,7 @@ class ChatNotifier extends Notifier<ChatState> {
     final userItemId = _id();
     _userItemId = userItemId;
     _sentIds.add(messageId);
-    _add(
-      UserItem(
-        userItemId,
-        trimmed,
-        photo: ocrText != null && ocrText.isNotEmpty,
-      ),
-    );
+    _add(UserItem(userItemId, trimmed, photos: photoTexts.length));
     state = state.copyWith(busy: true, phase: TurnPhase.waiting);
     _stopped = false;
     final abort = Completer<void>();
@@ -648,7 +645,7 @@ class ChatNotifier extends Notifier<ChatState> {
                   .chat(
                     id: messageId,
                     text: trimmed,
-                    ocrText: ocrText,
+                    ocrTexts: photoTexts,
                     chatId: state.chatId,
                     abort: abort.future,
                   )) {

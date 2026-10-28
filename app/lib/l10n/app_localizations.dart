@@ -272,6 +272,12 @@ abstract class AppLocalizations {
   /// **'Not saved.'**
   String get accountsNotSaved;
 
+  /// No description provided for @accountsRateLine.
+  ///
+  /// In en, this message translates to:
+  /// **'1 {from} = {rate} {main}'**
+  String accountsRateLine(String from, String rate, String main);
+
   /// No description provided for @accountsRatesAsOf.
   ///
   /// In en, this message translates to:
@@ -2125,17 +2131,53 @@ abstract class AppLocalizations {
   /// **'The photo could not be read.'**
   String get chatPhotoFailed;
 
-  /// No description provided for @chatPhotoRead.
+  /// No description provided for @chatPhotoItem.
   ///
   /// In en, this message translates to:
-  /// **'Photo read ({count, plural, =1{{count} character} other{{count} characters}})'**
-  String chatPhotoRead(int count);
+  /// **'Photo {number} ({count, plural, =1{{count} character} other{{count} characters}})'**
+  String chatPhotoItem(int number, int count);
+
+  /// No description provided for @chatPhotoRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove photo {number}'**
+  String chatPhotoRemove(int number);
 
   /// No description provided for @chatPhotoTooltip.
   ///
   /// In en, this message translates to:
   /// **'Photo of a receipt'**
   String get chatPhotoTooltip;
+
+  /// No description provided for @chatPhotosLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'At most {count} photos in one message.'**
+  String chatPhotosLimit(int count);
+
+  /// No description provided for @chatPhotosReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading the photos…'**
+  String get chatPhotosReading;
+
+  /// No description provided for @chatPhotosSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{{count} photo could not be read and was left out.} other{{count} photos could not be read and were left out.}}'**
+  String chatPhotosSkipped(int count);
+
+  /// No description provided for @chatPhotosTrimmed.
+  ///
+  /// In en, this message translates to:
+  /// **'The photos hold a lot of text, so only the first part of each is sent.'**
+  String get chatPhotosTrimmed;
+
+  /// No description provided for @chatPhotosWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait until the photos are read.'**
+  String get chatPhotosWait;
 
   /// No description provided for @chatPleaseCheck.
   ///
@@ -2281,11 +2323,11 @@ abstract class AppLocalizations {
   /// **'Which account was {amount} from?'**
   String chatWhichAccount(String amount);
 
-  /// No description provided for @chatWithPhoto.
+  /// No description provided for @chatWithPhotos.
   ///
   /// In en, this message translates to:
-  /// **'{text}\n(with a photo)'**
-  String chatWithPhoto(String text);
+  /// **'{text}\n({count, plural, =1{{count} photo attached} other{{count} photos attached}})'**
+  String chatWithPhotos(String text, int count);
 
   /// No description provided for @chatWriting.
   ///

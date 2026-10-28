@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
 import '../../core/device.dart';
+import '../../core/photo_budget.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
@@ -48,7 +49,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final ScrollController _scroll = ScrollController();
   final FocusNode _focus = FocusNode();
   final VoiceListener _listener = VoiceListener();
-  String? _photoText;
+
+  /// The photos read for the next message, in the order they were added.
+  final List<PhotoNote> _photos = <PhotoNote>[];
+
+  /// Photos are being read: sending waits for them.
+  bool _reading = false;
   bool _hearing = false;
 
   /// Words typed and not sent, kept for each chat while the person looks at another one.
@@ -249,10 +255,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _send() async {
     // A turn is running: the words stay in the box instead of being lost
     if (ref.read(chatProvider).busy) return;
+    // A photo still being read would be left out of the message
+    if (_reading) {
+      say(context, context.t.chatPhotosWait);
+      return;
+    }
     final text = _text.text.trim();
-    final photo = _photoText;
+    final photos = fitPhotoTexts(<String>[for (final p in _photos) p.text]);
     final receipt = context.t.chatReceiptMessage;
-    if (text.isEmpty && photo == null) return;
+    if (text.isEmpty && photos.texts.isEmpty) return;
     // Sending always brings the newest words into view
     _stick = true;
     // The keyboard goes away with the message, and a dictation still running is stopped so it cannot refill the box
@@ -279,7 +290,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       // The branch exists: the edit is over (this also empties the box), and the new words go to it like any message
       ref.read(editProvider.notifier).stop();
       _opened();
-      setState(() => _photoText = null);
+      // The photos stay on their chips for the next message: an edit sends only the new words
       await ref.read(chatProvider.notifier).send(text);
       ref
         ..invalidate(syncProvider)
@@ -287,26 +298,71 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       return;
     }
     _text.clear();
-    setState(() => _photoText = null);
+    setState(_photos.clear);
+    if (photos.trimmed && mounted) say(context, context.t.chatPhotosTrimmed);
     await ref
         .read(chatProvider.notifier)
-        .send(text.isEmpty ? receipt : text, ocrText: photo);
+        .send(text.isEmpty ? receipt : text, photoTexts: photos.texts);
     ref
       ..invalidate(syncProvider)
       ..invalidate(balancesProvider);
   }
 
+  /// Adds photos to the next message: one from the camera or several from the gallery. They are read one after another on the phone,
+  /// the ones that hold no text are left out and counted, and a picture chosen twice is added once.
   Future<void> _photo(PhotoSource source) async {
+    if (_reading) return;
+    final room = maxPhotos - _photos.length;
+    if (room <= 0) {
+      say(context, context.t.chatPhotosLimit(maxPhotos));
+      return;
+    }
+    final reader = PhotoReader();
+    final chatId = ref.read(chatProvider).chatId;
+    var picked = 0;
+    var unread = 0;
+    var failed = false;
     try {
-      final read = await readPhotoText(source);
-      if (read == null || !mounted) return;
-      if (read.isEmpty) {
-        say(context, context.t.chatPhotoEmpty);
-        return;
+      final paths = await pickPhotos(source, room: room);
+      if (paths.isEmpty || !mounted) return;
+      picked = paths.length;
+      setState(() => _reading = true);
+      final seen = <String>{for (final p in _photos) p.path};
+      for (final path in paths) {
+        if (!mounted) return;
+        if (_photos.length >= maxPhotos) break;
+        if (!seen.add(path)) continue;
+        try {
+          final text = await reader.read(path);
+          if (!mounted) return;
+          // The person moved to another chat while this was read: the text is left out
+          if (ref.read(chatProvider).chatId != chatId) return;
+          if (text.isEmpty) {
+            unread++;
+          } else {
+            setState(() => _photos.add(PhotoNote(path, text)));
+          }
+        } on Object {
+          // One photo that cannot be read does not stop the others
+          unread++;
+        }
       }
-      setState(() => _photoText = read);
-    } catch (_) {
-      if (mounted) say(context, context.t.chatPhotoFailed);
+    } on Object {
+      failed = true;
+    } finally {
+      await reader.close();
+      if (mounted) setState(() => _reading = false);
+    }
+    if (!mounted) return;
+    if (failed) {
+      say(context, context.t.chatPhotoFailed);
+    } else if (unread > 0) {
+      say(
+        context,
+        picked == 1
+            ? context.t.chatPhotoEmpty
+            : context.t.chatPhotosSkipped(unread),
+      );
     }
   }
 
@@ -363,6 +419,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         if (_text.text.isEmpty) _focus.unfocus();
         // An edit belongs to the chat it was started in
         ref.read(editProvider.notifier).stop();
+        // Photos belong to the chat they were added in: receipts for one conversation never go into another
+        if (_photos.isNotEmpty) setState(_photos.clear);
       }
       if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
         _keepPlaceAfterRestore();
@@ -576,12 +634,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 ],
               ),
             ),
-            if (_photoText != null)
+            if (_photos.isNotEmpty || _reading)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                child: InputChip(
-                  label: Text(context.t.chatPhotoRead(_photoText!.length)),
-                  onDeleted: () => setState(() => _photoText = null),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: <Widget>[
+                      for (var i = 0; i < _photos.length; i++)
+                        InputChip(
+                          key: ValueKey<String>('photo-${_photos[i].path}'),
+                          label: Text(
+                            context.t.chatPhotoItem(
+                              i + 1,
+                              _photos[i].text.length,
+                            ),
+                          ),
+                          deleteButtonTooltipMessage: context.t.chatPhotoRemove(
+                            i + 1,
+                          ),
+                          materialTapTargetSize: MaterialTapTargetSize.padded,
+                          onDeleted: () => setState(() => _photos.removeAt(i)),
+                        ),
+                      if (_reading)
+                        Chip(label: Text(context.t.chatPhotosReading)),
+                    ],
+                  ),
                 ),
               ),
             if (ref.watch(editProvider) != null)

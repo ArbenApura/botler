@@ -127,6 +127,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsNotSaved => 'Not saved.';
 
   @override
+  String accountsRateLine(String from, String rate, String main) {
+    return '1 $from = $rate $main';
+  }
+
+  @override
   String accountsRatesAsOf(String date) {
     return 'Exchange rates as of $date';
   }
@@ -1253,18 +1258,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatPhotoFailed => 'The photo could not be read.';
 
   @override
-  String chatPhotoRead(int count) {
+  String chatPhotoItem(int number, int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count characters',
       one: '$count character',
     );
-    return 'Photo read ($_temp0)';
+    return 'Photo $number ($_temp0)';
+  }
+
+  @override
+  String chatPhotoRemove(int number) {
+    return 'Remove photo $number';
   }
 
   @override
   String get chatPhotoTooltip => 'Photo of a receipt';
+
+  @override
+  String chatPhotosLimit(int count) {
+    return 'At most $count photos in one message.';
+  }
+
+  @override
+  String get chatPhotosReading => 'Reading the photos…';
+
+  @override
+  String chatPhotosSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos could not be read and were left out.',
+      one: '$count photo could not be read and was left out.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatPhotosTrimmed =>
+      'The photos hold a lot of text, so only the first part of each is sent.';
+
+  @override
+  String get chatPhotosWait => 'Wait until the photos are read.';
 
   @override
   String get chatPleaseCheck => 'Please check';
@@ -1345,8 +1381,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String chatWithPhoto(String text) {
-    return '$text\n(with a photo)';
+  String chatWithPhotos(String text, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos attached',
+      one: '$count photo attached',
+    );
+    return '$text\n($_temp0)';
   }
 
   @override
