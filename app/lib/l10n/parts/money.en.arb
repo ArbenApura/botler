@@ -276,6 +276,8 @@
     }
   },
   "paydayRuleTitle": "Add a rule",
+  "paydayRuleNameLabel": "Name (optional)",
+  "paydayRuleNameHint": "Emergency fund",
   "paydayRuleLabel": "Say it in your own words",
   "paydayRuleHint": "20% to emergency fund",
   "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",

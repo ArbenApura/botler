@@ -1998,13 +1998,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayRuleHint => '20% to emergency fund';
 
   @override
-  String get paydayRuleNameLabel => 'Name (optional)';
+  String get paydayRuleLabel => 'Say it in your own words';
 
   @override
   String get paydayRuleNameHint => 'Emergency fund';
 
   @override
-  String get paydayRuleLabel => 'Say it in your own words';
+  String get paydayRuleNameLabel => 'Name (optional)';
 
   @override
   String get paydayRuleTitle => 'Add a rule';
@@ -2793,6 +2793,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get updCheckNow => 'Check for updates';
+
+  @override
   String get updDismiss => 'Not now';
 
   @override
@@ -2837,6 +2840,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updOpenSettings => 'Open Android settings';
 
   @override
+  String updPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
   String updRequiredBody(String version, String size) {
     return 'Botler $version is needed to keep things working. It is about $size MB.';
   }
@@ -2849,14 +2857,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String updRowAvailable(String version) {
-    return 'Version $version is ready. Tap to update.';
+    return 'Version $version is ready to install.';
   }
 
   @override
   String get updRowChecking => 'Checking for updates…';
 
   @override
-  String get updRowFailed => 'Could not check. Tap to try again.';
+  String get updRowFailed => 'Could not check for updates.';
 
   @override
   String updRowLine(String version, int build) {
@@ -2875,7 +2883,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updRowTitle => 'App version';
 
   @override
-  String get updRowUpToDate => 'Up to date. Tap to check again.';
+  String get updRowUpToDate => 'You have the latest version.';
 
   @override
   String get updUseForNow => 'Use the app for now';

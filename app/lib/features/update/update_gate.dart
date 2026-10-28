@@ -32,6 +32,70 @@ String updateFailureWords(AppLocalizations t, UpdateFailure f) => switch (f) {
 
 String _megabytes(int bytes) => (bytes / 1048576).round().toString();
 
+/// True while a download, its check or the installer hand-off is running.
+bool updateWorking(UpdateState u) =>
+    u.phase == UpdatePhase.downloading ||
+    u.phase == UpdatePhase.verifying ||
+    u.phase == UpdatePhase.installing;
+
+/// The running part of an update, shared by Settings and the banner: a bar with the percent while downloading, else one plain line.
+class UpdateProgressView extends StatelessWidget {
+  const UpdateProgressView({required this.u, super.key});
+
+  final UpdateState u;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    if (u.phase == UpdatePhase.downloading) {
+      final percent = (u.progress * 100).floor().clamp(0, 100);
+      return Semantics(
+        label: t.updDownloading(percent),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: u.progress,
+                  minHeight: 6,
+                  color: c.accent,
+                  backgroundColor: c.line,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              t.updPercent(percent),
+              style: TextStyle(
+                color: c.muted,
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Row(
+      children: <Widget>[
+        const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            u.phase == UpdatePhase.verifying ? t.updVerifying : t.updInstalling,
+            style: TextStyle(color: c.muted),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class UpdateGate extends ConsumerStatefulWidget {
   const UpdateGate({required this.child, super.key});
 
@@ -182,16 +246,13 @@ class UpdateBanner extends ConsumerWidget {
     final u = ref.watch(updateProvider);
     final offer = u.offer;
     if (offer == null || offer.isRequired) return const SizedBox.shrink();
-    final working =
-        u.phase == UpdatePhase.downloading ||
-        u.phase == UpdatePhase.verifying ||
-        u.phase == UpdatePhase.installing;
+    final working = updateWorking(u);
     // Dismissed for this build: hidden, unless a download is running
     if (!working && u.dismissedCode == offer.versionCode) {
       return const SizedBox.shrink();
     }
     final notifier = ref.read(updateProvider.notifier);
-    final percent = (u.progress * 100).floor().clamp(0, 100);
+    final failed = u.phase == UpdatePhase.failed && u.failure != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: PaperCard(
@@ -201,7 +262,10 @@ class UpdateBanner extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Icon(Icons.system_update_alt, color: c.accentText),
+                Icon(
+                  failed ? Icons.error_outline : Icons.system_update_alt,
+                  color: failed ? c.danger : c.accentText,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -211,17 +275,10 @@ class UpdateBanner extends ConsumerWidget {
                         t.updBannerTitle(offer.versionName),
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      if (u.phase == UpdatePhase.downloading)
-                        Semantics(
-                          label: t.updDownloading(percent),
-                          child: LinearProgressIndicator(value: u.progress),
-                        )
-                      else if (u.phase == UpdatePhase.verifying)
-                        Text(t.updVerifying, style: TextStyle(color: c.muted))
-                      else if (u.phase == UpdatePhase.installing)
-                        Text(t.updInstalling, style: TextStyle(color: c.muted))
-                      else if (u.phase == UpdatePhase.failed &&
-                          u.failure != null)
+                      const SizedBox(height: 4),
+                      if (working)
+                        UpdateProgressView(u: u)
+                      else if (failed)
                         Text(
                           updateFailureWords(t, u.failure!),
                           style: TextStyle(color: c.danger),
@@ -243,9 +300,11 @@ class UpdateBanner extends ConsumerWidget {
               ],
             ),
             // The actions sit under the text, so a narrow phone never squeezes the words
-            if (!working)
+            if (!working) ...<Widget>[
+              const SizedBox(height: 8),
               Wrap(
                 alignment: WrapAlignment.end,
+                spacing: 8,
                 children: <Widget>[
                   if (u.failure == UpdateFailure.permission)
                     TextButton(
@@ -253,14 +312,13 @@ class UpdateBanner extends ConsumerWidget {
                           unawaited(notifier.openInstallSettings()),
                       child: Text(t.updOpenSettings),
                     ),
-                  TextButton(
+                  FilledButton(
                     onPressed: () => unawaited(notifier.start()),
-                    child: Text(
-                      u.phase == UpdatePhase.failed ? t.updRetry : t.updNow,
-                    ),
+                    child: Text(failed ? t.updRetry : t.updNow),
                   ),
                 ],
               ),
+            ],
           ],
         ),
       ),

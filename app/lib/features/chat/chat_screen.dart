@@ -69,7 +69,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// The keyboard height last seen, to tell when it opens.
   double _keyboard = 0;
 
-  /// The keyboard shrinks the list from the bottom, so when it opens the newest words are brought back above it.
+  /// The keyboard shrinks the list from the bottom, so when it opens the newest words are kept above it, but only for someone who was
+  /// already at the bottom. A person reading older messages keeps their place.
   @override
   void didChangeMetrics() {
     if (!mounted) return;
@@ -77,9 +78,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final height = view.viewInsets.bottom / view.devicePixelRatio;
     final opened = height > _keyboard;
     _keyboard = height;
-    if (opened) {
-      // Typing a message means the person wants the end of the conversation in view
-      _stick = true;
+    if (opened && _stick) {
       _readFromStart = false;
       _toEnd();
     }

@@ -94,6 +94,8 @@
   "paydayMakeSplit": "Gawin ang split",
   "paydayNeedsAmounts": "Magkano karaniwan ang {names}? Ilagay muna ang halaga sa bill.",
   "paydayRuleTitle": "Magdagdag ng rule",
+  "paydayRuleNameLabel": "Pangalan (opsyonal)",
+  "paydayRuleNameHint": "Emergency fund",
   "paydayRuleLabel": "Sabihin sa sarili mong salita",
   "paydayRuleHint": "20% sa emergency fund",
   "paydayRuleExamples": "Mga halimbawa: “500 sa GCash”, “10% ng matitira sa Maya”, “ang natitira sa RCBC”.",

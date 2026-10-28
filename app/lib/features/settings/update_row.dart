@@ -1,5 +1,5 @@
-// THE APP VERSION ROW IN SETTINGS: THE BUILD THAT RUNS, WHAT THE LAST CHECK FOUND AND HOW MANY WRITES ARE STILL WAITING TO SYNC.
-// Tapping it asks the server for a newer build; "Update now" appears when one is ready.
+// THE APP VERSION ROW IN SETTINGS: THE BUILD THAT RUNS, WHAT THE LAST CHECK FOUND, THE RUNNING UPDATE AND HOW MANY WRITES ARE STILL WAITING TO SYNC.
+// One primary action: "Update now" when a build is ready (or "Try again" after a failure), else a quiet "Check for updates".
 
 // -- DEP-MODULES -- //
 import 'dart:async';
@@ -27,10 +27,14 @@ class UpdateRow extends ConsumerWidget {
     final pending = ref.watch(outboxCountProvider);
     final notifier = ref.read(updateProvider.notifier);
     final offer = u.offer;
+    final working = updateWorking(u);
+    final checking = u.phase == UpdatePhase.checking;
+    final failed = u.phase == UpdatePhase.failed && u.failure != null;
+    final bad = failed || (u.checkFailed && offer == null);
     final String status;
-    if (u.phase == UpdatePhase.checking) {
+    if (checking) {
       status = t.updRowChecking;
-    } else if (u.phase == UpdatePhase.failed && u.failure != null) {
+    } else if (failed) {
       status = updateFailureWords(t, u.failure!);
     } else if (offer != null) {
       status = t.updRowAvailable(offer.versionName);
@@ -39,23 +43,98 @@ class UpdateRow extends ConsumerWidget {
     } else {
       status = t.updRowUpToDate;
     }
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minTileHeight: 56,
-      leading: Icon(Icons.system_update_alt, color: c.accentText),
-      title: Text(t.updRowTitle),
-      subtitle: Text(
-        '${t.updRowLine(u.installedName, u.installedCode)}\n$status\n${pending == 0 ? t.updRowPendingNone : t.updRowPending(pending)}',
-        style: TextStyle(color: c.muted),
+    final IconData statusIcon = bad
+        ? Icons.error_outline
+        : offer != null
+        ? Icons.new_releases_outlined
+        : Icons.check_circle_outline;
+    final Color statusColor = bad
+        ? c.danger
+        : offer != null
+        ? c.accentText
+        : c.success;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(Icons.system_update_alt, color: c.accentText),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      t.updRowTitle,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    Text(
+                      t.updRowLine(u.installedName, u.installedCode),
+                      style: TextStyle(color: c.muted),
+                    ),
+                    const SizedBox(height: 8),
+                    if (working)
+                      UpdateProgressView(u: u)
+                    else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8, top: 2),
+                            child: checking
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    statusIcon,
+                                    size: 18,
+                                    color: statusColor,
+                                  ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              status,
+                              style: TextStyle(color: bad ? c.danger : c.ink),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      pending == 0
+                          ? t.updRowPendingNone
+                          : t.updRowPending(pending),
+                      style: TextStyle(color: c.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!working && !checking) ...<Widget>[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: offer != null
+                  ? FilledButton(
+                      onPressed: () => unawaited(notifier.start()),
+                      child: Text(failed ? t.updRetry : t.updNow),
+                    )
+                  : OutlinedButton(
+                      onPressed: () => unawaited(notifier.checkNow()),
+                      child: Text(t.updCheckNow),
+                    ),
+            ),
+          ],
+        ],
       ),
-      isThreeLine: true,
-      trailing: offer != null && !u.busy
-          ? FilledButton(
-              onPressed: () => unawaited(notifier.start()),
-              child: Text(t.updNow),
-            )
-          : null,
-      onTap: u.busy ? null : () => unawaited(notifier.checkNow()),
     );
   }
 }

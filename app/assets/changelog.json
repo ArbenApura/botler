@@ -88,5 +88,19 @@
     "fil": [
       "Puwede nang bigyan ng pangalan ang payday rule, tulad ng Emergency fund, para malaman kung para saan ang bawat rule. Pinapangalanan ng Botler ang mga rule na idinaragdag nito, at maaari mo ring pangalanan ang sarili mong rule."
     ]
+  },
+  {
+    "versionCode": 15,
+    "versionName": "1.1.4",
+    "en": [
+      "Checking for updates is clearer: a Check for updates button, a progress percentage while the update downloads, and plainer wording.",
+      "Opening the keyboard in the chat no longer pulls you down to the newest message when you were reading older ones.",
+      "Adding a payday rule now has a Name field."
+    ],
+    "fil": [
+      "Mas malinaw na ang pag-check ng update: may button na Tingnan ang mga update, may porsyento habang dina-download ang update, at mas payak na mga salita.",
+      "Hindi ka na hihilahin pababa sa pinakabagong mensahe kapag binuksan ang keyboard sa chat habang nagbabasa ka ng mas lumang mensahe.",
+      "May Pangalan na kapag nagdadagdag ng payday rule."
+    ]
   }
 ]

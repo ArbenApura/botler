@@ -2010,13 +2010,13 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayRuleHint => '20% sa emergency fund';
 
   @override
-  String get paydayRuleNameLabel => 'Pangalan (opsyonal)';
+  String get paydayRuleLabel => 'Sabihin sa sarili mong salita';
 
   @override
   String get paydayRuleNameHint => 'Emergency fund';
 
   @override
-  String get paydayRuleLabel => 'Sabihin sa sarili mong salita';
+  String get paydayRuleNameLabel => 'Pangalan (opsyonal)';
 
   @override
   String get paydayRuleTitle => 'Magdagdag ng rule';
@@ -2811,6 +2811,9 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get updCheckNow => 'Tingnan ang mga update';
+
+  @override
   String get updDismiss => 'Mamaya na';
 
   @override
@@ -2855,6 +2858,11 @@ class AppLocalizationsFil extends AppLocalizations {
   String get updOpenSettings => 'Buksan ang settings ng Android';
 
   @override
+  String updPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
   String updRequiredBody(String version, String size) {
     return 'Kailangan ang Botler $version para tuloy-tuloy ang takbo. Mga $size MB ito.';
   }
@@ -2867,14 +2875,14 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String updRowAvailable(String version) {
-    return 'Handa na ang bersyon $version. I-tap para i-update.';
+    return 'Handa nang i-install ang bersyon $version.';
   }
 
   @override
   String get updRowChecking => 'Tinitingnan ang mga update…';
 
   @override
-  String get updRowFailed => 'Hindi matingnan. I-tap para subukan ulit.';
+  String get updRowFailed => 'Hindi matingnan ang mga update.';
 
   @override
   String updRowLine(String version, int build) {
@@ -2893,7 +2901,7 @@ class AppLocalizationsFil extends AppLocalizations {
   String get updRowTitle => 'Bersyon ng app';
 
   @override
-  String get updRowUpToDate => 'Pinakabago na. I-tap para tingnan ulit.';
+  String get updRowUpToDate => 'Pinakabago na ang bersyon mo.';
 
   @override
   String get updUseForNow => 'Gamitin muna ang app';

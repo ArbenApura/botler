@@ -3427,11 +3427,11 @@ abstract class AppLocalizations {
   /// **'20% to emergency fund'**
   String get paydayRuleHint;
 
-  /// No description provided for @paydayRuleNameLabel.
+  /// No description provided for @paydayRuleLabel.
   ///
   /// In en, this message translates to:
-  /// **'Name (optional)'**
-  String get paydayRuleNameLabel;
+  /// **'Say it in your own words'**
+  String get paydayRuleLabel;
 
   /// No description provided for @paydayRuleNameHint.
   ///
@@ -3439,11 +3439,11 @@ abstract class AppLocalizations {
   /// **'Emergency fund'**
   String get paydayRuleNameHint;
 
-  /// No description provided for @paydayRuleLabel.
+  /// No description provided for @paydayRuleNameLabel.
   ///
   /// In en, this message translates to:
-  /// **'Say it in your own words'**
-  String get paydayRuleLabel;
+  /// **'Name (optional)'**
+  String get paydayRuleNameLabel;
 
   /// No description provided for @paydayRuleTitle.
   ///
@@ -4781,6 +4781,12 @@ abstract class AppLocalizations {
   /// **'Update {version} is ready'**
   String updBannerTitle(String version);
 
+  /// No description provided for @updCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get updCheckNow;
+
   /// No description provided for @updDismiss.
   ///
   /// In en, this message translates to:
@@ -4853,6 +4859,12 @@ abstract class AppLocalizations {
   /// **'Open Android settings'**
   String get updOpenSettings;
 
+  /// No description provided for @updPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String updPercent(int percent);
+
   /// No description provided for @updRequiredBody.
   ///
   /// In en, this message translates to:
@@ -4874,7 +4886,7 @@ abstract class AppLocalizations {
   /// No description provided for @updRowAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Version {version} is ready. Tap to update.'**
+  /// **'Version {version} is ready to install.'**
   String updRowAvailable(String version);
 
   /// No description provided for @updRowChecking.
@@ -4886,7 +4898,7 @@ abstract class AppLocalizations {
   /// No description provided for @updRowFailed.
   ///
   /// In en, this message translates to:
-  /// **'Could not check. Tap to try again.'**
+  /// **'Could not check for updates.'**
   String get updRowFailed;
 
   /// No description provided for @updRowLine.
@@ -4916,7 +4928,7 @@ abstract class AppLocalizations {
   /// No description provided for @updRowUpToDate.
   ///
   /// In en, this message translates to:
-  /// **'Up to date. Tap to check again.'**
+  /// **'You have the latest version.'**
   String get updRowUpToDate;
 
   /// No description provided for @updUseForNow.

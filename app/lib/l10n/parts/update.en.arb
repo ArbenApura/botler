@@ -12,8 +12,8 @@
     }
   },
   "updRowChecking": "Checking for updates…",
-  "updRowUpToDate": "Up to date. Tap to check again.",
-  "updRowAvailable": "Version {version} is ready. Tap to update.",
+  "updRowUpToDate": "You have the latest version.",
+  "updRowAvailable": "Version {version} is ready to install.",
   "@updRowAvailable": {
     "placeholders": {
       "version": {
@@ -21,7 +21,7 @@
       }
     }
   },
-  "updRowFailed": "Could not check. Tap to try again.",
+  "updRowFailed": "Could not check for updates.",
   "updRowPendingNone": "Nothing waiting to sync",
   "updRowPending": "{count} waiting to sync",
   "@updRowPending": {
@@ -44,6 +44,15 @@
     "placeholders": {
       "size": {
         "type": "String"
+      }
+    }
+  },
+  "updCheckNow": "Check for updates",
+  "updPercent": "{percent}%",
+  "@updPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
       }
     }
   },

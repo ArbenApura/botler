@@ -1385,9 +1385,9 @@
   "paydayRuleAddButton": "Add the rule",
   "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",
   "paydayRuleHint": "20% to emergency fund",
-  "paydayRuleNameLabel": "Name (optional)",
-  "paydayRuleNameHint": "Emergency fund",
   "paydayRuleLabel": "Say it in your own words",
+  "paydayRuleNameHint": "Emergency fund",
+  "paydayRuleNameLabel": "Name (optional)",
   "paydayRuleTitle": "Add a rule",
   "paydayRulesEmpty": "No rules yet. Say what should happen to what is left, like “20% to emergency fund”.",
   "paydayRulesTitle": "Rules for the rest",
@@ -2010,6 +2010,7 @@
       }
     }
   },
+  "updCheckNow": "Check for updates",
   "updDismiss": "Not now",
   "updDownloading": "Downloading {percent} percent",
   "@updDownloading": {
@@ -2029,6 +2030,14 @@
   "updInstalling": "Android is asking to install it. Tap Install there.",
   "updNow": "Update now",
   "updOpenSettings": "Open Android settings",
+  "updPercent": "{percent}%",
+  "@updPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "updRequiredBody": "Botler {version} is needed to keep things working. It is about {size} MB.",
   "@updRequiredBody": {
     "placeholders": {
@@ -2042,7 +2051,7 @@
   },
   "updRequiredTitle": "Update needed",
   "updRetry": "Try again",
-  "updRowAvailable": "Version {version} is ready. Tap to update.",
+  "updRowAvailable": "Version {version} is ready to install.",
   "@updRowAvailable": {
     "placeholders": {
       "version": {
@@ -2051,7 +2060,7 @@
     }
   },
   "updRowChecking": "Checking for updates…",
-  "updRowFailed": "Could not check. Tap to try again.",
+  "updRowFailed": "Could not check for updates.",
   "updRowLine": "Version {version} (build {build})",
   "@updRowLine": {
     "placeholders": {
@@ -2073,7 +2082,7 @@
   },
   "updRowPendingNone": "Nothing waiting to sync",
   "updRowTitle": "App version",
-  "updRowUpToDate": "Up to date. Tap to check again.",
+  "updRowUpToDate": "You have the latest version.",
   "updUseForNow": "Use the app for now",
   "updVerifying": "Checking the download…",
   "yes": "Yes"
