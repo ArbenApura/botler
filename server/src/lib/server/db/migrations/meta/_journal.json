@@ -232,6 +232,13 @@
       "when": 1793171299061,
       "tag": "0032_rule_label",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793237888613,
+      "tag": "0033_rule_funds_bill",
+      "breakpoints": true
     }
   ]
 }

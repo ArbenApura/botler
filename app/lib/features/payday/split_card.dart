@@ -11,6 +11,7 @@ import '../../core/money_scope.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart' show tabular;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 
@@ -118,6 +119,8 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 ),
               ),
           ],
+          // What of the bills did not come from this pay: money already in their account, and what a rule saved for them (BTL-20261029-0119)
+          if (!_short) _FromElsewhere(result: _result, names: names),
           // Bills in another currency were counted at the rate of the day the split was made, and the split keeps that rate
           if (!_short &&
               asJsonList(_result['foreignBills']).isNotEmpty) ...<Widget>[
@@ -181,6 +184,77 @@ class _SplitCardState extends ConsumerState<SplitCard> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The parts of the bills the split did not take from the pay, in muted rows below the lines: covered by money already in the account,
+/// saved by a rule, still needed beyond the rule's savings, and rules that cannot save for their bill. Nothing when there are none.
+class _FromElsewhere extends StatelessWidget {
+  const _FromElsewhere({required this.result, required this.names});
+
+  final Json result;
+  final Json names;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    final covered = asJsonList(result['covered']);
+    final funded = asJsonList(result['funded']);
+    final unfunded = asJsonList(result['unfunded']);
+    final broken = asJsonList(result['brokenLinks']);
+    if (covered.isEmpty &&
+        funded.isEmpty &&
+        unfunded.isEmpty &&
+        broken.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final muted = TextStyle(color: c.muted);
+    Widget row(String text, int amount) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: Text(text, style: muted)),
+          Text(
+            context.moneyMain(amount),
+            style: muted.copyWith(fontFeatures: tabular),
+          ),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionTitle(t.splitFromElsewhereTitle),
+        for (final x in covered)
+          row(
+            t.splitCoveredLine(
+              str(x['label']),
+              str(names[str(x['accountId'])], t.splitAccountFallback),
+            ),
+            intOf(x['amount']),
+          ),
+        for (final x in funded)
+          row(
+            t.splitFundedLine(str(x['label']), str(x['ruleLabel'])),
+            intOf(x['amount']),
+          ),
+        for (final x in unfunded)
+          row(t.splitUnfundedLine(str(x['label'])), intOf(x['amount'])),
+        for (final b in broken)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Text(
+              t.splitBrokenLink(
+                str(b['ruleLabel']),
+                str(b['billName'], t.splitBillFallback),
+                str(b['reason']),
+              ),
+              style: TextStyle(color: c.warning),
+            ),
+          ),
+      ],
     );
   }
 }

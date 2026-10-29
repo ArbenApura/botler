@@ -17,6 +17,7 @@ import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import '../calendar/calendar_data.dart';
 import '../money/account_detail_screen.dart';
+import '../simulate/simulate_data.dart';
 
 // -- TYPES -- //
 
@@ -132,6 +133,10 @@ class _State extends ConsumerState<ResetScreen> {
       await ref.read(outboxProvider).clear();
       ref.read(outboxCountProvider.notifier).refresh();
       await ref.read(prefsProvider).remove(calendarCacheKey);
+      // The saved time travel answers hold the old balances too
+      for (final key in simulateCacheKeys) {
+        await ref.read(prefsProvider).remove(key);
+      }
       ref
         ..invalidate(balancesProvider)
         ..invalidate(auditVerifyProvider);

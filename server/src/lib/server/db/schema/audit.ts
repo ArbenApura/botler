@@ -316,7 +316,8 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'effective_from',
 			'status',
 			'approved_at',
-			'label'
+			'label',
+			'funds_bill_id'
 		],
 		account: 'target_account_id',
 		amount: '',
@@ -350,6 +351,25 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 					'status',
 					'approved_at',
 					'label'
+				]
+			},
+			// The bill a rule saves for is an id the person or the assistant chose (BTL-20261029-0119)
+			{
+				migration: '0033',
+				columns: [
+					'id',
+					'position',
+					'mode',
+					'amount',
+					'basis_points',
+					'base',
+					'target_account_id',
+					'target_goal_id',
+					'effective_from',
+					'status',
+					'approved_at',
+					'label',
+					'funds_bill_id'
 				]
 			}
 		]

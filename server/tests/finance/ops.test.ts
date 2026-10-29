@@ -332,7 +332,9 @@ describe('the payday split, end to end', () => {
 		});
 		if (plan.status === 'needs_amounts') throw new Error('unexpected');
 		expect(plan.status).toBe('shortfall');
-		expect(plan.gap).toBe(1_350_000 + 200_000 - 1_000_000);
+		// Wallet2 holds the 6,500.00 sent above, so it pays Internet's 1,500.00 itself and that is not asked of the pay (BTL-20261029-0119)
+		expect(plan.result.covered.map((c) => [c.label, c.amount])).toEqual([['Internet', 150_000]]);
+		expect(plan.gap).toBe(1_350_000 - 150_000 + 200_000 - 1_000_000);
 		expect(
 			plan.result.status === 'shortfall' && plan.result.cutOptions.map((c) => c.label)
 		).toEqual(['Emergency fund', 'Wallet2']);

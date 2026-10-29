@@ -30,6 +30,7 @@ class MenuScreen extends StatelessWidget {
         t.menuAccountsLine,
         Icons.account_balance_wallet_outlined,
       ),
+      ('/simulate', t.menuSimulate, t.menuSimulateLine, Icons.auto_graph),
       ('/bills', t.menuBills, t.menuBillsLine, Icons.receipt_long_outlined),
       ('/payday', t.menuPayday, t.menuPaydayLine, Icons.payments_outlined),
       ('/goals', t.menuGoals, t.menuGoalsLine, Icons.savings_outlined),

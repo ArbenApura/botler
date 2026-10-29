@@ -24,4 +24,13 @@ void main() {
     };
     expect(ruleSentence(rule), 'Put the rest into Savings.');
   });
+
+  test('drops the bill it saves for, which has its own row', () {
+    final rule = <String, Object?>{
+      'label': 'Parents',
+      'fundsBillName': 'Parents allowance',
+      'summary': 'Parents: Put ₱3,500.00 into RCBC, from 2026-11-02. It saves for Parents allowance.',
+    };
+    expect(ruleSentence(rule), 'Put ₱3,500.00 into RCBC, from 2026-11-02.');
+  });
 }

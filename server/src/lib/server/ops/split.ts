@@ -1,26 +1,31 @@
 // PAYDAY SPLIT VERBS: PROPOSE A SPLIT FROM THE BILLS, THE PARENTS' SHARE, THE GOALS AND THE RULES; THE PERSON APPROVES IT AND TAPS THROUGH THE TRANSFERS
 // The engine (src/lib/finance/split.ts) decides the numbers. A shortfall is never approved: the person decides what to cut and asks again.
 // Approving is for a person only. The split reads approved rules only (status active), so a rule the agent proposed changes nothing until approved.
+// Since BTL-20261029-0119 the split first pays bills from money already in their account today (less what the same flows the forecast uses
+// take out of it before the payday) and from the rules that save for them, so it moves only what is missing, the same moves the forecast shows.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
 import type { Plain } from './shared';
 import type { Schedule } from '../../finance/schedule';
+import type { BrokenLink } from '../../finance/funding';
 import type { SplitResult } from '../../finance/split';
 import type { SplitProposeInput } from '../db/zod';
 // -- DEP-MODULES -- //
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
+import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { canConvert, convertUp, showRate } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
+import { fundingAt, planFlows } from '../../finance/planFlows';
 import { proposeSplit } from '../../finance/split';
 import { account, allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
 import { splitApproveInput, splitProposeInput, splitSentInput } from '../db/zod';
 import { OpsError, run, runWrite } from './context';
 import { loadRates } from '../fx/store';
 import { dueBills } from './bills';
-import { insertTxn } from './ledger';
+import { balanceFor, insertTxn } from './ledger';
+import { loadPlan } from './planData';
 import { readSettings } from './settings';
 import { toRule } from './rules';
 import { mapped, parse, plain, requireIncome, requirePerson } from './shared';
@@ -36,6 +41,8 @@ export type StoredSplit = SplitResult & {
 	accountNames: Record<string, string>;
 	/** Rules in force that were left out because the goal they point at is switched off: what each was for, and a sentence to show. */
 	skippedRules?: { ruleId: string; goal: string; note: string }[];
+	/** Rules that point at a bill but cannot save for it, and why: that bill came from the pay. */
+	brokenLinks?: BrokenLink[];
 	/** The bills in another currency that were counted at a rate: what each is, what it came to in the main currency, the rate and its date. */
 	foreignBills?: {
 		billId: string;
@@ -105,6 +112,30 @@ export async function proposeSplitPlan(
 		// A rule that points at a goal that is switched off cannot be placed: it is left out before the totals and the checks, so the pay it
 		// would have taken goes where unclaimed pay always goes, and the plan says which rule was skipped
 		const rules = inForce.filter((r) => !r.targetGoalId || live.has(r.targetGoalId));
+		// What the split may take from money already in the accounts, and the rules that save for bills: the plan's own flows from today to
+		// the day before this payday give each account's balance at its start, as the forecast does
+		const now = new Date();
+		const loaded = await loadPlan(tx, userId, { now, incomeSince: manilaStart(today) });
+		const balances = new Map<string, number>();
+		for (const a of loaded.accounts)
+			if (a.archivedAt === null)
+				balances.set(
+					a.id,
+					(await balanceFor(tx, userId, a.id, loaded.settings.currency, now)).balance
+				);
+		// A pay already in the balance (recorded today, or a payday in the past) is this split's own money: it never pays its bills twice
+		if (payday < today || loaded.plan.incomeDays.has(`${inc.accountId}|${today}`))
+			balances.set(inc.accountId, 0);
+		const plan = {
+			...loaded.plan,
+			accounts: loaded.plan.accounts.filter((a) => !a.archived),
+			balances
+		};
+		const before =
+			payday > today
+				? planFlows(plan, { mode: 'future', from: today, to: addDays(payday, -1), today }).flows
+				: [];
+		const funding = fundingAt(plan, before, payday, today);
 		const skipped = inForce
 			.filter((r) => r.targetGoalId && !live.has(r.targetGoalId))
 			.map((r) => ({
@@ -122,6 +153,7 @@ export async function proposeSplitPlan(
 			goals,
 			rules,
 			skipped,
+			funding,
 			// The split is in the main currency, so a bill in another one is counted at the stored rate
 			main: (await readSettings(tx, userId)).currency,
 			rates: await loadRates(tx)
@@ -179,7 +211,10 @@ export async function proposeSplitPlan(
 					label: (counts.get(b.billId) ?? 0) > 1 ? `${b.name} (${b.dueDate})` : b.name,
 					amount: amountInMain(b),
 					accountId: b.accountId,
-					deferrable: b.deferrable
+					deferrable: b.deferrable,
+					dueDate: b.dueDate,
+					// Money already in an account is in the main currency: it never pays a bill in another one
+					coverable: b.currency === gathered.main
 				})),
 				...gathered.goals
 					.filter((g) => g.perPayday > 0)
@@ -193,7 +228,9 @@ export async function proposeSplitPlan(
 					}))
 			],
 			rules: gathered.rules.map((r) => toRule(r, names[r.targetAccountId ?? r.targetGoalId ?? ''])),
-			goalAccounts: Object.fromEntries(gathered.goals.map((g) => [g.id, g.accountId]))
+			goalAccounts: Object.fromEntries(gathered.goals.map((g) => [g.id, g.accountId])),
+			available: gathered.funding.available,
+			links: gathered.funding.links
 		});
 	} catch (e) {
 		if (e instanceof RangeError) throw new OpsError('INVALID', e.message);
@@ -214,7 +251,8 @@ export async function proposeSplitPlan(
 					}))
 				}
 			: {}),
-		...(foreignBills.length > 0 ? { foreignBills } : {})
+		...(foreignBills.length > 0 ? { foreignBills } : {}),
+		...(gathered.funding.broken.length > 0 ? { brokenLinks: gathered.funding.broken } : {})
 	};
 	return mapped(() =>
 		runWrite(ctx, 'split.propose', input, async (tx, userId) => {

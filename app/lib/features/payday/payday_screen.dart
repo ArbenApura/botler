@@ -16,6 +16,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../money/bills_parts.dart' show niceDate;
 import '../money/schedule_picker.dart';
+import 'rule_funding.dart';
 import 'split_card.dart';
 
 // -- CONSTANTS -- //
@@ -31,6 +32,10 @@ final FutureProvider<List<Json>> _upcomingProvider =
 final FutureProvider<List<Json>> _rulesProvider =
     FutureProvider.autoDispose<List<Json>>(
       (ref) => ref.watch(apiProvider).verbList('rules_list'),
+    );
+final FutureProvider<List<Json>> _billsProvider =
+    FutureProvider.autoDispose<List<Json>>(
+      (ref) => ref.watch(apiProvider).verbList('bills_list'),
     );
 final FutureProvider<List<Json>> _splitsProvider =
     FutureProvider.autoDispose<List<Json>>(
@@ -49,6 +54,7 @@ class PaydayScreen extends ConsumerWidget {
       ..invalidate(_incomeProvider)
       ..invalidate(_upcomingProvider)
       ..invalidate(_rulesProvider)
+      ..invalidate(_billsProvider)
       ..invalidate(_splitsProvider)
       ..invalidate(balancesProvider)
       ..invalidate(syncProvider);
@@ -57,6 +63,8 @@ class PaydayScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    // The bills a rule can save for; while they load or if they fail, the rule cards just show no "Saves for" row
+    final bills = ref.watch(_billsProvider).value ?? const <Json>[];
     return Scaffold(
       appBar: AppBar(title: Text(context.t.paydayTitle)),
       body: ListView(
@@ -161,6 +169,30 @@ class PaydayScreen extends ConsumerWidget {
                                     ),
                                   ),
                                 Text(ruleSentence(r)),
+                                // A rule that can save for a bill offers it; one that already does names the bill
+                                if (str(r['fundsBillName']).isNotEmpty ||
+                                    billsForRule(
+                                      r,
+                                      bills,
+                                      context.currencyCode,
+                                    ).isNotEmpty)
+                                  SavesForRow(
+                                    billName: str(r['fundsBillName']),
+                                    onTap: () async {
+                                      if (await pickSavesFor(
+                                        context,
+                                        ref,
+                                        r,
+                                        billsForRule(
+                                          r,
+                                          bills,
+                                          context.currencyCode,
+                                        ),
+                                      )) {
+                                        _refresh(ref);
+                                      }
+                                    },
+                                  ),
                                 if (str(r['status']) == 'proposed')
                                   Text(
                                     context.t.paydayWaiting,

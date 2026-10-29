@@ -19,6 +19,7 @@ import {
 	accountIdInput,
 	calcInput,
 	cashflowForecastInput,
+	balanceSimulateInput,
 	accountUpdateInput,
 	fxConvertInput,
 	walletAddInput,
@@ -112,6 +113,7 @@ import { previewDataReset, resetData } from './dataReset';
 import { assetsSummary } from './assets';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
+import { balanceSimulate } from './simulate';
 import { fxConvert, fxRates, fxRatesRefresh } from './fx';
 import { getSettings, setSettings } from './settings';
 import {
@@ -439,9 +441,18 @@ export const VERBS: readonly Verb[] = [
 		name: 'cashflow_forecast',
 		kind: 'read',
 		description:
-			'What the accounts will hold from today to a date (at most 366 days), worked out by the server: the balance now of every wallet, the paydays, the unpaid bills by due date (with any date, amount or account changed for one date), and the payday moves of the approved rules. Group by day (up to 62 days), week or month. Each period gives its start and end totals in the main currency, every payment in, out and moved with its date, the wallets that changed, and the end balance of each account; warnings say when a wallet goes below zero. Wallets of other currencies are converted at the stored rates and one with no rate is named and left out. Use this, never bills_due added by hand, for "how much will I have by ..." and for week by week tallies, and quote its numbers as they are. Read its notes before quoting a total.',
+			'What the accounts will hold from today to a date (at most 366 days), worked out by the server: the balance now of every wallet, the paydays, the unpaid bills by due date (with any date, amount or account changed for one date), and the payday moves of the approved rules (only what each account is missing: funding lists per payday the bills paid from money already in their account (covered), from a rule that saves for them (funded) and what is still needed; brokenLinks names rules that cannot save for their bill). Group by day (up to 62 days), week or month. Each period gives its start and end totals in the main currency, every payment in, out and moved with its date, the wallets that changed, and the end balance of each account; warnings say when a wallet goes below zero. Wallets of other currencies are converted at the stored rates and one with no rate is named and left out. Use this, never bills_due added by hand, for "how much will I have by ..." and for week by week tallies, and quote its numbers as they are. Read its notes before quoting a total.',
 		input: cashflowForecastInput,
 		run: (ctx, a) => cashflowForecast(ctx, a)
+	}),
+
+	verb({
+		name: 'balance_simulate',
+		kind: 'read',
+		description:
+			"The balance timeline on any dates from 5 years back to 5 years ahead, grouped by day (up to 62 days), week (up to 2 years), month or year. Every number says its source: recorded (the real ledger), replay (what today's plan would have done in a past period, from the recorded balance at its start; gap is recorded minus replay) or simulated (the future from today's balances, paydays, bills and payday rules). missed counts paydays and bills the plan expected but nobody recorded. view detail (at most 366 days) adds every entry. scenario is a what-if that is never saved: off (ids of paydays, bills, rules or goals to switch off), amounts (a payday or bill id with another amount), skipDates (paydays that do not come), lateDays (every bill paid that many days late), defer (deferrable bills wait for the next payday), extra (pretend money in or out in the main currency, at most 50). Use it for past balances (what did I have in March), dates more than a year ahead and what-ifs (what if I skip my next payday); for today to a date use cashflow_forecast. Always say that replay and simulated numbers are simulations, not real money, and read its notes before you answer.",
+		input: balanceSimulateInput,
+		run: (ctx, a) => balanceSimulate(ctx, a)
 	}),
 	verb({
 		name: 'notebook_get',
@@ -695,7 +706,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'rule_propose',
 		kind: 'free',
-		description: 'Propose an allocation rule. It applies only after the person approves it.',
+		description:
+			'Propose an allocation rule. It applies only after the person approves it. fundsBillId links a fixed rule to the bill it saves for (the bill must be paid from the account the rule fills): the split then pays that bill from what the rule set aside instead of from the pay again.',
 		input: ruleProposeInput,
 		run: (ctx, a) => proposeRule(ctx, a)
 	}),
@@ -874,7 +886,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'rule_update',
 		kind: 'free',
 		description:
-			'Give a payday rule a short label saying what it is for (like "Emergency fund"), or clear it with null. Only the label changes; amounts and targets need a new rule.',
+			'Give a payday rule a short label saying what it is for (like "Emergency fund"), or link it to the bill it saves for with fundsBillId (a fixed rule into the account the bill is paid from; the split then pays the bill from what the rule set aside). A field left out stays as it is; null clears it. Amounts and targets need a new rule. Answers with the changed rule.',
 		input: ruleUpdateInput,
 		run: (ctx, a) => updateRule(ctx, a)
 	}),

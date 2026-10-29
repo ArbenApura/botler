@@ -1,0 +1,62 @@
+{
+  "ruleSavesFor": "Saves for {bill}",
+  "@ruleSavesFor": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      }
+    }
+  },
+  "ruleSavesForNone": "Saves for a bill?",
+  "ruleSavesForSemantic": "Choose the bill this rule saves for",
+  "ruleSavesForTitle": "What does this rule save for?",
+  "ruleSavesForHelp": "Pick the bill this money is for. On payday the split then pays that bill from what this rule saved, instead of taking it from your pay a second time.",
+  "ruleSavesForNothing": "Nothing",
+  "ruleSavesForSaved": "Saved.",
+  "splitFromElsewhereTitle": "Not taken from this pay",
+  "splitCoveredLine": "{bill}  ·  already in {account}",
+  "@splitCoveredLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "splitFundedLine": "{bill}  ·  saved by {rule}",
+  "@splitFundedLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      },
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
+  "splitUnfundedLine": "{bill}  ·  still needed from this pay",
+  "@splitUnfundedLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      }
+    }
+  },
+  "splitBrokenLink": "{rule} cannot save for {bill}: {reason}.",
+  "@splitBrokenLink": {
+    "placeholders": {
+      "rule": {
+        "type": "String"
+      },
+      "bill": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "splitBillFallback": "a bill"
+}

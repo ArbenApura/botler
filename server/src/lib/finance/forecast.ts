@@ -17,7 +17,10 @@ import type { Rates } from './fx';
 import { addDays, daysInMonth, diffDays, parseDate, weekday } from './dates';
 import { canConvert, convert } from './fx';
 
-export type Group = 'day' | 'week' | 'month';
+export type Group = 'day' | 'week' | 'month' | 'year';
+
+/** How long a range may be, in days, in all and by day and by week. The forecast verb keeps its 366 days; the simulation passes its own. */
+export type RangeLimits = { maxDays: number; maxDailyDays: number; maxWeeklyDays: number };
 
 export type ForecastWallet = {
 	accountId: string;
@@ -56,6 +59,8 @@ export type ForecastInput = {
 	wallets: readonly ForecastWallet[];
 	flows: readonly ForecastFlow[];
 	unknown?: readonly ForecastUnknown[];
+	/** The range limits. The forecast verb's own when not given. */
+	limits?: RangeLimits;
 };
 
 export type PeriodFlow = ForecastFlow & {
@@ -121,13 +126,31 @@ export type Forecast = {
 export const MAX_FORECAST_DAYS = 366;
 /** A forecast by day is long to read: past this many days it is by week or month. */
 export const MAX_DAILY_DAYS = 62;
+/** The simulation reaches 5 years each way (BTL-20261029-0117): 1827 days, by week at most 2 years. */
+export const MAX_SIMULATE_DAYS = 1827;
+export const MAX_WEEKLY_DAYS = 731;
+export const FORECAST_LIMITS: RangeLimits = {
+	maxDays: MAX_FORECAST_DAYS,
+	maxDailyDays: MAX_DAILY_DAYS,
+	maxWeeklyDays: MAX_FORECAST_DAYS
+};
+export const SIMULATE_LIMITS: RangeLimits = {
+	maxDays: MAX_SIMULATE_DAYS,
+	maxDailyDays: MAX_DAILY_DAYS,
+	maxWeeklyDays: MAX_WEEKLY_DAYS
+};
 const MAX_WARNINGS = 30;
 const ORDER = { in: 0, move: 1, out: 2 } as const;
 
 // -- FUNCTIONS -- //
 
 /** The last day of the period that starts on `start`, for the grouping, never past `to`. */
-function periodEnd(start: ManilaDate, to: ManilaDate, group: Group, weekStart: number): ManilaDate {
+export function periodEnd(
+	start: ManilaDate,
+	to: ManilaDate,
+	group: Group,
+	weekStart: number
+): ManilaDate {
 	let end: ManilaDate = start;
 	if (group === 'week') {
 		// Up to the day before the next week starts
@@ -136,6 +159,8 @@ function periodEnd(start: ManilaDate, to: ManilaDate, group: Group, weekStart: n
 	} else if (group === 'month') {
 		const p = parseDate(start);
 		if (p) end = `${start.slice(0, 8)}${String(daysInMonth(p.year, p.month)).padStart(2, '0')}`;
+	} else if (group === 'year') {
+		end = `${start.slice(0, 4)}-12-31`;
 	}
 	return end > to ? to : end;
 }
@@ -148,14 +173,31 @@ function inMain(amount: number, currency: string, main: string, rates: Rates): n
 	return canConvert(currency, main, rates) ? convert(amount, currency, main, rates) : null;
 }
 
+/** Throws a RangeError for a range that is backwards or longer than the limits allow for its grouping. */
+export function checkRange(
+	from: ManilaDate,
+	to: ManilaDate,
+	group: Group,
+	limits: RangeLimits = FORECAST_LIMITS
+): number {
+	const days = diffDays(to, from) + 1;
+	if (days < 1) throw new RangeError('The end date is before the start date.');
+	if (days > limits.maxDays)
+		throw new RangeError(`A forecast covers at most ${limits.maxDays} days.`);
+	if (group === 'day' && days > limits.maxDailyDays)
+		throw new RangeError(
+			`By day it covers at most ${limits.maxDailyDays} days: use week or month.`
+		);
+	if (group === 'week' && days > limits.maxWeeklyDays)
+		throw new RangeError(
+			`By week it covers at most ${limits.maxWeeklyDays} days: use month or year.`
+		);
+	return days;
+}
+
 /** Works out the forecast. Throws a RangeError for a range that is backwards, longer than 366 days, or by day for more than 62. */
 export function forecast(input: ForecastInput): Forecast {
-	const days = diffDays(input.to, input.from) + 1;
-	if (days < 1) throw new RangeError('The end date is before the start date.');
-	if (days > MAX_FORECAST_DAYS)
-		throw new RangeError(`A forecast covers at most ${MAX_FORECAST_DAYS} days.`);
-	if (input.group === 'day' && days > MAX_DAILY_DAYS)
-		throw new RangeError(`By day it covers at most ${MAX_DAILY_DAYS} days: use week or month.`);
+	checkRange(input.from, input.to, input.group, input.limits);
 
 	const { main, rates } = input;
 	const missing = new Set<string>();

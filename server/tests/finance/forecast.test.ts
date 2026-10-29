@@ -8,6 +8,8 @@ import {
 	forecast,
 	MAX_DAILY_DAYS,
 	MAX_FORECAST_DAYS,
+	MAX_SIMULATE_DAYS,
+	SIMULATE_LIMITS,
 	type ForecastFlow,
 	type ForecastInput,
 	type ForecastWallet
@@ -427,5 +429,34 @@ describe('currencies and rates', () => {
 		});
 		expect(out.endTotal).toBe(out.startTotal);
 		expect(out.periods.flatMap((p) => p.outs)).toHaveLength(0);
+	});
+
+	it('groups by year, partial at both ends, with a leap year whole', () => {
+		const out = run({
+			from: '2027-06-10',
+			to: '2029-03-01',
+			group: 'year',
+			limits: SIMULATE_LIMITS,
+			flows: [flow('in', '2028-02-29', 'Leap pay', RCBC, 10_00)]
+		});
+		expect(out.periods.map((p) => [p.from, p.to])).toEqual([
+			['2027-06-10', '2027-12-31'],
+			['2028-01-01', '2028-12-31'],
+			['2029-01-01', '2029-03-01']
+		]);
+		expect(out.periods[1]?.inTotal).toBe(10_00);
+	});
+
+	it('reaches 5 years only with the simulation limits, and by week at most 2 years', () => {
+		expect(MAX_SIMULATE_DAYS).toBe(1827);
+		const long = { from: '2026-01-01', to: addDays('2026-01-01', MAX_SIMULATE_DAYS - 1) };
+		expect(() => run({ ...long, group: 'month' })).toThrow(/at most 366/);
+		expect(run({ ...long, group: 'month', limits: SIMULATE_LIMITS }).periods).toHaveLength(61);
+		expect(() =>
+			run({ ...long, to: addDays(long.to, 1), group: 'year', limits: SIMULATE_LIMITS })
+		).toThrow(/at most 1827/);
+		expect(() => run({ ...long, group: 'week', limits: SIMULATE_LIMITS })).toThrow(
+			/By week it covers at most 731/
+		);
 	});
 });

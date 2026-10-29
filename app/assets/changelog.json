@@ -102,5 +102,33 @@
       "Hindi ka na hihilahin pababa sa pinakabagong mensahe kapag binuksan ang keyboard sa chat habang nagbabasa ka ng mas lumang mensahe.",
       "May Pangalan na kapag nagdadagdag ng payday rule."
     ]
+  },
+  {
+    "versionCode": 16,
+    "versionName": "1.1.5",
+    "en": [
+      "The payday split no longer moves money for a bill that its account can already pay. WiFi paid from GCash is paid from what GCash holds, and only what is missing is moved.",
+      "A payday rule can save for a bill: tap Saves for a bill? under the rule and pick the bill. That bill is then paid from what the rule saved, not taken from your pay a second time.",
+      "The split card shows what did not come from this pay: bills paid from money already there, saved by a rule, or still needed."
+    ],
+    "fil": [
+      "Hindi na naglilipat ng pera ang payday split para sa bill na kaya nang bayaran ng account nito. Ang WiFi na binabayaran mula sa GCash ay kukunin sa laman ng GCash, at ang kulang lang ang ililipat.",
+      "Puwede nang mag-ipon ang payday rule para sa isang bill: i-tap ang Ilaan para sa isang bill? sa ilalim ng rule at piliin ang bill. Babayaran na ang bill na iyon mula sa naipon ng rule, hindi na kukunin ulit sa sahod mo.",
+      "Ipinapakita ng split card ang hindi kinuha sa sahod na ito: mga bill na binayaran mula sa perang nandoon na, naipon ng isang rule, o kailangan pa."
+    ]
+  },
+  {
+    "versionCode": 17,
+    "versionName": "1.1.6",
+    "en": [
+      "Time travel: jump to any day, week, month or year up to 5 years back or ahead and see what every account held or will hold. Open it from the menu, from See over time on Accounts, or by tapping the forecast in the calendar.",
+      "The past shows what was really recorded beside what your plan would have done, and marks paydays and bills that were never recorded. The future is clearly marked as a simulation, not real money.",
+      "Try What if: skip a payday, pay bills late, switch off a rule, change your pay or add a pretend expense. Nothing is saved."
+    ],
+    "fil": [
+      "Time travel: tumalon sa kahit anong araw, linggo, buwan o taon hanggang 5 taon pabalik o pasulong at tingnan ang laman ng bawat account noon o sa darating. Buksan ito sa menu, sa Tingnan sa paglipas ng panahon sa Accounts, o sa pag-tap sa forecast sa kalendaryo.",
+      "Sa nakaraan, makikita ang totoong naitala katabi ng gagawin sana ng plano mo, at ang mga sweldo at bill na hindi naitala. Malinaw na simulation lang ang hinaharap, hindi totoong pera.",
+      "Subukan ang What if: laktawan ang sweldo, bayaran nang huli ang bills, patayin ang isang rule, baguhin ang sweldo o magdagdag ng kunwaring gastos. Walang nase-save."
+    ]
   }
 ]

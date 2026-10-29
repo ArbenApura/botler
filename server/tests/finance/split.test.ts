@@ -422,3 +422,195 @@ describe('best effort transfers on a shortfall', () => {
 		expect(out.find((t) => t.toAccountId === 'wise')?.amount).toBe(150_000);
 	});
 });
+
+describe('money already in an account and rules that save for a bill (BTL-20261029-0119)', () => {
+	// The owner's 2 Nov payday: salary 19,000.00 into RCBC, GCash already holds 1,502.73
+	const acct = (id: string) => ({ kind: 'account' as const, id });
+	const ownerRules = [
+		rule({ id: 'parents', mode: 'fixed', amount: 350_000, position: 1, target: acct('rcbc') }),
+		rule({ id: 'wise', mode: 'fixed', amount: 300_000, position: 2, target: acct('wise') }),
+		rule({ id: 'mommy', mode: 'fixed', amount: 25_000, position: 3, target: acct('gcash') }),
+		rule({ id: 'pocket', mode: 'fixed', amount: 300_000, position: 4, target: acct('rcbc') })
+	];
+	const due = (id: string, amount: number, accountId: string, dueDate: string): Commitment => ({
+		...bill(id, amount, accountId),
+		dueDate
+	});
+	const link = (billId: string, ruleId: string, perPayday: number, reserved = 0) => ({
+		billId,
+		ruleId,
+		ruleLabel: ruleId,
+		perPayday,
+		reserved
+	});
+
+	it('pays WiFi from the GCash balance and moves only the Mommy 250.00', () => {
+		const r = proposeSplit(
+			base({
+				payday: '2026-11-02',
+				pay: 1_900_000,
+				commitments: [
+					due('meralco', 300_000, 'rcbc', '2026-11-02'),
+					due('pocketBill', 300_000, 'rcbc', '2026-11-04'),
+					due('wifi', 150_000, 'gcash', '2026-11-04')
+				],
+				rules: ownerRules,
+				available: { gcash: 150_273, rcbc: 2_496 },
+				links: [link('pocketBill', 'pocket', 300_000)]
+			})
+		);
+		expect(r.status).toBe('ok');
+		expect(total(r)).toBe(1_900_000);
+		expect(r.transfers.find((t) => t.toAccountId === 'gcash')?.amount).toBe(25_000);
+		expect(r.transfers.find((t) => t.toAccountId === 'wise')?.amount).toBe(300_000);
+		expect(r.covered).toEqual([
+			{ refId: 'meralco', label: 'meralco', accountId: 'rcbc', amount: 2_496 },
+			{ refId: 'wifi', label: 'wifi', accountId: 'gcash', amount: 150_000 }
+		]);
+		expect(r.funded).toEqual([
+			{
+				refId: 'pocketBill',
+				label: 'pocketBill',
+				accountId: 'rcbc',
+				ruleId: 'pocket',
+				ruleLabel: 'pocket',
+				amount: 300_000
+			}
+		]);
+		expect(r.lines.find((l) => l.refId === 'meralco')).toMatchObject({
+			amount: 297_504,
+			label: 'meralco (top-up)'
+		});
+		expect(r.lines.some((l) => l.refId === 'wifi' || l.refId === 'pocketBill')).toBe(false);
+	});
+
+	it('does not count a bill and the rule that saves for it twice (no false shortfall on 9 Nov)', () => {
+		const commitments: Commitment[] = [
+			due('meralco3', 300_000, 'rcbc', '2026-11-09'),
+			{ ...due('parentsBill', 700_000, 'rcbc', '2026-11-11'), kind: 'parents' },
+			due('pocketBill', 300_000, 'rcbc', '2026-11-11')
+		];
+		const without = proposeSplit(
+			base({ payday: '2026-11-09', pay: 1_900_000, commitments, rules: ownerRules })
+		);
+		expect(without.status).toBe('shortfall');
+		const r = proposeSplit(
+			base({
+				payday: '2026-11-09',
+				pay: 1_900_000,
+				commitments,
+				rules: ownerRules,
+				links: [
+					link('parentsBill', 'parents', 350_000, 350_000),
+					link('pocketBill', 'pocket', 300_000)
+				]
+			})
+		);
+		expect(r.status).toBe('ok');
+		expect(total(r)).toBe(1_900_000);
+		expect(r.unfunded).toEqual([]);
+		expect(r.funded.map((f) => [f.refId, f.amount])).toEqual([
+			['parentsBill', 700_000],
+			['pocketBill', 300_000]
+		]);
+	});
+
+	it('takes what the savings do not reach from the pay as still needed', () => {
+		const r = proposeSplit(
+			base({
+				payday: '2026-11-09',
+				pay: 1_900_000,
+				commitments: [{ ...due('parentsBill', 700_000, 'rcbc', '2026-11-11'), kind: 'parents' }],
+				rules: ownerRules,
+				links: [link('parentsBill', 'parents', 350_000, 0)]
+			})
+		);
+		expect(r.unfunded).toEqual([
+			{ refId: 'parentsBill', label: 'parentsBill', accountId: 'rcbc', amount: 350_000 }
+		]);
+		expect(r.lines.find((l) => l.refId === 'parentsBill')).toMatchObject({
+			amount: 350_000,
+			label: 'parentsBill (still needed)'
+		});
+		expect(total(r)).toBe(1_900_000);
+	});
+
+	it('shares one rule between two dates of the same bill, earliest first', () => {
+		const r = proposeSplit(
+			base({
+				commitments: [
+					due('pocket2', 300_000, 'rcbc', '2026-11-11'),
+					due('pocket2', 300_000, 'rcbc', '2026-11-04')
+				],
+				rules: [rule({ id: 'p', mode: 'fixed', amount: 300_000, target: acct('rcbc') })],
+				links: [link('pocket2', 'p', 300_000)]
+			})
+		);
+		expect(r.funded).toHaveLength(1);
+		expect(r.unfunded).toEqual([
+			{ refId: 'pocket2', label: 'pocket2', accountId: 'rcbc', amount: 300_000 }
+		]);
+		expect(total(r)).toBe(2_000_000);
+	});
+
+	it('ignores a link whose rule is not in force on the payday, or is not a fixed amount', () => {
+		const r = proposeSplit(
+			base({
+				commitments: [due('b', 100_000, 'gcash', '2026-11-01')],
+				rules: [
+					rule({ id: 'later', mode: 'fixed', amount: 100_000, effectiveFrom: '2027-01-01' }),
+					rule({ id: 'pct', mode: 'percent', basisPoints: 1000, position: 2 })
+				],
+				links: [link('b', 'later', 100_000, 100_000), link('b', 'pct', 0, 100_000)]
+			})
+		);
+		expect(r.funded).toEqual([]);
+		expect(r.lines.find((l) => l.refId === 'b')?.amount).toBe(100_000);
+	});
+
+	it('never covers a goal or a bill marked not coverable, and never takes more than there is', () => {
+		const r = proposeSplit(
+			base({
+				commitments: [
+					{ ...due('usd', 50_000, 'gcash', '2026-11-01'), coverable: false },
+					{
+						kind: 'goal',
+						refId: 'goal1',
+						label: 'Fund',
+						amount: 40_000,
+						accountId: 'maya',
+						deferrable: false
+					},
+					due('w', 100_000, 'gcash', '2026-11-02')
+				],
+				available: { gcash: 60_000, maya: 1_000_000 }
+			})
+		);
+		expect(r.covered).toEqual([{ refId: 'w', label: 'w', accountId: 'gcash', amount: 60_000 }]);
+		expect(r.lines.find((l) => l.refId === 'usd')?.amount).toBe(50_000);
+		expect(r.lines.find((l) => l.refId === 'goal1')?.amount).toBe(40_000);
+		expect(r.lines.find((l) => l.refId === 'w')?.amount).toBe(40_000);
+		expect(total(r)).toBe(2_000_000);
+	});
+
+	it('still adds up to the pay with balances and links, the same way every time', () => {
+		for (let pay = 100_000; pay <= 3_000_000; pay += 290_001) {
+			const input = base({
+				pay,
+				commitments: [
+					due('a', 120_000, 'gcash', '2026-11-01'),
+					due('b', 77_777, 'rcbc', '2026-11-03')
+				],
+				rules: [
+					rule({ id: 'r', mode: 'fixed', amount: 50_000, target: acct('gcash') }),
+					rule({ id: 'rest', mode: 'rest', position: 2 })
+				],
+				available: { gcash: 33_333, rcbc: 1 },
+				links: [link('a', 'r', 50_000, 20_000)]
+			});
+			const r = proposeSplit(input);
+			expect(proposeSplit(input)).toEqual(r);
+			if (r.status === 'ok') expect(total(r)).toBe(pay);
+		}
+	});
+});

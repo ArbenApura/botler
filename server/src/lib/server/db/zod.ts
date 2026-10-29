@@ -392,6 +392,7 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 	basisPoints: z.number().int().min(1).max(10_000).nullable(),
 	targetAccountId: idField.nullable(),
 	targetGoalId: idField.nullable(),
+	fundsBillId: idField.nullable(),
 	effectiveFrom: dayField,
 	position: z.number().int().min(1).max(999)
 })
@@ -403,6 +404,7 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 		base: true,
 		targetAccountId: true,
 		targetGoalId: true,
+		fundsBillId: true,
 		effectiveFrom: true,
 		position: true
 	})
@@ -413,6 +415,7 @@ export const ruleProposeInput = createInsertSchema(allocationRule, {
 		base: true,
 		targetAccountId: true,
 		targetGoalId: true,
+		fundsBillId: true,
 		effectiveFrom: true,
 		position: true
 	});
@@ -426,10 +429,14 @@ export const ruleFromTextInput = z.object({
 
 export const ruleIdInput = z.object({ ruleId: idField });
 
-/** Renames a rule. Only the label changes: the money and the target stay as approved. */
+/**
+ * Renames a rule, or links it to the bill it saves for (BTL-20261029-0119). A field left out stays as it is; null clears it. The money and
+ * the target stay as approved. No defaults here: a default would clear the other field on every update.
+ */
 export const ruleUpdateInput = z.object({
 	ruleId: idField,
-	label: ruleLabelField.nullable()
+	label: ruleLabelField.nullable().optional(),
+	fundsBillId: idField.nullable().optional()
 });
 export type RuleUpdateInput = z.infer<typeof ruleUpdateInput>;
 
@@ -703,6 +710,56 @@ export const cashflowForecastInput = z.object({
 	to: dayField,
 	group: z.enum(['day', 'week', 'month']).optional()
 });
+
+// -- SIMULATION (BTL-20261029-0117) -- //
+
+/** A what-if amount: whole minor units, 1 to 10^12, so 50 of them over 5 years stay safe integers. */
+const whatIfAmount = z.number().int().min(1).max(1_000_000_000_000);
+
+/**
+ * A what-if: changes to the money plan that are never saved (finance/scenario.ts). Kept small, as it is part of the assistant's tool
+ * schema on every turn: one list of ids to switch off (any payday, bill, rule or goal), one list of amounts (a payday or a bill, by id),
+ * dates whose paydays do not come, and pretend entries in the main currency. Every list is bounded and every id is a uuid.
+ */
+export const scenarioInput = z.strictObject({
+	off: z.array(idField).max(200).optional(),
+	amounts: z
+		.array(z.strictObject({ id: idField, amount: whatIfAmount }))
+		.max(100)
+		.optional(),
+	skipDates: z.array(dayField).max(100).optional(),
+	lateDays: z.number().int().min(0).max(60).optional(),
+	defer: z.boolean().optional(),
+	extra: z
+		.array(
+			z.strictObject({
+				date: dayField,
+				kind: z.enum(['in', 'out']),
+				accountId: idField,
+				amount: whatIfAmount,
+				label: z
+					.string()
+					.trim()
+					.max(40)
+					.refine((t) => t.length > 0, 'Give the entry a name')
+			})
+		)
+		.max(50)
+		.optional()
+});
+
+export type ScenarioInput = z.infer<typeof scenarioInput>;
+
+/** The balance timeline from one day to another, by day, week, month or year; detail adds every entry of a range of at most a year. */
+export const balanceSimulateInput = z.object({
+	from: dayField,
+	to: dayField,
+	group: z.enum(['day', 'week', 'month', 'year']).optional(),
+	view: z.enum(['overview', 'detail']).optional(),
+	scenario: scenarioInput.optional()
+});
+
+export type BalanceSimulateInput = z.infer<typeof balanceSimulateInput>;
 
 // -- CALCULATOR -- //
 

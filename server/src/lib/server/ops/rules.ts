@@ -15,7 +15,7 @@ import { toManilaDate } from '../../finance/dates';
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
-import { account, allocationRule, goal } from '../db/schema';
+import { account, allocationRule, bill, goal } from '../db/schema';
 import {
 	ruleDeleteInput,
 	ruleFromTextInput,
@@ -34,6 +34,8 @@ export type RuleView = Plain<RuleRow> & {
 	/** The sentence the person approves, built from the fields. */
 	summary: string;
 	targetName: string;
+	/** The name of the bill the rule saves for, or null. */
+	fundsBillName: string | null;
 };
 
 // -- FUNCTIONS -- //
@@ -70,8 +72,8 @@ export const toRule = (r: RuleRow, label?: string): Rule => ({
 	version: r.version
 });
 
-/** The names a rule's sentence uses, and the currency its amounts read in. */
-type Targets = { names: Map<string, string>; currency: string };
+/** The names a rule's sentence uses (accounts, goals and bills), and the currency its amounts read in. */
+type Targets = { names: Map<string, string>; bills: Map<string, string>; currency: string };
 
 async function targetNames(tx: Tx, userId: string): Promise<Targets> {
 	const accounts = await tx
@@ -82,16 +84,31 @@ async function targetNames(tx: Tx, userId: string): Promise<Targets> {
 		.select({ id: goal.id, name: goal.name })
 		.from(goal)
 		.where(eq(goal.userId, userId));
+	const bills = await tx
+		.select({ id: bill.id, name: bill.name })
+		.from(bill)
+		.where(eq(bill.userId, userId));
 	const names = new Map<string, string>();
 	for (const a of accounts) names.set(a.id, a.name);
 	for (const g of goals) names.set(g.id, g.name);
-	return { names, currency: (await readSettings(tx, userId)).currency };
+	return {
+		names,
+		bills: new Map(bills.map((b) => [b.id, b.name])),
+		currency: (await readSettings(tx, userId)).currency
+	};
 }
 
 const view = (r: RuleRow, t: Targets): RuleView => {
 	const targetName = t.names.get(r.targetAccountId ?? r.targetGoalId ?? '') ?? 'an account';
-	const sentence = describeRule(r, targetName, t.currency);
-	return { ...plain(r), summary: r.label ? `${r.label}: ${sentence}` : sentence, targetName };
+	const fundsBillName = r.fundsBillId ? (t.bills.get(r.fundsBillId) ?? 'a bill') : null;
+	const said = describeRule(r, targetName, t.currency);
+	const sentence = fundsBillName ? `${said} It saves for ${fundsBillName}.` : said;
+	return {
+		...plain(r),
+		summary: r.label ? `${r.label}: ${sentence}` : sentence,
+		targetName,
+		fundsBillName
+	};
 };
 
 async function activeRules(tx: Tx, userId: string) {
@@ -99,6 +116,105 @@ async function activeRules(tx: Tx, userId: string) {
 		.select()
 		.from(allocationRule)
 		.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')));
+}
+
+/**
+ * Refuses a link between a rule and a bill that could not count in the split (finance/funding.ts checks it again on every payday, since
+ * the bill can change later): only a fixed rule in force or waiting, into the account the bill is paid from, for a bill that is switched
+ * on, in the main currency and not already saved for by another rule.
+ */
+async function requireLinkable(
+	tx: Tx,
+	userId: string,
+	rule: Pick<RuleRow, 'mode' | 'status' | 'targetAccountId'> & { id: string | null },
+	billId: string
+) {
+	if (rule.status === 'retired')
+		throw new OpsError('INVALID', 'That rule is retired, so it cannot save for a bill.');
+	if (rule.mode !== 'fixed')
+		throw new OpsError('INVALID', 'Only a rule with a fixed amount can save for a bill.');
+	if (!rule.targetAccountId)
+		throw new OpsError(
+			'INVALID',
+			'That rule puts money into a goal. A rule that saves for a bill puts it into the account the bill is paid from.'
+		);
+	const [b] = await tx
+		.select()
+		.from(bill)
+		.where(and(eq(bill.userId, userId), eq(bill.id, billId)));
+	if (!b) throw new OpsError('NOT_FOUND', 'That bill does not exist.');
+	if (!b.active) throw new OpsError('INVALID', `"${b.name}" is switched off.`);
+	const main = (await readSettings(tx, userId)).currency;
+	if (b.currency !== main)
+		throw new OpsError(
+			'INVALID',
+			`"${b.name}" is in ${b.currency}. A rule saves in ${main}, so it can only save for a bill in ${main}.`
+		);
+	if (b.accountId !== rule.targetAccountId)
+		throw new OpsError(
+			'INVALID',
+			`"${b.name}" is paid from another account. The rule must put its money into the account the bill is paid from.`
+		);
+	const [other] = await tx
+		.select()
+		.from(allocationRule)
+		.where(
+			and(
+				eq(allocationRule.userId, userId),
+				eq(allocationRule.fundsBillId, billId),
+				inArray(allocationRule.status, ['proposed', 'active'])
+			)
+		);
+	if (other && other.id !== rule.id)
+		throw new OpsError(
+			'CONFLICT',
+			`"${b.name}" already has a rule saving for it${other.label ? ` (${other.label})` : ''}. Unlink that one first.`
+		);
+}
+
+/** A rule whose link to a bill was cleared because the bill changed, and why. */
+export type UnlinkedRule = { ruleId: string; label: string | null; reason: string };
+
+/**
+ * Clears the links of the rules that save for a bill the person is deleting (bill null) or that no longer fits after an edit: switched
+ * off, moved to another account, or in another currency than the main one. Done in the same write, so the audit trail shows it and the
+ * split never trusts a stale link. Returns what was cleared, so the answer can say so.
+ */
+export async function unlinkRulesOf(
+	tx: Tx,
+	userId: string,
+	billId: string,
+	b: Pick<typeof bill.$inferSelect, 'active' | 'accountId' | 'currency'> | null
+): Promise<UnlinkedRule[]> {
+	const linked = await tx
+		.select()
+		.from(allocationRule)
+		.where(and(eq(allocationRule.userId, userId), eq(allocationRule.fundsBillId, billId)));
+	if (linked.length === 0) return [];
+	const main = (await readSettings(tx, userId)).currency;
+	const out: UnlinkedRule[] = [];
+	for (const r of linked) {
+		const reason = !b
+			? 'the bill was removed'
+			: !b.active
+				? 'the bill is switched off'
+				: b.currency !== main
+					? `the bill is now in ${b.currency}`
+					: b.accountId !== r.targetAccountId
+						? 'the bill is now paid from another account'
+						: null;
+		if (!reason) continue;
+		await tx
+			.update(allocationRule)
+			.set({
+				fundsBillId: null,
+				version: sql`${allocationRule.version} + 1`,
+				updatedAt: sql`now()`
+			})
+			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, r.id)));
+		out.push({ ruleId: r.id, label: r.label, reason });
+	}
+	return out;
 }
 
 /** Saves a rule as proposed. It does nothing until a person approves it. The set (active rules plus this one) must stay valid. */
@@ -116,8 +232,26 @@ export async function proposeRule(
 		runWrite(ctx, 'rule.propose', { ...input, sourceText }, async (tx, userId) => {
 			if (input.targetAccountId) await requireAccount(tx, userId, input.targetAccountId);
 			if (input.targetGoalId) await requireGoal(tx, userId, input.targetGoalId);
+			if (input.fundsBillId)
+				await requireLinkable(
+					tx,
+					userId,
+					{
+						id: null,
+						mode: input.mode,
+						status: 'proposed',
+						targetAccountId: input.targetAccountId ?? null
+					},
+					input.fundsBillId
+				);
 			const active = await activeRules(tx, userId);
-			const position = input.position ?? Math.max(0, ...active.map((r) => r.position)) + 1;
+			// Numbered after every rule in force or waiting, so two rules never share a place (0033 renumbered the old ones)
+			const waiting = await tx
+				.select({ position: allocationRule.position })
+				.from(allocationRule)
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'proposed')));
+			const position =
+				input.position ?? Math.max(0, ...[...active, ...waiting].map((r) => r.position)) + 1;
 			const [row] = await tx
 				.insert(allocationRule)
 				.values({
@@ -129,6 +263,7 @@ export async function proposeRule(
 					base: input.base ?? (input.mode === 'rest' ? 'remaining' : 'pay'),
 					targetAccountId: input.targetAccountId ?? null,
 					targetGoalId: input.targetGoalId ?? null,
+					fundsBillId: input.fundsBillId ?? null,
 					effectiveFrom: input.effectiveFrom ?? toManilaDate(new Date()),
 					position,
 					status: 'proposed',
@@ -226,6 +361,8 @@ export async function retireRule(ctx: Ctx, raw: { ruleId: string }): Promise<Rul
 				.update(allocationRule)
 				.set({
 					status: 'retired',
+					// A retired rule saves for nothing, so its link to a bill goes with it
+					fundsBillId: null,
 					version: sql`${allocationRule.version} + 1`,
 					updatedAt: sql`now()`
 				})
@@ -243,14 +380,30 @@ export async function retireRule(ctx: Ctx, raw: { ruleId: string }): Promise<Rul
 	);
 }
 
-/** Gives a rule a name, or clears it (null). Only the label changes, so the assistant may do it without a card. */
+/**
+ * Gives a rule a name, or links it to the bill it saves for (BTL-20261029-0119). A field left out stays as it is and null clears it. The
+ * money and the target stay as approved, so the assistant may do it without a card (owner decision 2026-10-28); the audit trail keeps both.
+ */
 export async function updateRule(ctx: Ctx, raw: unknown): Promise<RuleView> {
-	const { ruleId, label } = parse(ruleUpdateInput, raw);
+	const input = parse(ruleUpdateInput, raw);
+	const { ruleId } = input;
+	if (input.label === undefined && input.fundsBillId === undefined)
+		throw new OpsError('INVALID', 'Say the new label or the bill the rule saves for.');
 	return mapped(() =>
-		runWrite(ctx, 'rule.update', { ruleId, label }, async (tx, userId) => {
+		runWrite(ctx, 'rule.update', input, async (tx, userId) => {
+			const [row] = await tx
+				.select()
+				.from(allocationRule)
+				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)));
+			if (!row) throw new OpsError('NOT_FOUND', 'That rule does not exist.');
+			if (input.fundsBillId) await requireLinkable(tx, userId, row, input.fundsBillId);
+			// Only the fields that were given are written
+			const changes: Partial<Pick<RuleRow, 'label' | 'fundsBillId'>> = {};
+			if (input.label !== undefined) changes.label = input.label;
+			if (input.fundsBillId !== undefined) changes.fundsBillId = input.fundsBillId;
 			const [done] = await tx
 				.update(allocationRule)
-				.set({ label, version: sql`${allocationRule.version} + 1`, updatedAt: sql`now()` })
+				.set({ ...changes, version: sql`${allocationRule.version} + 1`, updatedAt: sql`now()` })
 				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)))
 				.returning();
 			if (!done) throw new OpsError('NOT_FOUND', 'That rule does not exist.');

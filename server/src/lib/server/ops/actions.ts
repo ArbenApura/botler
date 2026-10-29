@@ -69,12 +69,13 @@ async function namesFor(ctx: Ctx, args: Args): Promise<Map<string, string>> {
 			.from(goal)
 			.where(eq(goal.userId, userId)))
 			names.set(g.id, g.name);
-		if (typeof args.billId === 'string')
-			for (const b of await tx
-				.select({ id: bill.id, name: bill.name })
-				.from(bill)
-				.where(and(eq(bill.userId, userId), eq(bill.id, args.billId))))
-				names.set(b.id, b.name);
+		for (const id of [args.billId, args.fundsBillId])
+			if (typeof id === 'string')
+				for (const b of await tx
+					.select({ id: bill.id, name: bill.name })
+					.from(bill)
+					.where(and(eq(bill.userId, userId), eq(bill.id, id))))
+					names.set(b.id, b.name);
 		if (typeof args.incomeId === 'string')
 			for (const i of await tx
 				.select({ id: incomeSchedule.id, name: incomeSchedule.label })
@@ -144,6 +145,21 @@ export function describeAction(
 			return `Remove the bill "${names.get(typeof args.billId === 'string' ? args.billId : '') ?? 'a bill'}". If it was ever paid it is switched off instead, so its history stays.`;
 		case 'income_delete':
 			return `Remove the payday schedule "${names.get(typeof args.incomeId === 'string' ? args.incomeId : '') ?? 'a payday'}". If a split was made for it, it is switched off instead.`;
+		case 'rule_update': {
+			// A link to a bill changes what the split takes from the pay, so the card names the bill (BTL-20261029-0119)
+			const rule = names.get(typeof args.ruleId === 'string' ? args.ruleId : '') ?? 'a rule';
+			const parts = [
+				typeof args.label === 'string' ? `call it "${text(args.label, 60)}"` : '',
+				args.label === null ? 'clear its name' : '',
+				typeof args.fundsBillId === 'string'
+					? `make it save for the bill "${names.get(args.fundsBillId) ?? 'a bill'}", so that bill is paid from what it saved instead of from the pay`
+					: '',
+				args.fundsBillId === null ? 'stop it saving for a bill' : ''
+			].filter(Boolean);
+			return `Change the payday rule ${rule}: ${parts.join(', ')}.`;
+		}
+		case 'rule_propose':
+			return `Propose a payday rule: ${args.mode === 'fixed' ? money(args.amount) : args.mode === 'percent' ? `${(num(args.basisPoints) ?? 0) / 100}%` : 'the rest'} to ${nm(args.targetAccountId ?? args.targetGoalId)}${typeof args.label === 'string' ? `, named "${text(args.label, 60)}"` : ''}${typeof args.fundsBillId === 'string' ? `, saving for the bill "${names.get(args.fundsBillId) ?? 'a bill'}"` : ''}. It still waits for your approval.`;
 		case 'rule_delete':
 			return `Remove the payday rule ${names.get(typeof args.ruleId === 'string' ? args.ruleId : '') ?? 'a rule'} for good.`;
 		case 'account_delete':

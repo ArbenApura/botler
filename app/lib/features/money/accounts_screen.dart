@@ -486,6 +486,26 @@ class _TotalCard extends ConsumerWidget {
                 ),
               ),
             ),
+            // Time travel: the balances on any past or future day (BTL-20261029-0117), a line like the rates line, not a second button
+            Semantics(
+              button: true,
+              label: t.simSeeOverTime,
+              child: InkWell(
+                onTap: () => context.push('/simulate'),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ExcludeSemantics(
+                      child: Text(
+                        t.simSeeOverTime,
+                        style: TextStyle(color: c.muted),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

@@ -599,6 +599,7 @@ const EXPECTED_TOOLS = [
 	'alarm_create',
 	'assets_summary',
 	'audit_verify',
+	'balance_simulate',
 	'bill_create',
 	'bill_delete',
 	'bill_mark_paid',

@@ -28,6 +28,7 @@ import 'features/money/goals_screen.dart';
 import 'features/payday/payday_screen.dart';
 import 'features/settings/reset_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/simulate/simulate_screen.dart';
 import 'features/update/update_gate.dart';
 import 'state/providers.dart';
 import 'theme/theme.dart';
@@ -114,6 +115,13 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/calendar',
         pageBuilder: (_, state) => botlerPage(state, const CalendarScreen()),
+      ),
+      GoRoute(
+        path: '/simulate',
+        pageBuilder: (_, state) => botlerPage(
+          state,
+          SimulateScreen(initialDate: state.uri.queryParameters['date']),
+        ),
       ),
       GoRoute(
         path: '/agenda',

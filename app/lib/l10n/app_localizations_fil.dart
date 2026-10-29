@@ -1795,6 +1795,13 @@ class AppLocalizationsFil extends AppLocalizations {
   String get menuSettingsLine => 'Wika, pera, lock, notification, itsura';
 
   @override
+  String get menuSimulate => 'Time travel';
+
+  @override
+  String get menuSimulateLine =>
+      'Ang pera mo sa kahit anong araw, nakaraan o darating';
+
+  @override
   String get menuTitle => 'Menu';
 
   @override
@@ -2193,6 +2200,31 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get retry => 'Subukan muli';
+
+  @override
+  String ruleSavesFor(String bill) {
+    return 'Inilalaan para sa $bill';
+  }
+
+  @override
+  String get ruleSavesForHelp =>
+      'Piliin ang bill na pupuntahan ng perang ito. Sa araw ng sahod, babayaran ng split ang bill na iyon mula sa naipon ng rule na ito, sa halip na kunin ulit sa sahod mo.';
+
+  @override
+  String get ruleSavesForNone => 'Ilaan para sa isang bill?';
+
+  @override
+  String get ruleSavesForNothing => 'Wala';
+
+  @override
+  String get ruleSavesForSaved => 'Na-save.';
+
+  @override
+  String get ruleSavesForSemantic =>
+      'Piliin ang bill na pinag-iipunan ng rule na ito';
+
+  @override
+  String get ruleSavesForTitle => 'Para saan inilalaan ang rule na ito?';
 
   @override
   String get save => 'I-save';
@@ -2679,6 +2711,322 @@ class AppLocalizationsFil extends AppLocalizations {
   String get signInTagline => 'Ang pera at oras mo, sa isang tahimik na chat.';
 
   @override
+  String get simAccountsTitle => 'Mga account';
+
+  @override
+  String get simAhead1m => '1 buwan pasulong';
+
+  @override
+  String get simAhead1y => '1 taon pasulong';
+
+  @override
+  String get simAhead5y => '5 taon pasulong';
+
+  @override
+  String simAmountFor(String name) {
+    return 'Halaga para sa $name';
+  }
+
+  @override
+  String get simBack1m => '1 buwan pabalik';
+
+  @override
+  String get simBack1y => '1 taon pabalik';
+
+  @override
+  String get simBandFuture => 'Simulation';
+
+  @override
+  String get simBandFutureLine =>
+      'Hindi totoong pera: ang balanse ngayon at ang plano mo.';
+
+  @override
+  String get simBandMixed => 'Naitala hanggang ngayon, simulation pagkatapos';
+
+  @override
+  String get simBandMixedLine =>
+      'Hindi totoong pera ang mga bilang pagkatapos ng ngayon.';
+
+  @override
+  String simBandOffline(String date) {
+    return 'Naka-save noong $date, walang koneksyon.';
+  }
+
+  @override
+  String get simBandPast => 'Naitala, kasama ang replay ng plano';
+
+  @override
+  String get simBandPastLine =>
+      'Ang totoong nangyari, katabi ng gagawin sana ng plano mo.';
+
+  @override
+  String simBelowDay(String account, String date) {
+    return '$account bababa sa zero sa $date';
+  }
+
+  @override
+  String get simBills => 'Mga bill';
+
+  @override
+  String simChartSemantics(String period, String amount, String source) {
+    return '$period: $amount, $source. Mag-swipe pataas o pababa para lumipat.';
+  }
+
+  @override
+  String get simDefer =>
+      'Maghihintay ang deferrable bills sa susunod na sweldo';
+
+  @override
+  String get simDone => 'Tapos';
+
+  @override
+  String get simEarlier => 'Mas maaga';
+
+  @override
+  String simEntriesMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pa ang hindi ipinakita',
+      one: '1 pa ang hindi ipinakita',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simEntriesTitle => 'Mga entry';
+
+  @override
+  String get simError => 'Hindi ma-load ang time travel.';
+
+  @override
+  String simFirstRecordEdge(String date) {
+    return 'Walang naitala bago ang $date.';
+  }
+
+  @override
+  String simGapAbove(String amount) {
+    return '$amount lampas sa plano';
+  }
+
+  @override
+  String simGapBelow(String amount) {
+    return '$amount kulang sa plano';
+  }
+
+  @override
+  String get simGapNone => 'Saktong-sakto sa plano';
+
+  @override
+  String get simGoals => 'Mga goal';
+
+  @override
+  String get simHidden => 'nakatago';
+
+  @override
+  String simLateDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count araw',
+      one: '1 araw',
+    );
+    return 'Bills bayad nang $_temp0 na huli';
+  }
+
+  @override
+  String get simLater => 'Mas huli';
+
+  @override
+  String simLowDay(String account, String date) {
+    return '$account kulang sa minimum sa $date';
+  }
+
+  @override
+  String simMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sweldo o bill ang hindi naitala',
+      one: '1 sweldo o bill ang hindi naitala',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String simMissingRates(String codes) {
+    return 'Walang palitan para sa $codes: hindi kasama sa kabuuan.';
+  }
+
+  @override
+  String simMoveTo(String account) {
+    return 'papunta sa $account';
+  }
+
+  @override
+  String get simNoEntries => 'Walang laman ang panahong ito.';
+
+  @override
+  String get simNoPlan =>
+      'Wala pang sweldo o bill, kaya patag ang linya ng simulation.';
+
+  @override
+  String get simNoRecords => 'Wala pang naitala para sa mga petsang ito.';
+
+  @override
+  String get simPaydays => 'Mga sweldo';
+
+  @override
+  String simPeriod(String from, String to) {
+    return '$from hanggang $to';
+  }
+
+  @override
+  String get simPickDate => 'Pumili ng petsa';
+
+  @override
+  String get simPresetDefer => 'Ipagpaliban ang puwedeng maghintay';
+
+  @override
+  String get simPresetLate => 'Bayaran ang bills nang isang linggong huli';
+
+  @override
+  String get simPresetNoRules => 'Walang payday rule';
+
+  @override
+  String get simPresetPayDown => 'Sweldo 10% mas mababa';
+
+  @override
+  String get simPresetPayUp => 'Sweldo 10% mas mataas';
+
+  @override
+  String get simPresetSkipNext => 'Laktawan ang susunod na sweldo';
+
+  @override
+  String get simPresets => 'Handa na';
+
+  @override
+  String get simPretend => 'Kunwaring pumasok o lumabas na pera';
+
+  @override
+  String get simPretendAdd => 'Idagdag';
+
+  @override
+  String simPretendDate(String date) {
+    return 'Sa $date';
+  }
+
+  @override
+  String get simPretendIn => 'Pumasok';
+
+  @override
+  String get simPretendLabel => 'Para saan ito?';
+
+  @override
+  String get simPretendOut => 'Lumabas';
+
+  @override
+  String get simRatesStale => 'Mahigit isang araw na ang palitan.';
+
+  @override
+  String get simReachEdge =>
+      'Hanggang 5 taon lang pabalik at pasulong ang time travel.';
+
+  @override
+  String get simRecordedEnd => 'Naitala sa dulo';
+
+  @override
+  String get simRecordedToday => 'Naitala hanggang ngayon';
+
+  @override
+  String simRemove(String name) {
+    return 'Alisin ang $name';
+  }
+
+  @override
+  String get simReplayEnd => 'Replay ng plano sa dulo';
+
+  @override
+  String get simReset => 'I-reset';
+
+  @override
+  String get simRules => 'Mga payday rule';
+
+  @override
+  String get simSeeOverTime => 'Tingnan sa paglipas ng panahon';
+
+  @override
+  String get simSimulatedEnd => 'Simulation sa dulo';
+
+  @override
+  String get simSkipPayday => 'I-tap ang sweldong hindi darating:';
+
+  @override
+  String get simTagMissed => 'Hindi naitala';
+
+  @override
+  String get simTagPretend => 'What-if';
+
+  @override
+  String get simTagRecorded => 'Naitala';
+
+  @override
+  String get simTagReplay => 'Replay ng plano';
+
+  @override
+  String get simTagSimulated => 'Simulation';
+
+  @override
+  String get simTitle => 'Time travel';
+
+  @override
+  String get simToday => 'Ngayon';
+
+  @override
+  String simUnknown(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sweldo o bill ang wala pang halaga at hindi kasama',
+      one: '1 sweldo o bill ang wala pang halaga at hindi kasama',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get simWhatIf => 'What if';
+
+  @override
+  String get simWhatIfLine =>
+      'Walang nase-save dito. Ang replay at ang simulation lang ang nagbabago.';
+
+  @override
+  String simWhatIfOn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pagbabago',
+      one: '1 pagbabago',
+    );
+    return 'May what-if: $_temp0';
+  }
+
+  @override
+  String get simWhatIfTitle => 'What if…';
+
+  @override
+  String get simZoomDay => 'Araw';
+
+  @override
+  String get simZoomMonth => 'Buwan';
+
+  @override
+  String get simZoomWeek => 'Linggo';
+
+  @override
+  String get simZoomYear => 'Taon';
+
+  @override
   String get splitAccountFallback => 'account';
 
   @override
@@ -2691,12 +3039,25 @@ class AppLocalizationsFil extends AppLocalizations {
   String get splitApprovedDone => 'Naaprubahan ang split.';
 
   @override
+  String get splitBillFallback => 'isang bill';
+
+  @override
+  String splitBrokenLink(String rule, String bill, String reason) {
+    return 'Hindi maipon ng $rule para sa $bill: $reason.';
+  }
+
+  @override
   String splitCopied(String amount) {
     return 'Nakopya ang $amount';
   }
 
   @override
   String get splitCopyTooltip => 'Kopyahin ang halaga';
+
+  @override
+  String splitCoveredLine(String bill, String account) {
+    return '$bill  ·  nasa $account na';
+  }
 
   @override
   String get splitCutOrMove => 'Puwede mong bawasan o ilipat:';
@@ -2713,6 +3074,14 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get splitForeignTitle => 'Mga bill sa ibang pera';
+
+  @override
+  String get splitFromElsewhereTitle => 'Hindi kinuha sa sahod na ito';
+
+  @override
+  String splitFundedLine(String bill, String rule) {
+    return '$bill  ·  naipon ng $rule';
+  }
 
   @override
   String get splitMarkSent => 'Markahang naipadala';
@@ -2735,6 +3104,11 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get splitTransfers => 'Mga ililipat';
+
+  @override
+  String splitUnfundedLine(String bill) {
+    return '$bill  ·  kailangan pa mula sa sahod na ito';
+  }
 
   @override
   String summaryMissingRates(int count) {

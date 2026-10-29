@@ -246,7 +246,8 @@ describe('the forecast of a person', () => {
 
 	it('still moves what a short pay can fund, in the split order, and says it is short', async () => {
 		const g = await seedPerson(t);
-		await recordSnapshot(w(g), { accountId: g.rcbc, amount: 3_000_000 });
+		// The money sits in Maya, which holds a goal: it never pays a bill, so the bills come from the pay (BTL-20261029-0119)
+		await recordSnapshot(w(g), { accountId: g.maya, amount: 3_000_000 });
 		for (const day of [5, 20])
 			await createBill(w(g), {
 				name: `Rent ${day}`,
@@ -320,7 +321,10 @@ describe('the forecast of a person', () => {
 			deferrable: false
 		});
 		expect(JSON.stringify(await forecastTo())).not.toContain('Secret hobby');
-		expect(JSON.stringify(await forecastTo(to, 'week', other))).toContain('Secret hobby');
+		// 60 days, so the answer keeps its lists (at 120 days it sits right at the length cut)
+		expect(JSON.stringify(await forecastTo(addDays(today, 60), 'week', other))).toContain(
+			'Secret hobby'
+		);
 	});
 
 	it('shortens an answer that would be too long to the totals and wallets, and says so', async () => {

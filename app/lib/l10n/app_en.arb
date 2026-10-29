@@ -1266,6 +1266,8 @@
   "menuPaydayLine": "Split your pay, and the rules for it",
   "menuSettings": "Settings",
   "menuSettingsLine": "Language, money, lock, notifications, look",
+  "menuSimulate": "Time travel",
+  "menuSimulateLine": "Your balances on any past or future day",
   "menuTitle": "Menu",
   "no": "No",
   "notebookByBotler": "Botler",
@@ -1487,6 +1489,20 @@
   "resetWrongWord": "Type the word exactly as shown.",
   "resetZeroReason": "Starting again from zero",
   "retry": "Try again",
+  "ruleSavesFor": "Saves for {bill}",
+  "@ruleSavesFor": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      }
+    }
+  },
+  "ruleSavesForHelp": "Pick the bill this money is for. On payday the split then pays that bill from what this rule saved, instead of taking it from your pay a second time.",
+  "ruleSavesForNone": "Saves for a bill?",
+  "ruleSavesForNothing": "Nothing",
+  "ruleSavesForSaved": "Saved.",
+  "ruleSavesForSemantic": "Choose the bill this rule saves for",
+  "ruleSavesForTitle": "What does this rule save for?",
   "save": "Save",
   "schedBasisCalendar": "Calendar weeks",
   "schedBasisDays": "Days 1 to 7, 8 to 14 and so on",
@@ -1883,10 +1899,247 @@
   "settingsWeekStarts": "Week starts on",
   "signInButton": "Sign in with Google",
   "signInTagline": "Your money and your time, in one quiet chat.",
+  "simAccountsTitle": "Accounts",
+  "simAhead1m": "1 month ahead",
+  "simAhead1y": "1 year ahead",
+  "simAhead5y": "5 years ahead",
+  "simAmountFor": "Amount for {name}",
+  "@simAmountFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "simBack1m": "1 month back",
+  "simBack1y": "1 year back",
+  "simBandFuture": "Simulated",
+  "simBandFutureLine": "Not real money: today's balances and your plan.",
+  "simBandMixed": "Recorded up to today, simulated after",
+  "simBandMixedLine": "Numbers after today are not real money.",
+  "simBandOffline": "Saved {date}, no connection.",
+  "@simBandOffline": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "simBandPast": "Recorded, with a plan replay",
+  "simBandPastLine": "What really happened, beside what your plan would have done.",
+  "simBelowDay": "{account} below zero on {date}",
+  "@simBelowDay": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "simBills": "Bills",
+  "simChartSemantics": "{period}: {amount}, {source}. Swipe up or down to move between periods.",
+  "@simChartSemantics": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "simDefer": "Deferrable bills wait for the next payday",
+  "simDone": "Done",
+  "simEarlier": "Earlier",
+  "simEntriesMore": "{count, plural, =1{1 more not shown} other{{count} more not shown}}",
+  "@simEntriesMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simEntriesTitle": "Entries",
+  "simError": "Time travel could not load.",
+  "simFirstRecordEdge": "Nothing was recorded before {date}.",
+  "@simFirstRecordEdge": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "simGapAbove": "{amount} above the plan",
+  "@simGapAbove": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "simGapBelow": "{amount} below the plan",
+  "@simGapBelow": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "simGapNone": "Right on the plan",
+  "simGoals": "Goals",
+  "simHidden": "hidden",
+  "simLateDays": "Bills paid {count, plural, =1{1 day} other{{count} days}} late",
+  "@simLateDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simLater": "Later",
+  "simLowDay": "{account} under its minimum on {date}",
+  "@simLowDay": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "simMissed": "{count, plural, =1{1 payday or bill was not recorded} other{{count} paydays or bills were not recorded}}",
+  "@simMissed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simMissingRates": "No exchange rate for {codes}: left out of the totals.",
+  "@simMissingRates": {
+    "placeholders": {
+      "codes": {
+        "type": "String"
+      }
+    }
+  },
+  "simMoveTo": "to {account}",
+  "@simMoveTo": {
+    "placeholders": {
+      "account": {
+        "type": "String"
+      }
+    }
+  },
+  "simNoEntries": "Nothing in this period.",
+  "simNoPlan": "No paydays or bills yet, so the simulated line stays flat.",
+  "simNoRecords": "No records yet for these dates.",
+  "simPaydays": "Paydays",
+  "simPeriod": "{from} to {to}",
+  "@simPeriod": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "simPickDate": "Pick a date",
+  "simPresetDefer": "Defer what can wait",
+  "simPresetLate": "Pay bills a week late",
+  "simPresetNoRules": "No payday rules",
+  "simPresetPayDown": "Pay 10% lower",
+  "simPresetPayUp": "Pay 10% higher",
+  "simPresetSkipNext": "Skip the next payday",
+  "simPresets": "Ready-made",
+  "simPretend": "Pretend money in or out",
+  "simPretendAdd": "Add",
+  "simPretendDate": "On {date}",
+  "@simPretendDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "simPretendIn": "Money in",
+  "simPretendLabel": "What is it?",
+  "simPretendOut": "Money out",
+  "simRatesStale": "Exchange rates are older than a day.",
+  "simReachEdge": "Time travel reaches 5 years each way.",
+  "simRecordedEnd": "Recorded at the end",
+  "simRecordedToday": "Recorded up to today",
+  "simRemove": "Remove {name}",
+  "@simRemove": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "simReplayEnd": "Plan replay at the end",
+  "simReset": "Reset",
+  "simRules": "Payday rules",
+  "simSeeOverTime": "See over time",
+  "simSimulatedEnd": "Simulated at the end",
+  "simSkipPayday": "Tap a payday that would not come:",
+  "simTagMissed": "Not recorded",
+  "simTagPretend": "What-if",
+  "simTagRecorded": "Recorded",
+  "simTagReplay": "Plan replay",
+  "simTagSimulated": "Simulated",
+  "simTitle": "Time travel",
+  "simToday": "Today",
+  "simUnknown": "{count, plural, =1{1 pay or bill has no amount yet and is not counted} other{{count} pays or bills have no amount yet and are not counted}}",
+  "@simUnknown": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simWhatIf": "What if",
+  "simWhatIfLine": "Nothing here is saved. It only changes the replay and the simulation.",
+  "simWhatIfOn": "What-if on: {count, plural, =1{1 change} other{{count} changes}}",
+  "@simWhatIfOn": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simWhatIfTitle": "What if…",
+  "simZoomDay": "Day",
+  "simZoomMonth": "Month",
+  "simZoomWeek": "Week",
+  "simZoomYear": "Year",
   "splitAccountFallback": "account",
   "splitApproveButton": "Approve split",
   "splitApproved": "Approved",
   "splitApprovedDone": "Split approved.",
+  "splitBillFallback": "a bill",
+  "splitBrokenLink": "{rule} cannot save for {bill}: {reason}.",
+  "@splitBrokenLink": {
+    "placeholders": {
+      "rule": {
+        "type": "String"
+      },
+      "bill": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
   "splitCopied": "Copied {amount}",
   "@splitCopied": {
     "placeholders": {
@@ -1896,6 +2149,17 @@
     }
   },
   "splitCopyTooltip": "Copy the amount",
+  "splitCoveredLine": "{bill}  ·  already in {account}",
+  "@splitCoveredLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      },
+      "account": {
+        "type": "String"
+      }
+    }
+  },
   "splitCutOrMove": "You could cut or move:",
   "splitForeignLine": "{name}: {amount} counted as {converted} ({rate})",
   "@splitForeignLine": {
@@ -1915,6 +2179,18 @@
     }
   },
   "splitForeignTitle": "Bills in other currencies",
+  "splitFromElsewhereTitle": "Not taken from this pay",
+  "splitFundedLine": "{bill}  ·  saved by {rule}",
+  "@splitFundedLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      },
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
   "splitMarkSent": "Mark sent",
   "splitMarkedSent": "Marked as sent.",
   "splitPayday": "Payday {date}",
@@ -1935,6 +2211,14 @@
     }
   },
   "splitTransfers": "Transfers to make",
+  "splitUnfundedLine": "{bill}  ·  still needed from this pay",
+  "@splitUnfundedLine": {
+    "placeholders": {
+      "bill": {
+        "type": "String"
+      }
+    }
+  },
   "summaryMissingRates": "{count} currencies are not in this total: no exchange rate yet.",
   "@summaryMissingRates": {
     "placeholders": {

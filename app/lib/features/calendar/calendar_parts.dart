@@ -202,6 +202,8 @@ class CashflowStrip extends StatelessWidget {
         lowText,
       ),
       child: PaperCard(
+        // Opens time travel on the month of the strip (BTL-20261029-0117)
+        onTap: () => context.push('/simulate?date=${days.first.date}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

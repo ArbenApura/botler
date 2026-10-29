@@ -3043,6 +3043,18 @@ abstract class AppLocalizations {
   /// **'Language, money, lock, notifications, look'**
   String get menuSettingsLine;
 
+  /// No description provided for @menuSimulate.
+  ///
+  /// In en, this message translates to:
+  /// **'Time travel'**
+  String get menuSimulate;
+
+  /// No description provided for @menuSimulateLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Your balances on any past or future day'**
+  String get menuSimulateLine;
+
   /// No description provided for @menuTitle.
   ///
   /// In en, this message translates to:
@@ -3744,6 +3756,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get retry;
+
+  /// No description provided for @ruleSavesFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves for {bill}'**
+  String ruleSavesFor(String bill);
+
+  /// No description provided for @ruleSavesForHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the bill this money is for. On payday the split then pays that bill from what this rule saved, instead of taking it from your pay a second time.'**
+  String get ruleSavesForHelp;
+
+  /// No description provided for @ruleSavesForNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves for a bill?'**
+  String get ruleSavesForNone;
+
+  /// No description provided for @ruleSavesForNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get ruleSavesForNothing;
+
+  /// No description provided for @ruleSavesForSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get ruleSavesForSaved;
+
+  /// No description provided for @ruleSavesForSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the bill this rule saves for'**
+  String get ruleSavesForSemantic;
+
+  /// No description provided for @ruleSavesForTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What does this rule save for?'**
+  String get ruleSavesForTitle;
 
   /// No description provided for @save.
   ///
@@ -4572,6 +4626,492 @@ abstract class AppLocalizations {
   /// **'Your money and your time, in one quiet chat.'**
   String get signInTagline;
 
+  /// No description provided for @simAccountsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get simAccountsTitle;
+
+  /// No description provided for @simAhead1m.
+  ///
+  /// In en, this message translates to:
+  /// **'1 month ahead'**
+  String get simAhead1m;
+
+  /// No description provided for @simAhead1y.
+  ///
+  /// In en, this message translates to:
+  /// **'1 year ahead'**
+  String get simAhead1y;
+
+  /// No description provided for @simAhead5y.
+  ///
+  /// In en, this message translates to:
+  /// **'5 years ahead'**
+  String get simAhead5y;
+
+  /// No description provided for @simAmountFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount for {name}'**
+  String simAmountFor(String name);
+
+  /// No description provided for @simBack1m.
+  ///
+  /// In en, this message translates to:
+  /// **'1 month back'**
+  String get simBack1m;
+
+  /// No description provided for @simBack1y.
+  ///
+  /// In en, this message translates to:
+  /// **'1 year back'**
+  String get simBack1y;
+
+  /// No description provided for @simBandFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated'**
+  String get simBandFuture;
+
+  /// No description provided for @simBandFutureLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Not real money: today\'s balances and your plan.'**
+  String get simBandFutureLine;
+
+  /// No description provided for @simBandMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded up to today, simulated after'**
+  String get simBandMixed;
+
+  /// No description provided for @simBandMixedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbers after today are not real money.'**
+  String get simBandMixedLine;
+
+  /// No description provided for @simBandOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {date}, no connection.'**
+  String simBandOffline(String date);
+
+  /// No description provided for @simBandPast.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded, with a plan replay'**
+  String get simBandPast;
+
+  /// No description provided for @simBandPastLine.
+  ///
+  /// In en, this message translates to:
+  /// **'What really happened, beside what your plan would have done.'**
+  String get simBandPastLine;
+
+  /// No description provided for @simBelowDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} below zero on {date}'**
+  String simBelowDay(String account, String date);
+
+  /// No description provided for @simBills.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills'**
+  String get simBills;
+
+  /// No description provided for @simChartSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'{period}: {amount}, {source}. Swipe up or down to move between periods.'**
+  String simChartSemantics(String period, String amount, String source);
+
+  /// No description provided for @simDefer.
+  ///
+  /// In en, this message translates to:
+  /// **'Deferrable bills wait for the next payday'**
+  String get simDefer;
+
+  /// No description provided for @simDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get simDone;
+
+  /// No description provided for @simEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get simEarlier;
+
+  /// No description provided for @simEntriesMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more not shown} other{{count} more not shown}}'**
+  String simEntriesMore(int count);
+
+  /// No description provided for @simEntriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries'**
+  String get simEntriesTitle;
+
+  /// No description provided for @simError.
+  ///
+  /// In en, this message translates to:
+  /// **'Time travel could not load.'**
+  String get simError;
+
+  /// No description provided for @simFirstRecordEdge.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was recorded before {date}.'**
+  String simFirstRecordEdge(String date);
+
+  /// No description provided for @simGapAbove.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} above the plan'**
+  String simGapAbove(String amount);
+
+  /// No description provided for @simGapBelow.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} below the plan'**
+  String simGapBelow(String amount);
+
+  /// No description provided for @simGapNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Right on the plan'**
+  String get simGapNone;
+
+  /// No description provided for @simGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get simGoals;
+
+  /// No description provided for @simHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'hidden'**
+  String get simHidden;
+
+  /// No description provided for @simLateDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills paid {count, plural, =1{1 day} other{{count} days}} late'**
+  String simLateDays(int count);
+
+  /// No description provided for @simLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get simLater;
+
+  /// No description provided for @simLowDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{account} under its minimum on {date}'**
+  String simLowDay(String account, String date);
+
+  /// No description provided for @simMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 payday or bill was not recorded} other{{count} paydays or bills were not recorded}}'**
+  String simMissed(int count);
+
+  /// No description provided for @simMissingRates.
+  ///
+  /// In en, this message translates to:
+  /// **'No exchange rate for {codes}: left out of the totals.'**
+  String simMissingRates(String codes);
+
+  /// No description provided for @simMoveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'to {account}'**
+  String simMoveTo(String account);
+
+  /// No description provided for @simNoEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in this period.'**
+  String get simNoEntries;
+
+  /// No description provided for @simNoPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'No paydays or bills yet, so the simulated line stays flat.'**
+  String get simNoPlan;
+
+  /// No description provided for @simNoRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'No records yet for these dates.'**
+  String get simNoRecords;
+
+  /// No description provided for @simPaydays.
+  ///
+  /// In en, this message translates to:
+  /// **'Paydays'**
+  String get simPaydays;
+
+  /// No description provided for @simPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} to {to}'**
+  String simPeriod(String from, String to);
+
+  /// No description provided for @simPickDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get simPickDate;
+
+  /// No description provided for @simPresetDefer.
+  ///
+  /// In en, this message translates to:
+  /// **'Defer what can wait'**
+  String get simPresetDefer;
+
+  /// No description provided for @simPresetLate.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay bills a week late'**
+  String get simPresetLate;
+
+  /// No description provided for @simPresetNoRules.
+  ///
+  /// In en, this message translates to:
+  /// **'No payday rules'**
+  String get simPresetNoRules;
+
+  /// No description provided for @simPresetPayDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay 10% lower'**
+  String get simPresetPayDown;
+
+  /// No description provided for @simPresetPayUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay 10% higher'**
+  String get simPresetPayUp;
+
+  /// No description provided for @simPresetSkipNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip the next payday'**
+  String get simPresetSkipNext;
+
+  /// No description provided for @simPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready-made'**
+  String get simPresets;
+
+  /// No description provided for @simPretend.
+  ///
+  /// In en, this message translates to:
+  /// **'Pretend money in or out'**
+  String get simPretend;
+
+  /// No description provided for @simPretendAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get simPretendAdd;
+
+  /// No description provided for @simPretendDate.
+  ///
+  /// In en, this message translates to:
+  /// **'On {date}'**
+  String simPretendDate(String date);
+
+  /// No description provided for @simPretendIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Money in'**
+  String get simPretendIn;
+
+  /// No description provided for @simPretendLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What is it?'**
+  String get simPretendLabel;
+
+  /// No description provided for @simPretendOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Money out'**
+  String get simPretendOut;
+
+  /// No description provided for @simRatesStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Exchange rates are older than a day.'**
+  String get simRatesStale;
+
+  /// No description provided for @simReachEdge.
+  ///
+  /// In en, this message translates to:
+  /// **'Time travel reaches 5 years each way.'**
+  String get simReachEdge;
+
+  /// No description provided for @simRecordedEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded at the end'**
+  String get simRecordedEnd;
+
+  /// No description provided for @simRecordedToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded up to today'**
+  String get simRecordedToday;
+
+  /// No description provided for @simRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}'**
+  String simRemove(String name);
+
+  /// No description provided for @simReplayEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan replay at the end'**
+  String get simReplayEnd;
+
+  /// No description provided for @simReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get simReset;
+
+  /// No description provided for @simRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Payday rules'**
+  String get simRules;
+
+  /// No description provided for @simSeeOverTime.
+  ///
+  /// In en, this message translates to:
+  /// **'See over time'**
+  String get simSeeOverTime;
+
+  /// No description provided for @simSimulatedEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated at the end'**
+  String get simSimulatedEnd;
+
+  /// No description provided for @simSkipPayday.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a payday that would not come:'**
+  String get simSkipPayday;
+
+  /// No description provided for @simTagMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recorded'**
+  String get simTagMissed;
+
+  /// No description provided for @simTagPretend.
+  ///
+  /// In en, this message translates to:
+  /// **'What-if'**
+  String get simTagPretend;
+
+  /// No description provided for @simTagRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recorded'**
+  String get simTagRecorded;
+
+  /// No description provided for @simTagReplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan replay'**
+  String get simTagReplay;
+
+  /// No description provided for @simTagSimulated.
+  ///
+  /// In en, this message translates to:
+  /// **'Simulated'**
+  String get simTagSimulated;
+
+  /// No description provided for @simTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time travel'**
+  String get simTitle;
+
+  /// No description provided for @simToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get simToday;
+
+  /// No description provided for @simUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 pay or bill has no amount yet and is not counted} other{{count} pays or bills have no amount yet and are not counted}}'**
+  String simUnknown(int count);
+
+  /// No description provided for @simWhatIf.
+  ///
+  /// In en, this message translates to:
+  /// **'What if'**
+  String get simWhatIf;
+
+  /// No description provided for @simWhatIfLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here is saved. It only changes the replay and the simulation.'**
+  String get simWhatIfLine;
+
+  /// No description provided for @simWhatIfOn.
+  ///
+  /// In en, this message translates to:
+  /// **'What-if on: {count, plural, =1{1 change} other{{count} changes}}'**
+  String simWhatIfOn(int count);
+
+  /// No description provided for @simWhatIfTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What if…'**
+  String get simWhatIfTitle;
+
+  /// No description provided for @simZoomDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get simZoomDay;
+
+  /// No description provided for @simZoomMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get simZoomMonth;
+
+  /// No description provided for @simZoomWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get simZoomWeek;
+
+  /// No description provided for @simZoomYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get simZoomYear;
+
   /// No description provided for @splitAccountFallback.
   ///
   /// In en, this message translates to:
@@ -4596,6 +5136,18 @@ abstract class AppLocalizations {
   /// **'Split approved.'**
   String get splitApprovedDone;
 
+  /// No description provided for @splitBillFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'a bill'**
+  String get splitBillFallback;
+
+  /// No description provided for @splitBrokenLink.
+  ///
+  /// In en, this message translates to:
+  /// **'{rule} cannot save for {bill}: {reason}.'**
+  String splitBrokenLink(String rule, String bill, String reason);
+
   /// No description provided for @splitCopied.
   ///
   /// In en, this message translates to:
@@ -4607,6 +5159,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy the amount'**
   String get splitCopyTooltip;
+
+  /// No description provided for @splitCoveredLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{bill}  ·  already in {account}'**
+  String splitCoveredLine(String bill, String account);
 
   /// No description provided for @splitCutOrMove.
   ///
@@ -4630,6 +5188,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bills in other currencies'**
   String get splitForeignTitle;
+
+  /// No description provided for @splitFromElsewhereTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not taken from this pay'**
+  String get splitFromElsewhereTitle;
+
+  /// No description provided for @splitFundedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{bill}  ·  saved by {rule}'**
+  String splitFundedLine(String bill, String rule);
 
   /// No description provided for @splitMarkSent.
   ///
@@ -4666,6 +5236,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transfers to make'**
   String get splitTransfers;
+
+  /// No description provided for @splitUnfundedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{bill}  ·  still needed from this pay'**
+  String splitUnfundedLine(String bill);
 
   /// No description provided for @summaryMissingRates.
   ///

@@ -1,0 +1,15 @@
+{
+  "ruleSavesFor": "Inilalaan para sa {bill}",
+  "ruleSavesForNone": "Ilaan para sa isang bill?",
+  "ruleSavesForSemantic": "Piliin ang bill na pinag-iipunan ng rule na ito",
+  "ruleSavesForTitle": "Para saan inilalaan ang rule na ito?",
+  "ruleSavesForHelp": "Piliin ang bill na pupuntahan ng perang ito. Sa araw ng sahod, babayaran ng split ang bill na iyon mula sa naipon ng rule na ito, sa halip na kunin ulit sa sahod mo.",
+  "ruleSavesForNothing": "Wala",
+  "ruleSavesForSaved": "Na-save.",
+  "splitFromElsewhereTitle": "Hindi kinuha sa sahod na ito",
+  "splitCoveredLine": "{bill}  ·  nasa {account} na",
+  "splitFundedLine": "{bill}  ·  naipon ng {rule}",
+  "splitUnfundedLine": "{bill}  ·  kailangan pa mula sa sahod na ito",
+  "splitBrokenLink": "Hindi maipon ng {rule} para sa {bill}: {reason}.",
+  "splitBillFallback": "isang bill"
+}

@@ -4,6 +4,9 @@
 // the "rest" rule; with none, to the first rule; with no rules at all, to the default account. All amounts are integer centavos
 // and a percentage is floored, so the leftover centavos land on that one place, the same way every time.
 // When the pay cannot cover it all, nothing is allocated: the result is the gap and what could be cut, and the person decides.
+// Before the pay is used (BTL-20261029-0119): a bill a rule saves for is paid from what the rule set aside and this payday's rule amount, and
+// only what they do not reach stays a commitment ("still needed"); then each account's commitments are covered, in due order, from the money
+// already in it (finance/funding.ts says how much). Only what is left is taken from the pay, so nothing is moved twice.
 
 // -- TYPES -- //
 import type { ManilaDate } from './dates';
@@ -24,7 +27,36 @@ export type Commitment = {
 	accountId: string;
 	/** A bill the person can push to the next payday if they have to. */
 	deferrable: boolean;
+	/** The day it is due, so money already in the account goes to the earliest first. */
+	dueDate?: ManilaDate;
+	/** False for what money already in the account must not pay: a goal, or a bill in another currency. */
+	coverable?: boolean;
 };
+
+/** A rule that saves for a bill, with what it has set aside for the bill's next date (finance/funding.ts). */
+export type SplitLink = {
+	billId: string;
+	ruleId: string;
+	ruleLabel: string;
+	perPayday: number;
+	reserved: number;
+};
+
+/** Part of a bill paid from money already in its account, so it is not taken from the pay. */
+export type CoveredLine = { refId: string; label: string; accountId: string; amount: number };
+
+/** Part of a bill paid from what a rule saves for it. */
+export type FundedLine = {
+	refId: string;
+	label: string;
+	accountId: string;
+	ruleId: string;
+	ruleLabel: string;
+	amount: number;
+};
+
+/** What a rule's savings do not reach of its bill: it is taken from the pay. */
+export type UnfundedLine = { refId: string; label: string; accountId: string; amount: number };
 
 export type SplitInput = {
 	payday: ManilaDate;
@@ -37,6 +69,10 @@ export type SplitInput = {
 	rules: readonly Rule[];
 	/** The account that holds each goal, by goal id. */
 	goalAccounts: Readonly<Record<string, string>>;
+	/** What each account can still give to its own bills, by account id. None given: nothing (every bill comes from the pay). */
+	available?: Readonly<Record<string, number>>;
+	/** Rules that save for a bill. A link whose rule is not in force on this payday is left out. */
+	links?: readonly SplitLink[];
 };
 
 export type SplitLineKind = 'bill' | 'parents' | 'goal' | 'rule' | 'rest' | 'leftover';
@@ -66,16 +102,19 @@ export type Transfer = {
 	labels: string[];
 };
 
+/** The parts of the bills that did not come from the pay. */
+type Sources = { covered: CoveredLine[]; funded: FundedLine[]; unfunded: UnfundedLine[] };
+
 export type SplitResult =
-	| {
+	| (Sources & {
 			status: 'ok';
 			pay: number;
 			lines: SplitLine[];
 			transfers: Transfer[];
 			/** What stays in the income account. */
 			staysInIncomeAccount: number;
-	  }
-	| {
+	  })
+	| (Sources & {
 			status: 'shortfall';
 			pay: number;
 			/** How much more the pay would need to be. */
@@ -85,11 +124,75 @@ export type SplitResult =
 			cutOptions: CutOption[];
 			transfers: [];
 			staysInIncomeAccount: 0;
-	  };
+	  });
 
 // -- FUNCTIONS -- //
 
 const sum = (xs: readonly { amount: number }[]) => xs.reduce((s, x) => s + x.amount, 0);
+
+/**
+ * The commitments after the rules that save for bills and the money already in the accounts have paid their part, with those parts. Each
+ * link's savings and each account's money go to the earliest due date first; what is left of a commitment is what the pay must fund.
+ */
+function fromSources(
+	commitments: readonly Commitment[],
+	rules: readonly Rule[],
+	links: readonly SplitLink[],
+	available: Readonly<Record<string, number>>
+): Sources & { commitments: Commitment[] } {
+	const inForce = new Set(rules.filter((r) => r.mode === 'fixed').map((r) => r.id));
+	const pools = new Map<string, { link: SplitLink; left: number }>();
+	for (const l of links)
+		if (inForce.has(l.ruleId) && !pools.has(l.billId))
+			pools.set(l.billId, { link: l, left: l.reserved + l.perPayday });
+	const left = new Map(Object.entries(available).map(([k, v]) => [k, Math.max(0, v)]));
+	const ordered = commitments
+		.map((c, i) => ({ c, i }))
+		.sort((a, b) => (a.c.dueDate ?? '').localeCompare(b.c.dueDate ?? '') || a.i - b.i);
+	const out: Sources & { commitments: Commitment[] } = {
+		covered: [],
+		funded: [],
+		unfunded: [],
+		commitments: []
+	};
+	const reduced = new Map<number, Commitment>();
+	for (const { c, i } of ordered) {
+		let amount = c.amount;
+		let label = c.label;
+		const pool = c.kind === 'goal' ? undefined : pools.get(c.refId);
+		if (pool) {
+			const part = Math.min(amount, pool.left);
+			pool.left -= part;
+			amount -= part;
+			if (part > 0)
+				out.funded.push({
+					refId: c.refId,
+					label: c.label,
+					accountId: c.accountId,
+					ruleId: pool.link.ruleId,
+					ruleLabel: pool.link.ruleLabel,
+					amount: part
+				});
+			if (amount > 0) {
+				label = `${c.label} (still needed)`;
+				out.unfunded.push({ refId: c.refId, label: c.label, accountId: c.accountId, amount });
+			}
+		}
+		if (amount > 0 && c.kind !== 'goal' && c.coverable !== false) {
+			const has = left.get(c.accountId) ?? 0;
+			const part = Math.min(amount, has);
+			if (part > 0) {
+				left.set(c.accountId, has - part);
+				amount -= part;
+				out.covered.push({ refId: c.refId, label: c.label, accountId: c.accountId, amount: part });
+				if (amount > 0 && !pool) label = `${c.label} (top-up)`;
+			}
+		}
+		if (amount > 0) reduced.set(i, { ...c, label, amount });
+	}
+	out.commitments = commitments.flatMap((_, i) => reduced.get(i) ?? []);
+	return out;
+}
 
 /** Proposes the split. Throws a RangeError for input that is not valid (the caller shows it as a bad request). */
 export function proposeSplit(input: SplitInput): SplitResult {
@@ -102,7 +205,9 @@ export function proposeSplit(input: SplitInput): SplitResult {
 	const problems = validateRules(rules);
 	if (problems[0]) throw new RangeError(problems[0]);
 
-	const commitmentLines: SplitLine[] = input.commitments.map((c) => ({
+	const sources = fromSources(input.commitments, rules, input.links ?? [], input.available ?? {});
+	const { covered, funded, unfunded } = sources;
+	const commitmentLines: SplitLine[] = sources.commitments.map((c) => ({
 		kind: c.kind,
 		refId: c.refId,
 		label: c.label,
@@ -158,6 +263,9 @@ export function proposeSplit(input: SplitInput): SplitResult {
 		const deferrable = new Set(input.commitments.filter((c) => c.deferrable).map((c) => c.refId));
 		return {
 			status: 'shortfall',
+			covered,
+			funded,
+			unfunded,
 			pay: input.pay,
 			gap: need - input.pay,
 			lines,
@@ -219,6 +327,9 @@ export function proposeSplit(input: SplitInput): SplitResult {
 	}
 	return {
 		status: 'ok',
+		covered,
+		funded,
+		unfunded,
 		pay: input.pay,
 		lines,
 		transfers: [...moves.values()],

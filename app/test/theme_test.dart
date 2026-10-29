@@ -42,6 +42,8 @@ void main() {
         'success on paper': (c.success, c.paper),
         'success on surface': (c.success, c.surface),
         'info on paper': (c.info, c.paper),
+        // Time travel: the band and the Simulated tags write info, muted and warning on a surface
+        'info on surface': (c.info, c.surface),
         // The calendar draws marks over a payment-window band
         'ink on accent soft': (c.ink, c.accentSoft),
         'danger on accent soft': (c.danger, c.accentSoft),

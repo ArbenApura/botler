@@ -237,6 +237,12 @@ export const allocationRule = userTable(
 		/** Exactly one of the two targets is set. */
 		targetAccountId: uuid('target_account_id'),
 		targetGoalId: uuid('target_goal_id'),
+		/**
+		 * The bill this rule saves for (BTL-20261029-0119): the split then pays that bill from what the rule set aside instead of from the
+		 * pay a second time. Only a fixed rule into the account the bill is paid from counts. Deleting the bill clears it (migration 0033
+		 * says ON DELETE SET NULL for this column only, which the schema cannot express on a composite key).
+		 */
+		fundsBillId: uuid('funds_bill_id'),
 		effectiveFrom: date('effective_from', { mode: 'string' }).notNull(),
 		/** A rule is proposed first and applies only once the person approves it. */
 		status: text('status', { enum: RULE_STATUSES }).notNull().default('proposed'),
@@ -258,6 +264,15 @@ export const allocationRule = userTable(
 			columns: [t.userId, t.targetGoalId],
 			foreignColumns: [goal.userId, goal.id]
 		}),
+		foreignKey({
+			name: 'allocation_rule_bill_fk',
+			columns: [t.userId, t.fundsBillId],
+			foreignColumns: [bill.userId, bill.id]
+		}),
+		// One rule in force or waiting for approval per bill
+		uniqueIndex('allocation_rule_funds_bill_uq')
+			.on(t.userId, t.fundsBillId)
+			.where(sql`${t.fundsBillId} is not null and ${t.status} in ('proposed', 'active')`),
 		oneOf('allocation_rule_mode_chk', t.mode, RULE_MODE_VALUES),
 		oneOf('allocation_rule_base_chk', t.base, RULE_BASE_VALUES),
 		oneOf('allocation_rule_status_chk', t.status, RULE_STATUSES),

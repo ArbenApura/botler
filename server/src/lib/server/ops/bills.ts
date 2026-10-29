@@ -8,6 +8,7 @@ import type { Estimate } from '../../finance/estimator';
 import type { Schedule } from '../../finance/schedule';
 import type { Ctx } from './context';
 import type { Occurrence } from '../../finance/occurrence';
+import type { DueBill } from '../../finance/billWindows';
 import type {
 	BillCreateInput,
 	BillMarkPaidInput,
@@ -16,9 +17,11 @@ import type {
 	BillUpdateInput
 } from '../db/zod';
 import type { Plain } from './shared';
+import type { UnlinkedRule } from './rules';
 // -- DEP-MODULES -- //
 import { and, desc, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
+import { billOccurrences } from '../../finance/billWindows';
 import { addDays, diffDays, toManilaDate } from '../../finance/dates';
 import { estimateBill } from '../../finance/estimator';
 import {
@@ -41,6 +44,7 @@ import { insertTxn } from './ledger';
 import { valueInMain } from './assets';
 import { loadRates, refreshInBackground } from '../fx/store';
 import { readSettings } from './settings';
+import { unlinkRulesOf } from './rules';
 import {
 	checkVersion,
 	mapped,
@@ -60,30 +64,8 @@ export type BillOverrideView = Plain<typeof billOverride.$inferSelect>;
 
 type OverrideRow = typeof billOverride.$inferSelect;
 
-/** One occurrence of a bill inside a window. */
-export type DueBill = {
-	billId: string;
-	name: string;
-	category: string;
-	accountId: string;
-	/** The due date: the last day of the window. After a move this is the new date. */
-	dueDate: string;
-	/** The date the bill's schedule gives this occurrence. It is the same as dueDate unless the date was moved. */
-	originalDueDate: string;
-	/** True when this date has its own change (moved, another amount or account). */
-	overridden: boolean;
-	/** The first day the bill may be paid. Equal to dueDate for a single day. */
-	windowStart: string;
-	/** The last day, same as dueDate. */
-	windowEnd: string;
-	/** Minor units of currency, or null when a variable bill has no estimate yet (the person must be asked). */
-	amount: number | null;
-	/** The currency of the bill and of amount. */
-	currency: string;
-	unknownAmount: boolean;
-	paid: boolean;
-	deferrable: boolean;
-};
+/** One occurrence of a bill inside a window. Its fields and their notes live with the pure rule in finance/billWindows.ts. */
+export type { DueBill };
 
 // -- FUNCTIONS -- //
 
@@ -148,7 +130,15 @@ export async function deleteBill(ctx: Ctx, raw: unknown) {
 				.select({ n: sql<number>`count(*)::int` })
 				.from(billPayment)
 				.where(and(eq(billPayment.userId, userId), eq(billPayment.billId, billId)));
-			if ((entries?.n ?? 0) + (paid?.n ?? 0) > 0) {
+			const keeps = (entries?.n ?? 0) + (paid?.n ?? 0) > 0;
+			// A rule that saved for this bill saves for nothing now: its link is cleared and named in the answer
+			const unlinkedRules = await unlinkRulesOf(
+				tx,
+				userId,
+				billId,
+				keeps ? { ...current, active: false } : null
+			);
+			if (keeps) {
 				const [row] = await tx
 					.update(bill)
 					.set({ active: false, version: sql`${bill.version} + 1`, updatedAt: sql`now()` })
@@ -159,11 +149,17 @@ export async function deleteBill(ctx: Ctx, raw: unknown) {
 					deleted: false as const,
 					switchedOff: true as const,
 					reason: 'The bill has payments, so its history is kept and it is switched off instead.',
-					bill: plain(row)
+					bill: plain(row),
+					unlinkedRules
 				};
 			}
 			await tx.delete(bill).where(and(eq(bill.userId, userId), eq(bill.id, billId)));
-			return { deleted: true as const, switchedOff: false as const, bill: plain(current) };
+			return {
+				deleted: true as const,
+				switchedOff: false as const,
+				bill: plain(current),
+				unlinkedRules
+			};
 		})
 	);
 }
@@ -233,7 +229,7 @@ async function clearFutureOverrides(
 export async function updateBill(
 	ctx: Ctx,
 	raw: BillUpdateInput
-): Promise<BillView & { clearedOverrides: number }> {
+): Promise<BillView & { clearedOverrides: number; unlinkedRules: UnlinkedRule[] }> {
 	const { billId, expectVersion, ...changes } = parse(billUpdateInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'bill.update', { billId, expectVersion, ...changes }, async (tx, userId) => {
@@ -264,7 +260,9 @@ export async function updateBill(
 			if (!row) throw new OpsError('NOT_FOUND', 'That bill does not exist.');
 			// An edit of the whole series wins over the changes made to single dates from today on
 			const clearedOverrides = await clearFutureOverrides(tx, userId, billId, changes);
-			return { ...plain(row), clearedOverrides };
+			// A rule that saves for this bill stops when the bill no longer fits it (switched off, another account or currency)
+			const unlinkedRules = await unlinkRulesOf(tx, userId, billId, row);
+			return { ...plain(row), clearedOverrides, unlinkedRules };
 		})
 	);
 }
@@ -377,7 +375,7 @@ async function paidWithin(
 }
 
 /** What several bills are expected to cost. One read for all the variable bills, not one per bill. */
-async function estimatesOf(
+export async function estimatesOf(
 	tx: Tx,
 	userId: string,
 	bills: (typeof bill.$inferSelect)[]
@@ -472,35 +470,16 @@ export async function dueBills(
 			b.startsOn
 		)
 	}));
-	const estimates = await estimatesOf(
-		tx,
-		userId,
-		withWindows.filter((x) => x.windows.length > 0).map((x) => x.b)
-	);
-	const out: DueBill[] = [];
-	for (const { b, windows } of withWindows) {
-		const est = estimates.get(b.id);
-		for (const w of windows)
-			out.push({
-				billId: b.id,
-				name: b.name,
-				category: b.category,
-				accountId: w.override?.accountId ?? b.accountId,
-				dueDate: w.end,
-				originalDueDate: w.original,
-				overridden: w.override !== null,
-				windowStart: w.start,
-				windowEnd: w.end,
-				amount: w.override?.amount ?? est?.amount ?? null,
-				currency: b.currency,
-				unknownAmount: (w.override?.amount ?? est?.amount ?? null) === null,
-				// Overlap, so a later change of the weekend rule or the schedule does not hide a payment already made
-				paid: (settled.get(b.id) ?? []).some((p) => p.start <= w.end && p.end >= w.start),
-				deferrable: b.deferrable
-			});
-	}
-	return out.sort((a, b) =>
-		a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : a.name < b.name ? -1 : 1
+	const dated = withWindows.filter((x) => x.windows.length > 0).map((x) => x.b);
+	const estimates = await estimatesOf(tx, userId, dated);
+	// The windows, the paid overlap and the amounts are the pure rule in finance/billWindows.ts, shared with the simulation
+	return billOccurrences(
+		dated,
+		from,
+		to,
+		overrides,
+		settled,
+		new Map([...estimates].map(([id, e]) => [id, e.amount]))
 	);
 }
 

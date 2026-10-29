@@ -162,6 +162,16 @@ describe('compact tool schemas', () => {
 	});
 });
 
+describe('the rule tools (BTL-20261029-0119)', () => {
+	it('let rule_propose and rule_update name the bill a rule saves for, and never carry a tenant column', () => {
+		for (const name of ['rule_propose', 'rule_update']) {
+			const text = JSON.stringify(buildTools().find((t) => t.name === name)?.parameters);
+			expect(text, name).toContain('fundsBillId');
+			expect(text, name).not.toMatch(/userId|user_id/);
+		}
+	});
+});
+
 describe('tool results for the model', () => {
 	it('drop userId everywhere and the noise nulls, and keep every null that means something', () => {
 		const result = {

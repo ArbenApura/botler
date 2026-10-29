@@ -242,6 +242,12 @@ describe('the math rules', () => {
 		expect(SYSTEM_PREFIX).toMatch(/"double check", run the tool again/);
 	});
 
+	it('explains a payday move from the forecast funding and links a rule to the bill it saves for (BTL-20261029-0119)', () => {
+		expect(SYSTEM_PREFIX).toMatch(/A payday move is only what an account is missing/);
+		expect(SYSTEM_PREFIX).toMatch(/call cashflow_forecast again and quote the new answer/);
+		expect(SYSTEM_PREFIX).toMatch(/link it with rule_update fundsBillId/);
+	});
+
 	it('names only tools that exist', async () => {
 		const { buildTools } = await import('../../src/lib/server/agent/tools');
 		const names = new Set(buildTools().map((t) => t.name));
