@@ -154,5 +154,15 @@
       "Maayos nang ipinapakita ang ibang pera: ang bawat wallet at bill sa sarili nitong pera kasama ang halos magkano ito sa pangunahing pera mo, at pinangangalanan ang perang walang palitan sa halip na ibilang na zero.",
       "Mas madali na rin ang What if: pumili ng handang opsyon sa isang tap (i-tap ulit para patayin), o buksan ang Magbago ng sarili. Maaaring ibalik ang Reset."
     ]
+  },
+  {
+    "versionCode": 20,
+    "versionName": "1.1.9",
+    "en": [
+      "Time travel looks tidier: Day, Week, Month and Year are always one row that never wraps, and the arrows on either side of the date are balanced. The Jump menu moved to the top bar next to Today."
+    ],
+    "fil": [
+      "Mas maayos na ang itsura ng Time travel: ang Araw, Linggo, Buwan at Taon ay laging nasa isang hanay na hindi bumabalot, at pantay ang mga arrow sa magkabilang gilid ng petsa. Nasa itaas na katabi ng Ngayon ang Jump menu."
+    ]
   }
 ]

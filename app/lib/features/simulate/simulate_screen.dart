@@ -138,6 +138,21 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
       appBar: AppBar(
         title: Text(t.simTitle),
         actions: <Widget>[
+          PopupMenuButton<int>(
+            tooltip: t.simJump,
+            icon: const Icon(Icons.event_repeat),
+            onSelected: (m) => _go(jumpMonths(view.anchor, m)),
+            itemBuilder: (_) => <PopupMenuEntry<int>>[
+              for (final (name, months) in <(String, int)>[
+                (t.simBack1y, -12),
+                (t.simBack1m, -1),
+                (t.simAhead1m, 1),
+                (t.simAhead1y, 12),
+                (t.simAhead5y, 60),
+              ])
+                PopupMenuItem<int>(value: months, child: Text(name)),
+            ],
+          ),
           TextButton(
             onPressed: () => ref.read(simViewProvider.notifier).today(),
             child: Text(t.simToday),
@@ -196,7 +211,6 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
                       onForward: () =>
                           _go(stepAnchor(view.zoom, view.anchor, 1)),
                       onPick: () => _pick(view.anchor),
-                      onJump: (m) => _go(jumpMonths(view.anchor, m)),
                       sim: shown?.sim,
                       period: period,
                     ),
@@ -277,7 +291,6 @@ class _HeaderCard extends ConsumerWidget {
     required this.onBack,
     required this.onForward,
     required this.onPick,
-    required this.onJump,
     required this.sim,
     required this.period,
   });
@@ -287,7 +300,6 @@ class _HeaderCard extends ConsumerWidget {
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onPick;
-  final ValueChanged<int> onJump;
   final SimResult? sim;
   final SimPeriod? period;
 
@@ -329,7 +341,6 @@ class _HeaderCard extends ConsumerWidget {
             onBack: onBack,
             onForward: onForward,
             onPick: onPick,
-            onJump: onJump,
           ),
           ?headline,
           if (codes.isNotEmpty) RateWarning(codes),
@@ -487,7 +498,7 @@ class _EntriesState extends ConsumerState<_Entries> {
   }
 }
 
-/// Day, week, month or year as one control.
+/// Day, week, month or year as one row of four equal segments. A label that does not fit shrinks, so nothing ever wraps below the row.
 class _ZoomControl extends ConsumerWidget {
   const _ZoomControl({required this.zoom});
 
@@ -502,69 +513,50 @@ class _ZoomControl extends ConsumerWidget {
       Zoom.month: t.simZoomMonth,
       Zoom.year: t.simZoomYear,
     };
-    // At a very large text size four segments no longer fit one row: the same choice becomes chips that wrap
-    return LayoutBuilder(
-      builder: (context, box) {
-        if (box.maxWidth < 300 ||
-            MediaQuery.textScalerOf(context).scale(14) > 19) {
-          return Wrap(
-            spacing: gapM,
-            runSpacing: gapS,
-            children: <Widget>[
-              for (final z in Zoom.values)
-                ChoiceChip(
-                  label: Text(names[z] ?? ''),
-                  selected: z == zoom,
-                  onSelected: (_) =>
-                      ref.read(simViewProvider.notifier).setZoom(z),
-                ),
-            ],
-          );
-        }
-        return SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<Zoom>(
-            showSelectedIcon: false,
-            segments: <ButtonSegment<Zoom>>[
-              for (final z in Zoom.values)
-                ButtonSegment<Zoom>(value: z, label: Text(names[z] ?? '')),
-            ],
-            selected: <Zoom>{zoom},
-            onSelectionChanged: (s) =>
-                ref.read(simViewProvider.notifier).setZoom(s.first),
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<Zoom>(
+        showSelectedIcon: false,
+        style: const ButtonStyle(
+          padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
+            EdgeInsets.symmetric(horizontal: gapS),
           ),
-        );
-      },
+        ),
+        segments: <ButtonSegment<Zoom>>[
+          for (final z in Zoom.values)
+            ButtonSegment<Zoom>(
+              value: z,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(names[z] ?? '', maxLines: 1),
+              ),
+            ),
+        ],
+        selected: <Zoom>{zoom},
+        onSelectionChanged: (s) =>
+            ref.read(simViewProvider.notifier).setZoom(s.first),
+      ),
     );
   }
 }
 
-/// Back, the period (tap to pick a date), forward, and a menu of bigger jumps.
+/// Back, the period (tap to pick a date) and forward: the two arrows are the same size on either side of the date.
 class _Jumper extends StatelessWidget {
   const _Jumper({
     required this.label,
     required this.onBack,
     required this.onForward,
     required this.onPick,
-    required this.onJump,
   });
 
   final String label;
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onPick;
-  final ValueChanged<int> onJump;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final jumps = <(String, int)>[
-      (t.simBack1y, -12),
-      (t.simBack1m, -1),
-      (t.simAhead1m, 1),
-      (t.simAhead1y, 12),
-      (t.simAhead5y, 60),
-    ];
     return Row(
       children: <Widget>[
         IconButton(
@@ -578,12 +570,16 @@ class _Jumper extends StatelessWidget {
             label: '${t.simPickDate}: $label',
             onTap: onPick,
             child: ExcludeSemantics(
-              child: TextButton(
+              child: TextButton.icon(
                 onPressed: onPick,
-                child: Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
               ),
             ),
@@ -593,15 +589,6 @@ class _Jumper extends StatelessWidget {
           tooltip: t.simLater,
           icon: const Icon(Icons.chevron_right),
           onPressed: onForward,
-        ),
-        PopupMenuButton<int>(
-          tooltip: t.simJump,
-          icon: const Icon(Icons.event_repeat),
-          onSelected: onJump,
-          itemBuilder: (_) => <PopupMenuEntry<int>>[
-            for (final (name, months) in jumps)
-              PopupMenuItem<int>(value: months, child: Text(name)),
-          ],
         ),
       ],
     );

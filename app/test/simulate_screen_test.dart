@@ -570,8 +570,12 @@ void main() {
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     await _open(tester);
     expect(tester.takeException(), isNull);
-    // The zoom turns into chips at this size
-    expect(find.byType(ChoiceChip), findsNWidgets(4));
+    // The four segments stay on one row: a label that does not fit shrinks
+    expect(find.byType(SegmentedButton<Zoom>), findsOneWidget);
+    final seg = tester.getRect(find.byType(SegmentedButton<Zoom>));
+    final year = tester.getRect(find.text('Year'));
+    expect(year.top, greaterThanOrEqualTo(seg.top));
+    expect(year.bottom, lessThanOrEqualTo(seg.bottom));
   });
 
   testWidgets('the screen holds in Filipino at a narrow width', (tester) async {
@@ -580,7 +584,12 @@ void main() {
     addTearDown(tester.view.reset);
     await _open(tester, locale: 'fil');
     expect(tester.takeException(), isNull);
-    // Four segments no longer fit one row on this width: the same choice is chips
-    expect(find.byType(ChoiceChip), findsNWidgets(4));
+    // Even in Filipino at this width the four segments are one row
+    expect(find.byType(SegmentedButton<Zoom>), findsOneWidget);
+    final seg = tester.getRect(find.byType(SegmentedButton<Zoom>));
+    expect(
+      tester.getRect(find.text('Taon')).bottom,
+      lessThanOrEqualTo(seg.bottom),
+    );
   });
 }
