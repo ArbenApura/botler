@@ -86,6 +86,10 @@ export type SimWallet = {
 	recorded: number | null;
 	replay: number | null;
 	simulated: number | null;
+	/** The same balances in the main currency at the stored rates. Null when the wallet has no balance from that source, or its currency has no rate. */
+	recordedMain: number | null;
+	replayMain: number | null;
+	simulatedMain: number | null;
 };
 
 export type SimPeriod = {
@@ -470,7 +474,10 @@ export function simulate(input: SimulateInput): Simulation {
 				archived: accounts.get(w.accountId)?.archived ?? false,
 				recorded: null,
 				replay: null,
-				simulated: null
+				simulated: null,
+				recordedMain: null,
+				replayMain: null,
+				simulatedMain: null
 			};
 			lines.set(k, made);
 			return made;
@@ -552,6 +559,13 @@ export function simulate(input: SimulateInput): Simulation {
 			below,
 			wallets: [...lines.values()]
 				.filter((l) => !(l.archived && l.recorded === 0 && l.replay === 0))
+				// The main-currency twin of each balance: a currency with no rate stays null (and is named in `missing`), never zero
+				.map((l) => ({
+					...l,
+					recordedMain: l.recorded === null ? null : inMain(l.recorded, l.currency),
+					replayMain: l.replay === null ? null : inMain(l.replay, l.currency),
+					simulatedMain: l.simulated === null ? null : inMain(l.simulated, l.currency)
+				}))
 				.sort((a, b) =>
 					a.accountName < b.accountName
 						? -1

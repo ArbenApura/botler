@@ -61,6 +61,50 @@ void main() {
     expect(presetSkipNext(w, const <String, Object?>{}).isEmpty, isTrue);
   });
 
+  test(
+    'a ready-made choice turns on and off again and takes only its own changes',
+    () {
+      var w = const WhatIf();
+      w = presetToggle(Preset.late, w, plan);
+      expect(presetIsOn(Preset.late, w, plan), isTrue);
+      w = presetToggle(Preset.late, w, plan);
+      expect(w.lateDays, 0);
+      // A change made by hand stays when the choice that overlaps it is turned off
+      w = presetToggle(
+        Preset.noRules,
+        w,
+        plan,
+      ).copyWith(off: <String>{'r1', 'r2', 'b9'});
+      expect(presetIsOn(Preset.noRules, w, plan), isTrue);
+      w = presetToggle(Preset.noRules, w, plan);
+      expect(w.off, <String>{'b9'});
+      // Pay up and pay down replace each other
+      w = presetToggle(Preset.payUp, w, plan);
+      expect(presetIsOn(Preset.payUp, w, plan), isTrue);
+      w = presetToggle(Preset.payDown, w, plan);
+      expect(presetIsOn(Preset.payUp, w, plan), isFalse);
+      expect(presetIsOn(Preset.payDown, w, plan), isTrue);
+      w = presetToggle(Preset.payDown, w, plan);
+      expect(w.amounts, isEmpty);
+      // Skip the next payday only takes away that date
+      w = presetToggle(
+        Preset.skipNext,
+        w,
+        plan,
+      ).copyWith(skipDates: <String>{'2026-11-13', '2026-11-30'});
+      w = presetToggle(Preset.skipNext, w, plan);
+      expect(w.skipDates, <String>{'2026-11-30'});
+      // With nothing to act on a choice is unavailable and changes nothing
+      const empty = <String, Object?>{};
+      expect(presetAvailable(Preset.skipNext, empty), isFalse);
+      expect(
+        presetToggle(Preset.skipNext, const WhatIf(), empty).isEmpty,
+        isTrue,
+      );
+      expect(presetAvailable(Preset.late, empty), isTrue);
+    },
+  );
+
   test('a switch, an amount and a pretend entry change the request; Reset clears it', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);

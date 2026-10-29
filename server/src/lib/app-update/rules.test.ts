@@ -1,7 +1,17 @@
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { apkFileName, codeOfFileName, decideUpdate, parseManifest, parseRange } from './rules';
+import {
+	abiOfFileName,
+	apkFileName,
+	codeOfFileName,
+	decideUpdate,
+	parseAbi,
+	parseAbiList,
+	parseManifest,
+	parseRange,
+	pickAbi
+} from './rules';
 
 // -- CONSTANTS -- //
 
@@ -84,5 +94,54 @@ describe('byte ranges', () => {
 		expect(parseRange('bytes=-', 100)).toBe('invalid');
 		expect(parseRange('bytes=-0', 100)).toBe('invalid');
 		expect(parseRange('items=0-5', 100)).toBeNull();
+	});
+});
+
+describe('split builds', () => {
+	const split = parseManifest(
+		JSON.stringify({
+			...manifest,
+			apks: { 'arm64-v8a': { size: 10, sha256: 'b'.repeat(64) } }
+		})
+	);
+
+	it('names and reads single-architecture files', () => {
+		expect(apkFileName('1.0.1', 2, 'arm64-v8a')).toBe('botler-1.0.1+2-arm64-v8a.apk');
+		expect(codeOfFileName('botler-1.0.1+2-arm64-v8a.apk')).toBe(2);
+		expect(abiOfFileName('botler-1.0.1+2-arm64-v8a.apk')).toBe('arm64-v8a');
+		expect(abiOfFileName('botler-1.0.1+2.apk')).toBeNull();
+		expect(codeOfFileName('botler-1.0.1+2-mips.apk')).toBeNull();
+	});
+
+	it('reads the phone list in order and drops what is unknown', () => {
+		expect(parseAbiList('arm64-v8a, armeabi-v7a,mips,arm64-v8a')).toEqual([
+			'arm64-v8a',
+			'armeabi-v7a'
+		]);
+		expect(parseAbiList(null)).toEqual([]);
+		expect(parseAbi('x86')).toBeNull();
+	});
+
+	it('keeps old manifests valid', () => {
+		expect(parsed()?.apks).toBeUndefined();
+	});
+
+	it('leaves out an odd apks entry instead of invalidating the manifest', () => {
+		const good = { size: 10, sha256: 'b'.repeat(64) };
+		const odd = parseManifest(
+			JSON.stringify({
+				...manifest,
+				apks: { 'arm64-v8a': good, riscv64: good, 'armeabi-v7a': { size: 0, sha256: 'x' } }
+			})
+		);
+		expect(odd?.versionCode).toBe(2);
+		expect(Object.keys(odd?.apks ?? {})).toEqual(['arm64-v8a']);
+		expect(parseManifest(JSON.stringify({ ...manifest, apks: 'nope' }))?.apks).toBeUndefined();
+	});
+
+	it('picks the first published architecture of the phone', () => {
+		expect(split && pickAbi(split, ['armeabi-v7a', 'arm64-v8a'])).toBe('arm64-v8a');
+		expect(split && pickAbi(split, ['x86_64'])).toBeNull();
+		expect(pickAbi(parseManifest(JSON.stringify(manifest))!, ['arm64-v8a'])).toBeNull();
 	});
 });

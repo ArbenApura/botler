@@ -69,6 +69,9 @@ abstract class UpdateHost {
   Future<String> updateDir();
   Future<int> freeBytes();
 
+  /// The CPU architectures this phone runs, most preferred first ("arm64-v8a", "armeabi-v7a"). The server sends the matching build only.
+  Future<List<String>> abis();
+
   /// "ok", or why the downloaded file is not an update for this app: path, unreadable, package, version, signature.
   Future<String> archiveCheck(String path, int code);
   Future<bool> canInstall();
@@ -100,6 +103,10 @@ class MethodChannelUpdateHost implements UpdateHost {
   @override
   Future<int> freeBytes() async =>
       (await _channel.invokeMethod<int>('freeBytes')) ?? 0;
+
+  @override
+  Future<List<String>> abis() async =>
+      (await _channel.invokeListMethod<String>('abis')) ?? <String>[];
 
   @override
   Future<String> archiveCheck(String path, int code) async =>
@@ -152,8 +159,12 @@ UpdateOffer? decideOffer(Json answer, int installedCode) {
   if (code <= installedCode || size <= 0) return null;
   if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(hash)) return null;
   if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(name)) return null;
-  // The download must be this server's own update path for this build, nothing else
-  if (path != '/api/v1/app/update/apk/$code') return null;
+  // The download must be this server's own update path for this build (optionally for one architecture), nothing else
+  final allowed = RegExp(
+    '^/api/v1/app/update/apk/$code'
+    r'(\?abi=[a-z0-9_-]+)?$',
+  );
+  if (!allowed.hasMatch(path)) return null;
   final minimum = intOf(latest['minSupportedCode'], 1);
   final isRequired = installedCode < minimum && minimum <= code;
   return UpdateOffer(
@@ -228,9 +239,14 @@ class AppUpdater {
     lastCheckFailed = false;
     try {
       final installed = await host.installedCode();
+      final abis = await host.abis();
       final answer = await api.get(
         '/api/v1/app/update',
-        query: <String, String>{'versionCode': '$installed'},
+        query: <String, String>{
+          'versionCode': '$installed',
+          // Only the build for this phone's architecture is offered, so only that one is downloaded
+          if (abis.isNotEmpty) 'abis': abis.join(','),
+        },
       );
       // A reply that is not the server's answer (a captive portal, a proxy page) is a failed check, not "up to date"
       if (answer['status'] is! String) {

@@ -2691,6 +2691,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signInTagline => 'Your money and your time, in one quiet chat.';
 
   @override
+  String simAbout(String amount) {
+    return 'about $amount';
+  }
+
+  @override
   String get simAccountsTitle => 'Accounts';
 
   @override
@@ -2714,14 +2719,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simBack1y => '1 year back';
 
   @override
-  String get simBandFuture => 'Simulated';
+  String get simBandFuture => 'An estimate, not real money';
 
   @override
   String get simBandFutureLine =>
-      'Not real money: today\'s balances and your plan.';
+      'Worked out from today\'s balances and your plan.';
 
   @override
-  String get simBandMixed => 'Recorded up to today, simulated after';
+  String get simBandMixed => 'Real until today, an estimate after';
 
   @override
   String get simBandMixedLine => 'Numbers after today are not real money.';
@@ -2732,11 +2737,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get simBandPast => 'Recorded, with a plan replay';
+  String get simBandPast => 'What really happened';
 
   @override
   String get simBandPastLine =>
-      'What really happened, beside what your plan would have done.';
+      'Your recorded balances, beside what your plan would have done.';
 
   @override
   String simBelowDay(String account, String date) {
@@ -2745,6 +2750,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simBills => 'Bills';
+
+  @override
+  String get simChangeSelf => 'Change something yourself';
 
   @override
   String simChartSemantics(String period, String amount, String source) {
@@ -2761,6 +2769,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simEarlier => 'Earlier';
 
   @override
+  String get simEdit => 'Edit';
+
+  @override
   String simEntriesMore(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -2770,6 +2781,10 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get simEntriesOffline =>
+      'The entries need a connection. Only the totals are saved on this phone.';
 
   @override
   String get simEntriesTitle => 'Entries';
@@ -2800,6 +2815,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simHidden => 'hidden';
+
+  @override
+  String get simInfoChart =>
+      'One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero.';
+
+  @override
+  String get simInfoChartTitle => 'The chart';
+
+  @override
+  String get simInfoGap =>
+      'How far the recorded balance ended above or below where your plan would have put it.';
+
+  @override
+  String get simInfoGapTitle => 'The gap to the plan';
+
+  @override
+  String get simInfoIntro =>
+      'Pick any day, week, month or year, up to 5 years back or ahead, to see what your accounts held or will hold. Anything after today is an estimate from today\'s balances and your plan, never real money.';
+
+  @override
+  String get simInfoTags =>
+      'Recorded: it really happened. Plan replay: what your plan would have done in the past. Simulated: an estimate for the future. Not recorded: a payday or bill your plan expected that was never recorded. What-if: something you only pretended.';
+
+  @override
+  String get simInfoTagsTitle => 'The tags';
+
+  @override
+  String get simInfoTitle => 'How Time travel works';
+
+  @override
+  String get simInfoTooltip => 'What am I looking at?';
+
+  @override
+  String get simInfoWarn =>
+      'An account under its minimum or below zero on a day, and a currency with no exchange rate, which is left out of the total.';
+
+  @override
+  String get simInfoWarnTitle => 'Warnings';
+
+  @override
+  String get simIntro =>
+      'See what your accounts held on any past day, or will hold on a future one. Numbers after today are estimates. Use What if to try a change without saving anything.';
+
+  @override
+  String get simIntroGotIt => 'Got it';
+
+  @override
+  String get simJump => 'Jump further';
 
   @override
   String simLateDays(int count) {
@@ -2849,7 +2912,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'No paydays or bills yet, so the simulated line stays flat.';
 
   @override
+  String get simNoRateShort => 'no exchange rate yet';
+
+  @override
   String get simNoRecords => 'No records yet for these dates.';
+
+  @override
+  String get simNoTotal => 'No total';
 
   @override
   String get simPaydays => 'Paydays';
@@ -2866,25 +2935,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simPresetDefer => 'Defer what can wait';
 
   @override
+  String get simPresetDeferLine =>
+      'Bills that can wait are paid after the next payday.';
+
+  @override
   String get simPresetLate => 'Pay bills a week late';
+
+  @override
+  String get simPresetLateLine =>
+      'Every bill is paid 7 days after its due date.';
 
   @override
   String get simPresetNoRules => 'No payday rules';
 
   @override
+  String get simPresetNoRulesLine =>
+      'Switch off every payday rule, so nothing is set aside.';
+
+  @override
   String get simPresetPayDown => 'Pay 10% lower';
+
+  @override
+  String get simPresetPayDownLine =>
+      'Every pay with a known amount is 10% lower.';
 
   @override
   String get simPresetPayUp => 'Pay 10% higher';
 
   @override
+  String get simPresetPayUpLine =>
+      'Every pay with a known amount is 10% higher.';
+
+  @override
   String get simPresetSkipNext => 'Skip the next payday';
 
   @override
-  String get simPresets => 'Ready-made';
+  String get simPresetSkipNextLine =>
+      'See how you would do if your next pay does not come.';
+
+  @override
+  String get simPresets => 'Start with one of these';
 
   @override
   String get simPretend => 'Pretend money in or out';
+
+  @override
+  String get simPretendAccount => 'Which account?';
 
   @override
   String get simPretendAdd => 'Add';
@@ -2899,6 +2995,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simPretendLabel => 'What is it?';
+
+  @override
+  String simPretendMainNote(String code) {
+    return 'Pretend amounts are in $code, your main currency.';
+  }
 
   @override
   String get simPretendOut => 'Money out';
@@ -2927,7 +3028,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simReset => 'Reset';
 
   @override
+  String get simResetDone => 'What-if cleared. Your plan is back as it is.';
+
+  @override
   String get simRules => 'Payday rules';
+
+  @override
+  String simSectionChanges(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes',
+      one: '1 change',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get simSeeOverTime => 'See over time';
@@ -2954,10 +3069,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simTagSimulated => 'Simulated';
 
   @override
+  String get simTiming => 'Timing';
+
+  @override
   String get simTitle => 'Time travel';
 
   @override
   String get simToday => 'Today';
+
+  @override
+  String get simUndo => 'Undo';
 
   @override
   String simUnknown(int count) {

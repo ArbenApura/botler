@@ -1,7 +1,8 @@
-// TIME TRAVEL'S PIECES: THE MODE BAND, THE SOURCE TAGS, THE BALANCE CHART, THE PERIOD CARD AND THE ENTRY ROWS (BTL-20261029-0117).
+// TIME TRAVEL'S PIECES: THE MODE BAND, THE SOURCE TAGS, THE BALANCE CHART, THE HEADLINE, THE ACCOUNTS AND THE ENTRY ROWS (BTL-20261029-0117,
+// BTL-20261029-0509).
 // A simulated number must never pass for a real one, and colour is never the only sign: every number has a worded tag beside it, simulated
-// and replayed lines are dashed while the recorded line is solid, simulated entries are outlined cards with a dashed edge while recorded
-// ones are filled, and the band at the top says in words which part of time is shown. Every colour comes from the tokens.
+// and replayed lines are dashed while the recorded line is solid, every entry is the same row shape with an icon and a worded tag, and the
+// band at the top says in words which part of time is shown. Every colour comes from the tokens and every gap from gapS, gapM, gapL, gapXL.
 
 // -- DEP-MODULES -- //
 import 'dart:ui' as ui;
@@ -17,6 +18,14 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
 import 'simulate_data.dart';
+
+// -- CONSTANTS -- //
+
+/// The vertical and horizontal rhythm of the screen: every gap is one of these four.
+const double gapS = 4;
+const double gapM = 8;
+const double gapL = 12;
+const double gapXL = 16;
 
 // -- FUNCTIONS -- //
 
@@ -59,20 +68,20 @@ Color sourceColor(BotlerColors c, SimSource s) => switch (s) {
 
 // -- BAND -- //
 
-/// Which part of time the selected period is in, said in words, with what-if and offline lines. It stays at the top of the screen.
+/// Which part of time the selected period is in, said in words, with the offline line. One even box with an info button; it stays at the top.
 class ModeBand extends StatelessWidget {
   const ModeBand({
     required this.part,
-    required this.changes,
-    required this.onReset,
+    required this.onInfo,
     required this.onRetry,
     this.savedAt,
     super.key,
   });
 
   final SimPart part;
-  final int changes;
-  final VoidCallback onReset;
+
+  /// Opens the short explanation of what the screen shows.
+  final VoidCallback onInfo;
 
   /// Asks the server again, for an offline copy once the connection is back.
   final VoidCallback onRetry;
@@ -108,75 +117,147 @@ class ModeBand extends StatelessWidget {
         t.simBandMixedLine,
       ),
     };
-    return Semantics(
-      container: true,
-      liveRegion: true,
-      label: '$title. $line',
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: c.surface,
-          border: Border(
-            bottom: BorderSide(color: tone, width: 2),
-            left: BorderSide(color: tone, width: 4),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tone),
+      ),
+      padding: const EdgeInsets.fromLTRB(gapL, gapS, gapS, gapS),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  label: '$title. $line',
+                  child: ExcludeSemantics(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.only(top: gapS),
+                          child: Icon(icon, size: 20, color: tone),
+                        ),
+                        const SizedBox(width: gapM),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: gapS),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  title,
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(color: c.ink),
+                                ),
+                                Text(line, style: TextStyle(color: c.muted)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: t.simInfoTooltip,
+                icon: const Icon(Icons.info_outline),
+                onPressed: onInfo,
+              ),
+            ],
           ),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            ExcludeSemantics(
-              child: Row(
-                children: <Widget>[
-                  Icon(icon, size: 18, color: tone),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleSmall
-                          ?.copyWith(color: tone),
+          if (saved != null)
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    t.simBandOffline(
+                      DateFormat.yMMMd(_locale(context)).add_jm().format(saved),
                     ),
+                    style: TextStyle(color: c.muted),
                   ),
-                ],
-              ),
+                ),
+                TextButton(onPressed: onRetry, child: Text(t.retry)),
+              ],
             ),
-            ExcludeSemantics(
-              child: Text(line, style: TextStyle(color: c.muted)),
-            ),
-            if (saved != null)
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      t.simBandOffline(
-                        DateFormat.yMMMd(_locale(context))
-                            .add_jm()
-                            .format(saved),
-                      ),
-                      style: TextStyle(color: c.muted),
-                    ),
-                  ),
-                  TextButton(onPressed: onRetry, child: Text(t.retry)),
-                ],
-              ),
-            if (changes > 0)
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      t.simWhatIfOn(changes),
-                      style: TextStyle(color: c.info),
-                    ),
-                  ),
-                  TextButton(onPressed: onReset, child: Text(t.simReset)),
-                ],
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
+
+/// The what-if as one quiet row under the header: how many changes are on, and Edit and Reset.
+class WhatIfRow extends StatelessWidget {
+  const WhatIfRow({
+    required this.changes,
+    required this.onEdit,
+    required this.onReset,
+    super.key,
+  });
+
+  final int changes;
+  final VoidCallback onEdit;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    return Row(
+      children: <Widget>[
+        const SizedBox(width: gapS),
+        Icon(Icons.tune, size: 18, color: c.info),
+        const SizedBox(width: gapM),
+        Expanded(
+          child: Text(t.simWhatIfOn(changes), style: TextStyle(color: c.info)),
+        ),
+        TextButton(onPressed: onEdit, child: Text(t.simEdit)),
+        TextButton(onPressed: onReset, child: Text(t.simReset)),
+      ],
+    );
+  }
+}
+
+/// The short explanation: what the screen is for, the chart, every tag, the gap to the plan and the warnings.
+Future<void> showSimInfo(BuildContext context) => showFormSheet<void>(
+  context,
+  title: context.t.simInfoTitle,
+  builder: (sheet, close) {
+    final t = sheet.t;
+    final c = sheet.colors;
+    Widget item(String title, String body) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(title, style: Theme.of(sheet).textTheme.titleSmall),
+        Text(body, style: TextStyle(color: c.muted)),
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: gapL,
+      children: <Widget>[
+        Text(t.simInfoIntro),
+        item(t.simInfoChartTitle, t.simInfoChart),
+        item(t.simInfoTagsTitle, t.simInfoTags),
+        item(t.simInfoGapTitle, t.simInfoGap),
+        item(t.simInfoWarnTitle, t.simInfoWarn),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: () => close(null),
+            child: Text(t.simDone),
+          ),
+        ),
+      ],
+    );
+  },
+);
 
 // -- TAGS -- //
 
@@ -451,7 +532,110 @@ class _ChartPainter extends CustomPainter {
       old.info != info;
 }
 
-// -- PERIOD CARD -- //
+// -- HEADLINE -- //
+
+/// The one big number of the selected period: the words, the amount in tabular figures (or the reason there is none) and its tag.
+class HeadlineTotal extends StatelessWidget {
+  const HeadlineTotal({
+    required this.label,
+    required this.source,
+    this.amount,
+    this.reason,
+    super.key,
+  });
+
+  final String label;
+  final SimSource source;
+
+  /// Null when there is nothing to total: [reason] says why.
+  final int? amount;
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final theme = Theme.of(context).textTheme;
+    final value = amount;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: gapS,
+            children: <Widget>[
+              Text(label, style: TextStyle(color: c.muted)),
+              if (value != null)
+                Amount(
+                  value,
+                  style: theme.headlineMedium?.copyWith(
+                    color: source == SimSource.recorded
+                        ? c.ink
+                        : sourceColor(c, source),
+                  ),
+                )
+              else
+                Text(
+                  reason ?? context.t.simNoTotal,
+                  style: theme.titleMedium?.copyWith(color: c.muted),
+                ),
+            ],
+          ),
+        ),
+        SourceTag(source),
+      ],
+    );
+  }
+}
+
+/// What the main-currency total leaves out: the currencies with no exchange rate that this period holds, and whether that is all of it.
+({List<String> codes, bool noTotal}) rateInfoOf(SimResult sim, SimPeriod p) {
+  final past = p.part == SimPart.past;
+  final known = p.wallets.where((w) => w.mainKnown).toList();
+  // An older saved answer has no main-currency figures: fall back on the whole answer's list
+  if (known.isEmpty) {
+    return (
+      codes: p.wallets.isEmpty ? const <String>[] : sim.missing,
+      noTotal: false,
+    );
+  }
+  final held = known.where((w) => w.amountFor(past: past) != null).toList();
+  final codes = <String>{
+    for (final w in held)
+      if (w.noRate(past: past)) w.currency,
+  }.toList()..sort();
+  return (
+    codes: codes,
+    noTotal: held.isNotEmpty && held.every((w) => w.noRate(past: past)),
+  );
+}
+
+/// A visible line naming the currencies with no exchange rate, which are left out of the total (never counted as zero).
+class RateWarning extends StatelessWidget {
+  const RateWarning(this.codes, {super.key});
+
+  final List<String> codes;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Icon(Icons.warning_amber_rounded, size: 18, color: c.warning),
+        const SizedBox(width: gapM),
+        Expanded(
+          child: Text(
+            context.t.simMissingRates(codes.join(', ')),
+            style: TextStyle(color: c.warning),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// -- PERIOD LINES -- //
 
 /// One labelled number: the words, the amount in tabular figures, and its tag. The tag follows the number, never the period.
 class _TotalRow extends StatelessWidget {
@@ -459,235 +643,159 @@ class _TotalRow extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.source,
-    this.big = false,
   });
 
   final String label;
   final int amount;
   final SimSource source;
-  final bool big;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final theme = Theme.of(context).textTheme;
     final dashed = source != SimSource.recorded;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(label, style: TextStyle(color: c.muted)),
-                Amount(
-                  amount,
-                  style: (big ? theme.headlineMedium : theme.titleMedium)
-                      ?.copyWith(
-                        color: dashed ? sourceColor(c, source) : c.ink,
-                      ),
-                ),
-              ],
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: gapS,
+            children: <Widget>[
+              Text(label, style: TextStyle(color: c.muted)),
+              Amount(
+                amount,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: dashed ? sourceColor(c, source) : c.ink),
+              ),
+            ],
           ),
-          SourceTag(source),
-        ],
-      ),
+        ),
+        SourceTag(source),
+      ],
     );
   }
 }
 
-/// The selected period: its totals by source, the gap to the plan, what was missed, its warnings and what was left out.
-class PeriodCard extends StatelessWidget {
-  const PeriodCard({
-    required this.sim,
+/// The rest of the selected period under its headline: the plan replay, the gap to the plan, what was missed, its warnings and what was
+/// left out. Empty when there is nothing more to say (the card is then not drawn).
+List<Widget> periodLines(
+  BuildContext context,
+  SimResult sim,
+  SimPeriod p, {
+  bool noTotal = false,
+}) {
+  final t = context.t;
+  final c = context.colors;
+  final recordedEnd = p.recordedEnd;
+  final replayEnd = p.replayEnd;
+  final gap = p.gap;
+  final warnings = <SimWarning>[
+    for (final w in sim.warnings)
+      if (p.holds(w.date)) w,
+  ];
+  final flat =
+      p.part != SimPart.past &&
+      sim.periods
+          .where((x) => x.part == SimPart.future)
+          .every((x) => x.simulatedStart == x.simulatedEnd);
+  return <Widget>[
+    // With no rate for anything the period holds, its totals are not zero but unknown, so no total-based line is drawn
+    if (!noTotal && p.part == SimPart.past && replayEnd != null)
+      _TotalRow(
+        label: t.simReplayEnd,
+        amount: replayEnd,
+        source: SimSource.replay,
+      ),
+    if (!noTotal && gap != null)
+      Text(
+        gap < 0
+            ? t.simGapBelow(context.moneyMain(-gap))
+            : gap > 0
+            ? t.simGapAbove(context.moneyMain(gap))
+            : t.simGapNone,
+        style: TextStyle(
+          color: gap < 0 ? c.warning : c.muted,
+          fontFeatures: tabular,
+        ),
+      ),
+    if (!noTotal && p.part == SimPart.mixed && recordedEnd != null)
+      _TotalRow(
+        label: t.simRecordedToday,
+        amount: recordedEnd,
+        source: SimSource.recorded,
+      ),
+    if (p.missed > 0)
+      Text(t.simMissed(p.missed), style: TextStyle(color: c.warning)),
+    for (final w in warnings)
+      Text(
+        w.belowZero
+            ? t.simBelowDay(w.accountName, shortDay(context, w.date))
+            : t.simLowDay(w.accountName, shortDay(context, w.date)),
+        style: TextStyle(color: w.belowZero ? c.danger : c.warning),
+      ),
+    if (flat) Text(t.simNoPlan, style: TextStyle(color: c.muted)),
+    if (sim.unknown.isNotEmpty)
+      Text(
+        t.simUnknown(sim.unknown.fold(0, (a, u) => a + u.count)),
+        style: TextStyle(color: c.muted),
+      ),
+    if (sim.ratesStale) Text(t.simRatesStale, style: TextStyle(color: c.muted)),
+  ];
+}
+
+// -- ACCOUNTS -- //
+
+/// The accounts at the end of the period: one block per account, a line per currency in its own money, and the main-currency figure
+/// beneath a foreign one. One tag for the whole card, since every line is the same part of time.
+class WalletsCard extends StatelessWidget {
+  const WalletsCard({
     required this.period,
-    required this.zoom,
+    required this.mainCurrency,
     super.key,
   });
 
-  final SimResult sim;
   final SimPeriod period;
-  final Zoom zoom;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final c = context.colors;
-    final p = period;
-    final recordedEnd = p.recordedEnd;
-    final replayEnd = p.replayEnd;
-    final simulatedEnd = p.simulatedEnd;
-    final gap = p.gap;
-    final warnings = <SimWarning>[
-      for (final w in sim.warnings)
-        if (p.holds(w.date)) w,
-    ];
-    final flat =
-        p.part != SimPart.past &&
-        sim.periods
-            .where((x) => x.part == SimPart.future)
-            .every((x) => x.simulatedStart == x.simulatedEnd);
-    return PaperCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            periodWords(context, p, zoom),
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          if (p.part == SimPart.past &&
-              (p.beforeFirstRecord || recordedEnd == null))
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(t.simNoRecords, style: TextStyle(color: c.muted)),
-            ),
-          if (p.part == SimPart.past && recordedEnd != null)
-            _TotalRow(
-              label: t.simRecordedEnd,
-              amount: recordedEnd,
-              source: SimSource.recorded,
-              big: true,
-            ),
-          if (p.part == SimPart.past && replayEnd != null)
-            _TotalRow(
-              label: t.simReplayEnd,
-              amount: replayEnd,
-              source: SimSource.replay,
-            ),
-          if (gap != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                gap < 0
-                    ? t.simGapBelow(context.moneyMain(-gap))
-                    : gap > 0
-                    ? t.simGapAbove(context.moneyMain(gap))
-                    : t.simGapNone,
-                style: TextStyle(
-                  color: gap < 0 ? c.warning : c.muted,
-                  fontFeatures: tabular,
-                ),
-              ),
-            ),
-          if (p.part == SimPart.mixed && recordedEnd != null)
-            _TotalRow(
-              label: t.simRecordedToday,
-              amount: recordedEnd,
-              source: SimSource.recorded,
-            ),
-          if (p.part != SimPart.past && simulatedEnd != null)
-            _TotalRow(
-              label: t.simSimulatedEnd,
-              amount: simulatedEnd,
-              source: SimSource.simulated,
-              big: true,
-            ),
-          if (p.missed > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                t.simMissed(p.missed),
-                style: TextStyle(color: c.warning),
-              ),
-            ),
-          for (final w in warnings)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                w.belowZero
-                    ? t.simBelowDay(w.accountName, shortDay(context, w.date))
-                    : t.simLowDay(w.accountName, shortDay(context, w.date)),
-                style: TextStyle(color: w.belowZero ? c.danger : c.warning),
-              ),
-            ),
-          if (flat)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(t.simNoPlan, style: TextStyle(color: c.muted)),
-            ),
-          if (sim.unknown.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                t.simUnknown(sim.unknown.fold(0, (a, u) => a + u.count)),
-                style: TextStyle(color: c.muted),
-              ),
-            ),
-          if (sim.missing.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                t.simMissingRates(sim.missing.join(', ')),
-                style: TextStyle(color: c.warning),
-              ),
-            ),
-          if (sim.ratesStale)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(t.simRatesStale, style: TextStyle(color: c.muted)),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The accounts at the end of the period, each with the number of the period's own part of time.
-class WalletsCard extends StatelessWidget {
-  const WalletsCard({required this.period, super.key});
-
-  final SimPeriod period;
+  final String mainCurrency;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final c = context.colors;
     final past = period.part == SimPart.past;
-    final rows = <(SimWallet, int, SimSource)>[
-      for (final w in period.wallets)
-        if ((past ? w.recorded : w.simulated) case final int amount)
-          (w, amount, past ? SimSource.recorded : SimSource.simulated),
-    ];
-    if (rows.isEmpty) return const SizedBox.shrink();
+    final source = past ? SimSource.recorded : SimSource.simulated;
+    // Group by account, in the order the server sent them
+    final byAccount = <String, List<SimWallet>>{};
+    for (final w in period.wallets) {
+      if (w.amountFor(past: past) == null) continue;
+      byAccount.putIfAbsent(w.accountId, () => <SimWallet>[]).add(w);
+    }
+    if (byAccount.isEmpty) return const SizedBox.shrink();
     return PaperCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapL,
         children: <Widget>[
-          Text(
-            t.simAccountsTitle,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          for (final (w, amount, source) in rows)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      w.archived
-                          ? '${w.accountName} (${t.simHidden})'
-                          : w.accountName,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    context.moneyIn(amount, w.currency),
-                    style: TextStyle(
-                      fontFeatures: tabular,
-                      color: amount < 0
-                          ? c.danger
-                          : source == SimSource.recorded
-                          ? c.ink
-                          : c.info,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SourceTag(source),
-                ],
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  t.simAccountsTitle,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
+              SourceTag(source),
+            ],
+          ),
+          for (final wallets in byAccount.values)
+            _AccountBlock(
+              wallets: wallets,
+              past: past,
+              source: source,
+              mainCurrency: mainCurrency,
+              hiddenWord: t.simHidden,
+              noRateWord: t.simNoRateShort,
+              aboutOf: t.simAbout,
+              color: c,
             ),
         ],
       ),
@@ -695,41 +803,92 @@ class WalletsCard extends StatelessWidget {
   }
 }
 
-// -- ENTRIES -- //
+class _AccountBlock extends StatelessWidget {
+  const _AccountBlock({
+    required this.wallets,
+    required this.past,
+    required this.source,
+    required this.mainCurrency,
+    required this.hiddenWord,
+    required this.noRateWord,
+    required this.aboutOf,
+    required this.color,
+  });
 
-/// A dashed edge on the left of a simulated or replayed entry.
-class _DashedEdge extends CustomPainter {
-  _DashedEdge(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round;
-    for (var y = 4.0; y < size.height - 4; y += 9) {
-      canvas.drawLine(
-        Offset(1.5, y),
-        Offset(1.5, (y + 5).clamp(0, size.height - 4)),
-        p,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedEdge old) => old.color != color;
-}
-
-/// One entry: a filled card when it was recorded, an outlined card with a dashed edge when it is replayed or simulated, a warning when missed.
-class EntryRow extends StatelessWidget {
-  const EntryRow(this.entry, {super.key});
-
-  final SimEntry entry;
+  final List<SimWallet> wallets;
+  final bool past;
+  final SimSource source;
+  final String mainCurrency;
+  final String hiddenWord;
+  final String noRateWord;
+  final String Function(String) aboutOf;
+  final BotlerColors color;
 
   @override
   Widget build(BuildContext context) {
+    final c = color;
+    final first = wallets.first;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            first.archived
+                ? '${first.accountName} ($hiddenWord)'
+                : first.accountName,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: gapM),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          spacing: gapS,
+          children: <Widget>[
+            for (final w in wallets) ...<Widget>[
+              Text(
+                context.moneyIn(w.amountFor(past: past) ?? 0, w.currency),
+                style: TextStyle(
+                  fontFeatures: tabular,
+                  color: (w.amountFor(past: past) ?? 0) < 0
+                      ? c.danger
+                      : source == SimSource.recorded
+                      ? c.ink
+                      : c.info,
+                ),
+              ),
+              // A foreign wallet: what it comes to in the main currency, or that it has no rate
+              if (w.currency != mainCurrency && w.mainKnown)
+                Text(
+                  switch (w.mainFor(past: past)) {
+                    final int m => aboutOf(context.moneyMain(m)),
+                    null => noRateWord,
+                  },
+                  style: TextStyle(
+                    fontFeatures: tabular,
+                    color: w.noRate(past: past) ? c.warning : c.muted,
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// -- ENTRIES -- //
+
+/// One entry: the same row for every source. Its icon says in, out or a move, a worded tag says recorded, replayed, simulated or missed,
+/// and an amount in another currency has its main-currency figure beneath it.
+class EntryRow extends StatelessWidget {
+  const EntryRow(this.entry, {required this.mainCurrency, super.key});
+
+  final SimEntry entry;
+  final String mainCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
     final c = context.colors;
     final e = entry;
     final real = e.source == SimSource.recorded;
@@ -739,51 +898,81 @@ class EntryRow extends StatelessWidget {
       'out' => '−',
       _ => '',
     };
+    final icon = switch (e.kind) {
+      'in' => Icons.south_west,
+      'out' => Icons.north_east,
+      _ => Icons.swap_horiz,
+    };
     final amount = switch (e.amount) {
       null => '',
       final a => '$sign${context.moneyIn(a, e.currency)}',
     };
+    final foreign = e.amount != null && e.currency != mainCurrency;
     final where = e.kind == 'move' && e.toAccountName.isNotEmpty
-        ? '${e.accountName} ${context.t.simMoveTo(e.toAccountName)}'
+        ? '${e.accountName} ${t.simMoveTo(e.toAccountName)}'
         : e.accountName;
-    final body = Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      padding: const EdgeInsets.all(gapL),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: gapS),
+            child: Icon(icon, size: 18, color: tone),
+          ),
+          const SizedBox(width: gapM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: gapS,
               children: <Widget>[
                 Text(e.label, overflow: TextOverflow.ellipsis),
                 Text(
-                  '${shortDay(context, e.date)} · $where',
+                  '${shortDay(context, e.date)} · $where'
+                  '${foreign ? ' · ${e.currency}' : ''}',
                   style: TextStyle(color: c.muted),
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
                 SourceTag(e.source, pretend: e.pretend),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            amount,
-            style: TextStyle(fontFeatures: tabular, color: real ? c.ink : tone),
+          const SizedBox(width: gapM),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              spacing: gapS,
+              children: <Widget>[
+                Text(
+                  amount,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontFeatures: tabular,
+                    color: real ? c.ink : tone,
+                  ),
+                ),
+                if (foreign)
+                  Text(
+                    textAlign: TextAlign.end,
+                    switch (e.amountMain) {
+                      final int m => t.simAbout(context.moneyMain(m)),
+                      null => t.simNoRateShort,
+                    },
+                    style: TextStyle(
+                      fontFeatures: tabular,
+                      color: e.amountMain == null ? c.warning : c.muted,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
-      ),
-    );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: real ? c.surface : c.paper,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: real ? c.line : tone),
-        ),
-        child: real
-            ? body
-            : CustomPaint(painter: _DashedEdge(tone), child: body),
       ),
     );
   }

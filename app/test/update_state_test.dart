@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // -- TYPES -- //
 
 class _Host implements UpdateHost {
+  List<String> abiList = <String>['arm64-v8a', 'armeabi-v7a'];
   _Host(this.dir);
 
   final Directory dir;
@@ -38,6 +39,8 @@ class _Host implements UpdateHost {
   Future<String> updateDir() async => dir.path;
   @override
   Future<int> freeBytes() async => 1 << 30;
+  @override
+  Future<List<String>> abis() async => abiList;
   @override
   Future<String> archiveCheck(String path, int code) async => 'ok';
   @override

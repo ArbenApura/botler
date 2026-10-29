@@ -1899,6 +1899,14 @@
   "settingsWeekStarts": "Week starts on",
   "signInButton": "Sign in with Google",
   "signInTagline": "Your money and your time, in one quiet chat.",
+  "simAbout": "about {amount}",
+  "@simAbout": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "simAccountsTitle": "Accounts",
   "simAhead1m": "1 month ahead",
   "simAhead1y": "1 year ahead",
@@ -1913,9 +1921,9 @@
   },
   "simBack1m": "1 month back",
   "simBack1y": "1 year back",
-  "simBandFuture": "Simulated",
-  "simBandFutureLine": "Not real money: today's balances and your plan.",
-  "simBandMixed": "Recorded up to today, simulated after",
+  "simBandFuture": "An estimate, not real money",
+  "simBandFutureLine": "Worked out from today's balances and your plan.",
+  "simBandMixed": "Real until today, an estimate after",
   "simBandMixedLine": "Numbers after today are not real money.",
   "simBandOffline": "Saved {date}, no connection.",
   "@simBandOffline": {
@@ -1925,8 +1933,8 @@
       }
     }
   },
-  "simBandPast": "Recorded, with a plan replay",
-  "simBandPastLine": "What really happened, beside what your plan would have done.",
+  "simBandPast": "What really happened",
+  "simBandPastLine": "Your recorded balances, beside what your plan would have done.",
   "simBelowDay": "{account} below zero on {date}",
   "@simBelowDay": {
     "placeholders": {
@@ -1939,6 +1947,7 @@
     }
   },
   "simBills": "Bills",
+  "simChangeSelf": "Change something yourself",
   "simChartSemantics": "{period}: {amount}, {source}. Swipe up or down to move between periods.",
   "@simChartSemantics": {
     "placeholders": {
@@ -1956,6 +1965,7 @@
   "simDefer": "Deferrable bills wait for the next payday",
   "simDone": "Done",
   "simEarlier": "Earlier",
+  "simEdit": "Edit",
   "simEntriesMore": "{count, plural, =1{1 more not shown} other{{count} more not shown}}",
   "@simEntriesMore": {
     "placeholders": {
@@ -1964,6 +1974,7 @@
       }
     }
   },
+  "simEntriesOffline": "The entries need a connection. Only the totals are saved on this phone.",
   "simEntriesTitle": "Entries",
   "simError": "Time travel could not load.",
   "simFirstRecordEdge": "Nothing was recorded before {date}.",
@@ -1993,6 +2004,20 @@
   "simGapNone": "Right on the plan",
   "simGoals": "Goals",
   "simHidden": "hidden",
+  "simInfoChart": "One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero.",
+  "simInfoChartTitle": "The chart",
+  "simInfoGap": "How far the recorded balance ended above or below where your plan would have put it.",
+  "simInfoGapTitle": "The gap to the plan",
+  "simInfoIntro": "Pick any day, week, month or year, up to 5 years back or ahead, to see what your accounts held or will hold. Anything after today is an estimate from today's balances and your plan, never real money.",
+  "simInfoTags": "Recorded: it really happened. Plan replay: what your plan would have done in the past. Simulated: an estimate for the future. Not recorded: a payday or bill your plan expected that was never recorded. What-if: something you only pretended.",
+  "simInfoTagsTitle": "The tags",
+  "simInfoTitle": "How Time travel works",
+  "simInfoTooltip": "What am I looking at?",
+  "simInfoWarn": "An account under its minimum or below zero on a day, and a currency with no exchange rate, which is left out of the total.",
+  "simInfoWarnTitle": "Warnings",
+  "simIntro": "See what your accounts held on any past day, or will hold on a future one. Numbers after today are estimates. Use What if to try a change without saving anything.",
+  "simIntroGotIt": "Got it",
+  "simJump": "Jump further",
   "simLateDays": "Bills paid {count, plural, =1{1 day} other{{count} days}} late",
   "@simLateDays": {
     "placeholders": {
@@ -2039,7 +2064,9 @@
   },
   "simNoEntries": "Nothing in this period.",
   "simNoPlan": "No paydays or bills yet, so the simulated line stays flat.",
+  "simNoRateShort": "no exchange rate yet",
   "simNoRecords": "No records yet for these dates.",
+  "simNoTotal": "No total",
   "simPaydays": "Paydays",
   "simPeriod": "{from} to {to}",
   "@simPeriod": {
@@ -2054,13 +2081,20 @@
   },
   "simPickDate": "Pick a date",
   "simPresetDefer": "Defer what can wait",
+  "simPresetDeferLine": "Bills that can wait are paid after the next payday.",
   "simPresetLate": "Pay bills a week late",
+  "simPresetLateLine": "Every bill is paid 7 days after its due date.",
   "simPresetNoRules": "No payday rules",
+  "simPresetNoRulesLine": "Switch off every payday rule, so nothing is set aside.",
   "simPresetPayDown": "Pay 10% lower",
+  "simPresetPayDownLine": "Every pay with a known amount is 10% lower.",
   "simPresetPayUp": "Pay 10% higher",
+  "simPresetPayUpLine": "Every pay with a known amount is 10% higher.",
   "simPresetSkipNext": "Skip the next payday",
-  "simPresets": "Ready-made",
+  "simPresetSkipNextLine": "See how you would do if your next pay does not come.",
+  "simPresets": "Start with one of these",
   "simPretend": "Pretend money in or out",
+  "simPretendAccount": "Which account?",
   "simPretendAdd": "Add",
   "simPretendDate": "On {date}",
   "@simPretendDate": {
@@ -2072,6 +2106,14 @@
   },
   "simPretendIn": "Money in",
   "simPretendLabel": "What is it?",
+  "simPretendMainNote": "Pretend amounts are in {code}, your main currency.",
+  "@simPretendMainNote": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
   "simPretendOut": "Money out",
   "simRatesStale": "Exchange rates are older than a day.",
   "simReachEdge": "Time travel reaches 5 years each way.",
@@ -2087,7 +2129,16 @@
   },
   "simReplayEnd": "Plan replay at the end",
   "simReset": "Reset",
+  "simResetDone": "What-if cleared. Your plan is back as it is.",
   "simRules": "Payday rules",
+  "simSectionChanges": "{count, plural, =1{1 change} other{{count} changes}}",
+  "@simSectionChanges": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simSeeOverTime": "See over time",
   "simSimulatedEnd": "Simulated at the end",
   "simSkipPayday": "Tap a payday that would not come:",
@@ -2096,8 +2147,10 @@
   "simTagRecorded": "Recorded",
   "simTagReplay": "Plan replay",
   "simTagSimulated": "Simulated",
+  "simTiming": "Timing",
   "simTitle": "Time travel",
   "simToday": "Today",
+  "simUndo": "Undo",
   "simUnknown": "{count, plural, =1{1 pay or bill has no amount yet and is not counted} other{{count} pays or bills have no amount yet and are not counted}}",
   "@simUnknown": {
     "placeholders": {

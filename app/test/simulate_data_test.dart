@@ -329,6 +329,41 @@ void main() {
     );
     expect(offline.offline, isTrue);
     expect(offline.sim.periods, hasLength(3));
-    expect(simulateCacheKeys, hasLength(4));
+    // One saved answer per zoom, and the note that the intro was seen (a data reset clears them all)
+    expect(simulateCacheKeys, hasLength(5));
+    expect(simulateCacheKeys, contains(simulateIntroKey));
+  });
+
+  test('reads the main-currency figures of a wallet and an entry, and old answers without them', () {
+    final w = SimWallet(<String, Object?>{
+      'accountId': 'a2',
+      'accountName': 'Dollar jar',
+      'currency': 'USD',
+      'recorded': 5000,
+      'simulated': 5000,
+      'recordedMain': null,
+      'simulatedMain': 290000,
+    });
+    expect(w.mainKnown, isTrue);
+    expect(w.mainFor(past: false), 290000);
+    expect(w.noRate(past: false), isFalse);
+    // A balance with no main figure is a currency with no rate
+    expect(w.noRate(past: true), isTrue);
+    final old = SimWallet(<String, Object?>{
+      'accountId': 'a1',
+      'accountName': 'Wallet',
+      'currency': 'PHP',
+      'simulated': 100,
+    });
+    expect(old.mainKnown, isFalse);
+    expect(old.noRate(past: false), isFalse);
+    final e = SimEntry(<String, Object?>{
+      'source': 'simulated',
+      'kind': 'out',
+      'currency': 'USD',
+      'amount': 1500,
+      'amountMain': 87000,
+    });
+    expect(e.amountMain, 87000);
   });
 }

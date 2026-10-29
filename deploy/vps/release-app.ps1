@@ -76,66 +76,101 @@ $clientId = ($idLine -replace '^GOOGLE_CLIENT_ID=', '').Trim().Trim('"')
 if (-not $clientId) { throw 'GOOGLE_CLIENT_ID is empty' }
 if (-not (Test-Path $FlutterBin)) { throw "Flutter not found at $FlutterBin (pass -FlutterBin)" }
 Push-Location "$root\app"
+# One APK per phone architecture (the phone downloads only its own, about a third of the size) plus the universal APK that phones on 1.1.6
+# and older still ask for (they send no architecture). All of them carry the same versionCode (gradle.properties force-version-code-ignoring-abi)
+# Nothing from an earlier build may be mistaken for this one
+Remove-Item "$root\app\build\app\outputs\flutter-apk\*.apk" -Force -ErrorAction SilentlyContinue
+& $FlutterBin build apk --release --split-per-abi "--dart-define=GOOGLE_WEB_CLIENT_ID=$clientId"
+Check 'flutter build apk --split-per-abi'
 & $FlutterBin build apk --release "--dart-define=GOOGLE_WEB_CLIENT_ID=$clientId"
-Check 'flutter build apk'
+Check 'flutter build apk (universal)'
 Pop-Location
 
 $out = "$root\app\build\release"
 New-Item -ItemType Directory -Force $out | Out-Null
-$name = "botler-$versionName+$versionCode.apk"
-$apk = "$out\$name"
-Copy-Item "$root\app\build\app\outputs\flutter-apk\app-release.apk" $apk -Force
+$abis = @('arm64-v8a', 'armeabi-v7a', 'x86_64')
+# file name => the architecture it must hold ('' for the universal build)
+$builds = [ordered]@{ "botler-$versionName+$versionCode.apk" = '' }
+foreach ($abi in $abis) { $builds["botler-$versionName+$versionCode-$abi.apk"] = $abi }
+Copy-Item "$root\app\build\app\outputs\flutter-apk\app-release.apk" "$out\botler-$versionName+$versionCode.apk" -Force
+foreach ($abi in $abis) { Copy-Item "$root\app\build\app\outputs\flutter-apk\app-$abi-release.apk" "$out\botler-$versionName+$versionCode-$abi.apk" -Force }
 
-# -- CHECK THE APK ITSELF -- #
+# -- CHECK EVERY APK ITSELF -- #
 $tools = Get-ChildItem "$env:LOCALAPPDATA\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Where-Object { Test-Path "$($_.FullName)\aapt2.exe" } | Select-Object -First 1
 if (-not $tools) { throw 'Android build-tools (aapt2, apksigner) not found' }
-$badgingAll = & "$($tools.FullName)\aapt2.exe" dump badging $apk
-Check 'aapt2 dump badging'
-$badging = $badgingAll | Select-Object -First 1
-if ($badging -notmatch "package: name='com\.arbenger\.botler' versionCode='$versionCode' versionName='$([regex]::Escape($versionName))'") { throw 'The APK package, versionCode or versionName does not match app/pubspec.yaml' }
-
-$certs = & "$($tools.FullName)\apksigner.bat" verify --print-certs $apk
-Check 'apksigner verify'
-$digest = ($certs | Where-Object { $_ -match 'Signer.*certificate SHA-256 digest: ([0-9a-f]{64})' } | ForEach-Object { $Matches[1] } | Select-Object -First 1)
-if ($digest -ne $pinned) { throw 'The APK is signed with a different certificate than the pinned one in docs/ANDROID.md. An update could never install over the app.' }
-
-# The changelog must be inside the APK, or the phone has nothing to show after the update
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [IO.Compression.ZipFile]::OpenRead($apk)
-try { $hasChangelog = $null -ne ($zip.Entries | Where-Object { $_.FullName -eq 'assets/flutter_assets/assets/changelog.json' } | Select-Object -First 1) } finally { $zip.Dispose() }
-if (-not $hasChangelog) { throw 'The APK does not hold assets/changelog.json. Check the assets: entry in app/pubspec.yaml.' }
+$apks = [ordered]@{}
+foreach ($name in $builds.Keys) {
+	$apk = "$out\$name"
+	$want = $builds[$name]
+	$badgingAll = & "$($tools.FullName)\aapt2.exe" dump badging $apk
+	Check "aapt2 dump badging ($name)"
+	$badging = $badgingAll | Select-Object -First 1
+	if ($badging -notmatch "package: name='com\.arbenger\.botler' versionCode='$versionCode' versionName='$([regex]::Escape($versionName))'") { throw "${name}: the APK package, versionCode or versionName does not match app/pubspec.yaml" }
 
-$sha = (Get-FileHash $apk -Algorithm SHA256).Hash.ToLower()
-$size = (Get-Item $apk).Length
+	$certs = & "$($tools.FullName)\apksigner.bat" verify --print-certs $apk
+	Check "apksigner verify ($name)"
+	$digest = ($certs | Where-Object { $_ -match 'Signer.*certificate SHA-256 digest: ([0-9a-f]{64})' } | ForEach-Object { $Matches[1] } | Select-Object -First 1)
+	if ($digest -ne $pinned) { throw "$name is signed with a different certificate than the pinned one in docs/ANDROID.md. An update could never install over the app." }
+
+	# The changelog must be inside the APK, or the phone has nothing to show after the update. A split holds the native libraries of its own
+	# architecture only: a stray architecture would bring back the size this split exists to remove
+	$zip = [IO.Compression.ZipFile]::OpenRead($apk)
+	try {
+		$hasChangelog = $null -ne ($zip.Entries | Where-Object { $_.FullName -eq 'assets/flutter_assets/assets/changelog.json' } | Select-Object -First 1)
+		$libAbis = @($zip.Entries | Where-Object { $_.FullName -match '^lib/([^/]+)/' } | ForEach-Object { $Matches[1] } | Sort-Object -Unique)
+	} finally { $zip.Dispose() }
+	if (-not $hasChangelog) { throw "$name does not hold assets/changelog.json. Check the assets: entry in app/pubspec.yaml." }
+	# The universal build is what every phone on 1.1.6 and older downloads: it must carry all three architectures
+	if (-not $want -and (($libAbis -join ',') -ne (($abis | Sort-Object) -join ','))) { throw "$name should hold the native libraries of $($abis -join ', ') but holds: $($libAbis -join ', ')" }
+	if ($want -and (($libAbis -join ',') -ne $want)) { throw "$name should hold only the $want native libraries but holds: $($libAbis -join ', ')" }
+
+	$apks[$name] = @{ sha256 = (Get-FileHash $apk -Algorithm SHA256).Hash.ToLower(); size = (Get-Item $apk).Length }
+	Write-Host ("  {0}: {1:N1} MB" -f $name, ($apks[$name].size / 1MB))
+}
+
+# The top level size and hash describe the universal APK: phones that send no architecture read them
+$universalName = "botler-$versionName+$versionCode.apk"
+$sha = $apks[$universalName].sha256
+$size = $apks[$universalName].size
+$splitMap = [ordered]@{}
+foreach ($abi in $abis) { $f = $apks["botler-$versionName+$versionCode-$abi.apk"]; $splitMap[$abi] = [ordered]@{ size = $f.size; sha256 = $f.sha256 } }
 $manifest = [ordered]@{
-	versionName = $versionName; versionCode = $versionCode; sha256 = $sha; size = $size
+	versionName = $versionName; versionCode = $versionCode; sha256 = $sha; size = $size; apks = $splitMap
 	minSupportedCode = $MinSupported; notes = $Notes; publishedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 }
-[IO.File]::WriteAllText("$out\latest.json", ($manifest | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
-Write-Host ("Built {0} ({1:N1} MB), signature matches the pinned certificate." -f $name, ($size / 1MB))
+[IO.File]::WriteAllText("$out\latest.json", ($manifest | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
+Write-Host ("Built {0} APKs, all signed with the pinned certificate. A phone downloads {1:N1} MB (arm64) instead of {2:N1} MB." -f $apks.Count, ($apks["botler-$versionName+$versionCode-arm64-v8a.apk"].size / 1MB), ($size / 1MB))
 
 if (-not $Publish) { Write-Host "Not published (no -Publish). Files are in $out"; exit 0 }
 
-# -- UPLOAD: APK FIRST (AS .part), VERIFIED, THEN THE MANIFEST LAST -- #
+# -- UPLOAD: THE APKS FIRST (AS .part), VERIFIED, THEN THE MANIFEST LAST -- #
 ssh $Server "[ -d $RemoteDir ] || (sudo mkdir -p $RemoteDir && sudo chown `$(id -u):`$(id -g) $RemoteDir); chmod 755 $RemoteDir"
 Check 'ssh (creating the releases folder)'
-scp $apk "${Server}:$RemoteDir/$name.part"
-Check 'scp of the APK'
+$verify = ''
+$move = ''
+$parts = ''
+foreach ($name in $apks.Keys) {
+	scp "$out\$name" "${Server}:$RemoteDir/$name.part"
+	Check "scp of $name"
+	# The names are fixed by the checks above (digits, dots and the three architecture words only), so they are safe to put in the remote command
+	$verify += "test `"`$(stat -c %s '$name.part')`" = '$($apks[$name].size)'`necho '$($apks[$name].sha256)  $name.part' | sha256sum -c - >/dev/null`n"
+	$move += "mv '$name.part' '$name'`n"
+	$parts += " '$name.part'"
+}
 scp "$out\latest.json" "${Server}:$RemoteDir/latest.json.part"
 Check 'scp of the manifest'
-# The names are fixed by the checks above (digits and dots only), so they are safe to put in the remote command
 $remote = @"
 set -euo pipefail
 cd $RemoteDir
 # A failed check leaves nothing half published
-trap "rm -f '$name.part' latest.json.part" ERR
-test "`$(stat -c %s '$name.part')" = '$size'
-echo '$sha  $name.part' | sha256sum -c - >/dev/null
-chmod 644 '$name.part' latest.json.part
-mv '$name.part' '$name'
+trap "rm -f$parts latest.json.part" ERR
+$verify
+chmod 644$parts latest.json.part
+$move
 mv latest.json.part latest.json
-# Keep the newest three builds; the one in the manifest is always among them
-ls -1 botler-*.apk | sort -t+ -k2,2nr | tail -n +4 | xargs -r rm -f
+# Keep the newest three builds (every file of a build goes together); the one in the manifest is always among them
+for c in `$(ls -1 botler-*.apk | sed -E 's/^botler-[0-9.]+\+([0-9]+)(-[a-z0-9_-]+)?\.apk`$/\1/' | sort -nu | head -n -3); do rm -f botler-*+"`$c".apk botler-*+"`$c"-*.apk; done
 ls -1 botler-*.apk
 "@
 # Sent as a file, like deploy.ps1 does: a multi-line quoted argument is mangled by Windows PowerShell
@@ -146,4 +181,4 @@ Check 'scp of the publish script'
 Remove-Item $tmp -Force
 ssh $Server 'bash /tmp/botler-release-remote.sh; code=$?; rm -f /tmp/botler-release-remote.sh; exit $code'
 Check 'the remote publish'
-Write-Host "Published $name. Phones will see it on their next update check."
+Write-Host "Published build $versionName+$versionCode. Phones will see it on their next update check."

@@ -1,8 +1,9 @@
 // TIME TRAVEL: JUMP TO ANY DAY, WEEK, MONTH OR YEAR UP TO 5 YEARS BACK OR AHEAD AND SEE WHAT EVERY ACCOUNT HELD OR WILL HOLD (BTL-20261029-0117).
-// Siblings: the calendar (chips, a Today button in the app bar, the offline band, one floating primary action) and the agenda (the date
-// picker). The band at the top always says which part of time is shown; recorded numbers are solid and filled, replayed and simulated ones
-// are dashed, outlined and tagged. Back and forward move the selected period; the chart and the quick jumps move it too. The one primary
-// action is What if. The previous answer stays on screen while the next one loads, so a what-if edit never flashes the page.
+// Siblings: the calendar (a Today button in the app bar, the offline band, one floating primary action) and the accounts screen (one card with a
+// total in the main currency, a warning line for a currency with no rate, each wallet in its own money). The banner at the top always says which
+// part of time is shown, in one even box with an info button; recorded numbers are solid, replayed and simulated ones are dashed and tagged.
+// Under it one header card holds the zoom, the date and the big total. The one primary action is What if. The previous answer stays on screen
+// while the next one loads, so a what-if edit never flashes the page (BTL-20261029-0509).
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
@@ -34,7 +35,7 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
   // -- STATES -- //
 
   /// The last answer shown, kept while the next one loads, with its zoom and how many what-if changes it was asked with. It is shown
-  /// only for the same zoom (a year period never reads as a month), and the band counts the what-if of what is on screen.
+  /// only for the same zoom (a year period never reads as a month), and the row counts the what-if of what is on screen.
   ({SimLoad load, Zoom zoom, int changes})? _last;
 
   // -- FUNCTIONS -- //
@@ -62,6 +63,25 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
     if (d != null && mounted) _go(d);
   }
 
+  /// Brings the plan back as it is, and offers to put the what-if back until the next edit.
+  void _reset() {
+    final t = context.t;
+    final edit = ref.read(whatIfProvider.notifier);
+    final previous = ref.read(whatIfProvider);
+    edit.reset();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(t.simResetDone),
+          action: SnackBarAction(
+            label: t.simUndo,
+            onPressed: () => edit.set(previous),
+          ),
+        ),
+      );
+  }
+
   // -- LIFECYCLES -- //
 
   @override
@@ -85,7 +105,12 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
     final view = ref.watch(simViewProvider);
     final whatIf = ref.watch(appliedWhatIfProvider);
     final edited = ref.watch(whatIfProvider);
+    final introSeen = ref.watch(simIntroSeenProvider);
     final startsOn = ref.watch(settingsProvider).weekStartsOn;
+    // Any edit of the what-if drops the offer to undo a reset
+    ref.listen<WhatIf>(whatIfProvider, (_, next) {
+      if (!next.isEmpty) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    });
     final window = windowFor(view.zoom, view.anchor, startsOn, _today);
     final key = window.key(whatIf);
     final value = ref.watch(simOverviewProvider('$key#${view.zoom.name}'));
@@ -99,7 +124,9 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
     final shownChanges = loaded != null ? whatIf.changes : (kept?.changes ?? 0);
     final overview = simOverviewProvider('$key#${view.zoom.name}');
     final day = dayOf(view.anchor);
-    final period = shown?.sim.periodOf(day);
+    // While the answer for a new window loads, the kept one may not hold this day: then no period is shown for it
+    final found = shown?.sim.periodOf(day);
+    final period = found != null && found.holds(day) ? found : null;
     final part =
         period?.part ??
         (view.anchor.isBefore(_today)
@@ -124,57 +151,88 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
       ),
       body: Column(
         children: <Widget>[
-          ModeBand(
-            part: part,
-            changes: shownChanges,
-            savedAt: shown?.savedAt,
-            onReset: () => ref.read(whatIfProvider.notifier).reset(),
-            onRetry: () => ref.invalidate(overview),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(gapXL, gapL, gapXL, 0),
+            child: ModeBand(
+              part: part,
+              savedAt: shown?.savedAt,
+              onInfo: () => showSimInfo(context),
+              onRetry: () => ref.invalidate(overview),
+            ),
           ),
           // Something newer is on its way: the zoom, the dates or the what-if (still being typed) differ from what is shown
-          if ((value.isLoading || edited.changes != shownChanges) &&
-              shown != null)
-            const LinearProgressIndicator(minHeight: 2),
+          // The slot is always there, so the page never jumps when the bar comes and goes
+          Padding(
+            padding: const EdgeInsets.only(top: gapS),
+            child: SizedBox(
+              height: 2,
+              child:
+                  (value.isLoading || edited.changes != shownChanges) &&
+                      shown != null
+                  ? const LinearProgressIndicator(minHeight: 2)
+                  : null,
+            ),
+          ),
           Expanded(
             child: ListView(
-              padding: pagePadding(context).copyWith(bottom: 96),
+              padding: EdgeInsets.fromLTRB(
+                gapXL,
+                gapL,
+                gapXL,
+                96 + MediaQuery.viewPaddingOf(context).bottom,
+              ),
               children: <Widget>[
-                _ZoomChips(zoom: view.zoom),
-                _Jumper(
-                  label: period == null
-                      ? shortDay(context, day)
-                      : periodWords(context, period, view.zoom),
-                  onBack: () => _go(stepAnchor(view.zoom, view.anchor, -1)),
-                  onForward: () => _go(stepAnchor(view.zoom, view.anchor, 1)),
-                  onPick: () => _pick(view.anchor),
-                ),
-                _QuickJumps(onJump: (m) => _go(jumpMonths(view.anchor, m))),
-                const SizedBox(height: 8),
-                if (shown == null)
-                  AsyncBody<SimLoad>(
-                    value: value,
-                    onRetry: () => ref.invalidate(
-                      simOverviewProvider('$key#${view.zoom.name}'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: gapL,
+                  children: <Widget>[
+                    if (!introSeen) const _Intro(),
+                    _HeaderCard(
+                      zoom: view.zoom,
+                      label: period == null
+                          ? shortDay(context, day)
+                          : periodWords(context, period, view.zoom),
+                      onBack: () => _go(stepAnchor(view.zoom, view.anchor, -1)),
+                      onForward: () =>
+                          _go(stepAnchor(view.zoom, view.anchor, 1)),
+                      onPick: () => _pick(view.anchor),
+                      onJump: (m) => _go(jumpMonths(view.anchor, m)),
+                      sim: shown?.sim,
+                      period: period,
                     ),
-                    skeleton: const _Skeleton(),
-                    data: (_) => const SizedBox.shrink(),
-                  )
-                else ...<Widget>[
-                  if (value.hasError && !value.isLoading)
-                    AsyncBody<SimLoad>(
-                      value: value,
-                      onRetry: () => ref.invalidate(
-                        simOverviewProvider('$key#${view.zoom.name}'),
+                    if (shownChanges > 0)
+                      WhatIfRow(
+                        changes: shownChanges,
+                        onEdit: () => showWhatIfSheet(context),
+                        onReset: _reset,
                       ),
-                      data: (_) => const SizedBox.shrink(),
-                    ),
-                  _Loaded(
-                    load: shown,
-                    zoom: view.zoom,
-                    day: day,
-                    whatIfKey: key,
-                  ),
-                ],
+                    if (shown == null)
+                      AsyncBody<SimLoad>(
+                        value: value,
+                        onRetry: () => ref.invalidate(
+                          simOverviewProvider('$key#${view.zoom.name}'),
+                        ),
+                        skeleton: const _Skeleton(),
+                        data: (_) => const SizedBox.shrink(),
+                      )
+                    else ...<Widget>[
+                      if (value.hasError && !value.isLoading)
+                        AsyncBody<SimLoad>(
+                          value: value,
+                          onRetry: () => ref.invalidate(
+                            simOverviewProvider('$key#${view.zoom.name}'),
+                          ),
+                          data: (_) => const SizedBox.shrink(),
+                        ),
+                      _Loaded(
+                        load: shown,
+                        zoom: view.zoom,
+                        day: day,
+                        whatIfKey: key,
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -184,7 +242,104 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
   }
 }
 
-/// Everything below the jumper once an answer is there.
+/// The two-sentence welcome, shown until it is dismissed once. The info button on the banner brings the same words back.
+class _Intro extends ConsumerWidget {
+  const _Intro();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.t;
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
+        children: <Widget>[
+          Text(t.simIntro),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () =>
+                  ref.read(simIntroSeenProvider.notifier).markSeen(),
+              child: Text(t.simIntroGotIt),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The card at the top: how far to look (day, week, month, year), which date, and the one big total with what it leaves out.
+class _HeaderCard extends ConsumerWidget {
+  const _HeaderCard({
+    required this.zoom,
+    required this.label,
+    required this.onBack,
+    required this.onForward,
+    required this.onPick,
+    required this.onJump,
+    required this.sim,
+    required this.period,
+  });
+
+  final Zoom zoom;
+  final String label;
+  final VoidCallback onBack;
+  final VoidCallback onForward;
+  final VoidCallback onPick;
+  final ValueChanged<int> onJump;
+  final SimResult? sim;
+  final SimPeriod? period;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.t;
+    final c = context.colors;
+    final s = sim;
+    final p = period;
+    Widget? headline;
+    List<String> codes = const <String>[];
+    if (s != null && p != null) {
+      final rates = rateInfoOf(s, p);
+      codes = rates.codes;
+      if (p.part == SimPart.past) {
+        headline = p.beforeFirstRecord || p.recordedEnd == null
+            ? Text(t.simNoRecords, style: TextStyle(color: c.muted))
+            : HeadlineTotal(
+                label: t.simRecordedEnd,
+                source: SimSource.recorded,
+                amount: rates.noTotal ? null : p.recordedEnd,
+              );
+      } else if (p.simulatedEnd != null) {
+        headline = HeadlineTotal(
+          label: t.simSimulatedEnd,
+          source: SimSource.simulated,
+          amount: rates.noTotal ? null : p.simulatedEnd,
+        );
+      }
+    }
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
+        children: <Widget>[
+          _ZoomControl(zoom: zoom),
+          _Jumper(
+            label: label,
+            onBack: onBack,
+            onForward: onForward,
+            onPick: onPick,
+            onJump: onJump,
+          ),
+          ?headline,
+          if (codes.isNotEmpty) RateWarning(codes),
+        ],
+      ),
+    );
+  }
+}
+
+/// Everything below the header once an answer is there.
 class _Loaded extends ConsumerWidget {
   const _Loaded({
     required this.load,
@@ -214,34 +369,51 @@ class _Loaded extends ConsumerWidget {
       parts[2],
       ...parts.sublist(3),
     ].join('|');
+    final lines = periodLines(
+      context,
+      sim,
+      period,
+      noTotal: rateInfoOf(sim, period).noTotal,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: gapL,
       children: <Widget>[
         PaperCard(
-          child: SimChart(
-            sim: sim,
-            selected: selected,
-            zoom: zoom,
-            onSelect: (i) => ref
-                .read(simViewProvider.notifier)
-                .go(parseDay(sim.periods[i].from)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: gapM,
+            children: <Widget>[
+              SimChart(
+                sim: sim,
+                selected: selected,
+                zoom: zoom,
+                onSelect: (i) => ref
+                    .read(simViewProvider.notifier)
+                    .go(parseDay(sim.periods[i].from)),
+              ),
+              if (first != null && day.compareTo(first) < 0)
+                Text(
+                  t.simFirstRecordEdge(shortDay(context, first)),
+                  style: TextStyle(color: c.muted),
+                ),
+            ],
           ),
         ),
-        if (first != null && day.compareTo(first) < 0)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              t.simFirstRecordEdge(shortDay(context, first)),
-              style: TextStyle(color: c.muted),
+        if (lines.isNotEmpty)
+          PaperCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: gapM,
+              children: lines,
             ),
           ),
-        const SizedBox(height: 12),
-        PeriodCard(sim: sim, period: period, zoom: zoom),
-        const SizedBox(height: 12),
-        WalletsCard(period: period),
-        const SizedBox(height: 12),
+        WalletsCard(period: period, mainCurrency: sim.currency),
         // Entries need the network: the offline copy holds totals only
-        if (!load.offline) _Entries(detailKey: detailKey),
+        if (!load.offline)
+          _Entries(detailKey: detailKey, mainCurrency: sim.currency)
+        else
+          Text(t.simEntriesOffline, style: TextStyle(color: c.muted)),
       ],
     );
   }
@@ -249,9 +421,10 @@ class _Loaded extends ConsumerWidget {
 
 /// The entries of the selected period, read on their own (every entry of one period, at most a year).
 class _Entries extends ConsumerStatefulWidget {
-  const _Entries({required this.detailKey});
+  const _Entries({required this.detailKey, required this.mainCurrency});
 
   final String detailKey;
+  final String mainCurrency;
 
   @override
   ConsumerState<_Entries> createState() => _EntriesState();
@@ -275,8 +448,10 @@ class _EntriesState extends ConsumerState<_Entries> {
       if (entries.isEmpty) return Note(t.simNoEntries);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
         children: <Widget>[
-          for (final e in entries) EntryRow(e),
+          for (final e in entries)
+            EntryRow(e, mainCurrency: widget.mainCurrency),
           if (d.sim.entriesOmitted > 0)
             Text(
               t.simEntriesMore(d.sim.entriesOmitted),
@@ -287,9 +462,17 @@ class _EntriesState extends ConsumerState<_Entries> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: gapM,
       children: <Widget>[
-        SectionTitle(t.simEntriesTitle),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: gapS),
+          child: Text(
+            t.simEntriesTitle,
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(color: context.colors.muted),
+          ),
+        ),
         if (shown != null && !(value.hasError && !value.isLoading))
           list(shown)
         else
@@ -304,8 +487,9 @@ class _EntriesState extends ConsumerState<_Entries> {
   }
 }
 
-class _ZoomChips extends ConsumerWidget {
-  const _ZoomChips({required this.zoom});
+/// Day, week, month or year as one control.
+class _ZoomControl extends ConsumerWidget {
+  const _ZoomControl({required this.zoom});
 
   final Zoom zoom;
 
@@ -318,37 +502,69 @@ class _ZoomChips extends ConsumerWidget {
       Zoom.month: t.simZoomMonth,
       Zoom.year: t.simZoomYear,
     };
-    return Wrap(
-      spacing: 8,
-      children: <Widget>[
-        for (final z in Zoom.values)
-          ChoiceChip(
-            label: Text(names[z] ?? ''),
-            selected: z == zoom,
-            onSelected: (_) => ref.read(simViewProvider.notifier).setZoom(z),
+    // At a very large text size four segments no longer fit one row: the same choice becomes chips that wrap
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (box.maxWidth < 300 ||
+            MediaQuery.textScalerOf(context).scale(14) > 19) {
+          return Wrap(
+            spacing: gapM,
+            runSpacing: gapS,
+            children: <Widget>[
+              for (final z in Zoom.values)
+                ChoiceChip(
+                  label: Text(names[z] ?? ''),
+                  selected: z == zoom,
+                  onSelected: (_) =>
+                      ref.read(simViewProvider.notifier).setZoom(z),
+                ),
+            ],
+          );
+        }
+        return SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<Zoom>(
+            showSelectedIcon: false,
+            segments: <ButtonSegment<Zoom>>[
+              for (final z in Zoom.values)
+                ButtonSegment<Zoom>(value: z, label: Text(names[z] ?? '')),
+            ],
+            selected: <Zoom>{zoom},
+            onSelectionChanged: (s) =>
+                ref.read(simViewProvider.notifier).setZoom(s.first),
           ),
-      ],
+        );
+      },
     );
   }
 }
 
-/// Back, the period (tap to pick a date) and forward.
+/// Back, the period (tap to pick a date), forward, and a menu of bigger jumps.
 class _Jumper extends StatelessWidget {
   const _Jumper({
     required this.label,
     required this.onBack,
     required this.onForward,
     required this.onPick,
+    required this.onJump,
   });
 
   final String label;
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onPick;
+  final ValueChanged<int> onJump;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final jumps = <(String, int)>[
+      (t.simBack1y, -12),
+      (t.simBack1m, -1),
+      (t.simAhead1m, 1),
+      (t.simAhead1y, 12),
+      (t.simAhead5y, 60),
+    ];
     return Row(
       children: <Widget>[
         IconButton(
@@ -378,32 +594,15 @@ class _Jumper extends StatelessWidget {
           icon: const Icon(Icons.chevron_right),
           onPressed: onForward,
         ),
-      ],
-    );
-  }
-}
-
-class _QuickJumps extends StatelessWidget {
-  const _QuickJumps({required this.onJump});
-
-  final ValueChanged<int> onJump;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final jumps = <(String, int)>[
-      (t.simBack1y, -12),
-      (t.simBack1m, -1),
-      (t.simAhead1m, 1),
-      (t.simAhead1y, 12),
-      (t.simAhead5y, 60),
-    ];
-    return Wrap(
-      spacing: 8,
-      runSpacing: 4,
-      children: <Widget>[
-        for (final (label, months) in jumps)
-          ActionChip(label: Text(label), onPressed: () => onJump(months)),
+        PopupMenuButton<int>(
+          tooltip: t.simJump,
+          icon: const Icon(Icons.event_repeat),
+          onSelected: onJump,
+          itemBuilder: (_) => <PopupMenuEntry<int>>[
+            for (final (name, months) in jumps)
+              PopupMenuItem<int>(value: months, child: Text(name)),
+          ],
+        ),
       ],
     );
   }
@@ -417,11 +616,10 @@ class _Skeleton extends StatelessWidget {
   Widget build(BuildContext context) => const SkeletonGroup(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: gapL,
       children: <Widget>[
         Skeleton(height: 140, radius: 20),
-        SizedBox(height: 12),
         Skeleton(height: 120, radius: 20),
-        SizedBox(height: 12),
         SkeletonRows(count: 2),
       ],
     ),

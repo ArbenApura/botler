@@ -177,3 +177,103 @@ describe('apk download', () => {
 		expect(r.status).toBe(404);
 	});
 });
+
+describe('split builds', () => {
+	const ARM64 = Buffer.from('a'.repeat(40));
+	const ARM32 = Buffer.from('b'.repeat(30));
+	let split = '';
+
+	type Answer = {
+		status: string;
+		downloadPath: string;
+		latest: { size: number; sha256: string };
+	};
+
+	const check = async (abis: string | null, over?: string): Promise<Answer> =>
+		(await (
+			await handleUpdateCheck({ dir: over ?? split, signedIn: true, installed: '1', abis })
+		).json()) as Answer;
+
+	beforeAll(async () => {
+		split = await mkdtemp(join(tmpdir(), 'botler-rel-split-'));
+		await writeFile(join(split, 'botler-1.0.1+2.apk'), BYTES);
+		await writeFile(join(split, 'botler-1.0.1+2-arm64-v8a.apk'), ARM64);
+		await writeFile(join(split, 'botler-1.0.1+2-armeabi-v7a.apk'), ARM32);
+		await writeFile(
+			join(split, 'latest.json'),
+			manifest({
+				apks: {
+					'arm64-v8a': { size: ARM64.length, sha256: 'c'.repeat(64) },
+					'armeabi-v7a': { size: ARM32.length, sha256: 'd'.repeat(64) },
+					// Listed but its file was never uploaded
+					x86_64: { size: 10, sha256: 'e'.repeat(64) }
+				}
+			})
+		);
+	});
+
+	afterAll(async () => {
+		await rm(split, { recursive: true, force: true });
+	});
+
+	it('offers the phones own architecture with its own size and hash', async () => {
+		const a = await check('arm64-v8a,armeabi-v7a');
+		expect(a.downloadPath).toBe('/api/v1/app/update/apk/2?abi=arm64-v8a');
+		expect(a.latest.size).toBe(ARM64.length);
+		expect(a.latest.sha256).toBe('c'.repeat(64));
+		expect((await check('armeabi-v7a')).downloadPath).toBe(
+			'/api/v1/app/update/apk/2?abi=armeabi-v7a'
+		);
+	});
+
+	it('offers the universal build to a phone that sends no architecture or an unknown one', async () => {
+		for (const abis of [null, '', 'mips,riscv64']) {
+			const a = await check(abis);
+			expect(a.downloadPath).toBe('/api/v1/app/update/apk/2');
+			expect(a.latest.size).toBe(BYTES.length);
+		}
+	});
+
+	it('falls back to the universal build when the split file is missing', async () => {
+		const a = await check('x86_64');
+		expect(a.downloadPath).toBe('/api/v1/app/update/apk/2');
+	});
+
+	it('serves exactly the file of the architecture asked for', async () => {
+		const res = await handleApkDownload({
+			dir: split,
+			signedIn: true,
+			code: '2',
+			abi: 'arm64-v8a',
+			request: new Request('http://x/')
+		});
+		expect(res.status).toBe(200);
+		expect(Buffer.from(await res.arrayBuffer()).equals(ARM64)).toBe(true);
+		const universal = await handleApkDownload({
+			dir: split,
+			signedIn: true,
+			code: '2',
+			request: new Request('http://x/')
+		});
+		expect(Buffer.from(await universal.arrayBuffer()).equals(BYTES)).toBe(true);
+	});
+
+	it('refuses an architecture that is not published and a missing split file', async () => {
+		const bad = await handleApkDownload({
+			dir: split,
+			signedIn: true,
+			code: '2',
+			abi: '../x',
+			request: new Request('http://x/')
+		});
+		expect(bad.status).toBe(400);
+		const gone = await handleApkDownload({
+			dir: split,
+			signedIn: true,
+			code: '2',
+			abi: 'x86_64',
+			request: new Request('http://x/')
+		});
+		expect(gone.status).toBe(404);
+	});
+});

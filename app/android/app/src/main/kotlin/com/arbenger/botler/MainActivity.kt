@@ -29,6 +29,8 @@ class MainActivity : FlutterFragmentActivity() {
                         "installedName" -> result.success(packageManager.getPackageInfo(packageName, 0).versionName ?: "")
                         "updateDir" -> result.success(updateDir().absolutePath)
                         "freeBytes" -> result.success(StatFs(cacheDir.absolutePath).availableBytes)
+                        // The architectures of this phone, most preferred first: the server then offers only the matching build
+                        "abis" -> result.success(Build.SUPPORTED_ABIS.toList())
                         "archiveCheck" -> {
                             // Reading the certificates hashes the whole file (tens of MB): off the main thread, so the screen never freezes
                             val path = call.argument<String>("path") ?: ""

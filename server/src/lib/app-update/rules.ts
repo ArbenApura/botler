@@ -7,15 +7,46 @@ import { z } from 'zod';
 
 // -- CONSTANTS -- //
 
-/** The only file names that are ever served: botler-<versionName>+<versionCode>.apk. */
-export const APK_NAME = /^botler-(\d+\.\d+\.\d+)\+(\d+)\.apk$/;
+/** The architectures a split build can be published for. */
+export const ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86_64'] as const;
+
+/**
+ * The only file names that are ever served: botler-<versionName>+<versionCode>.apk (the universal build, for phones that
+ * do not say their architecture) or botler-<versionName>+<versionCode>-<abi>.apk (one architecture).
+ */
+export const APK_NAME = /^botler-(\d+\.\d+\.\d+)\+(\d+)(?:-(arm64-v8a|armeabi-v7a|x86_64))?\.apk$/;
+
+const fileSchema = z.object({
+	size: z.number().int().positive(),
+	sha256: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * Keeps the entries of `apks` that name a known architecture and hold a valid size and hash. One odd entry (an architecture this server
+ * does not know yet, a bad hash) must never invalidate the manifest and so stop every phone from updating: it is only left out.
+ */
+function keepKnownBuilds(value: unknown): unknown {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+	const kept: Record<string, unknown> = {};
+	for (const abi of ABIS) {
+		const entry = (value as Record<string, unknown>)[abi];
+		if (fileSchema.safeParse(entry).success) kept[abi] = entry;
+	}
+	return kept;
+}
 
 export const manifestSchema = z
 	.object({
 		versionName: z.string().regex(/^\d+\.\d+\.\d+$/),
 		versionCode: z.number().int().positive(),
+		/** Size and hash of the universal build: what a phone that sends no architecture downloads. */
 		sha256: z.string().regex(/^[0-9a-f]{64}$/),
 		size: z.number().int().positive(),
+		/** Size and hash of each single-architecture build. Absent for a release published before split builds. */
+		apks: z
+			.preprocess(keepKnownBuilds, z.partialRecord(z.enum(ABIS), fileSchema))
+			.optional()
+			.catch(undefined),
 		/** Phones older than this must update before they can be used. */
 		minSupportedCode: z.number().int().positive(),
 		notes: z.string().max(2000),
@@ -30,21 +61,50 @@ export const manifestSchema = z
 
 export type Manifest = z.infer<typeof manifestSchema>;
 
+export type Abi = (typeof ABIS)[number];
+
 export type UpdateStatus = 'none' | 'optional' | 'required';
 
 export type ByteRange = { start: number; end: number };
 
 // -- FUNCTIONS -- //
 
-/** The file name a build is stored under. */
-export function apkFileName(versionName: string, versionCode: number): string {
-	return `botler-${versionName}+${versionCode}.apk`;
+/** The file name a build is stored under; with an architecture, the single-architecture build. */
+export function apkFileName(versionName: string, versionCode: number, abi?: Abi): string {
+	return `botler-${versionName}+${versionCode}${abi ? `-${abi}` : ''}.apk`;
 }
 
 /** The version code inside a stored file name, or null for any other name. */
 export function codeOfFileName(name: string): number | null {
 	const m = APK_NAME.exec(name);
 	return m ? Number(m[2]) : null;
+}
+
+/** The architecture inside a stored file name: null for the universal build and for any other name. */
+export function abiOfFileName(name: string): Abi | null {
+	const m = APK_NAME.exec(name);
+	return m?.[3] ? (m[3] as Abi) : null;
+}
+
+/** One architecture word from the query, or null when it is not one we publish. */
+export function parseAbi(value: string | null): Abi | null {
+	return (ABIS as readonly string[]).includes(value ?? '') ? (value as Abi) : null;
+}
+
+/** The phone's architectures, most preferred first, as it sends them ("arm64-v8a,armeabi-v7a"). Unknown words are dropped. */
+export function parseAbiList(value: string | null): Abi[] {
+	if (!value) return [];
+	const list: Abi[] = [];
+	for (const word of value.split(',')) {
+		const abi = parseAbi(word.trim());
+		if (abi && !list.includes(abi)) list.push(abi);
+	}
+	return list;
+}
+
+/** The first of the phone's architectures that has a published build, or null: the phone then takes the universal build. */
+export function pickAbi(manifest: Manifest, phoneAbis: Abi[]): Abi | null {
+	return phoneAbis.find((a) => manifest.apks?.[a]) ?? null;
 }
 
 /** Reads latest.json. A bad manifest is null: the caller answers "none" instead of breaking every phone. */

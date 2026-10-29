@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // -- TYPES -- //
 
 class _Host implements UpdateHost {
+  List<String> abiList = <String>['arm64-v8a', 'armeabi-v7a'];
   _Host(this.dir, {this.verdict = 'ok', this.free = 1 << 30});
 
   final Directory dir;
@@ -35,6 +36,8 @@ class _Host implements UpdateHost {
   Future<String> updateDir() async => dir.path;
   @override
   Future<int> freeBytes() async => free;
+  @override
+  Future<List<String>> abis() async => abiList;
   @override
   Future<String> archiveCheck(String path, int code) async {
     checked.add(path);
@@ -131,6 +134,15 @@ void main() {
         reason: 'the download must be the server\'s own update path',
       );
       expect(decideOffer(_answer(path: '/api/v1/app/update/apk/9'), 1), isNull);
+      expect(
+        decideOffer(_answer(path: '/api/v1/app/update/apk/2?abi=arm64-v8a'), 1),
+        isNotNull,
+        reason: 'the build for one architecture is the own server path too',
+      );
+      expect(
+        decideOffer(_answer(path: '/api/v1/app/update/apk/2?abi=a&x=1'), 1),
+        isNull,
+      );
     });
 
     test('a check is due when never done, after 12 hours, or if the clock moved back', () {
@@ -157,6 +169,19 @@ void main() {
 
     AppUpdater updater(MockClient c, _Host host) =>
         AppUpdater(api: _api(c), host: host, prefs: prefs, clock: () => now);
+
+    test('tells the server which architectures the phone runs', () async {
+      Uri? seen;
+      final u = updater(
+        MockClient((r) async {
+          seen = r.url;
+          return _json(_answer(code: 2));
+        }),
+        _Host(dir),
+      );
+      await u.check(force: true);
+      expect(seen?.queryParameters['abis'], 'arm64-v8a,armeabi-v7a');
+    });
 
     test('asks with the installed build and remembers a good answer', () async {
       Uri? seen;

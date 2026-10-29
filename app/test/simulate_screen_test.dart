@@ -1,4 +1,4 @@
-// TIME TRAVEL ON SCREEN: THE BAND SAYS WHICH PART OF TIME IS SHOWN, EVERY NUMBER HAS ITS TAG, THE PERIOD THAT HOLDS TODAY SHOWS BOTH
+// TIME TRAVEL ON SCREEN: THE BANNER SAYS WHICH PART OF TIME IS SHOWN, EVERY NUMBER HAS ITS TAG, THE PERIOD THAT HOLDS TODAY SHOWS BOTH
 // NUMBERS, THE JUMPER MOVES, AN OFFLINE COPY SAYS WHEN IT WAS SAVED, A REFUSAL KEEPS THE JUMPER, AND A WHAT-IF IS COUNTED AND RESET.
 
 // -- DEP-MODULES -- //
@@ -24,6 +24,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 final String _today = dayOf(DateTime.now());
 
+/// Wallets and entries a test can swap in (reset after each test), to show other currencies.
+List<Object?>? _walletsOverride;
+List<Object?>? _entriesOverride;
+
 /// A period of the answer, its part of time worked out from the real today, as the server would.
 Map<String, Object?> _period(String from, String to) {
   final part = to.compareTo(_today) < 0
@@ -45,17 +49,19 @@ Map<String, Object?> _period(String from, String to) {
     'missed': part == 'past' ? 1 : 0,
     'low': false,
     'below': false,
-    'wallets': <Object?>[
-      <String, Object?>{
-        'accountId': 'a1',
-        'accountName': 'Wallet',
-        'currency': 'PHP',
-        'archived': false,
-        'recorded': part == 'future' ? null : 120000,
-        'replay': part == 'past' ? 150000 : null,
-        'simulated': part == 'past' ? null : 180000,
-      },
-    ],
+    'wallets':
+        _walletsOverride ??
+        <Object?>[
+          <String, Object?>{
+            'accountId': 'a1',
+            'accountName': 'Wallet',
+            'currency': 'PHP',
+            'archived': false,
+            'recorded': part == 'future' ? null : 120000,
+            'replay': part == 'past' ? 150000 : null,
+            'simulated': part == 'past' ? null : 180000,
+          },
+        ],
   };
 }
 
@@ -84,26 +90,28 @@ Map<String, Object?> _answer(Map<String, Object?> body) {
     'firstRecord': '2020-01-01',
     'periods': periods,
     if (detail)
-      'entries': <Object?>[
-        <String, Object?>{
-          'source': 'recorded',
-          'kind': 'out',
-          'date': from,
-          'label': 'Groceries',
-          'accountName': 'Wallet',
-          'currency': 'PHP',
-          'amount': 5000,
-        },
-        <String, Object?>{
-          'source': 'simulated',
-          'kind': 'in',
-          'date': to,
-          'label': 'Salary',
-          'accountName': 'Wallet',
-          'currency': 'PHP',
-          'amount': 2500000,
-        },
-      ],
+      'entries':
+          _entriesOverride ??
+          <Object?>[
+            <String, Object?>{
+              'source': 'recorded',
+              'kind': 'out',
+              'date': from,
+              'label': 'Groceries',
+              'accountName': 'Wallet',
+              'currency': 'PHP',
+              'amount': 5000,
+            },
+            <String, Object?>{
+              'source': 'simulated',
+              'kind': 'in',
+              'date': to,
+              'label': 'Salary',
+              'accountName': 'Wallet',
+              'currency': 'PHP',
+              'amount': 2500000,
+            },
+          ],
     'warnings': <Object?>[],
     'unknown': <Object?>[],
     'notes': <Object?>[],
@@ -123,8 +131,13 @@ Future<ProviderContainer> _open(
   bool offline = false,
   bool refuse = false,
   Map<String, Object> saved = const <String, Object>{},
+  String? initialDate,
+  String locale = 'en',
 }) async {
-  SharedPreferences.setMockInitialValues(saved);
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    simulateIntroKey: true,
+    ...saved,
+  });
   final prefs = await SharedPreferences.getInstance();
   final api = ApiClient(
     base: 'https://botler.test',
@@ -168,10 +181,10 @@ Future<ProviderContainer> _open(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light),
-        locale: const Locale('en'),
+        locale: Locale(locale),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const SimulateScreen(),
+        home: SimulateScreen(initialDate: initialDate),
       ),
     ),
   );
@@ -187,19 +200,47 @@ Future<void> _tap(WidgetTester tester, String text) async {
 
 // -- TESTS -- //
 
+Map<String, Object?> _wallet(
+  String id,
+  String name,
+  String currency, {
+  int? simulated,
+  int? simulatedMain,
+}) => <String, Object?>{
+  'accountId': id,
+  'accountName': name,
+  'currency': currency,
+  'archived': false,
+  'recorded': simulated,
+  'replay': null,
+  'simulated': simulated,
+  'recordedMain': simulatedMain,
+  'replayMain': null,
+  'simulatedMain': simulatedMain,
+};
+
+Future<void> _jump(WidgetTester tester, String label) async {
+  await tester.tap(find.byTooltip('Jump further'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() async {
     await initializeDateFormatting();
+  });
+
+  tearDown(() {
+    _walletsOverride = null;
+    _entriesOverride = null;
   });
 
   testWidgets(
     'the month of today shows recorded up to today and simulated after, each tagged',
     (tester) async {
       await _open(tester);
-      expect(
-        find.text('Recorded up to today, simulated after'),
-        findsOneWidget,
-      );
+      expect(find.text('Real until today, an estimate after'), findsOneWidget);
       expect(find.text('Recorded up to today'), findsOneWidget);
       expect(find.text('Simulated at the end'), findsOneWidget);
       expect(find.text('Recorded'), findsWidgets);
@@ -211,12 +252,9 @@ void main() {
     tester,
   ) async {
     await _open(tester);
-    await _tap(tester, '1 year ahead');
+    await _jump(tester, '1 year ahead');
     expect(find.text('Simulated'), findsWidgets);
-    expect(
-      find.text("Not real money: today's balances and your plan."),
-      findsOneWidget,
-    );
+    expect(find.text('An estimate, not real money'), findsOneWidget);
     expect(find.text('Recorded up to today'), findsNothing);
   });
 
@@ -224,8 +262,9 @@ void main() {
     'a year back is recorded, with the plan replay, the gap and what was missed',
     (tester) async {
       await _open(tester);
-      await _tap(tester, '1 year back');
-      expect(find.text('Recorded, with a plan replay'), findsOneWidget);
+      await _jump(tester, '1 year back');
+      expect(find.text('What really happened'), findsOneWidget);
+      expect(find.text('Recorded at the end'), findsOneWidget);
       expect(find.text('Plan replay'), findsWidgets);
       expect(find.textContaining('below the plan'), findsOneWidget);
       expect(find.text('1 payday or bill was not recorded'), findsOneWidget);
@@ -247,6 +286,14 @@ void main() {
     await tester.tap(find.byTooltip('Earlier'));
     await tester.pumpAndSettle();
     expect(container.read(simViewProvider).anchor, before);
+  });
+
+  testWidgets('the zoom is one control and changes the window', (tester) async {
+    final container = await _open(tester);
+    expect(find.byType(SegmentedButton<Zoom>), findsOneWidget);
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+    expect(container.read(simViewProvider).zoom, Zoom.week);
   });
 
   testWidgets('lists the entries of the period with their tags', (
@@ -298,21 +345,91 @@ void main() {
   });
 
   testWidgets(
-    'a ready-made what-if is counted on the band and Reset clears it',
+    'a ready-made what-if is counted in its own row, Reset clears it and Undo brings it back',
     (tester) async {
       await _open(tester);
       await tester.tap(find.text('What if'));
       await tester.pumpAndSettle();
       await _tap(tester, 'Pay bills a week late');
       await _tap(tester, 'Done');
-      // The band counts what is on screen, once the answer with the what-if is there
+      // The row counts what is on screen, once the answer with the what-if is there
       await tester.pump(whatIfDebounce + const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
       expect(find.text('What-if on: 1 change'), findsOneWidget);
+      expect(find.text('Edit'), findsOneWidget);
       await _tap(tester, 'Reset');
       expect(find.text('What-if on: 1 change'), findsNothing);
+      expect(
+        find.text('What-if cleared. Your plan is back as it is.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Undo'));
+      await tester.pump(whatIfDebounce + const Duration(milliseconds: 50));
+      await tester.pumpAndSettle();
+      expect(find.text('What-if on: 1 change'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'the what-if sheet has tiles that switch on and off and a collapsed part with counts',
+    (tester) async {
+      await _open(tester);
+      await tester.tap(find.text('What if'));
+      await tester.pumpAndSettle();
+      expect(find.text('Start with one of these'), findsOneWidget);
+      expect(
+        find.text('Every bill is paid 7 days after its due date.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Pay bills a week late'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      await tester.tap(find.text('Pay bills a week late'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.check_circle), findsNothing);
+      await tester.tap(find.text('Pay bills a week late'));
+      await tester.pumpAndSettle();
+      // The by-hand part is collapsed until it is opened, and shows how many changes it holds
+      await tester.ensureVisible(find.text('Change something yourself'));
+      expect(find.text('1 change'), findsOneWidget);
+      expect(find.text('Timing'), findsNothing);
+      await tester.tap(find.text('Change something yourself'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Timing'));
+      expect(find.text('Timing'), findsOneWidget);
+      expect(find.text('Bills paid 7 days late'), findsNothing);
+    },
+  );
+
+  testWidgets('Undo is dropped by any other edit of the what-if', (
+    tester,
+  ) async {
+    final container = await _open(tester);
+    container.read(whatIfProvider.notifier).set(const WhatIf(lateDays: 7));
+    await tester.pump(whatIfDebounce + const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+    await _tap(tester, 'Reset');
+    expect(find.text('Undo'), findsOneWidget);
+    container.read(whatIfProvider.notifier).set(const WhatIf(defer: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Undo'), findsNothing);
+  });
+
+  testWidgets('a what-if while offline shows the error and keeps the screen', (
+    tester,
+  ) async {
+    final container = await _open(tester, offline: true);
+    container.read(whatIfProvider.notifier).set(const WhatIf(lateDays: 7));
+    await tester.pump(whatIfDebounce + const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
+    // A lost connection is asked again a few times before it is shown as lost
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Later'), findsOneWidget);
+    expect(find.text('Try again'), findsWidgets);
+  });
 
   testWidgets(
     'the chart is one target that moves period by period for a screen reader',
@@ -334,4 +451,136 @@ void main() {
       handle.dispose();
     },
   );
+
+  testWidgets('the first-open explanation shows once and is remembered', (
+    tester,
+  ) async {
+    final container = await _open(
+      tester,
+      saved: <String, Object>{simulateIntroKey: false},
+    );
+    expect(
+      find.textContaining('Numbers after today are estimates'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Got it'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Numbers after today are estimates'),
+      findsNothing,
+    );
+    expect(container.read(prefsProvider).getBool(simulateIntroKey), isTrue);
+  });
+
+  testWidgets('the info button explains the screen', (tester) async {
+    await _open(tester);
+    await tester.tap(find.byTooltip('What am I looking at?'));
+    await tester.pumpAndSettle();
+    expect(find.text('How Time travel works'), findsOneWidget);
+    expect(find.text('The tags'), findsOneWidget);
+  });
+
+  testWidgets('opened from the calendar it lands on that day, by month', (
+    tester,
+  ) async {
+    final container = await _open(tester, initialDate: '2027-03-05');
+    final view = container.read(simViewProvider);
+    expect(view.zoom, Zoom.month);
+    expect(dayOf(view.anchor), '2027-03-05');
+  });
+
+  testWidgets(
+    'other currencies show in their own money with the main-currency figure, and a missing rate is named',
+    (tester) async {
+      _walletsOverride = <Object?>[
+        _wallet(
+          'a1',
+          'Wallet',
+          'PHP',
+          simulated: 100000,
+          simulatedMain: 100000,
+        ),
+        _wallet(
+          'a2',
+          'Dollar jar',
+          'USD',
+          simulated: 5000,
+          simulatedMain: 290000,
+        ),
+        _wallet('a3', 'Yen box', 'JPY', simulated: 9000),
+      ];
+      _entriesOverride = <Object?>[
+        <String, Object?>{
+          'source': 'simulated',
+          'kind': 'out',
+          'date': _today,
+          'label': 'Hosting',
+          'accountName': 'Dollar jar',
+          'currency': 'USD',
+          'amount': 1500,
+          'amountMain': 87000,
+        },
+        <String, Object?>{
+          'source': 'simulated',
+          'kind': 'out',
+          'date': _today,
+          'label': 'Ramen',
+          'accountName': 'Yen box',
+          'currency': 'JPY',
+          'amount': 900,
+          'amountMain': null,
+        },
+      ];
+      await _open(tester);
+      expect(
+        find.text('No exchange rate for JPY: left out of the totals.'),
+        findsOneWidget,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Ramen'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('about'), findsWidgets);
+      expect(find.text('no exchange rate yet'), findsWidgets);
+      expect(find.textContaining('USD'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'a period whose every wallet lacks a rate has no total, not zero',
+    (tester) async {
+      _walletsOverride = <Object?>[
+        _wallet('a3', 'Yen box', 'JPY', simulated: 9000),
+      ];
+      await _open(tester);
+      expect(find.text('No total'), findsOneWidget);
+      // Nothing is drawn from a total that is unknown: no zero shown as recorded money
+      expect(find.text('Recorded up to today'), findsNothing);
+    },
+  );
+
+  testWidgets('the header holds at a narrow width and a large text size', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await _open(tester);
+    expect(tester.takeException(), isNull);
+    // The zoom turns into chips at this size
+    expect(find.byType(ChoiceChip), findsNWidgets(4));
+  });
+
+  testWidgets('the screen holds in Filipino at a narrow width', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _open(tester, locale: 'fil');
+    expect(tester.takeException(), isNull);
+    // Four segments no longer fit one row on this width: the same choice is chips
+    expect(find.byType(ChoiceChip), findsNWidgets(4));
+  });
 }

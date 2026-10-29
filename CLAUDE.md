@@ -15,6 +15,7 @@ Botler is a personal AI butler for finance and scheduling: a Flutter Android app
 
 ## Flow plans and running sessions
 
+- When the user types `/flow` (or mentions it), do not run the skill or touch the board immediately. Wait for their instruction on what to do, then act on it.
 - Keep the plan on the board in sync with the code at all times. Record every finished step with `step_done` as you finish it, before the next one, and keep status, decisions and the resume note true.
 - A claimed item shows a "running" badge until released or 120 minutes pass without a heartbeat. Call `work_stop` after the last step, when you hand the work back and before moving to another item. Never end a session with a claim held.
 - Work that belongs to no item is not claimed. Before asking for sign-off run `/flow-audit`.

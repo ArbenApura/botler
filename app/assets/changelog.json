@@ -130,5 +130,29 @@
       "Sa nakaraan, makikita ang totoong naitala katabi ng gagawin sana ng plano mo, at ang mga sweldo at bill na hindi naitala. Malinaw na simulation lang ang hinaharap, hindi totoong pera.",
       "Subukan ang What if: laktawan ang sweldo, bayaran nang huli ang bills, patayin ang isang rule, baguhin ang sweldo o magdagdag ng kunwaring gastos. Walang nase-save."
     ]
+  },
+  {
+    "versionCode": 18,
+    "versionName": "1.1.7",
+    "en": [
+      "Updates are now much smaller and faster to download: Botler fetches only the build made for your phone instead of every kind of phone."
+    ],
+    "fil": [
+      "Mas maliit at mas mabilis na nang i-download ang mga update: ang build na para lang sa phone mo ang kinukuha ng Botler, hindi na ang para sa lahat ng klase ng phone."
+    ]
+  },
+  {
+    "versionCode": 19,
+    "versionName": "1.1.8",
+    "en": [
+      "Time travel is simpler. One box at the top says whether you are looking at real money or an estimate, the info button explains the screen, and the date, the day/week/month/year choice and the big total sit together in one card.",
+      "Other currencies are shown properly: each wallet and bill in its own money with about how much that is in your main currency, and a currency with no exchange rate is named instead of being counted as zero.",
+      "What if is easier too: pick a ready-made choice with one tap (tap again to turn it off), or open Change something yourself. Reset can be undone."
+    ],
+    "fil": [
+      "Mas simple na ang Time travel. Isang kahon sa itaas ang nagsasabi kung totoong pera o tantiya ang tinitingnan mo, ipinapaliwanag ng info button ang screen, at magkakasama sa isang card ang petsa, ang pagpili ng araw/linggo/buwan/taon at ang malaking kabuuan.",
+      "Maayos nang ipinapakita ang ibang pera: ang bawat wallet at bill sa sarili nitong pera kasama ang halos magkano ito sa pangunahing pera mo, at pinangangalanan ang perang walang palitan sa halip na ibilang na zero.",
+      "Mas madali na rin ang What if: pumili ng handang opsyon sa isang tap (i-tap ulit para patayin), o buksan ang Magbago ng sarili. Maaaring ibalik ang Reset."
+    ]
   }
 ]

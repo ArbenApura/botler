@@ -7,6 +7,7 @@ import type { RecordedSnapshot, RecordedTxn, SimulateInput } from '../../src/lib
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { manilaNoon, toManilaDate } from '../../src/lib/finance/dates';
+import { convert } from '../../src/lib/finance/fx';
 import { planFlows } from '../../src/lib/finance/planFlows';
 import { applyScenario } from '../../src/lib/finance/scenario';
 import { MAX_ENTRIES, simulate } from '../../src/lib/finance/simulate';
@@ -380,6 +381,46 @@ describe('the period that holds today and the future', () => {
 		expect(net?.count).toBeGreaterThan(5);
 		// A payday split with a bill of no amount is not in the moves and says so
 		expect(out.notes.some((n) => n.kind === 'missing_amount' && n.bill === 'Internet')).toBe(true);
+	});
+
+	it('gives each wallet its main-currency figure at the stored rate, and null (never zero) for a currency with no rate', () => {
+		const out = sim({
+			snapshots: [
+				...SNAPSHOTS,
+				{ accountId: 'save', currency: 'USD', amount: 5_000, takenAt: manilaNoon('2026-01-02') },
+				{ accountId: 'jar', currency: 'EUR', amount: 5_000, takenAt: manilaNoon('2026-01-02') }
+			],
+			wallets: [
+				...WALLETS,
+				{ accountId: 'save', currency: 'USD' },
+				{ accountId: 'jar', currency: 'EUR' }
+			]
+		});
+		const wallets = month(out, '2026-03').wallets;
+		const php = wallets.find((w) => w.accountId === 'rcbc');
+		const usd = wallets.find((w) => w.currency === 'USD');
+		const eur = wallets.find((w) => w.currency === 'EUR');
+		// A main-currency wallet is its own figure
+		expect(php?.recordedMain).toBe(php?.recorded);
+		// 50.00 USD comes to exactly what the stored rate converts it to, a whole number of centavos
+		const usdInMain = convert(5_000, 'USD', 'PHP', realPlan().rates);
+		expect(usd?.recorded).toBe(5_000);
+		expect(usd?.recordedMain).toBe(usdInMain);
+		expect(Number.isInteger(usdInMain)).toBe(true);
+		expect(usdInMain).toBeGreaterThan(5_000);
+		// After today the simulated figure is converted the same way
+		expect(month(out, '2026-12').wallets.find((w) => w.currency === 'USD')?.simulatedMain).toBe(
+			usdInMain
+		);
+		// EUR has no rate: the balance is there, its main figure is null and the currency is named
+		expect(eur?.recorded).toBe(5_000);
+		expect(eur?.recordedMain).toBeNull();
+		expect(out.missing).toContain('EUR');
+		// The replay balance has no rate either; and a source the period has nothing for stays null on both sides
+		expect(eur?.replayMain).toBeNull();
+		expect(
+			month(out, '2026-12').wallets.find((w) => w.currency === 'USD')?.recordedMain
+		).toBeNull();
 	});
 
 	it('works out what a short pay can fund and says it is short', () => {

@@ -3,7 +3,7 @@
 // The routes pass the folder in, so the tests use a temporary one. Logs hold codes only, never a path, a token or a header.
 
 // -- TYPES -- //
-import type { Manifest } from '../../app-update/rules';
+import type { Abi, Manifest } from '../../app-update/rules';
 // -- DEP-MODULES -- //
 import { createReadStream } from 'node:fs';
 import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
@@ -11,11 +11,15 @@ import { join, sep } from 'node:path';
 import { Readable } from 'node:stream';
 // -- MODULES -- //
 import {
+	abiOfFileName,
 	apkFileName,
 	codeOfFileName,
 	decideUpdate,
+	parseAbi,
+	parseAbiList,
 	parseManifest,
-	parseRange
+	parseRange,
+	pickAbi
 } from '../../app-update/rules';
 import { OpsError } from '../ops/context';
 import { fail, json } from '../api/http';
@@ -46,22 +50,30 @@ async function readManifest(dir: string): Promise<Manifest | null> {
 	return manifest;
 }
 
-/** Does the file the manifest names exist with the size it promises? */
-async function apkMatches(dir: string, manifest: Manifest): Promise<boolean> {
+/** Does the file the manifest names (for one architecture, or the universal build) exist with the size it promises? */
+async function apkMatches(
+	dir: string,
+	manifest: Manifest,
+	abi: Abi | null,
+	size: number
+): Promise<boolean> {
 	try {
 		// lstat, like the download: a link is never a build
-		const s = await lstat(join(dir, apkFileName(manifest.versionName, manifest.versionCode)));
-		return s.isFile() && s.size === manifest.size;
+		const s = await lstat(
+			join(dir, apkFileName(manifest.versionName, manifest.versionCode, abi ?? undefined))
+		);
+		return s.isFile() && s.size === size;
 	} catch {
 		return false;
 	}
 }
 
-/** The version check. The caller sends the versionCode the phone is running. */
+/** The version check. The caller sends the versionCode it runs and, from newer builds, its architectures (most preferred first). */
 export async function handleUpdateCheck(input: {
 	dir: string;
 	signedIn: boolean;
 	installed: string | null;
+	abis?: string | null;
 }): Promise<Response> {
 	if (!input.signedIn) return unauthenticated();
 	if (!input.installed || !/^\d{1,9}$/.test(input.installed))
@@ -69,14 +81,28 @@ export async function handleUpdateCheck(input: {
 	const installedCode = Number(input.installed);
 	try {
 		const manifest = await readManifest(input.dir);
-		const apkOk = manifest ? await apkMatches(input.dir, manifest) : false;
+		// The phone's own architecture first; the universal build when none of its architectures was published (or none was sent)
+		let abi = manifest ? pickAbi(manifest, parseAbiList(input.abis ?? null)) : null;
+		let offered = manifest;
+		let apkOk = false;
+		if (manifest && abi) {
+			const file = manifest.apks?.[abi];
+			apkOk = Boolean(file) && (await apkMatches(input.dir, manifest, abi, file?.size ?? 0));
+			if (apkOk && file) offered = { ...manifest, size: file.size, sha256: file.sha256 };
+			else abi = null;
+		}
+		if (manifest && !apkOk) {
+			abi = null;
+			offered = manifest;
+			apkOk = await apkMatches(input.dir, manifest, null, manifest.size);
+		}
 		const status = decideUpdate(manifest, installedCode, apkOk);
-		if (status === 'none' || !manifest) return json({ status: 'none', installedCode });
+		if (status === 'none' || !offered || !manifest) return json({ status: 'none', installedCode });
 		return json({
 			status,
 			installedCode,
-			latest: manifest,
-			downloadPath: `/api/v1/app/update/apk/${manifest.versionCode}`
+			latest: offered,
+			downloadPath: `/api/v1/app/update/apk/${manifest.versionCode}${abi ? `?abi=${abi}` : ''}`
 		});
 	} catch (e) {
 		return fail(e);
@@ -88,12 +114,17 @@ export async function handleApkDownload(input: {
 	dir: string;
 	signedIn: boolean;
 	code: string;
+	/** One architecture word, or null for the universal build. */
+	abi?: string | null;
 	request: Request;
 }): Promise<Response> {
 	if (!input.signedIn) return unauthenticated();
 	if (!/^\d{1,9}$/.test(input.code))
 		return fail(new OpsError('INVALID', 'versionCode must be a whole number'));
 	const code = Number(input.code);
+	const wantedAbi = input.abi ? parseAbi(input.abi) : null;
+	if (input.abi && !wantedAbi)
+		return fail(new OpsError('INVALID', 'abi is not a published architecture'));
 	try {
 		// The file is found by listing the folder, never by putting the parameter into a path
 		let names: string[];
@@ -106,7 +137,7 @@ export async function handleApkDownload(input: {
 			console.error('App update: the releases folder cannot be read', errno ?? 'unknown');
 			throw new OpsError('UNAVAILABLE', 'Updates are not available right now');
 		}
-		const name = names.find((n) => codeOfFileName(n) === code);
+		const name = names.find((n) => codeOfFileName(n) === code && abiOfFileName(n) === wantedAbi);
 		if (!name) throw new OpsError('NOT_FOUND', 'That build is not available');
 		const path = join(input.dir, name);
 		// A link or a path that leaves the folder is never served

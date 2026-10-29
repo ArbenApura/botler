@@ -8,10 +8,11 @@ import { handleApkDownload } from '#lib/server/appUpdate/handlers.js';
 // -- FUNCTIONS -- //
 
 /** The APK of one published build, streamed with byte ranges. Signed in people only. */
-export const GET: RequestHandler = ({ locals, params, request }) =>
+export const GET: RequestHandler = ({ locals, params, request, url }) =>
 	handleApkDownload({
 		dir: BOTLER_RELEASES_DIR,
 		signedIn: Boolean(locals.user),
 		code: params.versionCode,
+		abi: url.searchParams.get('abi'),
 		request
 	});

@@ -36,6 +36,14 @@ android {
         versionName = flutter.versionName
     }
 
+    packaging {
+        jniLibs {
+            // Native libraries are compressed inside the APK (the Flutter engine, the Dart code and the OCR library are about 30 MB per
+            // architecture): the update download is much smaller. The phone unpacks them once at install
+            useLegacyPackaging = true
+        }
+    }
+
     signingConfigs {
         if (keyProps.containsKey("storeFile")) {
             create("release") {

@@ -47,7 +47,12 @@ class SimWallet {
       archived = boolOf(j['archived']),
       recorded = _intOrNull(j['recorded']),
       replay = _intOrNull(j['replay']),
-      simulated = _intOrNull(j['simulated']);
+      simulated = _intOrNull(j['simulated']),
+      recordedMain = _intOrNull(j['recordedMain']),
+      replayMain = _intOrNull(j['replayMain']),
+      simulatedMain = _intOrNull(j['simulatedMain']),
+      mainKnown =
+          j.containsKey('recordedMain') || j.containsKey('simulatedMain');
 
   final String accountId;
   final String accountName;
@@ -56,6 +61,23 @@ class SimWallet {
   final int? recorded;
   final int? replay;
   final int? simulated;
+
+  /// The same balances in the main currency at the stored rates, worked out by the server. A null with a balance beside it is a
+  /// currency with no rate.
+  final int? recordedMain;
+  final int? replayMain;
+  final int? simulatedMain;
+
+  /// False for an older saved answer that has no main-currency figures at all (nothing can be said about rates then).
+  final bool mainKnown;
+
+  /// The balance for the past or for after today, and its main-currency twin.
+  int? amountFor({required bool past}) => past ? recorded : simulated;
+  int? mainFor({required bool past}) => past ? recordedMain : simulatedMain;
+
+  /// A balance exists but could not be converted: its currency has no rate.
+  bool noRate({required bool past}) =>
+      mainKnown && amountFor(past: past) != null && mainFor(past: past) == null;
 }
 
 /// One period: its dates, which part of time it is, and its totals in the main currency by source.
@@ -113,6 +135,7 @@ class SimEntry {
       toAccountName = str(j['toAccountName']),
       currency = str(j['currency']),
       amount = _intOrNull(j['amount']),
+      amountMain = _intOrNull(j['amountMain']),
       pretend = boolOf(j['pretend']);
 
   final SimSource source;
@@ -125,6 +148,9 @@ class SimEntry {
   final String toAccountName;
   final String currency;
   final int? amount;
+
+  /// The amount in the main currency at the stored rates; null for a currency with no rate (or no amount).
+  final int? amountMain;
 
   /// A one-off entry of a what-if.
   final bool pretend;
@@ -335,8 +361,12 @@ const int reachDays = 1827;
 
 /// The phone's saved copy of the last plain answer per zoom. Cleared by a data reset.
 const String simulateCachePrefix = 'simulate.overview.v1.';
+
+/// Set once the person has seen the short explanation of Time travel. A data reset clears it with the saved answers.
+const String simulateIntroKey = 'simulate.intro.seen';
 List<String> get simulateCacheKeys => <String>[
   for (final z in Zoom.values) '$simulateCachePrefix${z.name}',
+  simulateIntroKey,
 ];
 
 const Duration whatIfDebounce = Duration(milliseconds: 400);
@@ -446,6 +476,24 @@ class SimViewNotifier extends Notifier<SimView> {
 
 final NotifierProvider<SimViewNotifier, SimView> simViewProvider =
     NotifierProvider.autoDispose<SimViewNotifier, SimView>(SimViewNotifier.new);
+
+/// Whether the short explanation was already seen, kept on the phone.
+class SimIntroNotifier extends Notifier<bool> {
+  @override
+  bool build() => ref.watch(prefsProvider).getBool(simulateIntroKey) ?? false;
+
+  Future<void> markSeen() async {
+    state = true;
+    try {
+      await ref.read(prefsProvider).setBool(simulateIntroKey, true);
+    } on Object {
+      // Not being able to remember it only shows the note once more
+    }
+  }
+}
+
+final NotifierProvider<SimIntroNotifier, bool> simIntroSeenProvider =
+    NotifierProvider.autoDispose<SimIntroNotifier, bool>(SimIntroNotifier.new);
 
 /// The what-if as the person edits it. Never saved anywhere.
 class WhatIfNotifier extends Notifier<WhatIf> {
