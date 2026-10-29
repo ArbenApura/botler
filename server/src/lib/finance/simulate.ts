@@ -28,8 +28,13 @@ import { occurrencesBetween } from './schedule';
 
 export type Source = 'recorded' | 'replay' | 'simulated' | 'missed';
 
-/** A recorded ledger entry, with what the person sees. Voided entries are never passed. */
-export type RecordedTxn = Txn & { id: string; label: string };
+/** A recorded ledger entry, with what the person sees. Voided entries are never passed. The bill and category group its spending. */
+export type RecordedTxn = Txn & {
+	id: string;
+	label: string;
+	billId?: string | null;
+	category?: string | null;
+};
 
 export type RecordedSnapshot = {
 	accountId: string;
@@ -54,12 +59,38 @@ export type SimulateInput = {
 	wallets: readonly { accountId: string; currency: string }[];
 	snapshots: readonly RecordedSnapshot[];
 	txns: readonly RecordedTxn[];
-	/** detail adds every entry of the range, capped. */
+	/** detail adds every entry of the range and the spending per group. */
 	detail: boolean;
+	/** Names of bills that are no longer in the plan (deleted or inactive), by id, for the labels of their spending. */
+	billNames?: ReadonlyMap<string, string>;
+	/**
+	 * detail only: a page of the entries, optionally of one group. Left out, the answer is the older one: up to MAX_ENTRIES entries and the
+	 * number omitted. With it, entries holds that slice of the one ordered list and entriesTotal counts the entries of the group.
+	 */
+	page?: { offset: number; limit: number; groupKey?: string };
 	limits?: RangeLimits;
 };
 
+/** One group of spending: a bill, a category, or other. */
+export type SpendGroup = {
+	key: string;
+	label: string;
+	kind: 'bill' | 'category' | 'other';
+	/** Main currency, the sum of the per-row figures (refunds count below zero). */
+	amount: number;
+	count: number;
+};
+
+export type SpendBreakdown = {
+	/** The biggest groups by amount, at most BREAKDOWN_GROUPS. */
+	groups: SpendGroup[];
+	/** The rest of the groups together, or null when every group is listed. */
+	more: { amount: number; count: number; groups: number } | null;
+};
+
 export type SimEntry = {
+	/** Stable across requests: the ledger row's id for a recorded entry, source and position for the rest. */
+	id: string;
 	source: Source;
 	kind: 'in' | 'out' | 'move';
 	date: ManilaDate;
@@ -72,6 +103,17 @@ export type SimEntry = {
 	/** Minor units, above zero. Null only for a missed date whose amount was never known. */
 	amount: number | null;
 	amountMain: number | null;
+	/**
+	 * What the entry does to the period's totals, in the main currency. Present means it counts: groupKey and spentMain for spending
+	 * (an expense, a transfer fee, a bill or other money out; a refund is below zero), receivedMain for income, untrackedMain for a
+	 * negative balance count. Null is a currency with no rate: left out, never zero. A transfer between own accounts has none of them.
+	 */
+	groupKey?: string;
+	spentMain?: number | null;
+	receivedMain?: number | null;
+	untrackedMain?: number | null;
+	/** Money back for an earlier expense: it lowers spending and is not money received. */
+	refund?: boolean;
 	/** A one-off entry of a what-if. */
 	pretend?: boolean;
 };
@@ -112,6 +154,22 @@ export type SimPeriod = {
 	/** A replayed or simulated wallet was under its account's minimum, or below zero, at the end of a day. */
 	low: boolean;
 	below: boolean;
+	/**
+	 * Money out and in during the period, in the main currency, each row converted on its own and added (never a conversion of a sum).
+	 * Spent is expenses plus transfer fees minus refunds (finance/ledger.ts: a transfer between own accounts is never spending); received
+	 * is income only; untracked is the negative balance counts, shown apart and never part of spent. Recorded runs to now, so the period
+	 * of today has recorded so far and simulated for the rest. Replay and simulated are the plan's money out and in (bills, paydays and
+	 * what-if entries), never its moves between accounts. Null when that source has nothing for the period. In the period of the first
+	 * record the replay starts the day after it. A currency with no rate is left out and named in leftOut.
+	 */
+	recordedSpent: number | null;
+	recordedReceived: number | null;
+	recordedUntracked: number | null;
+	replaySpent: number | null;
+	replayReceived: number | null;
+	simulatedSpent: number | null;
+	simulatedReceived: number | null;
+	leftOut: string[];
 	wallets: SimWallet[];
 };
 
@@ -141,9 +199,14 @@ export type Simulation = {
 	/** The day of the first count or entry, or null when nothing was ever recorded. */
 	firstRecord: ManilaDate | null;
 	periods: SimPeriod[];
-	/** detail only: every entry of the range in date order, cut at MAX_ENTRIES. */
+	/** detail only: the entries of the range in one total order (date, source, time, id): a page of them, or cut at MAX_ENTRIES. */
 	entries?: SimEntry[];
 	entriesOmitted?: number;
+	/** detail with a page: how many entries there are (of the group, when one was asked for), and where this page starts. */
+	entriesTotal?: number;
+	entriesOffset?: number;
+	/** detail only: the spending of the whole range per group and per source, whatever group the entries were limited to. */
+	breakdown?: { recorded: SpendBreakdown; replay: SpendBreakdown; simulated: SpendBreakdown };
 	warnings: SimWarning[];
 	unknown: SimUnknown[];
 	notes: PlanNote[];
@@ -154,6 +217,12 @@ export type Simulation = {
 // -- CONSTANTS -- //
 
 export const MAX_ENTRIES = 500;
+/** The page size limits of a detail view that asks for a page. */
+export const MAX_PAGE = 100;
+/** The groups the spending breakdown lists one by one. */
+export const BREAKDOWN_GROUPS = 30;
+/** The group of spending with no bill and no category. */
+export const OTHER_GROUP = 'other';
 const MAX_WARNINGS = 30;
 const ORDER = { in: 0, move: 1, out: 2 } as const;
 
@@ -374,6 +443,7 @@ export function simulate(input: SimulateInput): Simulation {
 	// -- MISSED -- //
 
 	const missedEntries: SimEntry[] = [];
+	let missedSeq = 0;
 	const lastPast = addDays(today, -1);
 	if (firstRecord && from <= lastPast) {
 		const a = from > firstRecord ? from : firstRecord;
@@ -397,6 +467,7 @@ export function simulate(input: SimulateInput): Simulation {
 						seen = basePlan.incomeDays.has(`${inc.accountId}|${d}`);
 					if (seen) continue;
 					missedEntries.push({
+						id: `missed:${missedSeq++}`,
 						source: 'missed',
 						kind: 'in',
 						date: payday,
@@ -420,6 +491,7 @@ export function simulate(input: SimulateInput): Simulation {
 			)) {
 				if (d.paid || d.dueDate < (created.get(d.billId) ?? d.dueDate)) continue;
 				missedEntries.push({
+					id: `missed:${missedSeq++}`,
 					source: 'missed',
 					kind: 'out',
 					date: d.dueDate,
@@ -442,7 +514,34 @@ export function simulate(input: SimulateInput): Simulation {
 	const notes: PlanNote[] = [...(future?.notes ?? [])];
 	const unknownRaw = [...(future?.unknown ?? [])];
 	const periods: SimPeriod[] = [];
+
+	// -- SPENDING GROUPS -- //
+
+	const billNames = new Map<string, string>([
+		...(input.billNames ?? []),
+		...basePlan.bills.map((b) => [b.id, b.name] as const)
+	]);
+	/** Each group's label and kind, from the first entry that named it. */
+	const groupInfo = new Map<string, { label: string; kind: SpendGroup['kind'] }>();
+	const billGroup = (id: string, fallback: string): string => {
+		const k = `bill:${id}`;
+		if (!groupInfo.has(k)) groupInfo.set(k, { label: billNames.get(id) ?? fallback, kind: 'bill' });
+		return k;
+	};
+	const categoryGroup = (category: string | null | undefined): string => {
+		const name = (category ?? '').trim();
+		if (!name) return OTHER_GROUP;
+		const k = `cat:${name.toLowerCase()}`;
+		if (!groupInfo.has(k)) groupInfo.set(k, { label: name, kind: 'category' });
+		return k;
+	};
+	groupInfo.set(OTHER_GROUP, { label: '', kind: 'other' });
+	/** Entries are ordered by date, source, then this key, then id: one total order whatever order the rows were read in. */
+	const orderKey = new Map<SimEntry, string>();
+	const seq = { replay: 0, simulated: 0 };
+
 	const asEntry = (f: PlanFlow, source: 'replay' | 'simulated'): SimEntry => ({
+		id: `${source}:${seq[source]++}`,
 		source,
 		kind: f.kind,
 		date: f.date,
@@ -457,6 +556,136 @@ export function simulate(input: SimulateInput): Simulation {
 		amountMain: inMain(f.amount, f.currency),
 		...(f.origin === 'pretend' ? { pretend: true } : {})
 	});
+	/** A plan flow with what it does to the totals: money out is spending (its bill, else other), money in is received, a move is neither. */
+	const flowEntry = (f: PlanFlow, source: 'replay' | 'simulated'): SimEntry => {
+		const e = asEntry(f, source);
+		if (f.kind === 'out') {
+			e.groupKey = f.origin === 'bill' && f.refId ? billGroup(f.refId, f.label) : OTHER_GROUP;
+			e.spentMain = e.amountMain;
+		} else if (f.kind === 'in') e.receivedMain = e.amountMain;
+		return e;
+	};
+	/** A recorded row as its entries: a transfer between own accounts is a move and spends nothing, but its fee is spending of its own. */
+	const recordedEntries = (t: RecordedTxn): SimEntry[] => {
+		const date = toManilaDate(t.occurredAt);
+		const base = {
+			id: t.id,
+			source: 'recorded' as const,
+			date,
+			label: t.label,
+			accountId: t.accountId,
+			accountName: nameOf(t.accountId),
+			currency: t.currency
+		};
+		const at = `${t.occurredAt.toISOString()}|${t.id}`;
+		const out: SimEntry[] = [];
+		const add = (e: SimEntry) => {
+			orderKey.set(e, at);
+			out.push(e);
+		};
+		const spending = () => (t.billId ? billGroup(t.billId, t.label) : categoryGroup(t.category));
+		if (t.type === 'transfer') {
+			const to = t.toAccountId ?? t.accountId;
+			add({
+				...base,
+				kind: 'move',
+				toAccountId: to,
+				toAccountName: nameOf(to),
+				amount: t.amount,
+				amountMain: inMain(t.amount, t.currency)
+			});
+			if ((t.fee ?? 0) > 0) {
+				const fee = t.fee ?? 0;
+				const feeMain = inMain(fee, t.currency);
+				add({
+					...base,
+					id: `${t.id}:fee`,
+					label: 'Transfer fee',
+					kind: 'out',
+					amount: fee,
+					amountMain: feeMain,
+					groupKey: OTHER_GROUP,
+					spentMain: feeMain
+				});
+			}
+			return out;
+		}
+		const amount = Math.abs(t.amount);
+		const amountMain = inMain(amount, t.currency);
+		if (t.type === 'expense')
+			add({
+				...base,
+				kind: 'out',
+				amount,
+				amountMain,
+				groupKey: spending(),
+				spentMain: amountMain
+			});
+		else if (t.type === 'refund')
+			add({
+				...base,
+				kind: 'in',
+				amount,
+				amountMain,
+				refund: true,
+				groupKey: spending(),
+				spentMain: amountMain === null ? null : -amountMain
+			});
+		else if (t.type === 'income')
+			add({ ...base, kind: 'in', amount, amountMain, receivedMain: amountMain });
+		// A reset is not spending (ops/ledger.ts), so a negative reset is an entry with no figure; any other negative count is untracked
+		else if (t.amount < 0 && t.category !== 'reset')
+			add({ ...base, kind: 'out', amount, amountMain, untrackedMain: amountMain });
+		else if (t.amount < 0) add({ ...base, kind: 'out', amount, amountMain });
+		else add({ ...base, kind: 'in', amount, amountMain });
+		return out;
+	};
+	/** Adds up the entries that count, leaving out (and naming) a currency with no rate. */
+	const sumOf = (list: readonly SimEntry[], left: Set<string>) => {
+		let spent = 0;
+		let received = 0;
+		let untracked = 0;
+		for (const e of list) {
+			if (e.groupKey !== undefined) {
+				if (e.spentMain === null || e.spentMain === undefined) left.add(e.currency);
+				else spent += e.spentMain;
+			} else if (e.receivedMain !== undefined) {
+				if (e.receivedMain === null) left.add(e.currency);
+				else received += e.receivedMain;
+			} else if (e.untrackedMain !== undefined) {
+				if (e.untrackedMain === null) left.add(e.currency);
+				else untracked += e.untrackedMain;
+			}
+		}
+		return { spent, received, untracked };
+	};
+
+	// Recorded entries once, by their Manila day, up to today: every period then adds its own days
+	const recordedByDate = new Map<ManilaDate, SimEntry[]>();
+	const lastRecordedDay = to < today ? to : today;
+	for (const t of input.txns) {
+		const d = toManilaDate(t.occurredAt);
+		if (d < from || d > lastRecordedDay) continue;
+		const list = recordedByDate.get(d) ?? [];
+		list.push(...recordedEntries(t));
+		recordedByDate.set(d, list);
+	}
+	// The simulated flows once, by day
+	const simulatedByDate = new Map<ManilaDate, SimEntry[]>();
+	for (const f of future?.flows ?? []) {
+		const list = simulatedByDate.get(f.date) ?? [];
+		list.push(flowEntry(f, 'simulated'));
+		simulatedByDate.set(f.date, list);
+	}
+	const entriesBetween = (
+		byDate: ReadonlyMap<ManilaDate, SimEntry[]>,
+		a: ManilaDate,
+		b: ManilaDate
+	) => {
+		const out: SimEntry[] = [];
+		for (let d = a; d <= b; d = addDays(d, 1)) out.push(...(byDate.get(d) ?? []));
+		return out;
+	};
 
 	for (let start = from; start <= to;) {
 		const end = periodEnd(start, to, group, input.weekStart);
@@ -489,8 +718,23 @@ export function simulate(input: SimulateInput): Simulation {
 		let simulatedEnd: number | null = null;
 		let low = false;
 		let below = false;
+		const left = new Set<string>();
+		let recordedSpent: number | null = null;
+		let recordedReceived: number | null = null;
+		let recordedUntracked: number | null = null;
+		let replaySpent: number | null = null;
+		let replayReceived: number | null = null;
+		let simulatedSpent: number | null = null;
+		let simulatedReceived: number | null = null;
 
 		if (part !== 'future' && !beforeFirst) {
+			// What was recorded in the period, up to now for the period of today
+			const done = entriesBetween(recordedByDate, start, part === 'past' ? end : today);
+			const sum = sumOf(done, left);
+			recordedSpent = sum.spent;
+			recordedReceived = sum.received;
+			recordedUntracked = sum.untracked;
+			if (input.detail) entries.push(...done);
 			const startBalances = recordedAt(before(start));
 			const endBalances = recordedAt(part === 'past' ? endOf(end) : now);
 			recordedStart = totalOf(startBalances);
@@ -515,13 +759,11 @@ export function simulate(input: SimulateInput): Simulation {
 				below ||= flags.below;
 				replayEnd = totalOf(balance);
 				for (const [k, b] of balance) if (b !== null) line(k).replay = b;
-				if (input.detail) for (const f of replay.flows) entries.push(asEntry(f, 'replay'));
-			}
-			if (input.detail) {
-				const a = manilaStart(start);
-				const b = part === 'past' ? endOf(end) : now;
-				for (const t of input.txns)
-					if (t.occurredAt >= a && t.occurredAt <= b) entries.push(recordedEntry(t));
+				const replayed = replay.flows.map((f) => flowEntry(f, 'replay'));
+				const replaySum = sumOf(replayed, left);
+				replaySpent = replaySum.spent;
+				replayReceived = replaySum.received;
+				if (input.detail) entries.push(...replayed);
 			}
 		}
 		if (part !== 'past' && future) {
@@ -537,9 +779,11 @@ export function simulate(input: SimulateInput): Simulation {
 			const flags = lowIn(lo, end);
 			low ||= flags.low;
 			below ||= flags.below;
-			if (input.detail)
-				for (const f of future.flows)
-					if (f.date >= lo && f.date <= end) entries.push(asEntry(f, 'simulated'));
+			const coming = entriesBetween(simulatedByDate, lo, end);
+			const comingSum = sumOf(coming, left);
+			simulatedSpent = comingSum.spent;
+			simulatedReceived = comingSum.received;
+			if (input.detail) entries.push(...coming);
 		}
 		const missedHere = missedEntries.filter((m) => m.date >= start && m.date <= end);
 		if (input.detail) entries.push(...missedHere);
@@ -557,6 +801,14 @@ export function simulate(input: SimulateInput): Simulation {
 			missed: missedHere.length,
 			low,
 			below,
+			recordedSpent,
+			recordedReceived,
+			recordedUntracked,
+			replaySpent,
+			replayReceived,
+			simulatedSpent,
+			simulatedReceived,
+			leftOut: [...left].sort(),
 			wallets: [...lines.values()]
 				.filter((l) => !(l.archived && l.recorded === 0 && l.replay === 0))
 				// The main-currency twin of each balance: a currency with no rate stays null (and is named in `missing`), never zero
@@ -590,9 +842,50 @@ export function simulate(input: SimulateInput): Simulation {
 			if (u.date < seen.first) seen.first = u.date;
 		} else unknown.set(k, { kind: u.kind, label: u.label, count: 1, first: u.date });
 	}
-	const sorted = entries.sort((a, b) =>
-		a.date < b.date ? -1 : a.date > b.date ? 1 : SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]
-	);
+	const sorted = entries.sort((a, b) => {
+		if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+		if (a.source !== b.source) return SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source];
+		const ka = orderKey.get(a) ?? '';
+		const kb = orderKey.get(b) ?? '';
+		if (ka !== kb) return ka < kb ? -1 : 1;
+		return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+	});
+	// The spending of the whole range per source and group, from the same entries the totals add up (so the lines add up to spent)
+	const breakdownOf = (source: Source): SpendBreakdown => {
+		const sums = new Map<string, { amount: number; count: number }>();
+		for (const e of sorted) {
+			if (e.source !== source || e.groupKey === undefined) continue;
+			if (e.spentMain === null || e.spentMain === undefined) continue;
+			const seen = sums.get(e.groupKey) ?? { amount: 0, count: 0 };
+			seen.amount += e.spentMain;
+			seen.count += 1;
+			sums.set(e.groupKey, seen);
+		}
+		const all = [...sums.entries()]
+			.map(([key, v]) => ({ key, ...v }))
+			.sort((a, b) => b.amount - a.amount || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+		const shown = all.slice(0, BREAKDOWN_GROUPS).map((g): SpendGroup => ({
+			key: g.key,
+			label: groupInfo.get(g.key)?.label ?? '',
+			kind: groupInfo.get(g.key)?.kind ?? 'other',
+			amount: g.amount,
+			count: g.count
+		}));
+		const rest = all.slice(BREAKDOWN_GROUPS);
+		return {
+			groups: shown,
+			more: rest.length
+				? {
+						amount: rest.reduce((a, g) => a + g.amount, 0),
+						count: rest.reduce((a, g) => a + g.count, 0),
+						groups: rest.length
+					}
+				: null
+		};
+	};
+	const page = input.page;
+	const inGroup =
+		page?.groupKey === undefined ? sorted : sorted.filter((e) => e.groupKey === page.groupKey);
 	missing.delete('');
 	return {
 		from,
@@ -604,8 +897,26 @@ export function simulate(input: SimulateInput): Simulation {
 		periods,
 		...(input.detail
 			? {
-					entries: sorted.slice(0, MAX_ENTRIES),
-					...(sorted.length > MAX_ENTRIES ? { entriesOmitted: sorted.length - MAX_ENTRIES } : {})
+					breakdown: {
+						recorded: breakdownOf('recorded'),
+						replay: breakdownOf('replay'),
+						simulated: breakdownOf('simulated')
+					},
+					...(page
+						? {
+								entries: inGroup.slice(page.offset, page.offset + page.limit),
+								entriesTotal: inGroup.length,
+								entriesOffset: page.offset,
+								...(inGroup.length > page.offset + page.limit
+									? { entriesOmitted: inGroup.length - page.offset - page.limit }
+									: {})
+							}
+						: {
+								entries: sorted.slice(0, MAX_ENTRIES),
+								...(sorted.length > MAX_ENTRIES
+									? { entriesOmitted: sorted.length - MAX_ENTRIES }
+									: {})
+							})
 				}
 			: {}),
 		warnings,
@@ -615,33 +926,6 @@ export function simulate(input: SimulateInput): Simulation {
 		notes,
 		missing: [...missing].sort()
 	};
-
-	// -- HELPERS THAT READ THE STATE ABOVE -- //
-
-	function recordedEntry(t: RecordedTxn): SimEntry {
-		const base = {
-			source: 'recorded' as const,
-			date: toManilaDate(t.occurredAt),
-			label: t.label,
-			accountId: t.accountId,
-			accountName: nameOf(t.accountId),
-			currency: t.currency
-		};
-		if (t.type === 'transfer') {
-			const to = t.toAccountId ?? t.accountId;
-			return {
-				...base,
-				kind: 'move',
-				toAccountId: to,
-				toAccountName: nameOf(to),
-				amount: t.amount,
-				amountMain: inMain(t.amount, t.currency)
-			};
-		}
-		const kind = t.type === 'expense' || (t.type === 'adjustment' && t.amount < 0) ? 'out' : 'in';
-		const amount = Math.abs(t.amount);
-		return { ...base, kind, amount, amountMain: inMain(amount, t.currency) };
-	}
 }
 
 /** Recorded first, then the replay, the simulation and what was missed, on one day. */

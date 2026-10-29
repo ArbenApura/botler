@@ -96,6 +96,15 @@ class SimPeriod {
       missed = intOf(j['missed']),
       low = boolOf(j['low']),
       below = boolOf(j['below']),
+      totalsKnown = j.containsKey('recordedSpent'),
+      recordedSpent = _intOrNull(j['recordedSpent']),
+      recordedReceived = _intOrNull(j['recordedReceived']),
+      recordedUntracked = _intOrNull(j['recordedUntracked']),
+      replaySpent = _intOrNull(j['replaySpent']),
+      replayReceived = _intOrNull(j['replayReceived']),
+      simulatedSpent = _intOrNull(j['simulatedSpent']),
+      simulatedReceived = _intOrNull(j['simulatedReceived']),
+      leftOut = <String>[for (final c in asList(j['leftOut'])) str(c)],
       wallets = <SimWallet>[
         for (final w in asJsonList(j['wallets'])) SimWallet(w),
       ];
@@ -113,6 +122,22 @@ class SimPeriod {
   final int missed;
   final bool low;
   final bool below;
+
+  /// False for an older saved answer that has no spent and received at all: then no card is drawn (never zeros).
+  final bool totalsKnown;
+
+  /// Money out and in during the period in the main currency, worked out by the server: spent is expenses plus transfer fees minus
+  /// refunds, received is income, untracked is a negative balance count. Null when that source has nothing for the period.
+  final int? recordedSpent;
+  final int? recordedReceived;
+  final int? recordedUntracked;
+  final int? replaySpent;
+  final int? replayReceived;
+  final int? simulatedSpent;
+  final int? simulatedReceived;
+
+  /// Currencies of this period's money that have no exchange rate: left out of the figures above.
+  final List<String> leftOut;
   final List<SimWallet> wallets;
 
   bool holds(String day) => day.compareTo(from) >= 0 && day.compareTo(to) <= 0;
@@ -127,7 +152,8 @@ class SimPeriod {
 /// One entry of the detail view: real, replayed, simulated or missed.
 class SimEntry {
   SimEntry(Json j)
-    : source = _source(j['source']),
+    : id = str(j['id']),
+      source = _source(j['source']),
       kind = str(j['kind']),
       date = str(j['date']),
       label = str(j['label']),
@@ -136,8 +162,12 @@ class SimEntry {
       currency = str(j['currency']),
       amount = _intOrNull(j['amount']),
       amountMain = _intOrNull(j['amountMain']),
+      groupKey = j['groupKey'] is String ? str(j['groupKey']) : null,
+      refund = boolOf(j['refund']),
       pretend = boolOf(j['pretend']);
 
+  /// Stable across requests, so a page that overlaps the one before is not listed twice.
+  final String id;
   final SimSource source;
 
   /// in, out or move.
@@ -152,8 +182,64 @@ class SimEntry {
   /// The amount in the main currency at the stored rates; null for a currency with no rate (or no amount).
   final int? amountMain;
 
+  /// The bill, category or other it counts under in the spending breakdown; null for money in, moves and what was missed.
+  final String? groupKey;
+
+  /// Money back for an earlier expense: it lowers spending.
+  final bool refund;
+
   /// A one-off entry of a what-if.
   final bool pretend;
+}
+
+/// One group of spending: a bill, a category or other. The amount is in the main currency (refunds count below zero).
+class SpendGroup {
+  SpendGroup(Json j)
+    : key = str(j['key']),
+      label = str(j['label']),
+      kind = str(j['kind']),
+      amount = intOf(j['amount']),
+      count = intOf(j['count']);
+
+  final String key;
+
+  /// Empty for other: the screen words it in the person's language.
+  final String label;
+
+  /// bill, category or other.
+  final String kind;
+  final int amount;
+  final int count;
+}
+
+/// The spending of one source by group: the biggest ones one by one and the rest together.
+class SpendBreakdown {
+  SpendBreakdown(Json j)
+    : groups = <SpendGroup>[
+        for (final g in asJsonList(j['groups'])) SpendGroup(g),
+      ],
+      moreAmount = j['more'] is Map ? intOf(asJson(j['more'])['amount']) : 0,
+      moreCount = j['more'] is Map ? intOf(asJson(j['more'])['count']) : 0,
+      moreGroups = j['more'] is Map ? intOf(asJson(j['more'])['groups']) : 0;
+
+  final List<SpendGroup> groups;
+  final int moreAmount;
+  final int moreCount;
+
+  /// How many groups are in the rest; 0 when every group is listed.
+  final int moreGroups;
+}
+
+/// Where the money went, by source.
+class SimBreakdowns {
+  SimBreakdowns(Json j)
+    : recorded = SpendBreakdown(asJson(j['recorded'])),
+      replay = SpendBreakdown(asJson(j['replay'])),
+      simulated = SpendBreakdown(asJson(j['simulated']));
+
+  final SpendBreakdown recorded;
+  final SpendBreakdown replay;
+  final SpendBreakdown simulated;
 }
 
 class SimWarning {
@@ -199,6 +285,10 @@ class SimResult {
         for (final e in asJsonList(j['entries'])) SimEntry(e),
       ],
       entriesOmitted = intOf(j['entriesOmitted']),
+      entriesTotal = _intOrNull(j['entriesTotal']),
+      breakdown = j['breakdown'] is Map
+          ? SimBreakdowns(asJson(j['breakdown']))
+          : null,
       warnings = <SimWarning>[
         for (final w in asJsonList(j['warnings'])) SimWarning(w),
       ],
@@ -217,6 +307,12 @@ class SimResult {
   final List<SimPeriod> periods;
   final List<SimEntry> entries;
   final int entriesOmitted;
+
+  /// With a page: how many entries there are (of the group asked for). Null for the older answer.
+  final int? entriesTotal;
+
+  /// The detail view only: the spending of the whole range by group.
+  final SimBreakdowns? breakdown;
   final List<SimWarning> warnings;
   final List<SimUnknown> unknown;
   final List<String> notes;
@@ -641,8 +737,150 @@ final simOverviewProvider = FutureProvider.autoDispose.family<SimLoad, String>(
   },
 );
 
-/// Every entry of one period: "from|to|group|scenario json".
-final simDetailProvider = FutureProvider.autoDispose.family<SimLoad, String>(
-  retry: simRetry,
-  (ref, key) => _load(ref, key, detail: true),
-);
+/// The group of spending the entries are limited to (a bill, a category or other), or null for all. Cleared when the period, the zoom or
+/// the what-if changes.
+class SimGroupNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void pick(String? key) => state = key;
+}
+
+final NotifierProvider<SimGroupNotifier, String?> simGroupProvider =
+    NotifierProvider.autoDispose<SimGroupNotifier, String?>(
+      SimGroupNotifier.new,
+    );
+
+/// How many entries one page asks for.
+const int simPageSize = 50;
+
+/// The entries shown so far for one period (and group), the total there are, and where the spending went.
+class SimEntries {
+  const SimEntries({
+    required this.rows,
+    required this.total,
+    required this.sim,
+    this.loadingMore = false,
+    this.pageError,
+  });
+
+  final List<SimEntry> rows;
+  final int total;
+
+  /// The first page's answer: the period, its breakdown and the main currency.
+  final SimResult sim;
+  final bool loadingMore;
+
+  /// A later page that could not be loaded: the rows already shown stay and a retry row is drawn.
+  final Object? pageError;
+
+  bool get hasMore => rows.length < total;
+
+  SimEntries copyWith({
+    List<SimEntry>? rows,
+    int? total,
+    bool? loadingMore,
+    Object? pageError,
+    bool clearError = false,
+  }) => SimEntries(
+    rows: rows ?? this.rows,
+    total: total ?? this.total,
+    sim: sim,
+    loadingMore: loadingMore ?? this.loadingMore,
+    pageError: clearError ? null : (pageError ?? this.pageError),
+  );
+}
+
+/// One page of a period's entries, from "from|to|group|groupKey|scenario json" (groupKey empty for all). The first page comes with the
+/// state; loadMore appends the next one, and a page that fails keeps the rows already there.
+class SimEntriesNotifier extends AsyncNotifier<SimEntries> {
+  SimEntriesNotifier(this.key);
+
+  final String key;
+
+  Future<SimResult> _page(int offset) async {
+    final parts = key.split('|');
+    // The group is encoded in the key, since a category name may hold the separator
+    final groupKey = parts.length > 3 ? Uri.decodeComponent(parts[3]) : '';
+    final scenario = parts.length > 4 && parts[4].isNotEmpty
+        ? asJson(jsonDecode(parts.sublist(4).join('|')))
+        : null;
+    final answer = asJson(
+      await ref.read(apiProvider).verb('balance_simulate', <String, Object?>{
+        'from': parts[0],
+        'to': parts[1],
+        'group': parts[2],
+        'view': 'detail',
+        'offset': offset,
+        'limit': simPageSize,
+        if (groupKey.isNotEmpty) 'groupKey': groupKey,
+        'scenario': ?scenario,
+      }),
+    );
+    return SimResult(answer);
+  }
+
+  @override
+  Future<SimEntries> build() async {
+    final first = await _retrying(() => _page(0));
+    return SimEntries(
+      rows: first.entries,
+      total: first.entriesTotal ?? first.entries.length,
+      sim: first,
+    );
+  }
+
+  /// A lost connection is asked again a few times; a refusal is shown at once.
+  Future<SimResult> _retrying(Future<SimResult> Function() ask) async {
+    for (var tries = 0; ; tries++) {
+      try {
+        return await ask();
+      } on Object catch (e) {
+        final wait = simRetry(tries, e);
+        if (wait == null) rethrow;
+        await Future<void>.delayed(wait);
+      }
+    }
+  }
+
+  /// Asks for the next page, once at a time; rows already shown are kept and a repeat of one is dropped.
+  Future<void> loadMore() async {
+    final now = state.value;
+    if (now == null || now.loadingMore || !now.hasMore) return;
+    state = AsyncData<SimEntries>(
+      now.copyWith(loadingMore: true, clearError: true),
+    );
+    try {
+      final page = await _page(now.rows.length);
+      // The period or the what-if changed while the page was on its way: this list is gone and nothing is written to it
+      if (!ref.mounted) return;
+      final seen = <String>{for (final r in now.rows) r.id};
+      final added = <SimEntry>[
+        for (final r in page.entries)
+          if (seen.add(r.id)) r,
+      ];
+      final rows = <SimEntry>[...now.rows, ...added];
+      state = AsyncData<SimEntries>(
+        now.copyWith(
+          rows: rows,
+          // A page that brings nothing new means the total is stale: stop asking instead of asking again and again
+          total: added.isEmpty ? rows.length : (page.entriesTotal ?? now.total),
+          loadingMore: false,
+          clearError: true,
+        ),
+      );
+    } on Object catch (e) {
+      if (!ref.mounted) return;
+      state = AsyncData<SimEntries>(
+        now.copyWith(loadingMore: false, pageError: e),
+      );
+    }
+  }
+}
+
+/// No retry of its own: a lost connection is asked again inside the notifier, and a refusal is shown at once.
+final simEntriesProvider = AsyncNotifierProvider.autoDispose
+    .family<SimEntriesNotifier, SimEntries, String>(
+      SimEntriesNotifier.new,
+      retry: (_, _) => null,
+    );

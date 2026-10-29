@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
 import 'package:botler/features/simulate/simulate_data.dart';
+import 'package:botler/features/simulate/simulate_parts.dart';
 import 'package:botler/state/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -365,5 +366,269 @@ void main() {
       'amountMain': 87000,
     });
     expect(e.amountMain, 87000);
+  });
+
+  test(
+    'reads spent and received of a period, and an older answer without them',
+    () {
+      final period = <String, Object?>{
+        'from': '2026-03-01',
+        'to': '2026-03-31',
+        'part': 'past',
+        'recordedSpent': 85000,
+        'recordedReceived': 0,
+        'recordedUntracked': 30000,
+        'replaySpent': 150000,
+        'replayReceived': 2500000,
+        'simulatedSpent': null,
+        'simulatedReceived': null,
+        'leftOut': <String>['EUR'],
+      };
+      final p = SimPeriod(period);
+      expect(p.totalsKnown, isTrue);
+      expect(p.recordedSpent, 85000);
+      expect(p.recordedReceived, 0);
+      expect(p.simulatedSpent, isNull);
+      expect(p.leftOut, <String>['EUR']);
+      // An older saved answer has no such keys: nothing is read as zero
+      final old = SimPeriod(<String, Object?>{
+        'from': '2026-03-01',
+        'to': '2026-03-31',
+        'part': 'past',
+      });
+      expect(old.totalsKnown, isFalse);
+      expect(old.recordedSpent, isNull);
+      expect(old.leftOut, isEmpty);
+    },
+  );
+
+  test('reads the breakdown and the entry fields, and merges both sources for the period of today', () {
+    SpendGroup g(String key, int amount, [String label = '']) =>
+        SpendGroup(<String, Object?>{
+          'key': key,
+          'label': label,
+          'kind': key.startsWith('bill')
+              ? 'bill'
+              : key == 'other'
+              ? 'other'
+              : 'category',
+          'amount': amount,
+          'count': 1,
+        });
+    final b = SimBreakdowns(<String, Object?>{
+      'recorded': <String, Object?>{
+        'groups': <Object?>[
+          <String, Object?>{
+            'key': 'bill:rent',
+            'label': 'Rent',
+            'kind': 'bill',
+            'amount': 1500000,
+            'count': 1,
+          },
+          <String, Object?>{
+            'key': 'cat:food',
+            'label': 'Food',
+            'kind': 'category',
+            'amount': 5000,
+            'count': 2,
+          },
+        ],
+        'more': null,
+      },
+      'replay': <String, Object?>{'groups': <Object?>[], 'more': null},
+      'simulated': <String, Object?>{
+        'groups': <Object?>[
+          <String, Object?>{
+            'key': 'bill:rent',
+            'label': 'Rent',
+            'kind': 'bill',
+            'amount': 1500000,
+            'count': 1,
+          },
+          <String, Object?>{
+            'key': 'cat:fun',
+            'label': 'Fun',
+            'kind': 'category',
+            'amount': 20000,
+            'count': 1,
+          },
+        ],
+        'more': <String, Object?>{'amount': 700, 'count': 3, 'groups': 2},
+      },
+    });
+    expect(spendGroupsFor(b, SimPart.past).groups.map((x) => x.key), <String>[
+      'bill:rent',
+      'cat:food',
+    ]);
+    expect(spendGroupsFor(b, SimPart.future).moreAmount, 700);
+    final both = spendGroupsFor(b, SimPart.mixed);
+    // The same bill in both sources is one line with both amounts; the biggest first
+    expect(both.groups.map((x) => x.key), <String>[
+      'bill:rent',
+      'cat:fun',
+      'cat:food',
+    ]);
+    expect(both.groups.first.amount, 3000000);
+    expect(both.groups.first.count, 2);
+    expect(both.moreAmount, 700);
+    expect(both.moreGroups, 2);
+    final e = SimEntry(<String, Object?>{
+      'id': 'r1',
+      'source': 'recorded',
+      'kind': 'in',
+      'currency': 'PHP',
+      'amount': 200,
+      'groupKey': 'cat:food',
+      'refund': true,
+    });
+    expect(e.id, 'r1');
+    expect(e.groupKey, 'cat:food');
+    expect(e.refund, isTrue);
+    expect(g('other', 1).kind, 'other');
+  });
+
+  test('a group with the separator in its name is sent whole, and a page with nothing new ends the list', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final groups = <Object?>[];
+    final asked = <int>[];
+    final api = ApiClient(
+      base: 'https://botler.test',
+      token: () async => 'tok',
+      client: MockClient((req) async {
+        final body = jsonDecode(req.body) as Map<String, Object?>;
+        groups.add(body['groupKey']);
+        final offset = body['offset']! as int;
+        asked.add(offset);
+        // 90 entries are announced but only 50 exist: the second page is empty
+        final rows = offset == 0
+            ? <Object?>[
+                for (var i = 0; i < 50; i++)
+                  <String, Object?>{
+                    'id': 'r$i',
+                    'source': 'recorded',
+                    'kind': 'out',
+                    'currency': 'PHP',
+                    'amount': 100,
+                  },
+              ]
+            : <Object?>[];
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'result': <String, Object?>{
+              'from': '2026-03-01',
+              'to': '2026-03-31',
+              'today': '2026-06-10',
+              'currency': 'PHP',
+              'periods': <Object?>[],
+              'entries': rows,
+              'entriesTotal': 90,
+            },
+          }),
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      }),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        apiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
+    final key =
+        '2026-03-01|2026-03-31|month|${Uri.encodeComponent('cat:a|b')}|';
+    container.listen(simEntriesProvider(key), (_, _) {}, fireImmediately: true);
+    await container.read(simEntriesProvider(key).future);
+    expect(groups.first, 'cat:a|b');
+    final notifier = container.read(simEntriesProvider(key).notifier);
+    await notifier.loadMore();
+    final end = container.read(simEntriesProvider(key)).value!;
+    // The total is corrected to what exists, so nothing asks again
+    expect(end.total, 50);
+    expect(end.hasMore, isFalse);
+    await notifier.loadMore();
+    expect(asked, <int>[0, 50]);
+  });
+
+  test('pages of entries join up, a repeat is dropped, and a failed page keeps the rows', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    var failAt = -1;
+    final asked = <int>[];
+    Map<String, Object?> entry(int i) => <String, Object?>{
+      'id': 'r$i',
+      'source': 'recorded',
+      'kind': 'out',
+      'currency': 'PHP',
+      'amount': 100,
+    };
+    final api = ApiClient(
+      base: 'https://botler.test',
+      token: () async => 'tok',
+      client: MockClient((req) async {
+        final body = jsonDecode(req.body) as Map<String, Object?>;
+        final offset = body['offset']! as int;
+        asked.add(offset);
+        if (offset == failAt) {
+          return http.Response(
+            jsonEncode(<String, Object?>{
+              'error': <String, Object?>{'code': 'INVALID', 'message': 'No.'},
+            }),
+            400,
+            headers: <String, String>{'content-type': 'application/json'},
+          );
+        }
+        // 120 entries; the second page starts one early, so one row repeats
+        final from = offset == 0 ? 0 : offset - 1;
+        final rows = <Object?>[
+          for (var i = from; i < 120 && i < from + 50; i++) entry(i),
+        ];
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'result': <String, Object?>{
+              'from': '2026-03-01',
+              'to': '2026-03-31',
+              'today': '2026-06-10',
+              'currency': 'PHP',
+              'periods': <Object?>[],
+              'entries': rows,
+              'entriesTotal': 120,
+            },
+          }),
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+        );
+      }),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        prefsProvider.overrideWithValue(prefs),
+        apiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
+    const key = '2026-03-01|2026-03-31|month||';
+    container.listen(simEntriesProvider(key), (_, _) {}, fireImmediately: true);
+    final first = await container.read(simEntriesProvider(key).future);
+    expect(first.rows, hasLength(50));
+    expect(first.total, 120);
+    final notifier = container.read(simEntriesProvider(key).notifier);
+    await notifier.loadMore();
+    // The repeated row is dropped
+    expect(container.read(simEntriesProvider(key)).value!.rows, hasLength(99));
+    failAt = 99;
+    await notifier.loadMore();
+    final failed = container.read(simEntriesProvider(key)).value!;
+    expect(failed.rows, hasLength(99));
+    expect(failed.pageError, isNotNull);
+    expect(failed.loadingMore, isFalse);
+    failAt = -1;
+    await notifier.loadMore();
+    final done = container.read(simEntriesProvider(key)).value!;
+    expect(done.pageError, isNull);
+    expect(done.rows.map((r) => r.id).toSet(), hasLength(done.rows.length));
+    expect(asked.first, 0);
   });
 }

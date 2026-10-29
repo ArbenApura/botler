@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
@@ -37,6 +38,11 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
   /// The last answer shown, kept while the next one loads, with its zoom and how many what-if changes it was asked with. It is shown
   /// only for the same zoom (a year period never reads as a month), and the row counts the what-if of what is on screen.
   ({SimLoad load, Zoom zoom, int changes})? _last;
+
+  /// The last entries shown, for the same period and group, kept while a what-if reloads them.
+  ({String ident, SimEntries data})? _lastRows;
+
+  final ScrollController _scroll = ScrollController();
 
   // -- FUNCTIONS -- //
 
@@ -100,6 +106,12 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
   }
 
   @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.t;
     final view = ref.watch(simViewProvider);
@@ -110,6 +122,14 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
     // Any edit of the what-if drops the offer to undo a reset
     ref.listen<WhatIf>(whatIfProvider, (_, next) {
       if (!next.isEmpty) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    });
+    // A new period, zoom or what-if starts the entries from the top and from every group
+    ref.listen<SimView>(simViewProvider, (_, _) {
+      ref.read(simGroupProvider.notifier).pick(null);
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    });
+    ref.listen<WhatIf>(appliedWhatIfProvider, (_, _) {
+      ref.read(simGroupProvider.notifier).pick(null);
     });
     final window = windowFor(view.zoom, view.anchor, startsOn, _today);
     final key = window.key(whatIf);
@@ -134,6 +154,48 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
             : view.anchor.isAfter(_today)
             ? SimPart.future
             : SimPart.mixed);
+    // The entries are read a page at a time. The unfiltered list also carries the breakdown, so choosing a group never redraws it
+    final groupKey = ref.watch(simGroupProvider);
+    final canList = shown != null && period != null && !shown.offline;
+    String? allKey;
+    String? listKey;
+    if (canList) {
+      final scenario = key.split('|').sublist(3).join('|');
+      String detailKey(String group) =>
+          '${period.from}|${period.to}|${key.split('|')[2]}|${Uri.encodeComponent(group)}|$scenario';
+      allKey = detailKey('');
+      listKey = detailKey(groupKey ?? '');
+    }
+    // Promotable copies for the closures below
+    final lk = listKey;
+    final allValue = allKey == null
+        ? null
+        : ref.watch(simEntriesProvider(allKey));
+    final listValue = listKey == null
+        ? null
+        : (listKey == allKey
+              ? allValue
+              : ref.watch(simEntriesProvider(listKey)));
+    // The same period and group keep their rows while a what-if reloads them; a new period starts from a skeleton
+    final ident = period == null
+        ? ''
+        : '${period.from}|${period.to}|${view.zoom.name}|${groupKey ?? ''}';
+    final fresh = listValue?.value;
+    if (fresh != null) _lastRows = (ident: ident, data: fresh);
+    final lastRows = _lastRows;
+    // The rows of the same period and group stay only while the new answer is on its way; a failed reload shows its error
+    final rows =
+        fresh ??
+        (lastRows?.ident == ident && (listValue?.isLoading ?? false)
+            ? lastRows?.data
+            : null);
+    final breakdown = _breakdownCard(
+      allValue,
+      period,
+      shown?.sim.currency ?? '',
+      groupKey,
+      allKey,
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(t.simTitle),
@@ -188,64 +250,130 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
                   : null,
             ),
           ),
+          // One scroll view for everything: the cards are slivers of one box, the entries a lazy list under them, so only the rows on
+          // screen are ever built, however many entries there are
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                gapXL,
-                gapL,
-                gapXL,
-                96 + MediaQuery.viewPaddingOf(context).bottom,
-              ),
-              children: <Widget>[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: gapL,
-                  children: <Widget>[
-                    if (!introSeen) const _Intro(),
-                    _HeaderCard(
-                      zoom: view.zoom,
-                      label: period == null
-                          ? shortDay(context, day)
-                          : periodWords(context, period, view.zoom),
-                      onBack: () => _go(stepAnchor(view.zoom, view.anchor, -1)),
-                      onForward: () =>
-                          _go(stepAnchor(view.zoom, view.anchor, 1)),
-                      onPick: () => _pick(view.anchor),
-                      sim: shown?.sim,
-                      period: period,
-                    ),
-                    if (shownChanges > 0)
-                      WhatIfRow(
-                        changes: shownChanges,
-                        onEdit: () => showWhatIfSheet(context),
-                        onReset: _reset,
-                      ),
-                    if (shown == null)
-                      AsyncBody<SimLoad>(
-                        value: value,
-                        onRetry: () => ref.invalidate(
-                          simOverviewProvider('$key#${view.zoom.name}'),
+            child: CustomScrollView(
+              controller: _scroll,
+              slivers: <Widget>[
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(gapXL, gapL, gapXL, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: gapL,
+                      children: <Widget>[
+                        if (!introSeen) const _Intro(),
+                        _HeaderCard(
+                          zoom: view.zoom,
+                          label: period == null
+                              ? shortDay(context, day)
+                              : periodWords(context, period, view.zoom),
+                          onBack: () =>
+                              _go(stepAnchor(view.zoom, view.anchor, -1)),
+                          onForward: () =>
+                              _go(stepAnchor(view.zoom, view.anchor, 1)),
+                          onPick: () => _pick(view.anchor),
+                          sim: shown?.sim,
+                          period: period,
                         ),
-                        skeleton: const _Skeleton(),
-                        data: (_) => const SizedBox.shrink(),
-                      )
-                    else ...<Widget>[
-                      if (value.hasError && !value.isLoading)
-                        AsyncBody<SimLoad>(
-                          value: value,
-                          onRetry: () => ref.invalidate(
-                            simOverviewProvider('$key#${view.zoom.name}'),
+                        if (shownChanges > 0)
+                          WhatIfRow(
+                            changes: shownChanges,
+                            onEdit: () => showWhatIfSheet(context),
+                            onReset: _reset,
                           ),
-                          data: (_) => const SizedBox.shrink(),
-                        ),
-                      _Loaded(
-                        load: shown,
-                        zoom: view.zoom,
-                        day: day,
-                        whatIfKey: key,
-                      ),
-                    ],
-                  ],
+                        if (shown == null)
+                          AsyncBody<SimLoad>(
+                            value: value,
+                            onRetry: () => ref.invalidate(
+                              simOverviewProvider('$key#${view.zoom.name}'),
+                            ),
+                            skeleton: const _Skeleton(),
+                            data: (_) => const SizedBox.shrink(),
+                          )
+                        else ...<Widget>[
+                          if (value.hasError && !value.isLoading)
+                            AsyncBody<SimLoad>(
+                              value: value,
+                              onRetry: () => ref.invalidate(
+                                simOverviewProvider('$key#${view.zoom.name}'),
+                              ),
+                              data: (_) => const SizedBox.shrink(),
+                            ),
+                          _Loaded(
+                            load: shown,
+                            zoom: view.zoom,
+                            day: day,
+                            breakdown: breakdown,
+                          ),
+                          if (shown.offline)
+                            Text(
+                              t.simEntriesOffline,
+                              style: TextStyle(color: context.colors.muted),
+                            )
+                          else if (lk != null)
+                            _EntriesHeader(
+                              groupName: _groupName(allValue, groupKey),
+                              value: listValue,
+                              rows: rows,
+                              onClear: () => ref
+                                  .read(simGroupProvider.notifier)
+                                  .pick(null),
+                              onRetry: () =>
+                                  ref.invalidate(simEntriesProvider(lk)),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                if (rows != null &&
+                    lk != null &&
+                    shown != null &&
+                    !shown.offline)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(gapXL, gapM, gapXL, 0),
+                    sliver: SliverList.builder(
+                      itemCount: rows.rows.length + 1,
+                      itemBuilder: (context, i) {
+                        if (i == rows.rows.length) {
+                          return _EntriesFooter(
+                            data: rows,
+                            onRetry: () => ref
+                                .read(simEntriesProvider(lk).notifier)
+                                .loadMore(),
+                          );
+                        }
+                        // Near the end of what is loaded: ask for the next page (it ignores a repeat while one is on its way, and a
+                        // page that failed is only asked again by the retry button, never in a loop)
+                        if (i >= rows.rows.length - 10 &&
+                            rows.hasMore &&
+                            rows.pageError == null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              ref
+                                  .read(simEntriesProvider(lk).notifier)
+                                  .loadMore();
+                            }
+                          });
+                        }
+                        return Padding(
+                          key: ValueKey<String>(rows.rows[i].id),
+                          padding: const EdgeInsets.only(bottom: gapM),
+                          child: EntryRow(
+                            rows.rows[i],
+                            mainCurrency: shown.sim.currency,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                // Room under the last row for the floating button
+                SliverPadding(
+                  padding: EdgeInsets.only(
+                    bottom: 96 + MediaQuery.viewPaddingOf(context).bottom,
+                  ),
                 ),
               ],
             ),
@@ -253,6 +381,76 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
         ],
       ),
     );
+  }
+
+  /// Where the spending went, as a card; a skeleton while it loads and a retry line if it failed. Null when there is nothing to show.
+  Widget? _breakdownCard(
+    AsyncValue<SimEntries>? all,
+    SimPeriod? period,
+    String currency,
+    String? groupKey,
+    String? allKey,
+  ) {
+    final p = period;
+    if (all == null || p == null || allKey == null) return null;
+    final data = all.value;
+    if (data == null) {
+      if (all.hasError) {
+        return PaperCard(
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  errorWords(all.error ?? '', context),
+                  style: TextStyle(color: context.colors.muted),
+                ),
+              ),
+              TextButton(
+                onPressed: () => ref.invalidate(simEntriesProvider(allKey)),
+                child: Text(context.t.retry),
+              ),
+            ],
+          ),
+        );
+      }
+      return const SkeletonGroup(child: Skeleton(height: 140, radius: 20));
+    }
+    final b = data.sim.breakdown;
+    if (b == null) return null;
+    final g = spendGroupsFor(b, p.part);
+    if (g.groups.isEmpty && g.moreGroups == 0) return null;
+    // A group that is no longer listed (the what-if or the period changed under it) clears itself
+    if (groupKey != null && !g.groups.any((x) => x.key == groupKey)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(simGroupProvider.notifier).pick(null);
+        say(context, context.t.simGroupGone);
+      });
+    }
+    return BreakdownCard(
+      key: ValueKey<String>('${p.from}|${p.to}'),
+      groups: g.groups,
+      moreAmount: g.moreAmount,
+      moreGroups: g.moreGroups,
+      mainCurrency: currency,
+      selected: groupKey,
+      estimate: p.part == SimPart.mixed,
+      onPick: (k) => ref.read(simGroupProvider.notifier).pick(k),
+    );
+  }
+
+  /// The name of the group the entries are limited to, from the breakdown.
+  String? _groupName(AsyncValue<SimEntries>? all, String? groupKey) {
+    final b = all?.value?.sim.breakdown;
+    if (groupKey == null || b == null) return null;
+    for (final g in <SpendGroup>[...b.recorded.groups, ...b.simulated.groups]) {
+      if (g.key == groupKey) {
+        return g.kind == 'other' || g.label.isEmpty
+            ? context.t.simGroupOther
+            : g.label;
+      }
+    }
+    return context.t.simGroupOther;
   }
 }
 
@@ -350,19 +548,21 @@ class _HeaderCard extends ConsumerWidget {
   }
 }
 
-/// Everything below the header once an answer is there.
+/// Everything below the header once an answer is there: the chart, what was spent, where it went and the accounts.
 class _Loaded extends ConsumerWidget {
   const _Loaded({
     required this.load,
     required this.zoom,
     required this.day,
-    required this.whatIfKey,
+    required this.breakdown,
   });
 
   final SimLoad load;
   final Zoom zoom;
   final String day;
-  final String whatIfKey;
+
+  /// Where the spending went, when there is something to show or it is on its way.
+  final Widget? breakdown;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -373,19 +573,6 @@ class _Loaded extends ConsumerWidget {
     if (period == null) return Note(t.simNoRecords);
     final selected = sim.periods.indexOf(period);
     final first = sim.firstRecord;
-    final parts = whatIfKey.split('|');
-    final detailKey = <String>[
-      period.from,
-      period.to,
-      parts[2],
-      ...parts.sublist(3),
-    ].join('|');
-    final lines = periodLines(
-      context,
-      sim,
-      period,
-      noTotal: rateInfoOf(sim, period).noTotal,
-    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: gapL,
@@ -411,67 +598,37 @@ class _Loaded extends ConsumerWidget {
             ],
           ),
         ),
-        if (lines.isNotEmpty)
-          PaperCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: gapM,
-              children: lines,
-            ),
-          ),
+        SpendCard(sim: sim, period: period),
+        ?breakdown,
         WalletsCard(period: period, mainCurrency: sim.currency),
-        // Entries need the network: the offline copy holds totals only
-        if (!load.offline)
-          _Entries(detailKey: detailKey, mainCurrency: sim.currency)
-        else
-          Text(t.simEntriesOffline, style: TextStyle(color: c.muted)),
       ],
     );
   }
 }
 
-/// The entries of the selected period, read on their own (every entry of one period, at most a year).
-class _Entries extends ConsumerStatefulWidget {
-  const _Entries({required this.detailKey, required this.mainCurrency});
+/// The title of the entries, the group they are limited to (with a way back to all of them), and their first states: a skeleton while the
+/// first page loads, a retry if it failed, and a line when there are none.
+class _EntriesHeader extends StatelessWidget {
+  const _EntriesHeader({
+    required this.groupName,
+    required this.value,
+    required this.rows,
+    required this.onClear,
+    required this.onRetry,
+  });
 
-  final String detailKey;
-  final String mainCurrency;
-
-  @override
-  ConsumerState<_Entries> createState() => _EntriesState();
-}
-
-class _EntriesState extends ConsumerState<_Entries> {
-  // -- STATES -- //
-
-  /// The last entries shown, kept while the next period or what-if loads, so the list never flashes back to a skeleton.
-  SimLoad? _last;
+  final String? groupName;
+  final AsyncValue<SimEntries>? value;
+  final SimEntries? rows;
+  final VoidCallback onClear;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final value = ref.watch(simDetailProvider(widget.detailKey));
-    final loaded = value.value;
-    if (loaded != null) _last = loaded;
-    final shown = loaded ?? _last;
-    Widget list(SimLoad d) {
-      final entries = d.sim.entries;
-      if (entries.isEmpty) return Note(t.simNoEntries);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: gapM,
-        children: <Widget>[
-          for (final e in entries)
-            EntryRow(e, mainCurrency: widget.mainCurrency),
-          if (d.sim.entriesOmitted > 0)
-            Text(
-              t.simEntriesMore(d.sim.entriesOmitted),
-              style: TextStyle(color: context.colors.muted),
-            ),
-        ],
-      );
-    }
-
+    final c = context.colors;
+    final v = value;
+    final data = rows;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: gapM,
@@ -481,19 +638,77 @@ class _EntriesState extends ConsumerState<_Entries> {
           child: Text(
             t.simEntriesTitle,
             style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(color: context.colors.muted),
+                ?.copyWith(color: c.muted),
           ),
         ),
-        if (shown != null && !(value.hasError && !value.isLoading))
-          list(shown)
-        else
-          AsyncBody<SimLoad>(
-            value: value,
-            onRetry: () => ref.invalidate(simDetailProvider(widget.detailKey)),
-            skeleton: const SkeletonRows(count: 3),
-            data: list,
+        if (groupName != null)
+          Row(
+            children: <Widget>[
+              const SizedBox(width: gapS),
+              Icon(Icons.filter_alt_outlined, size: 18, color: c.info),
+              const SizedBox(width: gapM),
+              Expanded(
+                child: Text(
+                  t.simShowingGroup(groupName ?? ''),
+                  style: TextStyle(color: c.info),
+                ),
+              ),
+              TextButton(onPressed: onClear, child: Text(t.simShowAll)),
+            ],
           ),
+        if (data == null && v != null && v.hasError && !v.isLoading)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  errorWords(v.error ?? '', context),
+                  style: TextStyle(color: c.muted),
+                ),
+              ),
+              TextButton(onPressed: onRetry, child: Text(t.retry)),
+            ],
+          )
+        else if (data == null)
+          const SkeletonRows(count: 3)
+        else if (data.rows.isEmpty)
+          Note(t.simNoEntries),
       ],
+    );
+  }
+}
+
+/// The end of the entries: how many are shown of how many, a quiet pulse while the next page loads, or a retry if it failed.
+class _EntriesFooter extends StatelessWidget {
+  const _EntriesFooter({required this.data, required this.onRetry});
+
+  final SimEntries data;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    if (data.pageError != null) {
+      return Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(t.simPageFailed, style: TextStyle(color: c.muted)),
+          ),
+          TextButton(onPressed: onRetry, child: Text(t.retry)),
+        ],
+      );
+    }
+    if (data.loadingMore) {
+      return const SkeletonGroup(child: Skeleton(height: 56, radius: 14));
+    }
+    if (data.total <= simPageSize) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: gapM, horizontal: gapS),
+      child: Text(
+        t.simShownOf(data.rows.length, data.total),
+        textAlign: TextAlign.center,
+        style: TextStyle(color: c.muted, fontFeatures: tabular),
+      ),
     );
   }
 }

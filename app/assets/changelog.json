@@ -164,5 +164,19 @@
     "fil": [
       "Mas maayos na ang itsura ng Time travel: ang Araw, Linggo, Buwan at Taon ay laging nasa isang hanay na hindi bumabalot, at pantay ang mga arrow sa magkabilang gilid ng petsa. Nasa itaas na katabi ng Ngayon ang Jump menu."
     ]
+  },
+  {
+    "versionCode": 21,
+    "versionName": "1.1.10",
+    "en": [
+      "Time travel now shows how much you spent and received in any day, week, month or year, and for the month of today what is recorded so far apart from what is still to come.",
+      "Where it went lists your spending by bill and category with its share. Tap a line to see only those entries.",
+      "The entries load a page at a time, so a year with thousands of entries stays quick."
+    ],
+    "fil": [
+      "Ipinapakita na ng Time travel kung magkano ang nagastos at natanggap mo sa kahit anong araw, linggo, buwan o taon, at sa buwan ngayon ay hiwalay ang naitala na sa darating pa.",
+      "Ipinapakita ng Saan napunta ang gastos mo ayon sa bill at kategorya kasama ang bahagi nito. I-tap ang isang linya para makita lang ang mga entry nito.",
+      "Paunti-unti na ang pag-load ng mga entry, kaya mabilis pa rin ang isang taong may libu-libong entry."
+    ]
   }
 ]

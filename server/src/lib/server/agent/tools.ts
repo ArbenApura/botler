@@ -222,7 +222,7 @@ export function buildTools(): AgentTool[] {
 		name: v.name,
 		description: v.description,
 		kind: v.kind === 'person' ? 'gated' : v.kind,
-		parameters: toParameters(v.input),
+		parameters: toParameters(v.agentInput ?? v.input),
 		taints: v.taints
 	}));
 	return [

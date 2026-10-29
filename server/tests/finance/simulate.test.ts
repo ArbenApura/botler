@@ -11,7 +11,7 @@ import { convert } from '../../src/lib/finance/fx';
 import { planFlows } from '../../src/lib/finance/planFlows';
 import { applyScenario } from '../../src/lib/finance/scenario';
 import { MAX_ENTRIES, simulate } from '../../src/lib/finance/simulate';
-import { GOAL_PER_PAY, PAY, plan, RENT } from './planFixture';
+import { GOAL_PER_PAY, NET, PAY, plan, RENT } from './planFixture';
 
 // -- CONSTANTS -- //
 
@@ -485,5 +485,274 @@ describe('entries and limits', () => {
 	it('refuses a range too long for its grouping', () => {
 		expect(() => sim({ group: 'day' })).toThrow(/at most 62/);
 		expect(() => sim({ from: '2021-01-01', to: '2026-12-31' })).toThrow(/at most 1827/);
+	});
+});
+
+describe('spent and received per period', () => {
+	/** A quiet March: only these rows are recorded, so the sums are easy to read. */
+	const MARCH: RecordedTxn[] = [
+		txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 100_000,
+			occurredAt: manilaNoon('2026-03-04'),
+			label: 'Lunch',
+			category: 'Food'
+		}),
+		txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 40_000,
+			occurredAt: manilaNoon('2026-03-06'),
+			label: 'Dinner',
+			category: ' food '
+		}),
+		txn({
+			type: 'refund',
+			accountId: 'gcash',
+			amount: 20_000,
+			occurredAt: manilaNoon('2026-03-07'),
+			label: 'Refund',
+			category: 'Food'
+		}),
+		txn({
+			type: 'income',
+			accountId: 'rcbc',
+			amount: 500_000,
+			occurredAt: manilaNoon('2026-03-10'),
+			label: 'Salary'
+		}),
+		txn({
+			type: 'transfer',
+			accountId: 'rcbc',
+			toAccountId: 'gcash',
+			amount: 300_000,
+			fee: 5_000,
+			occurredAt: manilaNoon('2026-03-11'),
+			label: 'Top up'
+		}),
+		txn({
+			type: 'adjustment',
+			accountId: 'gcash',
+			amount: -30_000,
+			occurredAt: manilaNoon('2026-03-12'),
+			label: 'Balance count'
+		}),
+		txn({
+			type: 'adjustment',
+			accountId: 'gcash',
+			amount: 10_000,
+			occurredAt: manilaNoon('2026-03-13'),
+			label: 'Balance count'
+		})
+	];
+	const march = (extra: RecordedTxn[] = [], over: Partial<SimulateInput> = {}) =>
+		sim({ txns: [...MARCH, ...extra], ...over });
+
+	it('counts expenses plus transfer fees minus refunds as spent, income as received, a negative count as untracked, and a plain transfer as nothing', () => {
+		const p = month(march(), '2026-03');
+		// 1,000 + 400 - 200 spending, plus the 50 fee; the 3,000 moved between own accounts is not spending
+		expect(p.recordedSpent).toBe(100_000 + 40_000 - 20_000 + 5_000);
+		expect(p.recordedReceived).toBe(500_000);
+		expect(p.recordedUntracked).toBe(30_000);
+		expect(p.leftOut).toEqual([]);
+	});
+
+	it('does not count a balance reset as untracked or as spent', () => {
+		const reset = txn({
+			type: 'adjustment',
+			accountId: 'gcash',
+			amount: -80_000,
+			occurredAt: manilaNoon('2026-03-20'),
+			label: 'Balance reset: lost the wallet',
+			category: 'reset'
+		});
+		const p = month(march([reset]), '2026-03');
+		expect(p.recordedUntracked).toBe(30_000);
+		expect(p.recordedSpent).toBe(100_000 + 40_000 - 20_000 + 5_000);
+	});
+
+	it('gives the fee its own entry, marks a refund, and every counting entry adds up to the period and to its group', () => {
+		const out = march([], { from: '2026-03-01', to: '2026-03-31', detail: true });
+		const recorded = (out.entries ?? []).filter((e) => e.source === 'recorded');
+		const fee = recorded.find((e) => e.id.endsWith(':fee'));
+		expect(fee).toMatchObject({ kind: 'out', amount: 5_000, groupKey: 'other', spentMain: 5_000 });
+		const refund = recorded.find((e) => e.refund);
+		expect(refund).toMatchObject({ kind: 'in', spentMain: -20_000 });
+		expect(refund?.receivedMain).toBeUndefined();
+		const p = month(out, '2026-03');
+		expect(recorded.reduce((a, e) => a + (e.spentMain ?? 0), 0)).toBe(p.recordedSpent);
+		expect(recorded.reduce((a, e) => a + (e.receivedMain ?? 0), 0)).toBe(p.recordedReceived);
+		// Food and food with spaces are one group; the fee is other
+		const groups = out.breakdown?.recorded.groups ?? [];
+		expect(groups.find((g) => g.key === 'cat:food')).toMatchObject({
+			amount: 100_000 + 40_000 - 20_000,
+			count: 3,
+			kind: 'category',
+			label: 'Food'
+		});
+		expect(groups.find((g) => g.key === 'other')?.amount).toBe(5_000);
+		const listed = groups.reduce((a, g) => a + g.amount, 0);
+		expect(listed + (out.breakdown?.recorded.more?.amount ?? 0)).toBe(p.recordedSpent);
+		// Money counts as untracked only for a negative count, and never as spent
+		expect(recorded.filter((e) => e.untrackedMain !== undefined)).toHaveLength(1);
+	});
+
+	it('groups a bill payment under its bill, named from the plan or from the names it is given', () => {
+		const paid = txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: RENT,
+			occurredAt: manilaNoon('2026-03-05'),
+			label: 'Rent paid',
+			billId: 'rent'
+		});
+		const gone = txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 70_000,
+			occurredAt: manilaNoon('2026-03-08'),
+			label: 'Old gym',
+			billId: 'old-gym'
+		});
+		const out = march([paid, gone], {
+			from: '2026-03-01',
+			to: '2026-03-31',
+			detail: true,
+			billNames: new Map([['old-gym', 'Gym']])
+		});
+		const groups = out.breakdown?.recorded.groups ?? [];
+		expect(groups.find((g) => g.key === 'bill:rent')).toMatchObject({
+			label: 'Rent',
+			kind: 'bill',
+			amount: RENT
+		});
+		expect(groups.find((g) => g.key === 'bill:old-gym')).toMatchObject({
+			label: 'Gym',
+			kind: 'bill'
+		});
+		// The biggest group is listed first
+		expect(groups[0]?.key).toBe('bill:rent');
+	});
+
+	it('converts each row at the stored rate, and names a currency with no rate instead of counting it as zero', () => {
+		const usd = txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 1_500,
+			currency: 'USD',
+			occurredAt: manilaNoon('2026-03-14'),
+			label: 'Hosting'
+		});
+		const eur = txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 900,
+			currency: 'EUR',
+			occurredAt: manilaNoon('2026-03-15'),
+			label: 'Coffee'
+		});
+		const rates = realPlan().rates;
+		const p = month(march([usd, eur]), '2026-03');
+		expect(p.recordedSpent).toBe(
+			100_000 + 40_000 - 20_000 + 5_000 + convert(1_500, 'USD', 'PHP', rates)
+		);
+		expect(p.leftOut).toEqual(['EUR']);
+	});
+
+	it('counts the plan money out and in for the replay and the simulation, never its moves', () => {
+		const out = sim({ from: '2026-05-01', to: '2026-07-31', detail: true });
+		const may = month(out, '2026-05');
+		const jul = month(out, '2026-07');
+		const sum = (source: 'replay' | 'simulated', field: 'spentMain' | 'receivedMain') =>
+			(out.entries ?? [])
+				.filter((e) => e.source === source)
+				.reduce((a, e) => a + (e[field] ?? 0), 0);
+		// The replay of May is all of May's rent, internet and two paydays
+		expect(may.replaySpent).toBe(RENT + NET);
+		expect(may.replayReceived).toBe(2 * PAY);
+		// The simulation counts July's too and nothing else: the split's moves are in no total
+		expect(jul.simulatedSpent).toBe(RENT + NET);
+		expect(jul.simulatedReceived).toBe(2 * PAY);
+		expect(jul.recordedSpent).toBeNull();
+		expect(may.simulatedSpent).toBeNull();
+		expect(sum('replay', 'spentMain')).toBe(may.replaySpent);
+		expect(sum('simulated', 'receivedMain')).toBe(
+			(month(out, '2026-06').simulatedReceived ?? 0) + (jul.simulatedReceived ?? 0)
+		);
+	});
+
+	it('keeps what was recorded so far and what is still to come apart in the period of today', () => {
+		const out = sim({ from: '2026-06-01', to: '2026-06-30' });
+		const june = month(out, '2026-06');
+		expect(june.part).toBe('mixed');
+		// Rent was paid on the 5th (recorded); the internet bill of the 20th, and an unpaid one still within its late window, are still to come
+		expect(june.recordedSpent).toBe(RENT);
+		expect(june.simulatedSpent).toBeGreaterThanOrEqual(NET);
+		expect((june.simulatedSpent ?? 0) % NET).toBe(0);
+		expect(june.replaySpent).toBeNull();
+	});
+
+	it('adds up: the days of a month are the month, and the months are the year', () => {
+		const all = [...TXNS, ...MARCH];
+		const days = sim({ group: 'day', from: '2026-03-01', to: '2026-03-31', txns: all });
+		const monthly = sim({ from: '2026-03-01', to: '2026-03-31', txns: all });
+		const m = monthly.periods[0];
+		const total = (f: 'recordedSpent' | 'recordedReceived' | 'recordedUntracked') =>
+			days.periods.reduce((a, d) => a + (d[f] ?? 0), 0);
+		expect(total('recordedSpent')).toBe(m?.recordedSpent);
+		expect(total('recordedReceived')).toBe(m?.recordedReceived);
+		expect(total('recordedUntracked')).toBe(m?.recordedUntracked);
+		const year = sim({ group: 'year', from: '2026-01-01', to: '2026-12-31' });
+		const months = sim({ from: '2026-01-01', to: '2026-12-31' });
+		const y = year.periods[0];
+		for (const f of [
+			'recordedSpent',
+			'recordedReceived',
+			'simulatedSpent',
+			'simulatedReceived'
+		] as const)
+			expect(months.periods.reduce((a, p) => a + (p[f] ?? 0), 0)).toBe(y?.[f]);
+	});
+});
+
+describe('entries in one order, and in bulk', () => {
+	const many = (n: number): RecordedTxn[] =>
+		Array.from({ length: n }, (_, i) =>
+			txn({
+				type: 'expense',
+				accountId: 'gcash',
+				amount: 100 + (i % 37),
+				occurredAt: manilaNoon(`2026-03-${String(1 + (i % 28)).padStart(2, '0')}`),
+				label: `Row ${i}`,
+				category: i % 3 === 0 ? 'Food' : i % 3 === 1 ? 'Fun' : null
+			})
+		);
+
+	it('gives the same pages whatever order the rows were read in', () => {
+		const rows = many(240);
+		const ask = (txns: RecordedTxn[], offset: number) =>
+			sim({
+				from: '2026-03-01',
+				to: '2026-03-31',
+				detail: true,
+				txns,
+				page: { offset, limit: 100 }
+			}).entries?.map((e) => e.id);
+		const shuffled = [...rows].sort((a, b) => (a.id < b.id ? 1 : -1));
+		for (const offset of [0, 100, 200]) expect(ask(shuffled, offset)).toEqual(ask(rows, offset));
+	});
+
+	it('answers a few thousand rows in a second or two, and the breakdown still adds up to spent', () => {
+		const rows = many(4_000);
+		const started = Date.now();
+		const out = sim({ from: '2026-03-01', to: '2026-03-31', detail: true, txns: rows });
+		expect(Date.now() - started).toBeLessThan(3_000);
+		const p = month(out, '2026-03');
+		const b = out.breakdown?.recorded;
+		const total = (b?.groups ?? []).reduce((a, g) => a + g.amount, 0) + (b?.more?.amount ?? 0);
+		expect(total).toBe(p.recordedSpent);
+		expect(out.entries).toHaveLength(500);
+		expect(out.entriesOmitted).toBeGreaterThanOrEqual(4_000 - 500);
 	});
 });

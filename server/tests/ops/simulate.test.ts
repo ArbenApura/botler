@@ -19,6 +19,7 @@ import {
 	recordSnapshot
 } from '../../src/lib/server/ops/ledger';
 import { createAccount } from '../../src/lib/server/ops/accounts';
+import { buildTools } from '../../src/lib/server/agent/tools';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { balanceSimulate, MAX_AGENT_CHARS } from '../../src/lib/server/ops/simulate';
 import { seedPerson } from '../agent/support';
@@ -312,5 +313,98 @@ describe('limits and the assistant', () => {
 		})) as SimulationView;
 		expect(JSON.stringify(agent).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
 		expect(agent.periods.length || agent.summary?.length).toBe(month.periods.length);
+	});
+});
+
+describe('spent per period and entries a page at a time', () => {
+	let p: Fixture;
+	const day = addDays(today, -10);
+	const range = { from: day, to: day, group: 'day' as const, view: 'detail' as const };
+
+	beforeAll(async () => {
+		p = await seedPerson(t);
+		await recordSnapshot(w(p), { accountId: p.rcbc, amount: 1_000_000, takenAt: daysAgo(100) });
+		// 130 expenses on one day, so every row ties on the date and the order has to be fixed by something else
+		for (let i = 0; i < 130; i++)
+			await logExpense(w(p), {
+				accountId: p.rcbc,
+				amount: 1_000 + i,
+				note: `Snack ${i}`,
+				category: i % 2 === 0 ? 'Food' : 'Fun',
+				occurredAt: manilaNoon(day).toISOString()
+			});
+	}, 60_000);
+
+	it('counts the day spent, and the same entries add up to it', async () => {
+		const out = await sim(range, p);
+		const spent = Array.from({ length: 130 }, (_, i) => 1_000 + i).reduce((a, b) => a + b, 0);
+		expect(out.periods[0]?.recordedSpent).toBe(spent);
+		expect(out.breakdown?.recorded.groups.map((g) => g.key).sort()).toEqual([
+			'cat:food',
+			'cat:fun'
+		]);
+		const total = (out.breakdown?.recorded.groups ?? []).reduce((a, g) => a + g.amount, 0);
+		expect(total).toBe(spent);
+		// The older answer, with no page: all the entries and no paging fields
+		expect(out.entries).toHaveLength(130);
+		expect(out.entriesTotal).toBeUndefined();
+	});
+
+	it('serves pages that join into the whole list with no repeat and no gap', async () => {
+		const whole = (await sim(range, p)).entries ?? [];
+		const seen: string[] = [];
+		for (let offset = 0; offset < 200; offset += 50) {
+			const page = await sim({ ...range, offset, limit: 50 }, p);
+			expect(page.entriesTotal).toBe(130);
+			expect(page.entriesOffset).toBe(offset);
+			seen.push(...(page.entries ?? []).map((e) => e.id));
+		}
+		expect(seen).toEqual(whole.map((e) => e.id));
+		expect(new Set(seen).size).toBe(130);
+		// Past the end: an empty page that still says the total
+		const past = await sim({ ...range, offset: 500, limit: 50 }, p);
+		expect(past.entries).toEqual([]);
+		expect(past.entriesTotal).toBe(130);
+	});
+
+	it('limits the entries to one group, with the breakdown still whole', async () => {
+		const food = await sim({ ...range, groupKey: 'cat:food', limit: 100 }, p);
+		expect(food.entriesTotal).toBe(65);
+		expect((food.entries ?? []).every((e) => e.groupKey === 'cat:food')).toBe(true);
+		expect(food.breakdown?.recorded.groups).toHaveLength(2);
+		const none = await sim({ ...range, groupKey: 'bill:nope' }, p);
+		expect(none.entriesTotal).toBe(0);
+		expect(none.entries).toEqual([]);
+	});
+
+	it('refuses a page size outside 1 to 100 and a negative offset', async () => {
+		for (const bad of [{ limit: 0 }, { limit: 101 }, { offset: -1 }])
+			await expect(sim({ ...range, ...bad }, p)).rejects.toBeTruthy();
+	});
+
+	it('keeps the paging fields out of the assistant tool, ignores them if sent, and keeps spent in its short answer', async () => {
+		const tool = buildTools().find((x) => x.name === 'balance_simulate');
+		const props = Object.keys(
+			(tool?.parameters as { properties?: Record<string, unknown> }).properties ?? {}
+		);
+		expect(props).toContain('scenario');
+		for (const key of ['offset', 'limit', 'groupKey']) expect(props).not.toContain(key);
+		const agent = (await invokeVerb(asAgent(p), 'balance_simulate', {
+			...range,
+			limit: 10
+		})) as SimulationView;
+		expect(agent.entriesTotal).toBeUndefined();
+		expect(agent.breakdown).toBeUndefined();
+		expect(JSON.stringify(agent).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
+		// A long run of days still fits, and the cut keeps what was spent
+		const days = (await invokeVerb(asAgent(p), 'balance_simulate', {
+			from: addDays(today, -40),
+			to: addDays(today, 21),
+			group: 'day'
+		})) as SimulationView;
+		expect(JSON.stringify(days).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
+		const dayRow = days.periods.find((x) => x.from === day);
+		const summary = days.summary?.find((x) => x.from === day);
+		expect(dayRow?.recordedSpent ?? summary?.spent?.recorded).toBeGreaterThan(0);
 	});
 });

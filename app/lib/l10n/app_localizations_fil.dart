@@ -2772,6 +2772,16 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simBills => 'Mga bill';
 
   @override
+  String simBreakdownLine(String name, String amount, int percent) {
+    return '$name, $amount, $percent porsyento ng gastos, i-tap para ipakita lang ang mga entry nito';
+  }
+
+  @override
+  String simBreakdownLineNoShare(String name, String amount) {
+    return '$name, $amount, i-tap para ipakita lang ang mga entry nito';
+  }
+
+  @override
   String get simChangeSelf => 'Magbago ng sarili';
 
   @override
@@ -2784,6 +2794,9 @@ class AppLocalizationsFil extends AppLocalizations {
       'Maghihintay ang deferrable bills sa susunod na sweldo';
 
   @override
+  String get simDetails => 'Detalye';
+
+  @override
   String get simDone => 'Tapos';
 
   @override
@@ -2793,25 +2806,25 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simEdit => 'Baguhin';
 
   @override
-  String simEntriesMore(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count pa ang hindi ipinakita',
-      one: '1 pa ang hindi ipinakita',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get simEntriesOffline =>
-      'Kailangan ng koneksyon ang mga entry. Ang mga kabuuan lang ang naka-save sa phone na ito.';
+      'Kailangan ng koneksyon ang kung saan napunta ang pera at ang mga entry. Ang mga kabuuan lang ang naka-save sa phone na ito.';
 
   @override
   String get simEntriesTitle => 'Mga entry';
 
   @override
   String get simError => 'Hindi ma-load ang time travel.';
+
+  @override
+  String simEverythingElse(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count grupo',
+      one: '1 grupo',
+    );
+    return 'Ang natitira ($_temp0)';
+  }
 
   @override
   String simFirstRecordEdge(String date) {
@@ -2835,7 +2848,17 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simGoals => 'Mga goal';
 
   @override
+  String get simGroupGone =>
+      'Wala na ang grupong iyon sa listahan, kaya ipinapakita ang lahat ng entry.';
+
+  @override
+  String get simGroupOther => 'Iba pa';
+
+  @override
   String get simHidden => 'nakatago';
+
+  @override
+  String get simIncludesEstimate => 'Kasama ang darating pa (tantiya).';
 
   @override
   String get simInfoChart =>
@@ -2942,7 +2965,18 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simNoTotal => 'Walang kabuuan';
 
   @override
+  String get simNothingSpent => 'Walang nagastos sa panahong ito.';
+
+  @override
+  String get simPageFailed => 'Hindi ma-load ang iba pa.';
+
+  @override
   String get simPaydays => 'Mga sweldo';
+
+  @override
+  String simPercent(int percent) {
+    return '$percent%';
+  }
 
   @override
   String simPeriod(String from, String to) {
@@ -2951,6 +2985,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get simPickDate => 'Pumili ng petsa';
+
+  @override
+  String get simPlanExpected => 'Inasahan ng plano mong gastusin';
 
   @override
   String get simPresetDefer => 'Ipagpaliban ang puwedeng maghintay';
@@ -3033,6 +3070,12 @@ class AppLocalizationsFil extends AppLocalizations {
       'Hanggang 5 taon lang pabalik at pasulong ang time travel.';
 
   @override
+  String get simReceived => 'Natanggap';
+
+  @override
+  String get simReceivedSoFar => 'Natanggap na';
+
+  @override
   String get simRecordedEnd => 'Naitala sa dulo';
 
   @override
@@ -3070,10 +3113,43 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simSeeOverTime => 'Tingnan sa paglipas ng panahon';
 
   @override
+  String get simShowAll => 'Ipakita lahat';
+
+  @override
+  String get simShowLess => 'Ipakita ang mas kaunti';
+
+  @override
+  String simShowMore(int count) {
+    return 'Ipakita ang $count pa';
+  }
+
+  @override
+  String simShowingGroup(String name) {
+    return 'Ipinapakita: $name';
+  }
+
+  @override
+  String simShownOf(int shown, int total) {
+    return 'Ipinapakita ang $shown sa $total';
+  }
+
+  @override
   String get simSimulatedEnd => 'Simulation sa dulo';
 
   @override
   String get simSkipPayday => 'I-tap ang sweldong hindi darating:';
+
+  @override
+  String get simSpent => 'Nagastos';
+
+  @override
+  String get simSpentSoFar => 'Nagastos na';
+
+  @override
+  String get simStillToCome => 'Darating pa (tantiya)';
+
+  @override
+  String get simStillToReceive => 'Matatanggap pa (tantiya)';
 
   @override
   String get simTagMissed => 'Hindi naitala';
@@ -3114,6 +3190,9 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get simUntracked => 'Hindi naitala: umalis nang walang tala';
+
+  @override
   String get simWhatIf => 'What if';
 
   @override
@@ -3133,6 +3212,17 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get simWhatIfTitle => 'What if…';
+
+  @override
+  String simWhereLine(String code) {
+    return 'Sa $code, ang pangunahing pera mo.';
+  }
+
+  @override
+  String get simWhereTitle => 'Saan napunta';
+
+  @override
+  String get simWholePeriod => 'Buong panahon (tantiya)';
 
   @override
   String get simZoomDay => 'Araw';

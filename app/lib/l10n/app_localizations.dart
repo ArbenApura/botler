@@ -4728,6 +4728,18 @@ abstract class AppLocalizations {
   /// **'Bills'**
   String get simBills;
 
+  /// No description provided for @simBreakdownLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {amount}, {percent} percent of spending, tap to show only these entries'**
+  String simBreakdownLine(String name, String amount, int percent);
+
+  /// No description provided for @simBreakdownLineNoShare.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {amount}, tap to show only these entries'**
+  String simBreakdownLineNoShare(String name, String amount);
+
   /// No description provided for @simChangeSelf.
   ///
   /// In en, this message translates to:
@@ -4745,6 +4757,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deferrable bills wait for the next payday'**
   String get simDefer;
+
+  /// No description provided for @simDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get simDetails;
 
   /// No description provided for @simDone.
   ///
@@ -4764,16 +4782,10 @@ abstract class AppLocalizations {
   /// **'Edit'**
   String get simEdit;
 
-  /// No description provided for @simEntriesMore.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 more not shown} other{{count} more not shown}}'**
-  String simEntriesMore(int count);
-
   /// No description provided for @simEntriesOffline.
   ///
   /// In en, this message translates to:
-  /// **'The entries need a connection. Only the totals are saved on this phone.'**
+  /// **'Where the money went and the entries need a connection. Only the totals are saved on this phone.'**
   String get simEntriesOffline;
 
   /// No description provided for @simEntriesTitle.
@@ -4787,6 +4799,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Time travel could not load.'**
   String get simError;
+
+  /// No description provided for @simEverythingElse.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything else ({count, plural, =1{1 group} other{{count} groups}})'**
+  String simEverythingElse(int count);
 
   /// No description provided for @simFirstRecordEdge.
   ///
@@ -4818,11 +4836,29 @@ abstract class AppLocalizations {
   /// **'Goals'**
   String get simGoals;
 
+  /// No description provided for @simGroupGone.
+  ///
+  /// In en, this message translates to:
+  /// **'That group is no longer listed, so every entry is shown.'**
+  String get simGroupGone;
+
+  /// No description provided for @simGroupOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get simGroupOther;
+
   /// No description provided for @simHidden.
   ///
   /// In en, this message translates to:
   /// **'hidden'**
   String get simHidden;
+
+  /// No description provided for @simIncludesEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes what is still to come (estimate).'**
+  String get simIncludesEstimate;
 
   /// No description provided for @simInfoChart.
   ///
@@ -4974,11 +5010,29 @@ abstract class AppLocalizations {
   /// **'No total'**
   String get simNoTotal;
 
+  /// No description provided for @simNothingSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was spent in this period.'**
+  String get simNothingSpent;
+
+  /// No description provided for @simPageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load more.'**
+  String get simPageFailed;
+
   /// No description provided for @simPaydays.
   ///
   /// In en, this message translates to:
   /// **'Paydays'**
   String get simPaydays;
+
+  /// No description provided for @simPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String simPercent(int percent);
 
   /// No description provided for @simPeriod.
   ///
@@ -4991,6 +5045,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick a date'**
   String get simPickDate;
+
+  /// No description provided for @simPlanExpected.
+  ///
+  /// In en, this message translates to:
+  /// **'Your plan expected to spend'**
+  String get simPlanExpected;
 
   /// No description provided for @simPresetDefer.
   ///
@@ -5130,6 +5190,18 @@ abstract class AppLocalizations {
   /// **'Time travel reaches 5 years each way.'**
   String get simReachEdge;
 
+  /// No description provided for @simReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get simReceived;
+
+  /// No description provided for @simReceivedSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Received so far'**
+  String get simReceivedSoFar;
+
   /// No description provided for @simRecordedEnd.
   ///
   /// In en, this message translates to:
@@ -5184,6 +5256,36 @@ abstract class AppLocalizations {
   /// **'See over time'**
   String get simSeeOverTime;
 
+  /// No description provided for @simShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get simShowAll;
+
+  /// No description provided for @simShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get simShowLess;
+
+  /// No description provided for @simShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {count} more'**
+  String simShowMore(int count);
+
+  /// No description provided for @simShowingGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {name}'**
+  String simShowingGroup(String name);
+
+  /// No description provided for @simShownOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {shown} of {total}'**
+  String simShownOf(int shown, int total);
+
   /// No description provided for @simSimulatedEnd.
   ///
   /// In en, this message translates to:
@@ -5195,6 +5297,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a payday that would not come:'**
   String get simSkipPayday;
+
+  /// No description provided for @simSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent'**
+  String get simSpent;
+
+  /// No description provided for @simSpentSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Spent so far'**
+  String get simSpentSoFar;
+
+  /// No description provided for @simStillToCome.
+  ///
+  /// In en, this message translates to:
+  /// **'Still to come (estimate)'**
+  String get simStillToCome;
+
+  /// No description provided for @simStillToReceive.
+  ///
+  /// In en, this message translates to:
+  /// **'Still to be received (estimate)'**
+  String get simStillToReceive;
 
   /// No description provided for @simTagMissed.
   ///
@@ -5256,6 +5382,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 pay or bill has no amount yet and is not counted} other{{count} pays or bills have no amount yet and are not counted}}'**
   String simUnknown(int count);
 
+  /// No description provided for @simUntracked.
+  ///
+  /// In en, this message translates to:
+  /// **'Untracked: left without being recorded'**
+  String get simUntracked;
+
   /// No description provided for @simWhatIf.
   ///
   /// In en, this message translates to:
@@ -5279,6 +5411,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What if…'**
   String get simWhatIfTitle;
+
+  /// No description provided for @simWhereLine.
+  ///
+  /// In en, this message translates to:
+  /// **'In {code}, your main currency.'**
+  String simWhereLine(String code);
+
+  /// No description provided for @simWhereTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where it went'**
+  String get simWhereTitle;
+
+  /// No description provided for @simWholePeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole period (estimate)'**
+  String get simWholePeriod;
 
   /// No description provided for @simZoomDay.
   ///

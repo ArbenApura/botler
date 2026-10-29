@@ -756,7 +756,11 @@ export const balanceSimulateInput = z.object({
 	to: dayField,
 	group: z.enum(['day', 'week', 'month', 'year']).optional(),
 	view: z.enum(['overview', 'detail']).optional(),
-	scenario: scenarioInput.optional()
+	scenario: scenarioInput.optional(),
+	/** detail only, the app: a page of the entries (limit 1 to 100, 50 when only an offset or a group is sent) and optionally of one group. */
+	offset: z.number().int().min(0).max(100_000).optional(),
+	limit: z.number().int().min(1).max(100).optional(),
+	groupKey: z.string().min(1).max(200).optional()
 });
 
 export type BalanceSimulateInput = z.infer<typeof balanceSimulateInput>;

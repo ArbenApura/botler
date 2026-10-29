@@ -1947,6 +1947,31 @@
     }
   },
   "simBills": "Bills",
+  "simBreakdownLine": "{name}, {amount}, {percent} percent of spending, tap to show only these entries",
+  "@simBreakdownLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "simBreakdownLineNoShare": "{name}, {amount}, tap to show only these entries",
+  "@simBreakdownLineNoShare": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "simChangeSelf": "Change something yourself",
   "simChartSemantics": "{period}: {amount}, {source}. Swipe up or down to move between periods.",
   "@simChartSemantics": {
@@ -1963,20 +1988,21 @@
     }
   },
   "simDefer": "Deferrable bills wait for the next payday",
+  "simDetails": "Details",
   "simDone": "Done",
   "simEarlier": "Earlier",
   "simEdit": "Edit",
-  "simEntriesMore": "{count, plural, =1{1 more not shown} other{{count} more not shown}}",
-  "@simEntriesMore": {
+  "simEntriesOffline": "Where the money went and the entries need a connection. Only the totals are saved on this phone.",
+  "simEntriesTitle": "Entries",
+  "simError": "Time travel could not load.",
+  "simEverythingElse": "Everything else ({count, plural, =1{1 group} other{{count} groups}})",
+  "@simEverythingElse": {
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "simEntriesOffline": "The entries need a connection. Only the totals are saved on this phone.",
-  "simEntriesTitle": "Entries",
-  "simError": "Time travel could not load.",
   "simFirstRecordEdge": "Nothing was recorded before {date}.",
   "@simFirstRecordEdge": {
     "placeholders": {
@@ -2003,7 +2029,10 @@
   },
   "simGapNone": "Right on the plan",
   "simGoals": "Goals",
+  "simGroupGone": "That group is no longer listed, so every entry is shown.",
+  "simGroupOther": "Other",
   "simHidden": "hidden",
+  "simIncludesEstimate": "Includes what is still to come (estimate).",
   "simInfoChart": "One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero.",
   "simInfoChartTitle": "The chart",
   "simInfoGap": "How far the recorded balance ended above or below where your plan would have put it.",
@@ -2067,7 +2096,17 @@
   "simNoRateShort": "no exchange rate yet",
   "simNoRecords": "No records yet for these dates.",
   "simNoTotal": "No total",
+  "simNothingSpent": "Nothing was spent in this period.",
+  "simPageFailed": "Could not load more.",
   "simPaydays": "Paydays",
+  "simPercent": "{percent}%",
+  "@simPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "simPeriod": "{from} to {to}",
   "@simPeriod": {
     "placeholders": {
@@ -2080,6 +2119,7 @@
     }
   },
   "simPickDate": "Pick a date",
+  "simPlanExpected": "Your plan expected to spend",
   "simPresetDefer": "Defer what can wait",
   "simPresetDeferLine": "Bills that can wait are paid after the next payday.",
   "simPresetLate": "Pay bills a week late",
@@ -2117,6 +2157,8 @@
   "simPretendOut": "Money out",
   "simRatesStale": "Exchange rates are older than a day.",
   "simReachEdge": "Time travel reaches 5 years each way.",
+  "simReceived": "Received",
+  "simReceivedSoFar": "Received so far",
   "simRecordedEnd": "Recorded at the end",
   "simRecordedToday": "Recorded up to today",
   "simRemove": "Remove {name}",
@@ -2140,8 +2182,41 @@
     }
   },
   "simSeeOverTime": "See over time",
+  "simShowAll": "Show all",
+  "simShowLess": "Show less",
+  "simShowMore": "Show {count} more",
+  "@simShowMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "simShowingGroup": "Showing {name}",
+  "@simShowingGroup": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "simShownOf": "Showing {shown} of {total}",
+  "@simShownOf": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "simSimulatedEnd": "Simulated at the end",
   "simSkipPayday": "Tap a payday that would not come:",
+  "simSpent": "Spent",
+  "simSpentSoFar": "Spent so far",
+  "simStillToCome": "Still to come (estimate)",
+  "simStillToReceive": "Still to be received (estimate)",
   "simTagMissed": "Not recorded",
   "simTagPretend": "What-if",
   "simTagRecorded": "Recorded",
@@ -2159,6 +2234,7 @@
       }
     }
   },
+  "simUntracked": "Untracked: left without being recorded",
   "simWhatIf": "What if",
   "simWhatIfLine": "Nothing here is saved. It only changes the replay and the simulation.",
   "simWhatIfOn": "What-if on: {count, plural, =1{1 change} other{{count} changes}}",
@@ -2170,6 +2246,16 @@
     }
   },
   "simWhatIfTitle": "What if…",
+  "simWhereLine": "In {code}, your main currency.",
+  "@simWhereLine": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "simWhereTitle": "Where it went",
+  "simWholePeriod": "Whole period (estimate)",
   "simZoomDay": "Day",
   "simZoomMonth": "Month",
   "simZoomWeek": "Week",

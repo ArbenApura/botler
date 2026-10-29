@@ -14,12 +14,12 @@ import type { Scenario } from '../../finance/scenario';
 import type { ScenarioInput } from '../db/zod';
 import type { RecordedSnapshot, RecordedTxn, Simulation } from '../../finance/simulate';
 // -- DEP-MODULES -- //
-import { and, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, eq, isNull, lte } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, diffDays, toManilaDate } from '../../finance/dates';
 import { applyScenario } from '../../finance/scenario';
 import { simulate } from '../../finance/simulate';
-import { accountWallet, balanceSnapshot, ledgerTxn } from '../db/schema';
+import { accountWallet, balanceSnapshot, bill, ledgerTxn } from '../db/schema';
 import { balanceSimulateInput } from '../db/zod';
 import { refreshInBackground } from '../fx/store';
 import { OpsError, run } from './context';
@@ -49,6 +49,9 @@ export type SimulationView = Omit<Simulation, 'notes'> & {
 		simulated: number | null;
 		gap: number | null;
 		missed: number;
+		/** What was spent and received by source; a source the period has nothing for is left out to keep the summary short. */
+		spent?: { recorded?: number; replay?: number; simulated?: number };
+		received?: { recorded?: number; replay?: number; simulated?: number };
 	}[];
 };
 
@@ -177,6 +180,15 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 		if (e.date < addDays(today, -REACH_DAYS) || e.date > addDays(today, REACH_DAYS))
 			throw new OpsError('INVALID', 'A pretend entry is dated within 5 years of today.');
 
+	// A page: any of the three asks for it (50 when no limit is sent); none keeps the older answer of up to 500 entries
+	const paged =
+		view === 'detail' &&
+		ctx.actor.kind !== 'agent' &&
+		(input.limit !== undefined || input.offset !== undefined || input.groupKey !== undefined);
+	const page = paged
+		? { offset: input.offset ?? 0, limit: input.limit ?? 50, groupKey: input.groupKey }
+		: undefined;
+
 	const gathered = await run(ctx, async (tx, userId) => {
 		// The plan, with every recorded pay day for the missed paydays
 		const loaded = await loadPlan(tx, userId, { now, incomeSince: new Date(0) });
@@ -207,6 +219,8 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 						lte(ledgerTxn.occurredAt, now)
 					)
 				)
+				// One fixed order, so a page of entries never repeats or skips a row between requests
+				.orderBy(asc(ledgerTxn.occurredAt), asc(ledgerTxn.id))
 		).map((r) => ({
 			id: r.id,
 			label: labelOf(r),
@@ -218,13 +232,21 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 			toCurrency: r.toCurrency,
 			toAmount: r.toAmount,
 			fee: r.fee,
-			occurredAt: r.occurredAt
+			occurredAt: r.occurredAt,
+			billId: r.billId,
+			category: r.category
 		}));
+		// The names of every bill, active or not, so the spending of a bill that is gone still has its name
+		const billNames = new Map(
+			(
+				await tx.select({ id: bill.id, name: bill.name }).from(bill).where(eq(bill.userId, userId))
+			).map((b) => [b.id, b.name] as const)
+		);
 		const wallets = [
 			...loaded.accounts.map((a) => ({ accountId: a.id, currency: a.currency })),
 			...walletRows
 		];
-		return { ...loaded, wallets, snapshots, txns };
+		return { ...loaded, wallets, snapshots, txns, billNames };
 	});
 	refreshInBackground(ctx.handle, gathered.status);
 
@@ -244,7 +266,10 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 			wallets: gathered.wallets,
 			snapshots: gathered.snapshots,
 			txns: gathered.txns,
-			detail: view === 'detail'
+			billNames: gathered.billNames,
+			detail: view === 'detail',
+			// Paging is for the app; the assistant keeps its own cut answer
+			...(page ? { page } : {})
 		});
 	} catch (e) {
 		if (e instanceof RangeError) throw new OpsError('INVALID', e.message);
@@ -294,19 +319,37 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 	return ctx.actor.kind === 'agent' ? forAgent(answer) : answer;
 }
 
+/** The figures of the sources a period has, without the ones it has nothing for; undefined when it has none. */
+function bySource(recorded: number | null, replay: number | null, simulated: number | null) {
+	const out = {
+		...(recorded === null ? {} : { recorded }),
+		...(replay === null ? {} : { replay }),
+		...(simulated === null ? {} : { simulated })
+	};
+	return Object.keys(out).length ? out : undefined;
+}
+
 /** The assistant's answer, cut in steps until it fits, never in the middle of a list. */
 export function forAgent(answer: SimulationView): SimulationView {
 	const fits = (v: SimulationView) => JSON.stringify(v).length <= MAX_AGENT_CHARS;
 	if (fits(answer)) return answer;
 	const short =
 		'Too long to list everything: ask for a shorter range or group by month or year to see more.';
-	let v: SimulationView = {
+	// The breakdown goes first: it is the app's, and the totals on each period already say what was spent
+	const lean: SimulationView = {
 		...answer,
+		breakdown: undefined,
+		entriesTotal: undefined,
+		entriesOffset: undefined
+	};
+	if (fits(lean)) return lean;
+	let v: SimulationView = {
+		...lean,
 		entries: undefined,
 		itemsOmitted: true,
 		notes: [...answer.notes, short]
 	};
-	if (answer.entries === undefined) v = { ...answer, notes: [...answer.notes, short] };
+	if (answer.entries === undefined) v = { ...lean, notes: [...answer.notes, short] };
 	if (fits(v)) return v;
 	v = { ...v, walletsOmitted: true, periods: v.periods.map((p) => ({ ...p, wallets: [] })) };
 	if (fits(v)) return v;
@@ -326,7 +369,9 @@ export function forAgent(answer: SimulationView): SimulationView {
 			replay: p.replayEnd,
 			simulated: p.simulatedEnd,
 			gap: p.gap,
-			missed: p.missed
+			missed: p.missed,
+			spent: bySource(p.recordedSpent, p.replaySpent, p.simulatedSpent),
+			received: bySource(p.recordedReceived, p.replayReceived, p.simulatedReceived)
 		}))
 	};
 	if (fits(v)) return v;

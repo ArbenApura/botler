@@ -2752,6 +2752,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simBills => 'Bills';
 
   @override
+  String simBreakdownLine(String name, String amount, int percent) {
+    return '$name, $amount, $percent percent of spending, tap to show only these entries';
+  }
+
+  @override
+  String simBreakdownLineNoShare(String name, String amount) {
+    return '$name, $amount, tap to show only these entries';
+  }
+
+  @override
   String get simChangeSelf => 'Change something yourself';
 
   @override
@@ -2763,6 +2773,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simDefer => 'Deferrable bills wait for the next payday';
 
   @override
+  String get simDetails => 'Details';
+
+  @override
   String get simDone => 'Done';
 
   @override
@@ -2772,25 +2785,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simEdit => 'Edit';
 
   @override
-  String simEntriesMore(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count more not shown',
-      one: '1 more not shown',
-    );
-    return '$_temp0';
-  }
-
-  @override
   String get simEntriesOffline =>
-      'The entries need a connection. Only the totals are saved on this phone.';
+      'Where the money went and the entries need a connection. Only the totals are saved on this phone.';
 
   @override
   String get simEntriesTitle => 'Entries';
 
   @override
   String get simError => 'Time travel could not load.';
+
+  @override
+  String simEverythingElse(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count groups',
+      one: '1 group',
+    );
+    return 'Everything else ($_temp0)';
+  }
 
   @override
   String simFirstRecordEdge(String date) {
@@ -2814,7 +2827,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGoals => 'Goals';
 
   @override
+  String get simGroupGone =>
+      'That group is no longer listed, so every entry is shown.';
+
+  @override
+  String get simGroupOther => 'Other';
+
+  @override
   String get simHidden => 'hidden';
+
+  @override
+  String get simIncludesEstimate =>
+      'Includes what is still to come (estimate).';
 
   @override
   String get simInfoChart =>
@@ -2921,7 +2945,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simNoTotal => 'No total';
 
   @override
+  String get simNothingSpent => 'Nothing was spent in this period.';
+
+  @override
+  String get simPageFailed => 'Could not load more.';
+
+  @override
   String get simPaydays => 'Paydays';
+
+  @override
+  String simPercent(int percent) {
+    return '$percent%';
+  }
 
   @override
   String simPeriod(String from, String to) {
@@ -2930,6 +2965,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simPickDate => 'Pick a date';
+
+  @override
+  String get simPlanExpected => 'Your plan expected to spend';
 
   @override
   String get simPresetDefer => 'Defer what can wait';
@@ -3011,6 +3049,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simReachEdge => 'Time travel reaches 5 years each way.';
 
   @override
+  String get simReceived => 'Received';
+
+  @override
+  String get simReceivedSoFar => 'Received so far';
+
+  @override
   String get simRecordedEnd => 'Recorded at the end';
 
   @override
@@ -3048,10 +3092,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simSeeOverTime => 'See over time';
 
   @override
+  String get simShowAll => 'Show all';
+
+  @override
+  String get simShowLess => 'Show less';
+
+  @override
+  String simShowMore(int count) {
+    return 'Show $count more';
+  }
+
+  @override
+  String simShowingGroup(String name) {
+    return 'Showing $name';
+  }
+
+  @override
+  String simShownOf(int shown, int total) {
+    return 'Showing $shown of $total';
+  }
+
+  @override
   String get simSimulatedEnd => 'Simulated at the end';
 
   @override
   String get simSkipPayday => 'Tap a payday that would not come:';
+
+  @override
+  String get simSpent => 'Spent';
+
+  @override
+  String get simSpentSoFar => 'Spent so far';
+
+  @override
+  String get simStillToCome => 'Still to come (estimate)';
+
+  @override
+  String get simStillToReceive => 'Still to be received (estimate)';
 
   @override
   String get simTagMissed => 'Not recorded';
@@ -3092,6 +3169,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get simUntracked => 'Untracked: left without being recorded';
+
+  @override
   String get simWhatIf => 'What if';
 
   @override
@@ -3111,6 +3191,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simWhatIfTitle => 'What if…';
+
+  @override
+  String simWhereLine(String code) {
+    return 'In $code, your main currency.';
+  }
+
+  @override
+  String get simWhereTitle => 'Where it went';
+
+  @override
+  String get simWholePeriod => 'Whole period (estimate)';
 
   @override
   String get simZoomDay => 'Day';

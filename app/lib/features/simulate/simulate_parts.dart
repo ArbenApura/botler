@@ -635,7 +635,7 @@ class RateWarning extends StatelessWidget {
   }
 }
 
-// -- PERIOD LINES -- //
+// -- SPENT AND RECEIVED -- //
 
 /// One labelled number: the words, the amount in tabular figures, and its tag. The tag follows the number, never the period.
 class _TotalRow extends StatelessWidget {
@@ -643,15 +643,20 @@ class _TotalRow extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.source,
+    this.large = false,
   });
 
   final String label;
   final int amount;
   final SimSource source;
 
+  /// The one number the card is about, drawn bigger than the rows under it.
+  final bool large;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final text = Theme.of(context).textTheme;
     final dashed = source != SimSource.recorded;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -664,7 +669,7 @@ class _TotalRow extends StatelessWidget {
               Text(label, style: TextStyle(color: c.muted)),
               Amount(
                 amount,
-                style: Theme.of(context).textTheme.titleMedium
+                style: (large ? text.headlineSmall : text.titleMedium)
                     ?.copyWith(color: dashed ? sourceColor(c, source) : c.ink),
               ),
             ],
@@ -676,18 +681,11 @@ class _TotalRow extends StatelessWidget {
   }
 }
 
-/// The rest of the selected period under its headline: the plan replay, the gap to the plan, what was missed, its warnings and what was
-/// left out. Empty when there is nothing more to say (the card is then not drawn).
-List<Widget> periodLines(
-  BuildContext context,
-  SimResult sim,
-  SimPeriod p, {
-  bool noTotal = false,
-}) {
+/// The lines that always show under the numbers of a period: the gap to the plan, what was missed, its warnings and what was left out.
+/// Empty when there is nothing to say.
+List<Widget> periodLines(BuildContext context, SimResult sim, SimPeriod p) {
   final t = context.t;
   final c = context.colors;
-  final recordedEnd = p.recordedEnd;
-  final replayEnd = p.replayEnd;
   final gap = p.gap;
   final warnings = <SimWarning>[
     for (final w in sim.warnings)
@@ -699,14 +697,7 @@ List<Widget> periodLines(
           .where((x) => x.part == SimPart.future)
           .every((x) => x.simulatedStart == x.simulatedEnd);
   return <Widget>[
-    // With no rate for anything the period holds, its totals are not zero but unknown, so no total-based line is drawn
-    if (!noTotal && p.part == SimPart.past && replayEnd != null)
-      _TotalRow(
-        label: t.simReplayEnd,
-        amount: replayEnd,
-        source: SimSource.replay,
-      ),
-    if (!noTotal && gap != null)
+    if (gap != null)
       Text(
         gap < 0
             ? t.simGapBelow(context.moneyMain(-gap))
@@ -717,12 +708,6 @@ List<Widget> periodLines(
           color: gap < 0 ? c.warning : c.muted,
           fontFeatures: tabular,
         ),
-      ),
-    if (!noTotal && p.part == SimPart.mixed && recordedEnd != null)
-      _TotalRow(
-        label: t.simRecordedToday,
-        amount: recordedEnd,
-        source: SimSource.recorded,
       ),
     if (p.missed > 0)
       Text(t.simMissed(p.missed), style: TextStyle(color: c.warning)),
@@ -741,6 +726,436 @@ List<Widget> periodLines(
       ),
     if (sim.ratesStale) Text(t.simRatesStale, style: TextStyle(color: c.muted)),
   ];
+}
+
+/// How much was spent and received in the selected period, and the lines that belong with it. Spent is the one big number and Received a
+/// smaller row under it (hidden when nothing came in); the period of today keeps what is recorded so far apart from what is still to come;
+/// the plan replay, the untracked money and the balance rows sit behind one Details row. An older saved answer without these figures
+/// shows only the lines, never zeros.
+class SpendCard extends StatelessWidget {
+  const SpendCard({required this.sim, required this.period, super.key});
+
+  final SimResult sim;
+  final SimPeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    final p = period;
+    final lines = periodLines(context, sim, p);
+    final rows = <Widget>[];
+    final details = <Widget>[];
+    if (p.totalsKnown) {
+      final past = p.part == SimPart.past;
+      final mixed = p.part == SimPart.mixed;
+      final source = past || mixed ? SimSource.recorded : SimSource.simulated;
+      final spent = past || mixed ? p.recordedSpent : p.simulatedSpent;
+      final received = past || mixed ? p.recordedReceived : p.simulatedReceived;
+      final coming = mixed ? p.simulatedSpent : null;
+      final comingIn = mixed ? p.simulatedReceived : null;
+      final nothing =
+          (spent ?? 0) == 0 &&
+          (received ?? 0) == 0 &&
+          (coming ?? 0) == 0 &&
+          (comingIn ?? 0) == 0;
+      if (spent != null && nothing && p.leftOut.isEmpty) {
+        rows.add(Text(t.simNothingSpent, style: TextStyle(color: c.muted)));
+      } else if (spent != null) {
+        rows.add(
+          _TotalRow(
+            label: mixed ? t.simSpentSoFar : t.simSpent,
+            amount: spent,
+            source: source,
+            large: true,
+          ),
+        );
+        if ((received ?? 0) != 0) {
+          rows.add(
+            _TotalRow(
+              label: mixed ? t.simReceivedSoFar : t.simReceived,
+              amount: received ?? 0,
+              source: source,
+            ),
+          );
+        }
+        if (coming != null && spent + coming != spent) {
+          rows.add(
+            _TotalRow(
+              label: t.simStillToCome,
+              amount: coming,
+              source: SimSource.simulated,
+            ),
+          );
+          rows.add(
+            Text(
+              '${t.simWholePeriod}: ${context.moneyMain(spent + coming)}',
+              style: TextStyle(color: c.muted, fontFeatures: tabular),
+            ),
+          );
+        }
+      } else if (mixed && coming != null) {
+        rows.add(
+          _TotalRow(
+            label: t.simStillToCome,
+            amount: coming,
+            source: SimSource.simulated,
+          ),
+        );
+      }
+      if (p.leftOut.isNotEmpty) rows.add(RateWarning(p.leftOut));
+      // Behind Details: the plan replay of a past period, untracked money, and the balances the header does not show
+      final replaySpent = p.replaySpent;
+      if (past && replaySpent != null) {
+        details.add(
+          _TotalRow(
+            label: t.simPlanExpected,
+            amount: replaySpent,
+            source: SimSource.replay,
+          ),
+        );
+      }
+      final untracked = p.recordedUntracked;
+      if ((past || mixed) && untracked != null && untracked > 0) {
+        details.add(
+          _TotalRow(
+            label: t.simUntracked,
+            amount: untracked,
+            source: SimSource.recorded,
+          ),
+        );
+      }
+      if (mixed && (comingIn ?? 0) != 0) {
+        details.add(
+          _TotalRow(
+            label: t.simStillToReceive,
+            amount: comingIn ?? 0,
+            source: SimSource.simulated,
+          ),
+        );
+      }
+    }
+    final replayEnd = p.replayEnd;
+    if (p.part == SimPart.past && replayEnd != null) {
+      details.add(
+        _TotalRow(
+          label: t.simReplayEnd,
+          amount: replayEnd,
+          source: SimSource.replay,
+        ),
+      );
+    }
+    final recordedEnd = p.recordedEnd;
+    if (p.part == SimPart.mixed && recordedEnd != null) {
+      details.add(
+        _TotalRow(
+          label: t.simRecordedToday,
+          amount: recordedEnd,
+          source: SimSource.recorded,
+        ),
+      );
+    }
+    if (rows.isEmpty && lines.isEmpty && details.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
+        children: <Widget>[
+          ...rows,
+          ...lines,
+          if (details.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: gapM),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              title: Text(
+                t.simDetails,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              children: <Widget>[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: gapM,
+                  children: details,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// -- WHERE IT WENT -- //
+
+/// The groups of spending to draw: the recorded ones for a past period, the simulated ones for the future, and both added up by group
+/// for the period of today (the card then says it includes an estimate).
+({List<SpendGroup> groups, int moreAmount, int moreGroups}) spendGroupsFor(
+  SimBreakdowns b,
+  SimPart part,
+) {
+  if (part == SimPart.past) {
+    return (
+      groups: b.recorded.groups,
+      moreAmount: b.recorded.moreAmount,
+      moreGroups: b.recorded.moreGroups,
+    );
+  }
+  if (part == SimPart.future) {
+    return (
+      groups: b.simulated.groups,
+      moreAmount: b.simulated.moreAmount,
+      moreGroups: b.simulated.moreGroups,
+    );
+  }
+  final sums = <String, ({SpendGroup first, int amount, int count})>{};
+  for (final g in <SpendGroup>[...b.recorded.groups, ...b.simulated.groups]) {
+    final seen = sums[g.key];
+    sums[g.key] = (
+      first: seen?.first ?? g,
+      amount: (seen?.amount ?? 0) + g.amount,
+      count: (seen?.count ?? 0) + g.count,
+    );
+  }
+  final merged =
+      sums.values
+          .map(
+            (v) => SpendGroup(<String, Object?>{
+              'key': v.first.key,
+              'label': v.first.label,
+              'kind': v.first.kind,
+              'amount': v.amount,
+              'count': v.count,
+            }),
+          )
+          .toList()
+        ..sort((a, b) {
+          final byAmount = b.amount.compareTo(a.amount);
+          return byAmount != 0 ? byAmount : a.key.compareTo(b.key);
+        });
+  return (
+    groups: merged,
+    moreAmount: b.recorded.moreAmount + b.simulated.moreAmount,
+    moreGroups: b.recorded.moreGroups + b.simulated.moreGroups,
+  );
+}
+
+/// Where the spending of the period went: the biggest bills and categories with their amount and share, and the rest together. A line is
+/// one tap away from showing only its entries.
+class BreakdownCard extends StatefulWidget {
+  const BreakdownCard({
+    required this.groups,
+    required this.moreAmount,
+    required this.moreGroups,
+    required this.mainCurrency,
+    required this.selected,
+    required this.onPick,
+    this.estimate = false,
+    super.key,
+  });
+
+  final List<SpendGroup> groups;
+  final int moreAmount;
+  final int moreGroups;
+  final String mainCurrency;
+
+  /// The group the entries are limited to.
+  final String? selected;
+  final ValueChanged<String?> onPick;
+
+  /// The period of today: part of the figures is still to come.
+  final bool estimate;
+
+  @override
+  State<BreakdownCard> createState() => _BreakdownCardState();
+}
+
+/// How many lines show before Show more.
+const int _breakdownFirst = 5;
+
+class _BreakdownCardState extends State<BreakdownCard> {
+  // -- STATES -- //
+
+  bool _all = false;
+
+  // -- FUNCTIONS -- //
+
+  String _name(BuildContext context, SpendGroup g) =>
+      g.kind == 'other' || g.label.isEmpty ? context.t.simGroupOther : g.label;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    final all = widget.groups;
+    final total = all.fold<int>(0, (a, g) => a + g.amount) + widget.moreAmount;
+    final shown = _all ? all : all.take(_breakdownFirst).toList();
+    final hidden = all.length - shown.length;
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
+        children: <Widget>[
+          Text(t.simWhereTitle, style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            widget.estimate
+                ? '${t.simWhereLine(widget.mainCurrency)} ${t.simIncludesEstimate}'
+                : t.simWhereLine(widget.mainCurrency),
+            style: TextStyle(color: c.muted),
+          ),
+          for (final g in shown)
+            _GroupLine(
+              name: _name(context, g),
+              amount: g.amount,
+              total: total,
+              selected: widget.selected == g.key,
+              onTap: () =>
+                  widget.onPick(widget.selected == g.key ? null : g.key),
+            ),
+          if (_all && widget.moreGroups > 0)
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    t.simEverythingElse(widget.moreGroups),
+                    style: TextStyle(color: c.muted),
+                  ),
+                ),
+                Text(
+                  context.moneyMain(widget.moreAmount),
+                  style: TextStyle(color: c.muted, fontFeatures: tabular),
+                ),
+              ],
+            ),
+          if (hidden > 0 || (_all && all.length > _breakdownFirst))
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _all = !_all),
+                child: Text(_all ? t.simShowLess : t.simShowMore(hidden)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One group of spending: its name, amount and share, a thin bar, and a tap that limits the entries to it.
+class _GroupLine extends StatelessWidget {
+  const _GroupLine({
+    required this.name,
+    required this.amount,
+    required this.total,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String name;
+  final int amount;
+  final int total;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    final money = context.moneyMain(amount);
+    // Integer maths for the share, rounded to the nearest whole percent; no share for a group below zero or when nothing was spent
+    final share = total > 0 && amount > 0
+        ? (amount * 100 + total ~/ 2) ~/ total
+        : null;
+    final fraction = total > 0 && amount > 0 ? amount / total : 0.0;
+    return Semantics(
+      button: true,
+      selected: selected,
+      onTap: onTap,
+      label: share == null
+          ? t.simBreakdownLineNoShare(name, money)
+          : t.simBreakdownLine(name, money, share),
+      child: ExcludeSemantics(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(vertical: gapS),
+            decoration: selected
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: c.accent),
+                  )
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: gapS),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: gapS,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: gapM),
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          money,
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontFeatures: tabular),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // The bar, with the share at its end: the bar alone would be a colour with no words
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: Stack(
+                            children: <Widget>[
+                              Container(height: 4, color: c.line),
+                              FractionallySizedBox(
+                                widthFactor: fraction.clamp(0.0, 1.0),
+                                child: Container(height: 4, color: c.info),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (share != null) ...<Widget>[
+                        const SizedBox(width: gapM),
+                        Text(
+                          t.simPercent(share),
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            color: c.muted,
+                            fontFeatures: tabular,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // -- ACCOUNTS -- //

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:botler/core/api.dart';
 import 'package:botler/features/calendar/calendar_data.dart';
 import 'package:botler/features/simulate/simulate_data.dart';
+import 'package:botler/features/simulate/simulate_parts.dart';
 import 'package:botler/features/simulate/simulate_screen.dart';
 import 'package:botler/l10n/l10n.dart';
 import 'package:botler/state/providers.dart';
@@ -27,6 +28,16 @@ final String _today = dayOf(DateTime.now());
 /// Wallets and entries a test can swap in (reset after each test), to show other currencies.
 List<Object?>? _walletsOverride;
 List<Object?>? _entriesOverride;
+
+/// How many recorded entries the detail holds (a page of them is sent per request), the offsets and groups asked for, whether pages
+/// after the first fail, whether the answer is the older one without spent and received, and the currencies left out of the totals.
+int? _manyEntries;
+final List<int> _offsets = <int>[];
+final List<String> _groups = <String>[];
+bool _failLater = false;
+bool _refuseDetail = false;
+bool _oldAnswer = false;
+List<String> _leftOut = <String>[];
 
 /// A period of the answer, its part of time worked out from the real today, as the server would.
 Map<String, Object?> _period(String from, String to) {
@@ -49,6 +60,16 @@ Map<String, Object?> _period(String from, String to) {
     'missed': part == 'past' ? 1 : 0,
     'low': false,
     'below': false,
+    if (!_oldAnswer) ...<String, Object?>{
+      'recordedSpent': part == 'future' ? null : 5000,
+      'recordedReceived': part == 'future' ? null : 0,
+      'recordedUntracked': part == 'future' ? null : 0,
+      'replaySpent': part == 'past' ? 150000 : null,
+      'replayReceived': part == 'past' ? 2500000 : null,
+      'simulatedSpent': part == 'past' ? null : 150000,
+      'simulatedReceived': part == 'past' ? null : 2500000,
+      'leftOut': _leftOut,
+    },
     'wallets':
         _walletsOverride ??
         <Object?>[
@@ -82,6 +103,56 @@ Map<String, Object?> _answer(Map<String, Object?> body) {
     periods.add(_period(from, to));
   }
   final detail = body['view'] == 'detail';
+  // The entries the detail holds, the way the server limits them to a group and cuts a page
+  var all =
+      _entriesOverride ??
+      (_manyEntries != null
+          ? <Object?>[
+              for (var i = 0; i < _manyEntries!; i++)
+                <String, Object?>{
+                  'id': 'r$i',
+                  'source': 'recorded',
+                  'kind': 'out',
+                  'date': from,
+                  'label': 'Row $i',
+                  'accountName': 'Wallet',
+                  'currency': 'PHP',
+                  'amount': 100 + i,
+                  'groupKey': i.isEven ? 'cat:food' : 'bill:rent',
+                },
+            ]
+          : <Object?>[
+              <String, Object?>{
+                'id': 'r1',
+                'source': 'recorded',
+                'kind': 'out',
+                'date': from,
+                'label': 'Groceries',
+                'accountName': 'Wallet',
+                'currency': 'PHP',
+                'amount': 5000,
+                'groupKey': 'cat:food',
+              },
+              <String, Object?>{
+                'id': 's1',
+                'source': 'simulated',
+                'kind': 'in',
+                'date': to,
+                'label': 'Salary',
+                'accountName': 'Wallet',
+                'currency': 'PHP',
+                'amount': 2500000,
+              },
+            ]);
+  final group = body['groupKey'];
+  if (group is String) {
+    all = all
+        .where((e) => (e! as Map<String, Object?>)['groupKey'] == group)
+        .toList();
+  }
+  final paged = body.containsKey('limit') || body.containsKey('offset');
+  final offset = (body['offset'] as int?) ?? 0;
+  final limit = (body['limit'] as int?) ?? 500;
   return <String, Object?>{
     'from': from,
     'to': to,
@@ -89,29 +160,37 @@ Map<String, Object?> _answer(Map<String, Object?> body) {
     'currency': 'PHP',
     'firstRecord': '2020-01-01',
     'periods': periods,
-    if (detail)
-      'entries':
-          _entriesOverride ??
-          <Object?>[
+    if (detail) ...<String, Object?>{
+      'entries': paged ? all.skip(offset).take(limit).toList() : all,
+      if (paged) 'entriesTotal': all.length,
+      'breakdown': <String, Object?>{
+        'recorded': <String, Object?>{
+          'groups': <Object?>[
             <String, Object?>{
-              'source': 'recorded',
-              'kind': 'out',
-              'date': from,
-              'label': 'Groceries',
-              'accountName': 'Wallet',
-              'currency': 'PHP',
+              'key': 'cat:food',
+              'label': 'Food',
+              'kind': 'category',
               'amount': 5000,
-            },
-            <String, Object?>{
-              'source': 'simulated',
-              'kind': 'in',
-              'date': to,
-              'label': 'Salary',
-              'accountName': 'Wallet',
-              'currency': 'PHP',
-              'amount': 2500000,
+              'count': 1,
             },
           ],
+          'more': null,
+        },
+        'replay': <String, Object?>{'groups': <Object?>[], 'more': null},
+        'simulated': <String, Object?>{
+          'groups': <Object?>[
+            <String, Object?>{
+              'key': 'bill:rent',
+              'label': 'Rent',
+              'kind': 'bill',
+              'amount': 1500000,
+              'count': 1,
+            },
+          ],
+          'more': null,
+        },
+      },
+    },
     'warnings': <Object?>[],
     'unknown': <Object?>[],
     'notes': <Object?>[],
@@ -146,7 +225,13 @@ Future<ProviderContainer> _open(
       if (offline) throw http.ClientException('offline');
       final body = jsonDecode(req.body) as Map<String, Object?>;
       if (req.url.path.endsWith('balance_simulate')) {
-        if (refuse) {
+        if (body['view'] == 'detail') {
+          _offsets.add((body['offset'] as int?) ?? 0);
+          _groups.add((body['groupKey'] as String?) ?? '');
+        }
+        if (refuse ||
+            (_refuseDetail && body['view'] == 'detail') ||
+            (_failLater && ((body['offset'] as int?) ?? 0) > 0)) {
           return http.Response(
             jsonEncode(<String, Object?>{
               'error': <String, Object?>{'code': 'INVALID', 'message': 'No.'},
@@ -192,6 +277,20 @@ Future<ProviderContainer> _open(
   return container;
 }
 
+/// Scrolls the page until the text is on screen, then taps it. The entries list is lazy, so the extent of the page grows as rows are
+/// built: one scroll may stop short, and it is asked again.
+Future<void> _tapOnPage(WidgetTester tester, String text) async {
+  final finder = find.text(text).first;
+  final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
+  for (var i = 0; i < 8; i++) {
+    await tester.ensureVisible(finder);
+    await tester.pump();
+    if (tester.getCenter(finder).dy < height - 20) break;
+  }
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _tap(WidgetTester tester, String text) async {
   await tester.ensureVisible(find.text(text).first);
   await tester.tap(find.text(text).first);
@@ -234,6 +333,13 @@ void main() {
   tearDown(() {
     _walletsOverride = null;
     _entriesOverride = null;
+    _manyEntries = null;
+    _offsets.clear();
+    _groups.clear();
+    _failLater = false;
+    _refuseDetail = false;
+    _oldAnswer = false;
+    _leftOut = <String>[];
   });
 
   testWidgets(
@@ -241,8 +347,15 @@ void main() {
     (tester) async {
       await _open(tester);
       expect(find.text('Real until today, an estimate after'), findsOneWidget);
-      expect(find.text('Recorded up to today'), findsOneWidget);
+      // Spent so far is recorded; what is still to come is an estimate, with a whole-period figure
+      expect(find.text('Spent so far'), findsOneWidget);
+      expect(find.text('Still to come (estimate)'), findsOneWidget);
+      expect(find.textContaining('Whole period (estimate)'), findsOneWidget);
       expect(find.text('Simulated at the end'), findsOneWidget);
+      // The balance up to today sits behind Details
+      expect(find.text('Recorded up to today'), findsNothing);
+      await _tapOnPage(tester, 'Details');
+      expect(find.text('Recorded up to today'), findsOneWidget);
       expect(find.text('Recorded'), findsWidgets);
       expect(find.text('Simulated'), findsWidgets);
     },
@@ -265,9 +378,14 @@ void main() {
       await _jump(tester, '1 year back');
       expect(find.text('What really happened'), findsOneWidget);
       expect(find.text('Recorded at the end'), findsOneWidget);
-      expect(find.text('Plan replay'), findsWidgets);
+      expect(find.text('Spent'), findsOneWidget);
       expect(find.textContaining('below the plan'), findsOneWidget);
       expect(find.text('1 payday or bill was not recorded'), findsOneWidget);
+      // What the plan expected sits behind Details
+      expect(find.text('Your plan expected to spend'), findsNothing);
+      await _tapOnPage(tester, 'Details');
+      expect(find.text('Your plan expected to spend'), findsOneWidget);
+      expect(find.text('Plan replay'), findsWidgets);
     },
   );
 
@@ -430,6 +548,115 @@ void main() {
     expect(find.byTooltip('Later'), findsOneWidget);
     expect(find.text('Try again'), findsWidgets);
   });
+
+  testWidgets(
+    'an older answer without spent and received draws no card, not zeros',
+    (tester) async {
+      _oldAnswer = true;
+      await _open(tester);
+      expect(find.text('Spent so far'), findsNothing);
+      expect(find.text('Spent'), findsNothing);
+      expect(find.text('Nothing was spent in this period.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a currency with no rate in the period is named and left out of spent',
+    (tester) async {
+      _leftOut = <String>['JPY'];
+      await _open(tester);
+      expect(
+        find.text('No exchange rate for JPY: left out of the totals.'),
+        findsWidgets,
+      );
+    },
+  );
+
+  testWidgets(
+    'where it went lists the groups with their share, and a tap shows only that group',
+    (tester) async {
+      await _open(tester);
+      await tester.scrollUntilVisible(
+        find.text('Where it went'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Where it went'), findsOneWidget);
+      expect(
+        find.textContaining('Includes what is still to come (estimate)'),
+        findsOneWidget,
+      );
+      expect(find.text('Food'), findsOneWidget);
+      expect(find.text('Rent'), findsOneWidget);
+      // Rent is almost all of it, Food a sliver
+      expect(find.text('100%'), findsOneWidget);
+      expect(find.text('0%'), findsOneWidget);
+      await _tapOnPage(tester, 'Rent');
+      expect(_groups.last, 'bill:rent');
+      expect(find.text('Showing Rent'), findsOneWidget);
+      await _tapOnPage(tester, 'Show all');
+      expect(find.text('Showing Rent'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'with thousands of entries only a screenful is built, and the next page is asked for at the end',
+    (tester) async {
+      _manyEntries = 2000;
+      await _open(tester);
+      expect(_offsets.where((o) => o == 0), isNotEmpty);
+      // A first page of 50 is loaded, and the rows built are far fewer than that
+      await tester.scrollUntilVisible(
+        find.text('Row 0'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byType(EntryRow).evaluate().length, lessThan(30));
+      // Scrolling to the end of what is loaded asks for the following page
+      for (var i = 0; i < 40 && !_offsets.contains(50); i++) {
+        await tester.drag(
+          find.byType(CustomScrollView),
+          const Offset(0, -2500),
+        );
+        await tester.pumpAndSettle();
+      }
+      expect(_offsets, contains(50));
+      expect(find.byType(EntryRow).evaluate().length, lessThan(30));
+    },
+  );
+
+  testWidgets('a page that fails keeps the rows and offers to try again', (
+    tester,
+  ) async {
+    _manyEntries = 200;
+    _failLater = true;
+    await _open(tester);
+    for (
+      var i = 0;
+      i < 40 && find.text('Could not load more.').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -2500));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Could not load more.'), findsOneWidget);
+    expect(find.byType(EntryRow), findsWidgets);
+    _failLater = false;
+    await tester.tap(find.text('Try again').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Could not load more.'), findsNothing);
+  });
+
+  testWidgets(
+    'a refused first page is shown at once with one request, not retried',
+    (tester) async {
+      _refuseDetail = true;
+      await _open(tester);
+      // The unfiltered list also carries the breakdown, so it is one request for both; Riverpod does not ask again
+      expect(_offsets, <int>[0]);
+      expect(find.text('Try again'), findsWidgets);
+    },
+  );
 
   testWidgets(
     'the chart is one target that moves period by period for a screen reader',
