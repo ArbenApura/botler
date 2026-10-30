@@ -14,6 +14,7 @@ import {
 } from '../../src/lib/finance/dates';
 import {
 	adjustForWeekend,
+	describeSchedule,
 	nextOccurrence,
 	occurrencesBetween,
 	validateSchedule
@@ -139,5 +140,96 @@ describe('validation', () => {
 		expect(() =>
 			occurrencesBetween({ kind: 'monthly', day: 40 }, '2026-01-01', '2026-02-01')
 		).toThrow();
+	});
+});
+
+describe('start, end and skipped dates', () => {
+	const monday = { kind: 'weekly', days: [1] } as const;
+
+	it('leaves out one skipped Monday and keeps the others', () => {
+		const s = { ...monday, skipDates: ['2026-11-02'] };
+		expect(occurrencesBetween(s, '2026-10-26', '2026-11-16')).toEqual([
+			'2026-10-26',
+			'2026-11-09',
+			'2026-11-16'
+		]);
+	});
+
+	it('starts later than an anchor in the past, and stops at the end date', () => {
+		const s = { kind: 'every_n_days', anchor: '2026-10-05', n: 7, startsOn: '2026-11-09' } as const;
+		expect(occurrencesBetween(s, '2026-10-26', '2026-11-23')).toEqual([
+			'2026-11-09',
+			'2026-11-16',
+			'2026-11-23'
+		]);
+		expect(occurrencesBetween({ ...s, endsOn: '2026-11-16' }, '2026-10-26', '2026-11-23')).toEqual([
+			'2026-11-09',
+			'2026-11-16'
+		]);
+	});
+
+	it('keeps a skip when the weekend rule moves the date, and when it is the shown date', () => {
+		const sat = { kind: 'monthly', day: 31, skipDates: ['2026-10-31'] } as const;
+		// Saturday the 31st moves to Friday the 30th: the unmoved date is skipped
+		expect(occurrencesBetween(sat, '2026-10-01', '2026-10-31', { weekend: 'before' })).toEqual([]);
+		// The shown Friday works too
+		const fri = { ...sat, skipDates: ['2026-10-30'] };
+		expect(occurrencesBetween(fri, '2026-10-01', '2026-10-31', { weekend: 'before' })).toEqual([]);
+		expect(
+			occurrencesBetween({ ...sat, skipDates: [] }, '2026-10-01', '2026-10-31', {
+				weekend: 'before'
+			})
+		).toEqual(['2026-10-30']);
+	});
+
+	it('counts the first and last date themselves, and judges a moved date where it lands', () => {
+		const m = { kind: 'weekly', days: [1], startsOn: '2026-11-09', endsOn: '2026-11-16' } as const;
+		expect(occurrencesBetween(m, '2026-11-01', '2026-11-30')).toEqual(['2026-11-09', '2026-11-16']);
+		// Saturday the 31st lands on Friday the 30th, so an end on the 30th keeps it and an end on the 29th drops it
+		const sat = { kind: 'monthly', day: 31 } as const;
+		const opts = { weekend: 'before' } as const;
+		expect(
+			occurrencesBetween({ ...sat, endsOn: '2026-10-30' }, '2026-10-01', '2026-10-31', opts)
+		).toEqual(['2026-10-30']);
+		expect(
+			occurrencesBetween({ ...sat, endsOn: '2026-10-29' }, '2026-10-01', '2026-10-31', opts)
+		).toEqual([]);
+	});
+
+	it('has no next date after the end date, and a skip works together with a start', () => {
+		expect(nextOccurrence({ ...monday, endsOn: '2026-11-16' }, '2026-11-16')).toBeNull();
+		const s = { ...monday, startsOn: '2026-11-09', skipDates: ['2026-11-16'] };
+		expect(occurrencesBetween(s, '2026-11-01', '2026-11-30')).toEqual([
+			'2026-11-09',
+			'2026-11-23',
+			'2026-11-30'
+		]);
+	});
+
+	it('does not let a one-time schedule be moved out by the range', () => {
+		const once = { kind: 'once', date: '2026-11-05', startsOn: '2026-12-01' } as const;
+		expect(occurrencesBetween(once, '2026-11-01', '2026-11-30')).toEqual(['2026-11-05']);
+	});
+
+	it('refuses bad limits in plain words', () => {
+		expect(validateSchedule({ ...monday, startsOn: '2026-02-30' })).toMatch(/first date/);
+		expect(validateSchedule({ ...monday, startsOn: '2026-12-01', endsOn: '2026-11-01' })).toMatch(
+			/not be after/
+		);
+		expect(validateSchedule({ ...monday, skipDates: ['nope'] })).toMatch(/leave out/);
+		const many = Array.from({ length: 61 }, (_, i) => addDays('2026-01-01', i));
+		expect(validateSchedule({ ...monday, skipDates: many })).toMatch(/at most 60/);
+	});
+
+	it('says the limits in the sentence and keeps the key and arguments', () => {
+		const plain = describeSchedule(monday);
+		const limited = describeSchedule({
+			...monday,
+			startsOn: '2026-11-09',
+			skipDates: ['2026-11-16']
+		});
+		expect(limited.key).toBe(plain.key);
+		expect(limited.args).toEqual(plain.args);
+		expect(limited.text).toBe(`${plain.text} (from 2026-11-09, not on 2026-11-16)`);
 	});
 });

@@ -36,7 +36,7 @@ import {
 
 // -- TYPES -- //
 
-export type Schedule =
+export type ScheduleRule =
 	| { kind: 'semi_monthly'; days: readonly [number, number] }
 	| { kind: 'every_n_days'; anchor: ManilaDate; n: number }
 	| { kind: 'monthly'; day: number; everyMonths?: number; anchorMonth?: string }
@@ -55,6 +55,18 @@ export type Schedule =
 	| { kind: 'day_range'; from: number; to: number; everyMonths?: number; anchorMonth?: string }
 	| { kind: 'yearly'; month: number; day: number }
 	| { kind: 'once'; date: ManilaDate };
+
+/**
+ * Limits on any schedule: the first and last due date that count (a one-time schedule ignores both) and single due dates left out, as the
+ * person sees them (after the weekend rule). They let a payday skip one date or start later without changing the repeat pattern.
+ */
+export type ScheduleLimits = {
+	startsOn?: ManilaDate;
+	endsOn?: ManilaDate;
+	skipDates?: readonly ManilaDate[];
+};
+
+export type Schedule = ScheduleRule & ScheduleLimits;
 
 export type WeekendRule = 'none' | 'before' | 'after';
 
@@ -91,6 +103,9 @@ export const SCHEDULE_KINDS = [
 ] as const;
 
 const MAX_SHIFT = 10;
+
+/** Most single due dates one schedule can leave out. */
+export const MAX_SKIP_DATES = 60;
 
 const WEEKDAY_NAMES = [
 	'Sunday',
@@ -144,8 +159,25 @@ function monthCycleProblem(everyMonths: number | undefined, anchorMonth: string 
 	return null;
 }
 
+/** The first problem with the start, end and skipped dates of a schedule, or null. */
+function limitsProblem(s: ScheduleLimits): string | null {
+	if (s.startsOn !== undefined && !isDate(s.startsOn)) return 'The first date is not a real date.';
+	if (s.endsOn !== undefined && !isDate(s.endsOn)) return 'The last date is not a real date.';
+	if (s.startsOn !== undefined && s.endsOn !== undefined && s.startsOn > s.endsOn)
+		return 'The first date must not be after the last date.';
+	if (s.skipDates !== undefined) {
+		if (s.skipDates.length > MAX_SKIP_DATES) return `Leave out at most ${MAX_SKIP_DATES} dates.`;
+		if (s.skipDates.some((d) => !isDate(d))) return 'A date to leave out is not a real date.';
+	}
+	return null;
+}
+
 /** The first problem with a schedule, in plain words, or null when it is valid. */
 export function validateSchedule(s: Schedule): string | null {
+	return limitsProblem(s) ?? validateRule(s);
+}
+
+function validateRule(s: ScheduleRule): string | null {
 	switch (s.kind) {
 		case 'semi_monthly': {
 			const [a, b] = s.days;
@@ -380,6 +412,11 @@ export function windowsBetween(
 	for (const w of wide) {
 		const end = adjustForWeekend(w.end, rule, opts.holidays);
 		if (end < from || end > to) continue;
+		// The person's own limits, on the date they see; a one-time schedule is its own date and ignores the range
+		if (s.kind !== 'once' && ((s.startsOn && end < s.startsOn) || (s.endsOn && end > s.endsOn)))
+			continue;
+		// A skip names the date the person sees; the unmoved date also counts, so a changed weekend rule keeps it skipped
+		if (s.skipDates?.includes(end) || s.skipDates?.includes(w.end)) continue;
 		const start = w.start > end ? end : w.start;
 		const seen = byEnd.get(end);
 		// Two windows landing on one due date keep the earlier start
@@ -439,6 +476,16 @@ function everyMonthsPart(everyMonths: number | undefined): { key: string; text: 
 
 /** A plain sentence for a schedule. The key and the arguments let the app translate it; the text is the English one. */
 export function describeSchedule(s: Schedule): ScheduleDescription {
+	const base = describeRule(s);
+	const extra: string[] = [];
+	if (s.startsOn) extra.push(`from ${s.startsOn}`);
+	if (s.endsOn) extra.push(`until ${s.endsOn}`);
+	if (s.skipDates && s.skipDates.length > 0)
+		extra.push(`not on ${[...s.skipDates].sort().join(', ')}`);
+	return extra.length === 0 ? base : { ...base, text: `${base.text} (${extra.join(', ')})` };
+}
+
+function describeRule(s: ScheduleRule): ScheduleDescription {
 	const months = everyMonthsPart('everyMonths' in s ? s.everyMonths : undefined);
 	const suffix = months?.text ?? '';
 	const keySuffix = months?.key ?? '';

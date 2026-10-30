@@ -375,7 +375,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'schedule_preview',
 		kind: 'read',
 		description:
-			'Say what a repeat schedule means and when it falls next, before it is saved. Schedule kinds: monthly (day, or -1 for the last day), semi_monthly, every_n_days, weekly (days, and for every few weeks everyWeeks plus anchor, a YYYY-MM-DD date that falls on one of those weekdays), nth_weekday (n 1-5 or -1, weekday 0 Sunday to 6 Saturday), week_of_month (n, basis days or calendar, pick window or weekday), day_range (from, to), yearly, once (date, a YYYY-MM-DD, for a bill that happens one time only). Add everyMonths and anchorMonth (YYYY-MM) for every few months. Every field of the rule, anchor included, goes inside the "schedule" object, never beside it. Example every other Wednesday: {"schedule":{"kind":"weekly","days":[3],"everyWeeks":2,"anchor":"2026-10-28"}}.',
+			'Say what a repeat schedule means and when it falls next, before it is saved. Schedule kinds: monthly (day, or -1 for the last day), semi_monthly, every_n_days, weekly (days, and for every few weeks everyWeeks plus anchor, a YYYY-MM-DD date that falls on one of those weekdays), nth_weekday (n 1-5 or -1, weekday 0 Sunday to 6 Saturday), week_of_month (n, basis days or calendar, pick window or weekday), day_range (from, to), yearly, once (date, a YYYY-MM-DD, for a bill that happens one time only). Add everyMonths and anchorMonth (YYYY-MM) for every few months. Every field of the rule, anchor included, goes inside the "schedule" object, never beside it. Example every other Wednesday: {"schedule":{"kind":"weekly","days":[3],"everyWeeks":2,"anchor":"2026-10-28"}}. A payday rule can also carry startsOn and endsOn (YYYY-MM-DD, the first and last date that count) and skipDates (dates left out, up to 60), for example to skip one Monday: {"schedule":{"kind":"weekly","days":[1],"skipDates":["2026-11-02"]}}. Use this tool to try a schedule idea; the answer lists the dates and shows the limits in its sentence. Never change a live payday or bill just to see what a schedule does.',
 		input: schedulePreviewInput,
 		run: (ctx, a) => schedulePreview(ctx, a)
 	}),
@@ -846,7 +846,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'income_update',
 		kind: 'free',
 		description:
-			'Change a payday schedule: label, expected amount, the account it lands in, the repeat rule, the weekend rule, or switch it off with active false. Done at once, no card.',
+			'Change a payday schedule: label, expected amount, the account it lands in, the repeat rule, the weekend rule, or switch it off with active false. Done at once, no card. The repeat rule is replaced whole: read it with income_list first and send all of it. To skip one payday add its date to skipDates inside the schedule (for example one Monday that the pay already arrived early); to start later or stop use startsOn and endsOn; resend the ones you want to keep and leave out the ones to clear. Only paydays take these fields, not bills or reminders. Try an idea with schedule_preview first, never on the live payday.',
 		input: incomeUpdateInput,
 		run: (ctx, a) => updateIncome(ctx, a)
 	}),
@@ -922,7 +922,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'income_create',
 		kind: 'free',
-		description: 'Set up a payday schedule.',
+		description:
+			'Set up a payday schedule. The schedule may carry startsOn, endsOn and skipDates (YYYY-MM-DD) inside it.',
 		input: incomeCreateInput,
 		run: (ctx, a) => createIncome(ctx, a)
 	}),

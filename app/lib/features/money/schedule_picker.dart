@@ -50,8 +50,14 @@ class ScheduleValue {
     this.month = 1,
     Set<int>? weekdays,
     DateTime? anchor,
+    Map<String, Object?>? limits,
   }) : weekdays = weekdays ?? <int>{5},
-       anchor = anchor ?? DateTime.now();
+       anchor = anchor ?? DateTime.now(),
+       limits = limits ?? <String, Object?>{};
+
+  /// The first date, the last date and the dates left out that the server keeps with a schedule (startsOn, endsOn, skipDates). The
+  /// picker does not edit them; they are carried through so changing the pattern never drops them.
+  final Map<String, Object?> limits;
 
   SchedulePattern pattern;
 
@@ -87,7 +93,22 @@ class ScheduleValue {
   static ScheduleValue? fromJson(Json s) {
     final kind = str(s['kind']);
     if (!knownScheduleKinds.contains(kind)) return null;
-    final v = ScheduleValue(everyMonths: intOf(s['everyMonths'], 1));
+    final limits = <String, Object?>{};
+    for (final key in const ['startsOn', 'endsOn']) {
+      final d = s[key];
+      if (d is String && d.isNotEmpty) limits[key] = d;
+    }
+    final skips = s['skipDates'];
+    if (skips is List<Object?> && skips.isNotEmpty) {
+      limits['skipDates'] = <String>[
+        for (final d in skips)
+          if (d is String) d,
+      ];
+    }
+    final v = ScheduleValue(
+      everyMonths: intOf(s['everyMonths'], 1),
+      limits: limits,
+    );
     switch (kind) {
       case 'monthly':
         v.pattern = SchedulePattern.monthlyDay;
@@ -147,7 +168,9 @@ class ScheduleValue {
       : <String, Object?>{};
 
   /// The schedule as the server takes it.
-  Json toJson() {
+  Json toJson() => <String, Object?>{..._rule(), ...limits};
+
+  Json _rule() {
     switch (pattern) {
       case SchedulePattern.monthlyDay:
         return <String, Object?>{'kind': 'monthly', 'day': day, ..._cycle};

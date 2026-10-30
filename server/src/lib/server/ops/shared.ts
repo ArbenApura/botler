@@ -35,7 +35,7 @@ export function firstProblem(schema: z.ZodType, error: z.ZodError): string {
 	if (issue.code === 'unrecognized_keys') {
 		const shape = (schema as { shape?: Record<string, unknown> }).shape;
 		const allowed = shape ? ` The fields here are: ${Object.keys(shape).join(', ')}.` : '';
-		return `${issue.path.length ? `${issue.path.join('.')}: ` : ''}Unknown field ${issue.keys.map((k) => `"${k}"`).join(', ')}.${allowed} A field of a repeat rule (anchor, everyWeeks, anchorMonth) goes inside "schedule".`;
+		return `${issue.path.length ? `${issue.path.join('.')}: ` : ''}Unknown field ${issue.keys.map((k) => `"${k}"`).join(', ')}.${allowed} A field of a repeat rule (anchor, everyWeeks, anchorMonth, startsOn, endsOn, skipDates) goes inside "schedule".`;
 	}
 	return `${issue.path.length ? `${issue.path.join('.')}: ` : ''}${issue.message}`;
 }

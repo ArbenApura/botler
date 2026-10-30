@@ -36,7 +36,12 @@ import {
 	undo,
 	weeklyCheckin
 } from '../../src/lib/server/ops/ledger';
-import { createGoal, createIncome, nextPaydays } from '../../src/lib/server/ops/planning';
+import {
+	createGoal,
+	createIncome,
+	nextPaydays,
+	updateIncome
+} from '../../src/lib/server/ops/planning';
 import {
 	approveRule,
 	listRules,
@@ -215,6 +220,26 @@ describe('the payday split, end to end', () => {
 		const days = await nextPaydays(ben(), incomeId, 3);
 		expect(days).toHaveLength(3);
 		expect(days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
+	});
+
+	it('skips one payday, keeps the rest, and brings it back when the skip is left out', async () => {
+		const weekly = await createIncome(as(ben()), {
+			label: 'Weekly pay',
+			accountId: rcbc,
+			expectedAmount: 1_900_000,
+			schedule: { kind: 'weekly', days: [1] },
+			weekendRule: 'before'
+		});
+		const before = await nextPaydays(ben(), weekly.id, 3);
+		const skipped = before[0] as string;
+		const set = await updateIncome(as(ben()), {
+			incomeId: weekly.id,
+			schedule: { kind: 'weekly', days: [1], skipDates: [skipped] }
+		});
+		expect(set.schedule).toEqual({ kind: 'weekly', days: [1], skipDates: [skipped] });
+		expect(await nextPaydays(ben(), weekly.id, 2)).toEqual([before[1], before[2]]);
+		await updateIncome(as(ben()), { incomeId: weekly.id, schedule: { kind: 'weekly', days: [1] } });
+		expect(await nextPaydays(ben(), weekly.id, 3)).toEqual(before);
 	});
 
 	it('proposes a rule in words, and it changes nothing until a person approves it', async () => {

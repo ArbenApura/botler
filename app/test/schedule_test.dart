@@ -116,6 +116,46 @@ void main() {
     });
   });
 
+  group('the first date, last date and skipped dates', () {
+    final saved = <String, Object?>{
+      'kind': 'weekly',
+      'days': <int>[1],
+      'startsOn': '2026-11-09',
+      'endsOn': '2026-12-31',
+      'skipDates': <String>['2026-11-16'],
+    };
+
+    test('survive opening a schedule and saving it again', () {
+      expect(ScheduleValue.fromJson(saved)!.toJson(), saved);
+    });
+
+    test('are kept when the person picks another pattern', () {
+      final v = ScheduleValue.fromJson(saved)!;
+      v.pattern = SchedulePattern.monthlyDay;
+      v.day = 5;
+      expect(v.toJson(), <String, Object?>{
+        'kind': 'monthly',
+        'day': 5,
+        'startsOn': '2026-11-09',
+        'endsOn': '2026-12-31',
+        'skipDates': <String>['2026-11-16'],
+      });
+    });
+
+    test('add nothing to a schedule that has none', () {
+      expect(
+        ScheduleValue.fromJson(<String, Object?>{
+          'kind': 'weekly',
+          'days': <int>[1],
+        })!.toJson(),
+        <String, Object?>{
+          'kind': 'weekly',
+          'days': <int>[1],
+        },
+      );
+    });
+  });
+
   group('what each pattern sends to the server', () {
     test('matches the server shapes exactly', () {
       expect(ScheduleValue(day: 5).toJson(), <String, Object?>{

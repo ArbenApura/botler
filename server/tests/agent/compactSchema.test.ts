@@ -7,7 +7,7 @@ import { z } from 'zod';
 // -- MODULES -- //
 import { buildTools, toParameters } from '../../src/lib/server/agent/tools';
 import { trimForModel } from '../../src/lib/server/agent/turn';
-import { recurrenceInput, scheduleInput } from '../../src/lib/server/db/zod';
+import { paydayScheduleInput, recurrenceInput, scheduleInput } from '../../src/lib/server/db/zod';
 import { agentVerbs } from '../../src/lib/server/ops/registry';
 
 // -- TYPES -- //
@@ -98,7 +98,7 @@ describe('compact tool schemas', () => {
 	it('are smaller than the original and have no oneOf left in a kind union', () => {
 		const json = JSON.stringify(buildTools().map((t) => t.parameters));
 		expect(json).not.toContain('"oneOf"');
-		expect(json.length).toBeLessThan(27_000);
+		expect(json.length).toBeLessThan(29_000);
 	});
 
 	it('turn anyOf with null into a nullable type and drop a type beside a const', () => {
@@ -144,7 +144,19 @@ describe('compact tool schemas', () => {
 		// The model reads the allowed fields of every kind in the description it was given
 		const preview = buildTools().find((t) => t.name === 'schedule_preview')?.parameters as Json;
 		const guide = String(((preview.properties as Json).schedule as Json).description);
-		expect(guide).toContain('monthly: day:int, everyMonths?:int, anchorMonth?:string');
+		expect(guide).toMatch(/monthly: .*day:int, everyMonths\?:int, anchorMonth\?:string/);
+		// Only paydays and the preview take start, end and skipped dates: bills and reminders still strip them
+		const limits = { startsOn: '2026-11-09', endsOn: '2026-12-31', skipDates: ['2026-11-16'] };
+		for (const rule of [
+			{ kind: 'weekly', days: [1] },
+			{ kind: 'every_n_days', anchor: '2026-11-02', n: 7 },
+			{ kind: 'monthly', day: 5 },
+			{ kind: 'semi_monthly', days: [15, 30] },
+			{ kind: 'nth_weekday', n: 1, weekday: 3 }
+		]) {
+			expect(paydayScheduleInput.parse({ ...rule, ...limits })).toEqual({ ...rule, ...limits });
+			expect(scheduleInput.parse({ ...rule, ...limits })).toEqual(rule);
+		}
 	});
 
 	it('still lets a tool find currency, toCurrency and toAmount wherever they sit', () => {

@@ -89,8 +89,21 @@ export async function proposeSplitPlan(
 		const payday =
 			input.payday ?? occurrencesBetween(schedule, today, addDays(today, 800), opts)[0];
 		if (!payday) throw new OpsError('INVALID', 'There is no payday ahead for that income.');
-		if (input.payday && occurrencesBetween(schedule, payday, payday, opts).length === 0)
-			throw new OpsError('INVALID', `${payday} is not a payday of "${inc.label}".`);
+		if (input.payday && occurrencesBetween(schedule, payday, payday, opts).length === 0) {
+			// A date the pattern falls on but the person left out (skipped, or before the start or after the end) is said so
+			const bare = occurrencesBetween(
+				{ ...schedule, startsOn: undefined, endsOn: undefined, skipDates: undefined },
+				payday,
+				payday,
+				opts
+			);
+			throw new OpsError(
+				'INVALID',
+				bare.length > 0
+					? `${payday} is left out of "${inc.label}" (skipped, or outside its start and end dates).`
+					: `${payday} is not a payday of "${inc.label}".`
+			);
+		}
 		const pay = input.pay ?? inc.expectedAmount;
 		if (!pay) throw new OpsError('INVALID', 'Say what the pay is this time.');
 		const next = occurrencesBetween(schedule, addDays(payday, 1), addDays(payday, 800), opts)[0];

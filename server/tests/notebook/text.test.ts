@@ -3,6 +3,7 @@
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
+import { notebookEditInput } from '../../src/lib/server/db/zod';
 import {
 	addLine,
 	buildDraft,
@@ -168,5 +169,17 @@ describe('the first draft', () => {
 		expect(draft.length).toBeLessThanOrEqual(3000);
 		expect(draft).toContain('fact number 0 ');
 		expect(draft).not.toContain('fact number 199 ');
+	});
+});
+
+describe('the notebook_edit input names what is missing', () => {
+	const message = (input: unknown) => {
+		const r = notebookEditInput.safeParse(input);
+		return r.success ? null : r.error.issues.map((i) => i.message).join(' | ');
+	};
+
+	it('lists the ops when the op is wrong or missing', () => {
+		expect(message({ op: 'append', line: 'x' })).toMatch(/"add".*"replace".*"remove"/);
+		expect(message({ line: 'x' })).toMatch(/op must be/);
 	});
 });

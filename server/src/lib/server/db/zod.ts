@@ -9,7 +9,7 @@ import { CURRENCY_CODES, isCurrencyCode } from '../../finance/currency';
 import { isDate } from '../../finance/dates';
 import { validateRecurrence } from '../../schedule/recurrence';
 import { MAX_CENTAVOS } from '../../finance/money';
-import { validateSchedule } from '../../finance/schedule';
+import { MAX_SKIP_DATES, validateSchedule, type Schedule } from '../../finance/schedule';
 import {
 	account,
 	allocationRule,
@@ -61,27 +61,49 @@ const versionField = z.number().int().min(1);
 /** An instant as ISO text, for example 2026-10-21T04:00:00Z. */
 const instantField = z.iso.datetime({ offset: true });
 
-/** A repeat rule, checked the same way the engine checks it. */
-export const scheduleInput = z
-	.discriminatedUnion('kind', [
+/** Start, end and skipped dates: only paydays and the schedule preview take them (a bill has its own first date and per-date changes). */
+const limitFields = {
+	startsOn: dayField.optional(),
+	endsOn: dayField.optional(),
+	skipDates: z
+		.array(dayField)
+		.max(
+			MAX_SKIP_DATES,
+			`Leave out at most ${MAX_SKIP_DATES} dates: remove the old ones from skipDates first.`
+		)
+		.optional()
+};
+
+/** One shape of every repeat kind; `extra` adds the limits to each, since a field added after the union would be stripped. */
+function scheduleShapes<E extends z.ZodRawShape>(extra: E) {
+	return [
 		z.object({
+			...extra,
 			kind: z.literal('semi_monthly'),
 			days: z.tuple([z.number().int(), z.number().int()])
 		}),
-		z.object({ kind: z.literal('every_n_days'), anchor: z.string(), n: z.number().int() }),
 		z.object({
+			...extra,
+			kind: z.literal('every_n_days'),
+			anchor: z.string(),
+			n: z.number().int()
+		}),
+		z.object({
+			...extra,
 			kind: z.literal('monthly'),
 			day: z.number().int(),
 			everyMonths: z.number().int().optional(),
 			anchorMonth: z.string().optional()
 		}),
 		z.object({
+			...extra,
 			kind: z.literal('weekly'),
 			days: z.array(z.number().int()).max(7),
 			everyWeeks: z.number().int().optional(),
 			anchor: z.string().optional()
 		}),
 		z.object({
+			...extra,
 			kind: z.literal('nth_weekday'),
 			n: z.number().int(),
 			weekday: z.number().int(),
@@ -89,6 +111,7 @@ export const scheduleInput = z
 			anchorMonth: z.string().optional()
 		}),
 		z.object({
+			...extra,
 			kind: z.literal('week_of_month'),
 			n: z.number().int(),
 			basis: z.enum(['days', 'calendar']),
@@ -99,22 +122,38 @@ export const scheduleInput = z
 			anchorMonth: z.string().optional()
 		}),
 		z.object({
+			...extra,
 			kind: z.literal('day_range'),
 			from: z.number().int(),
 			to: z.number().int(),
 			everyMonths: z.number().int().optional(),
 			anchorMonth: z.string().optional()
 		}),
-		z.object({ kind: z.literal('yearly'), month: z.number().int(), day: z.number().int() }),
-		z.object({ kind: z.literal('once'), date: z.string() })
-	])
-	.superRefine((s, ctx) => {
-		const problem = validateSchedule(s);
+		z.object({
+			...extra,
+			kind: z.literal('yearly'),
+			month: z.number().int(),
+			day: z.number().int()
+		}),
+		z.object({ ...extra, kind: z.literal('once'), date: z.string() })
+	] as const;
+}
+
+function scheduleWith<E extends z.ZodRawShape>(extra: E) {
+	return z.discriminatedUnion('kind', scheduleShapes(extra)).superRefine((s, ctx) => {
+		const problem = validateSchedule(s as Schedule);
 		if (problem) ctx.addIssue({ code: 'custom', message: problem });
 	});
+}
+
+/** A repeat rule, checked the same way the engine checks it. */
+export const scheduleInput = scheduleWith({});
+
+/** A repeat rule with start, end and skipped dates. */
+export const scheduleLimitedInput = scheduleWith(limitFields);
 
 /** A payday is one day: a range of days or a week window would leave the date of the split unknown. */
-export const paydayScheduleInput = scheduleInput.superRefine((s, ctx) => {
+export const paydayScheduleInput = scheduleLimitedInput.superRefine((s, ctx) => {
 	if (s.kind === 'day_range' || (s.kind === 'week_of_month' && s.pick === 'window'))
 		ctx.addIssue({
 			code: 'custom',
@@ -540,7 +579,7 @@ export const rangeInput = z.object({ from: dayField, to: dayField });
 
 /** A schedule to preview: the sentence that says what it means and the next windows it would produce. */
 export const schedulePreviewInput = z.object({
-	schedule: scheduleInput,
+	schedule: scheduleLimitedInput,
 	weekend: z.enum(['none', 'before', 'after']).optional(),
 	/** The date to look from. Left out, today in Manila. */
 	from: dayField.optional(),
@@ -809,7 +848,10 @@ export const notebookEditInput = z.object({
 	/** The extra notebook to change, by title. Left out it is the main notebook. */
 	notebook: notebookTarget.notebook,
 	notebookId: notebookTarget.notebookId,
-	op: z.enum(['add', 'replace', 'remove']),
+	op: z.enum(['add', 'replace', 'remove'], {
+		error:
+			'op must be "add" (with heading and line), "replace" (with find and replacement) or "remove" (with find).'
+	}),
 	/** For add: the heading to add the line under. It is made when it is not there yet. */
 	heading: z.string().trim().min(1).max(80).optional(),
 	/** For add: the line, one short sentence. */
