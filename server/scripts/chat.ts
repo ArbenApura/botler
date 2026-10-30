@@ -17,7 +17,6 @@ import { migrateLocked } from '../src/lib/server/db/migrate';
 import { decideAction, listActions } from '../src/lib/server/ops/actions';
 import { accountBalances } from '../src/lib/server/ops/ledger';
 import { assertProviderKeys, type ProviderName } from '../src/lib/server/proxy/provider';
-import { createAnthropicClient } from '../src/lib/server/proxy/anthropic';
 import { createModelClient } from '../src/lib/server/proxy/deepseek';
 import { DEFAULT_LIMITS } from '../src/lib/server/proxy/limits';
 import { formatPhp } from '../src/lib/finance/money';
@@ -50,25 +49,15 @@ function mustBeLocal(url: string | undefined, name: string): string {
 
 function providerClient(env: Record<string, string>) {
 	// The script reads its own environment, so the provider check runs here with the same values (tsx cannot use $app/env)
-	const provider = (env.MODEL_PROVIDER || 'anthropic').trim().toLowerCase();
-	assertProviderKeys(provider, env.ANTHROPIC_API_KEY || '', env.DEEPSEEK_API_KEY || '');
+	const provider = (env.MODEL_PROVIDER || 'deepseek').trim().toLowerCase();
+	assertProviderKeys(provider, { deepseek: env.DEEPSEEK_API_KEY || '' });
 	const limits = DEFAULT_LIMITS;
-	if (provider === 'deepseek')
-		return {
-			provider: 'deepseek' as ProviderName,
-			model: createModelClient({
-				apiKey: env.DEEPSEEK_API_KEY || '',
-				baseUrl: (env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
-				model: env.DEEPSEEK_MODEL || 'deepseek-flash',
-				limits
-			})
-		};
 	return {
-		provider: 'anthropic' as ProviderName,
-		model: createAnthropicClient({
-			apiKey: env.ANTHROPIC_API_KEY || '',
-			baseUrl: (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, ''),
-			model: env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
+		provider: 'deepseek' as ProviderName,
+		model: createModelClient({
+			apiKey: env.DEEPSEEK_API_KEY || '',
+			baseUrl: (env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, ''),
+			model: env.DEEPSEEK_MODEL || 'deepseek-flash',
 			limits
 		})
 	};

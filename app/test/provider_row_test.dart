@@ -73,13 +73,13 @@ void main() {
         final picked = await pumpRow(
           tester,
           const Settings(
-            modelProvider: 'anthropic',
-            availableProviders: <String>['anthropic', 'deepseek'],
+            modelProvider: 'otherai',
+            availableProviders: <String>['otherai', 'deepseek'],
           ),
         );
         expect(find.text('AI server'), findsWidgets);
-        expect(find.text('Anthropic'), findsOneWidget);
-        await tester.tap(find.text('Anthropic'));
+        expect(find.text('otherai'), findsOneWidget);
+        await tester.tap(find.text('otherai'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('DeepSeek').last);
         await tester.pumpAndSettle();
@@ -114,7 +114,7 @@ void main() {
           tester,
           const Settings(
             modelProvider: 'deepseek',
-            availableProviders: <String>['anthropic', 'openai'],
+            availableProviders: <String>['otherai', 'openai'],
           ),
         );
         expect(tester.takeException(), isNull);
@@ -128,9 +128,9 @@ void main() {
       await pumpRow(
         tester,
         const Settings(
-          modelProvider: 'anthropic',
+          modelProvider: 'otherai',
           modelProviderChoice: 'deepseek',
-          availableProviders: <String>['anthropic', 'openai'],
+          availableProviders: <String>['otherai', 'openai'],
         ),
       );
       expect(find.textContaining('DeepSeek is not available'), findsOneWidget);
@@ -141,7 +141,7 @@ void main() {
         tester,
         const Settings(
           modelProvider: 'openai',
-          availableProviders: <String>['openai', 'anthropic'],
+          availableProviders: <String>['openai', 'otherai'],
         ),
       );
       expect(find.text('openai'), findsOneWidget);
@@ -172,7 +172,7 @@ void main() {
       final c = await containerWith(<String, Object?>{
         'modelProvider': 7,
         'modelProviderChoice': <String>[],
-        'availableProviders': 'anthropic',
+        'availableProviders': 'otherai',
       });
       addTearDown(c.dispose);
       await c.read(settingsProvider.notifier).pullFromServer();
@@ -187,17 +187,17 @@ void main() {
         final c = await containerWith(<String, Object?>{
           'modelProvider': 'deepseek',
           'modelProviderChoice': 'deepseek',
-          'availableProviders': <Object>['anthropic', 'deepseek', 7],
+          'availableProviders': <Object>['otherai', 'deepseek', 7],
         });
         addTearDown(c.dispose);
         await c.read(settingsProvider.notifier).pullFromServer();
         var s = c.read(settingsProvider);
         expect(s.modelProvider, 'deepseek');
-        expect(s.availableProviders, <String>['anthropic', 'deepseek']);
+        expect(s.availableProviders, <String>['otherai', 'deepseek']);
         // The next start reads the same from the phone
         final again = readSettings(c.read(prefsProvider));
         expect(again.modelProviderChoice, 'deepseek');
-        expect(again.availableProviders, <String>['anthropic', 'deepseek']);
+        expect(again.availableProviders, <String>['otherai', 'deepseek']);
         // An unrelated change keeps it; a null puts the person back on the default
         expect(s.copyWith(currency: 'EUR').modelProviderChoice, 'deepseek');
         s = s.copyWith(modelProviderChoice: null);

@@ -21,7 +21,7 @@ let model = stubModel([{ say: 'hi' }]);
 vi.mock('../../src/lib/server/db', () => ({ getDb: async () => t.handle }));
 vi.mock('../../src/lib/server/proxy/index', () => ({
 	getModelClient: () => model,
-	getProviderOf: () => async () => 'anthropic'
+	getProviderOf: () => async () => 'deepseek'
 }));
 
 beforeAll(async () => {

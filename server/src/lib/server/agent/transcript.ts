@@ -10,6 +10,7 @@
 // -- TYPES -- //
 import type { ChatMessage, ToolCall } from '../proxy/types';
 
+// Rows stored while Anthropic was a host still carry 'anthropic'; they are read as such and never replayed to another host.
 export type TranscriptProvider = 'anthropic' | 'deepseek';
 
 export type TranscriptMessage =

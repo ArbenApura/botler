@@ -1,5 +1,6 @@
 // THE MODEL SERVER CHOICE (BTL-20261026-0443): A PERSON-ONLY SETTING, REFUSED WITHOUT A KEY, AUDITED, FOLLOWED BY EVERY MODEL CALL
-// OF THAT PERSON (CHAT AND JOBS), FALLING BACK WHEN THE KEY IS GONE, WITH ONE RATE LIMIT SHARED BY BOTH PROVIDERS
+// OF THAT PERSON (CHAT AND JOBS), FALLING BACK WHEN THE KEY IS GONE, WITH ONE RATE LIMIT SHARED BY EVERY PROVIDER.
+// DeepSeek is the only host today, so the choice is trivial; these tests keep the structure (lists, fallback, router, audit) honest.
 
 // -- TYPES -- //
 import type { Ctx } from '../../src/lib/server/ops/context';
@@ -16,7 +17,6 @@ import { auditEvent, user } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { getSettings, setSettings } from '../../src/lib/server/ops/settings';
-import { createAnthropicClient } from '../../src/lib/server/proxy/anthropic';
 import { createModelClient } from '../../src/lib/server/proxy/deepseek';
 import { createRateLimiter, DEFAULT_LIMITS } from '../../src/lib/server/proxy/limits';
 import {
@@ -59,7 +59,7 @@ const stub = (name: string): ModelClient =>
 		}
 	}) as unknown as ModelClient;
 
-const BOTH = ['anthropic', 'deepseek'] as const;
+const ALL = ['deepseek'] as const;
 
 // -- LIFECYCLES -- //
 
@@ -77,7 +77,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-	configureProviders({ available: BOTH, fallback: 'anthropic' });
+	configureProviders({ available: ALL, fallback: 'deepseek' });
 });
 
 afterEach(() => {
@@ -94,16 +94,20 @@ describe('the provider lists', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0029_model_provider.sql'),
 			'utf8'
 		);
-		const list = SELECTABLE_PROVIDERS.map((p) => `'${p}'`).join(', ');
-		expect(sql).toContain(`"model_provider" in (${list})`);
+		// The check keeps 'anthropic' for rows written while it was a host; every provider in the list must be allowed by it
+		const allowed = /"model_provider" in \(([^)]*)\)/.exec(sql)?.[1] ?? '';
+		for (const p of SELECTABLE_PROVIDERS) expect(allowed).toContain(`'${p}'`);
 	});
 
-	it('offers the providers that have a key and falls back when a choice lost its key', () => {
-		expect(providersWithKeys({ anthropic: 'k', deepseek: '' })).toEqual(['anthropic']);
-		expect(effectiveProvider('deepseek', BOTH, 'anthropic')).toBe('deepseek');
-		expect(effectiveProvider('deepseek', ['anthropic'], 'anthropic')).toBe('anthropic');
-		expect(effectiveProvider(null, BOTH, 'deepseek')).toBe('deepseek');
-		expect(effectiveProvider('unknown', BOTH, 'anthropic')).toBe('anthropic');
+	it('offers the providers that have a key and falls back when a choice lost its key or is a retired host', () => {
+		expect(providersWithKeys({ deepseek: 'k' })).toEqual(['deepseek']);
+		expect(providersWithKeys({ deepseek: '' })).toEqual([]);
+		expect(effectiveProvider('deepseek', ALL, 'deepseek')).toBe('deepseek');
+		expect(effectiveProvider('deepseek', [], 'deepseek')).toBe('deepseek');
+		expect(effectiveProvider(null, ALL, 'deepseek')).toBe('deepseek');
+		expect(effectiveProvider('unknown', ALL, 'deepseek')).toBe('deepseek');
+		// Anthropic was removed: a stored choice of it runs on DeepSeek
+		expect(effectiveProvider('anthropic', ALL, 'deepseek')).toBe('deepseek');
 	});
 });
 
@@ -112,9 +116,9 @@ describe('the setting', () => {
 		const a = person('user_prov_a_01');
 		const view = await getSettings(a);
 		expect(view).toMatchObject({
-			modelProvider: 'anthropic',
+			modelProvider: 'deepseek',
 			modelProviderChoice: null,
-			availableProviders: ['anthropic', 'deepseek']
+			availableProviders: ['deepseek']
 		});
 		expect(JSON.stringify(view)).not.toMatch(/key|secret/i);
 	});
@@ -134,12 +138,12 @@ describe('the setting', () => {
 		expect((await getSettings(person('user_prov_b_01'))).modelProviderChoice).toBeNull();
 		// Null puts the person back on the default
 		const reset = await setSettings(as(a), { modelProvider: null });
-		expect(reset.settings).toMatchObject({ modelProvider: 'anthropic', modelProviderChoice: null });
+		expect(reset.settings).toMatchObject({ modelProvider: 'deepseek', modelProviderChoice: null });
 	});
 
 	it('refuses a server without a key, and unknown or invented names', async () => {
 		const a = person('user_prov_a_01');
-		configureProviders({ available: ['anthropic'], fallback: 'anthropic' });
+		configureProviders({ available: [], fallback: 'deepseek' });
 		await expect(setSettings(as(a), { modelProvider: 'deepseek' })).rejects.toMatchObject({
 			code: 'INVALID'
 		});
@@ -149,9 +153,12 @@ describe('the setting', () => {
 		await expect(invokeVerb(as(a), 'settings_set', { modelProvider: 'gpt' })).rejects.toMatchObject(
 			{ code: 'INVALID' }
 		);
+		await expect(
+			invokeVerb(as(a), 'settings_set', { modelProvider: 'anthropic' })
+		).rejects.toMatchObject({ code: 'INVALID' });
 		// With nothing set up at all, nothing can be chosen
 		configureProviders(null);
-		await expect(setSettings(as(a), { modelProvider: 'anthropic' })).rejects.toMatchObject({
+		await expect(setSettings(as(a), { modelProvider: 'deepseek' })).rejects.toMatchObject({
 			code: 'INVALID'
 		});
 	});
@@ -181,11 +188,11 @@ describe('the setting', () => {
 });
 
 describe('the router', () => {
-	const router = (available: readonly ('anthropic' | 'deepseek')[] = BOTH) =>
+	const router = (available: readonly 'deepseek'[] = ALL) =>
 		createProviderRouter({
 			clientFor: (p) => stub(p),
 			available: () => available,
-			fallback: 'anthropic'
+			fallback: 'deepseek'
 		}).client;
 	const req = { bucket: 'chat' as const, messages: [{ role: 'user' as const, content: 'hi' }] };
 
@@ -199,21 +206,20 @@ describe('the router', () => {
 		for await (const e of r.stream(person('user_prov_b_01'), req)) parts.push(e);
 		expect(parts).toEqual([{ type: 'delta', text: 'deepseek' }]);
 		// A person who chose nothing gets the default
-		expect(await r.complete(person('user_prov_a_01'), req)).toMatchObject({ content: 'anthropic' });
+		expect(await r.complete(person('user_prov_a_01'), req)).toMatchObject({ content: 'deepseek' });
 	});
 
-	it('falls back to the default, with a note in the log, when the chosen key is gone', async () => {
+	it('falls back to the default when the chosen key is gone', async () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 		try {
-			const out = await router(['anthropic']).complete(person('user_prov_b_01'), req);
-			expect(out).toMatchObject({ content: 'anthropic' });
-			expect(warn).toHaveBeenCalledWith(expect.stringContaining('provider_choice_unavailable'));
+			const out = await router([]).complete(person('user_prov_b_01'), req);
+			expect(out).toMatchObject({ content: 'deepseek' });
 			// The settings show the choice as it was stored and the host that will really run
-			configureProviders({ available: ['anthropic'], fallback: 'anthropic' });
+			configureProviders({ available: [], fallback: 'deepseek' });
 			expect(await getSettings(person('user_prov_b_01'))).toMatchObject({
-				modelProvider: 'anthropic',
+				modelProvider: 'deepseek',
 				modelProviderChoice: 'deepseek',
-				availableProviders: ['anthropic']
+				availableProviders: []
 			});
 		} finally {
 			warn.mockRestore();
@@ -227,15 +233,13 @@ describe('the router', () => {
 });
 
 describe('the rate limit', () => {
-	it('is one counter for both providers, so switching host gives no second allowance', async () => {
+	it('is one counter shared by every client, so a second client gives no second allowance', async () => {
 		const shared = createRateLimiter(2);
 		const answers = () =>
 			new Response(
 				JSON.stringify({
-					content: [{ type: 'text', text: 'ok' }],
 					choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
-					stop_reason: 'end_turn',
-					usage: { input_tokens: 1, output_tokens: 1, prompt_tokens: 1, completion_tokens: 1 }
+					usage: { prompt_tokens: 1, completion_tokens: 1 }
 				}),
 				{ status: 200 }
 			);
@@ -248,15 +252,15 @@ describe('the rate limit', () => {
 			fetch: f,
 			sleep: async () => undefined
 		};
-		const anthropic = createAnthropicClient({ ...base, model: 'claude-haiku-5-5' });
-		const deepseek = createModelClient({ ...base, model: 'deepseek-flash' });
+		const first = createModelClient({ ...base, model: 'deepseek-flash' });
+		const second = createModelClient({ ...base, model: 'deepseek-flash' });
 		const a = person('user_prov_a_01');
 		const req = { bucket: 'chat' as const, messages: [{ role: 'user' as const, content: 'hi' }] };
-		await anthropic.complete(a, req);
-		await deepseek.complete(a, req);
-		await expect(anthropic.complete(a, req)).rejects.toMatchObject({ code: 'LIMIT' });
-		await expect(deepseek.complete(a, req)).rejects.toMatchObject({ code: 'LIMIT' });
+		await first.complete(a, req);
+		await second.complete(a, req);
+		await expect(first.complete(a, req)).rejects.toMatchObject({ code: 'LIMIT' });
+		await expect(second.complete(a, req)).rejects.toMatchObject({ code: 'LIMIT' });
 		// Another person has their own allowance
-		await expect(deepseek.complete(person('user_prov_b_01'), req)).resolves.toBeDefined();
+		await expect(second.complete(person('user_prov_b_01'), req)).resolves.toBeDefined();
 	});
 });

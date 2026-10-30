@@ -266,5 +266,15 @@
       "Pagtatama: nakakakita rin ng larawan ang DeepSeek. Sa Larawan mode, ang litrato ay diretso nang napupunta sa server na pinili mo, kasama ang DeepSeek, sa halip na ipadala sa Anthropic. Magtanong tungkol sa hayop, pagkain o karatula at makikita nito, kahit walang salita ang litrato.",
       "Gaya ng dati, ipinapadala ang larawan nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto. Piliin ang Teksto lang sa Settings kung mga salita lang ang gusto mong ipadala."
     ]
+  },
+  {
+    "versionCode": 29,
+    "versionName": "1.1.18",
+    "en": [
+      "Botler's assistant now runs only on DeepSeek. The Anthropic server is gone, so Settings shows DeepSeek as the one AI server, and your chats, pictures and notes carry on as before."
+    ],
+    "fil": [
+      "Sa DeepSeek na lang tumatakbo ang assistant ng Botler. Wala na ang Anthropic server, kaya DeepSeek na lang ang AI server na nakikita sa Settings, at tuloy pa rin ang mga chat, larawan at tala mo."
+    ]
   }
 ]

@@ -1,10 +1,10 @@
 // THE MODEL PROVIDERS A PERSON CAN CHOOSE. A pure list with no imports, so the schema, the validation, the ops and the proxy all read the same one.
-// Adding a provider is one entry here, plus a CHECK migration for the provider columns, its cache weights, a client branch and an env key.
+// Adding a provider is one entry here, plus a CHECK migration for the provider columns (they still allow 'anthropic' for old rows), its cache weights in limits.ts, a client file in proxy/ with a branch in proxy/index.ts, and an env key.
 
 // -- CONSTANTS -- //
 
 /** The hosts the assistant can run on. This is what a person picks from. */
-export const SELECTABLE_PROVIDERS = ['anthropic', 'deepseek'] as const;
+export const SELECTABLE_PROVIDERS = ['deepseek'] as const;
 
 /**
  * Whether the host reads pictures. DeepSeek does: its chat reference takes image_url parts (a data URL of a JPEG, PNG, GIF or WebP) in a user
@@ -12,7 +12,6 @@ export const SELECTABLE_PROVIDERS = ['anthropic', 'deepseek'] as const;
  * answers 400, and the first call with pictures is then repeated once on the text. One entry flips a host.
  */
 export const PROVIDER_VISION: Record<SelectableProvider, boolean> = {
-	anthropic: true,
 	deepseek: true
 };
 

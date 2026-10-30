@@ -97,39 +97,13 @@ export const variables = defineEnvVars({
 	},
 	MODEL_PROVIDER: {
 		description:
-			'Which model provider the agent runs on: anthropic or deepseek. Empty means anthropic. Anything else stops the server.',
+			'Which model provider the agent runs on. Only deepseek exists today; empty means deepseek. Anything else stops the server.',
 		schema: (value) => {
-			if (!value || !value.trim()) return 'anthropic';
+			if (!value || !value.trim()) return 'deepseek';
 			const v = value.trim().toLowerCase();
-			if (v !== 'anthropic' && v !== 'deepseek')
-				throw new Error('MODEL_PROVIDER must be anthropic or deepseek');
+			if (v !== 'deepseek') throw new Error('MODEL_PROVIDER must be deepseek');
 			return v;
 		}
-	},
-	ANTHROPIC_API_KEY: {
-		description:
-			'The Anthropic API key, required when MODEL_PROVIDER is anthropic (the default). It lives only here, in the server environment, and is never returned, logged or put in the app.',
-		schema: (value) => (value && value.trim() ? value.trim() : '')
-	},
-	ANTHROPIC_BASE_URL: {
-		description: 'The Anthropic API address.',
-		schema: (value) =>
-			value && value.trim() ? value.trim().replace(/\/$/, '') : 'https://api.anthropic.com'
-	},
-	ANTHROPIC_MODEL: {
-		description:
-			'The model name sent to Anthropic, for example the Haiku the owner put in. Empty falls back to the built-in default.',
-		schema: (value) => (value && value.trim() ? value.trim() : 'claude-haiku-5-5')
-	},
-	ANTHROPIC_THINKING: {
-		description:
-			'1 or true: streamed chat answers think first (adaptive thinking at CHAT_EFFORT, summarized for the app) and tools stay offered while they think. 0 or false: no thinking. Empty means on. Anything else stops the server.',
-		schema: (value) => flag(value, true, 'ANTHROPIC_THINKING')
-	},
-	ANTHROPIC_CACHE_TTL: {
-		description:
-			'How long Anthropic keeps the cached prompt prefix: 5m (default, renewed free on every read, so one chat session keeps it warm) or 1h (costs twice as much to write; only worth it when people start a chat less than once in five minutes but more than once an hour). Empty means 5m. Anything else stops the server.',
-		schema: (value) => cacheTtl(value)
 	},
 	DEEPSEEK_API_KEY: {
 		description:
@@ -216,12 +190,4 @@ function flag(value: string | undefined, fallback: boolean, name: string): boole
 	if (v === '1' || v === 'true') return true;
 	if (v === '0' || v === 'false') return false;
 	throw new Error(`${name} must be 1, 0, true or false`);
-}
-
-/** 5m or 1h. Empty gives 5m. A typo stops the server instead of silently choosing. */
-function cacheTtl(value: string | undefined): '5m' | '1h' {
-	if (!value || !value.trim()) return '5m';
-	const v = value.trim().toLowerCase();
-	if (v === '5m' || v === '1h') return v;
-	throw new Error('ANTHROPIC_CACHE_TTL must be 5m or 1h');
 }

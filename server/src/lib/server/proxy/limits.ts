@@ -56,17 +56,17 @@ export class BudgetError extends OpsError {
 	}
 }
 
+// -- TYPES -- //
+
+export type CacheWeights = { read: number; write: number; write1h?: number };
+
 // -- CONSTANTS -- //
 
 /**
- * What a cached token counts for against the cap, in hundredths of an uncached token. A cache read is much cheaper than a fresh token; an
- * Anthropic cache write costs a quarter more. DeepSeek bills a hit at a fraction and a miss at the full price (it has no write fee).
+ * What a cached token counts for against the cap, in hundredths of an uncached token. A cache read is much cheaper than a fresh token; a
+ * host may charge for a cache write (write, and write1h for a longer one). DeepSeek bills a hit at a fraction and a miss at the full price (it has no write fee).
  */
-export const CACHE_WEIGHTS: Record<
-	SelectableProvider,
-	{ read: number; write: number; write1h?: number }
-> = {
-	anthropic: { read: 10, write: 125, write1h: 200 },
+export const CACHE_WEIGHTS: Record<SelectableProvider, CacheWeights> = {
 	deepseek: { read: 2, write: 100 }
 };
 
@@ -83,13 +83,17 @@ export const DEFAULT_LIMITS: Limits = {
  * The tokens one call counts against the cap: uncached input + output + the weighted cache read and write, rounded up. Output counts 1 for 1.
  * A provider with no weights (unknown) counts everything in full, as before caching existed.
  */
-export function chargedTokens(usage: Usage, provider: Provider): number {
+export function chargedTokens(
+	usage: Usage,
+	provider: Provider,
+	weights: Record<SelectableProvider, CacheWeights> = CACHE_WEIGHTS
+): number {
 	const read = Math.max(0, Math.trunc(usage.cacheReadTokens ?? 0));
 	const write = Math.max(0, Math.trunc(usage.cacheWriteTokens ?? 0));
 	const prompt = Math.max(0, Math.trunc(usage.promptTokens));
 	const completion = Math.max(0, Math.trunc(usage.completionTokens));
 	if (provider === 'unknown') return prompt + completion;
-	const w = CACHE_WEIGHTS[provider];
+	const w = weights[provider];
 	const uncached = Math.max(0, prompt - read - write);
 	const long = Math.min(write, Math.max(0, Math.trunc(usage.cacheWrite1hTokens ?? 0)));
 	const writeCost = (write - long) * w.write + long * (w.write1h ?? w.write);

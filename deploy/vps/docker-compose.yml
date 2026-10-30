@@ -64,13 +64,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in .env}
       ALLOWED_EMAILS: ${ALLOWED_EMAILS:?Set ALLOWED_EMAILS in .env}
-      # The provider the agent runs on: anthropic (default) or deepseek. env.ts is the true conditional validator;
-      # compose only checks the .env file has the lines filled
-      MODEL_PROVIDER: ${MODEL_PROVIDER:-anthropic}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?Set ANTHROPIC_API_KEY in .env}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-5-5}
-      ANTHROPIC_THINKING: ${ANTHROPIC_THINKING:-}
-      ANTHROPIC_CACHE_TTL: ${ANTHROPIC_CACHE_TTL:-}
+      # The provider the agent runs on. Only deepseek exists today; env.ts is the true validator
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-deepseek}
       # The most tokens one chat model call may write, thinking and answer together. Empty means 64000
       CHAT_MAX_TOKENS: ${CHAT_MAX_TOKENS:-}
       # How hard the chat model thinks: low, medium, high or max. Empty means high
@@ -79,8 +74,8 @@ services:
       TURN_TOKEN_BUDGET: ${TURN_TOKEN_BUDGET:-}
       # The most tokens of earlier messages sent with a chat message, before the oldest drop and the chat is summarised. Empty means 40000
       HISTORY_TOKENS: ${HISTORY_TOKENS:-}
-      # Set this too so people can choose DeepSeek in the app (Settings, AI server). With it empty, DeepSeek is not offered
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      # The DeepSeek key the agent runs on. env.ts stops the server at start when it is empty
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?Set DEEPSEEK_API_KEY in .env}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
       DEEPSEEK_THINKING: ${DEEPSEEK_THINKING:-}
       # Web search for the assistant through Tavily. Empty means the search tool answers that it is not set up

@@ -53,22 +53,18 @@ export function effectiveProvider(
 
 /**
  * The provider whose turn it is must have a key; the provider left out may carry one but nothing calls it.
- * A blank key for the chosen provider, or a provider name outside the two, stops the server.
+ * A blank key for the chosen provider, or a provider name outside the list, stops the server.
  */
 export function assertProviderKeys(
 	provider: string,
-	anthropicKey: string,
-	deepseekKey: string
+	keys: Record<SelectableProvider, string>
 ): void {
-	if (provider === 'anthropic') {
-		if (!anthropicKey)
-			throw new Error('ANTHROPIC_API_KEY is required when MODEL_PROVIDER is anthropic');
-	} else if (provider === 'deepseek') {
-		if (!deepseekKey)
-			throw new Error('DEEPSEEK_API_KEY is required when MODEL_PROVIDER is deepseek');
-	} else {
+	if (!isSelectableProvider(provider))
 		throw new Error(
-			`MODEL_PROVIDER must be anthropic or deepseek, not ${JSON.stringify(provider)}`
+			`MODEL_PROVIDER must be one of ${SELECTABLE_PROVIDERS.join(', ')}, not ${JSON.stringify(provider)}`
 		);
-	}
+	if (!keys[provider])
+		throw new Error(
+			`${provider.toUpperCase()}_API_KEY is required when MODEL_PROVIDER is ${provider}`
+		);
 }

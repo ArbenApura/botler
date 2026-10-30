@@ -77,11 +77,11 @@ void main() {
         const Settings(
           photoMode: 'image',
           photoVision: true,
-          modelProvider: 'anthropic',
+          modelProvider: 'deepseek',
         ),
       );
       expect(find.text('Photos for the assistant'), findsOneWidget);
-      expect(find.textContaining('goes to Anthropic as it is'), findsOneWidget);
+      expect(find.textContaining('goes to DeepSeek as it is'), findsOneWidget);
       expect(find.textContaining('not hidden'), findsOneWidget);
     });
 
@@ -93,13 +93,13 @@ void main() {
           const Settings(
             photoMode: 'image',
             photoVision: true,
-            photoHost: 'anthropic',
+            photoHost: 'otherai',
             modelProvider: 'deepseek',
           ),
         );
         expect(
           find.textContaining(
-            'DeepSeek cannot look at pictures, so Anthropic looks at them',
+            'DeepSeek cannot look at pictures, so otherai looks at them',
           ),
           findsOneWidget,
         );
@@ -149,12 +149,12 @@ void main() {
         const Settings(
           photoMode: 'image',
           photoVision: true,
-          modelProvider: 'anthropic',
+          modelProvider: 'deepseek',
         ),
         language: 'fil',
       );
       expect(find.text('Mga litrato para sa assistant'), findsOneWidget);
-      expect(find.textContaining('Anthropic'), findsOneWidget);
+      expect(find.textContaining('DeepSeek'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
@@ -189,13 +189,13 @@ void main() {
         final c = await containerWith(<String, Object?>{
           'photoMode': 'image',
           'photoVision': true,
-          'photoHost': 'anthropic',
+          'photoHost': 'otherai',
         });
         addTearDown(c.dispose);
         await c.read(settingsProvider.notifier).pullFromServer();
         expect(c.read(settingsProvider).photoMode, 'image');
         expect(c.read(settingsProvider).photoVision, isTrue);
-        expect(c.read(settingsProvider).photoHost, 'anthropic');
+        expect(c.read(settingsProvider).photoHost, 'otherai');
         final prefs = await SharedPreferences.getInstance();
         expect(readSettings(prefs).photoMode, 'image');
         // A stale copy of "the server can read pictures" is never believed on the next start

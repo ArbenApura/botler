@@ -85,9 +85,10 @@ describe('secrets and tokens', () => {
 	});
 
 	it('validates the model provider and its conditional key', () => {
-		expect(check('MODEL_PROVIDER', undefined)).toBe('anthropic');
-		expect(check('MODEL_PROVIDER', 'anthropic')).toBe('anthropic');
+		expect(check('MODEL_PROVIDER', undefined)).toBe('deepseek');
 		expect(check('MODEL_PROVIDER', 'deepseek')).toBe('deepseek');
+		// Anthropic was removed: naming it stops the server
+		expect(() => check('MODEL_PROVIDER', 'anthropic')).toThrow();
 		expect(() => check('MODEL_PROVIDER', 'antropic')).toThrow();
 		// The cross-variable requirement is plain code (proxy/provider.ts), so the matrix is tested there itself
 	});
@@ -98,14 +99,11 @@ describe('secrets and tokens', () => {
 		expect(check('TAVILY_API_KEY', ' tvly-test ')).toBe('tvly-test');
 	});
 
-	it('requires the key of the chosen provider and takes the other provider as kept but unused', () => {
-		// anthropic is the default
-		expect(() => assertProviderKeys('anthropic', '', 'sk-dsk')).toThrow(/ANTHROPIC_API_KEY/);
-		expect(() => assertProviderKeys('anthropic', 'sk-ant', 'sk-dsk')).not.toThrow();
-		// deepseek kept and disabled, still loud when chosen with no key
-		expect(() => assertProviderKeys('deepseek', 'sk-ant', '')).toThrow(/DEEPSEEK_API_KEY/);
-		expect(() => assertProviderKeys('deepseek', 'sk-ant', 'sk-dsk')).not.toThrow();
-		expect(() => assertProviderKeys('mistral', 'k', 'k')).toThrow(/MODEL_PROVIDER/);
+	it('requires the key of the chosen provider and refuses a name outside the list', () => {
+		expect(() => assertProviderKeys('deepseek', { deepseek: '' })).toThrow(/DEEPSEEK_API_KEY/);
+		expect(() => assertProviderKeys('deepseek', { deepseek: 'sk-dsk' })).not.toThrow();
+		expect(() => assertProviderKeys('anthropic', { deepseek: 'sk-dsk' })).toThrow(/MODEL_PROVIDER/);
+		expect(() => assertProviderKeys('mistral', { deepseek: 'k' })).toThrow(/MODEL_PROVIDER/);
 	});
 
 	it('has a default exchange rate feed, trims it, and stops the server on an address that is not https', () => {

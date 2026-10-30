@@ -1,4 +1,4 @@
-// THE AI SERVER ROW IN SETTINGS: WHICH SERVER ANSWERS THE ASSISTANT (DEEPSEEK OR ANTHROPIC). THE LIST COMES FROM THE SERVER, SO A NEW SERVER NEEDS ONLY A NAME HERE.
+// THE AI SERVER ROW IN SETTINGS: WHICH SERVER ANSWERS THE ASSISTANT (DEEPSEEK TODAY). THE LIST COMES FROM THE SERVER, SO A NEW SERVER NEEDS ONLY A NAME HERE.
 // The choice is saved on the server first, like the other shared settings. Nothing here holds a key: the server says which servers are set up.
 
 // -- DEP-MODULES -- //
@@ -14,7 +14,6 @@ import '../../theme/tokens.dart';
 /// The names shown for the servers the app knows. A server it does not know is shown by its id.
 const Map<String, String> providerNames = <String, String>{
   'deepseek': 'DeepSeek',
-  'anthropic': 'Anthropic',
 };
 
 // -- FUNCTIONS -- //

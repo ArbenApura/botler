@@ -59,7 +59,7 @@ export const IMAGE_TOKENS = 1600;
  */
 export function imageStandIn(key: string, value: unknown): unknown {
 	if (typeof value !== 'string' || value.length <= 1000) return value;
-	// Anthropic puts the base64 in a field called data; DeepSeek puts a data URL in image_url.url
+	// Some hosts put the base64 in a field called data; DeepSeek puts a data URL in image_url.url
 	return key === 'data' || (key === 'url' && value.startsWith('data:image/'))
 		? 'x'.repeat(IMAGE_TOKENS * 4)
 		: value;

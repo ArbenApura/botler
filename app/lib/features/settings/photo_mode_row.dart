@@ -23,7 +23,7 @@ const String pictureNoticeKey = 'photos.noticeSeen';
 /// The name of the AI server a picture goes to, for the words that name it: the one that looks at pictures, which is the person's own server
 /// when it can and another one when it cannot.
 String answeringServer(Settings s) =>
-    providerLabel(s.photoHost ?? s.modelProvider ?? 'anthropic');
+    providerLabel(s.photoHost ?? s.modelProvider ?? 'deepseek');
 
 /// True when the pictures go to a different server from the one that answers the rest of the chat.
 bool picturesGoElsewhere(Settings s) =>
@@ -124,7 +124,7 @@ class PhotoModeRow extends StatelessWidget {
                               )
                             : t.settingsPhotoHelpImage(server))
                       : t.settingsPhotoNoVision(
-                          providerLabel(settings.modelProvider ?? 'anthropic'),
+                          providerLabel(settings.modelProvider ?? 'deepseek'),
                         ))
                 : t.settingsPhotoHelpText,
             style: TextStyle(color: c.muted),

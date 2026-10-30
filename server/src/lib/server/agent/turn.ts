@@ -636,7 +636,7 @@ ${note}`
 			tool_calls: completion.toolCalls,
 			// DeepSeek wants the thinking back while a tool round continues. It is the masked text it sent
 			...(completion.reasoningRaw ? { reasoning_content: completion.reasoningRaw } : {}),
-			// Anthropic wants its signed thinking back unchanged while a tool round continues
+			// A host with signed thinking wants it back unchanged while a tool round continues
 			...(completion.wireBlocks ? { wire_blocks: completion.wireBlocks } : {})
 		});
 		// What this round keeps for later messages of the chat (see transcript.ts)

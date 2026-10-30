@@ -169,12 +169,7 @@ describe('settings', () => {
 	it('names the host that reads their pictures: their own, or none when no host is set up', async () => {
 		try {
 			const id = 'user_set_c_001';
-			configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
-			await setSettings(as(person(id)), { modelProvider: 'anthropic' });
-			expect(await getSettings(person(id))).toMatchObject({
-				photoHost: 'anthropic',
-				photoVision: true
-			});
+			configureProviders({ available: ['deepseek'], fallback: 'deepseek' });
 			await setSettings(as(person(id)), { modelProvider: 'deepseek' });
 			expect(await getSettings(person(id))).toMatchObject({
 				modelProvider: 'deepseek',
@@ -189,16 +184,13 @@ describe('settings', () => {
 	});
 
 	it('knows which hosts read pictures', () => {
-		expect(PROVIDER_VISION).toEqual({ anthropic: true, deepseek: true });
-		expect(visionOf('anthropic')).toBe(true);
+		expect(PROVIDER_VISION).toEqual({ deepseek: true });
 		expect(visionOf('deepseek')).toBe(true);
 		expect(visionOf(null)).toBe(false);
-		expect(pictureProviderFor('deepseek', ['deepseek', 'anthropic'])).toBe('deepseek');
-		// With a table where DeepSeek cannot see, the picture goes to the host that can
-		const noDeepseek = { anthropic: true, deepseek: false };
-		expect(pictureProviderFor('deepseek', ['deepseek', 'anthropic'], noDeepseek)).toBe('anthropic');
+		expect(pictureProviderFor('deepseek', ['deepseek'])).toBe('deepseek');
+		// With a table where DeepSeek cannot see, no host reads the picture
+		const noDeepseek = { deepseek: false };
 		expect(pictureProviderFor('deepseek', ['deepseek'], noDeepseek)).toBeNull();
-		expect(pictureProviderFor('anthropic', ['deepseek'])).toBe('anthropic');
 		expect(pictureProviderFor(null, [])).toBeNull();
 	});
 });
