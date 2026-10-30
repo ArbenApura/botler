@@ -2167,6 +2167,12 @@ abstract class AppLocalizations {
   /// **'This photo is no longer on this phone.'**
   String get chatPhotoMissing;
 
+  /// No description provided for @chatPhotoOnlyMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Here are the photos.'**
+  String get chatPhotoOnlyMessage;
+
   /// No description provided for @chatPhotoOpen.
   ///
   /// In en, this message translates to:
@@ -2232,6 +2238,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wait until the photos are read.'**
   String get chatPhotosWait;
+
+  /// No description provided for @chatPicturePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the pictures ready…'**
+  String get chatPicturePreparing;
+
+  /// No description provided for @chatPictureSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'A picture could not be sent, so only its text goes.'**
+  String get chatPictureSkipped;
+
+  /// No description provided for @chatPicturesNoted.
+  ///
+  /// In en, this message translates to:
+  /// **'This answer goes by the text read from the picture, not the picture itself.'**
+  String get chatPicturesNoted;
 
   /// No description provided for @chatPleaseCheck.
   ///
@@ -3763,6 +3787,30 @@ abstract class AppLocalizations {
   /// **'Your paydays'**
   String get paydayYours;
 
+  /// No description provided for @photoNoticeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo goes to {server} as a picture, so the assistant can see what is in it. Names and numbers in a picture are not hidden the way they are in text, and Botler\'s server does not keep it ({server} handles it under its own terms). You can change this in Settings.'**
+  String photoNoticeBody(String server);
+
+  /// No description provided for @photoNoticeNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Text only'**
+  String get photoNoticeNo;
+
+  /// No description provided for @photoNoticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send the picture itself?'**
+  String get photoNoticeTitle;
+
+  /// No description provided for @photoNoticeYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Send pictures'**
+  String get photoNoticeYes;
+
   /// No description provided for @purposeCustom.
   ///
   /// In en, this message translates to:
@@ -4763,6 +4811,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show net balance'**
   String get settingsNetTitle;
+
+  /// No description provided for @settingsPhotoHelpImage.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant looks at the picture itself, so it can describe a product or read a layout. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler\'s server does not keep it; {server} handles it under its own terms.'**
+  String settingsPhotoHelpImage(String server);
+
+  /// No description provided for @settingsPhotoHelpText.
+  ///
+  /// In en, this message translates to:
+  /// **'The phone reads the words on the photo and only those words are sent. Names and numbers are hidden as usual.'**
+  String get settingsPhotoHelpText;
+
+  /// No description provided for @settingsPhotoImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture'**
+  String get settingsPhotoImage;
+
+  /// No description provided for @settingsPhotoNoVision.
+  ///
+  /// In en, this message translates to:
+  /// **'{server} cannot look at pictures, so it only gets the text read from them, whatever you choose here.'**
+  String settingsPhotoNoVision(String server);
+
+  /// No description provided for @settingsPhotoText.
+  ///
+  /// In en, this message translates to:
+  /// **'Text only'**
+  String get settingsPhotoText;
+
+  /// No description provided for @settingsPhotosTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos for the assistant'**
+  String get settingsPhotosTitle;
 
   /// No description provided for @settingsPrivacy.
   ///

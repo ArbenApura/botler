@@ -253,6 +253,13 @@
       "when": 1793339458619,
       "tag": "0035_net_balance",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793343520401,
+      "tag": "0036_photo_mode",
+      "breakpoints": true
     }
   ]
 }

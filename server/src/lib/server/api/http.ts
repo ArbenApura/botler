@@ -73,13 +73,28 @@ export async function callerCtx(
 	};
 }
 
-/** Reads a JSON body of at most 64 KB. Anything else is INVALID. */
-export async function readJson(request: Request): Promise<unknown> {
+/**
+ * Reads a JSON body of at most max bytes (64 KB unless a route asks for more). The body is counted as it arrives and the read stops at the
+ * limit, so a body that names no length cannot be buffered whole before it is refused. Anything else is INVALID.
+ */
+export async function readJson(request: Request, max: number = MAX_BODY): Promise<unknown> {
 	// A declared size over the cap is refused before any of the body is read
-	if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY)
+	if (Number(request.headers.get('content-length') ?? 0) > max)
 		throw new OpsError('INVALID', 'The request is too large');
-	const text = await request.text();
-	if (text.length > MAX_BODY) throw new OpsError('INVALID', 'The request is too large');
+	const reader = request.body?.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	while (reader) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		total += value.byteLength;
+		if (total > max) {
+			await reader.cancel().catch(() => undefined);
+			throw new OpsError('INVALID', 'The request is too large');
+		}
+		chunks.push(value);
+	}
+	const text = Buffer.concat(chunks).toString('utf8');
 	try {
 		return JSON.parse(text) as unknown;
 	} catch {

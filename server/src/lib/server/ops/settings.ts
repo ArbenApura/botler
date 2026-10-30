@@ -7,10 +7,12 @@ import type { Tx } from '../db/client';
 import type { Ctx } from './context';
 import type { SettingsSetInput } from '../db/zod';
 import type { SelectableProvider } from '../../providers';
+import type { PhotoMode } from '../db/schema/settings';
 // -- DEP-MODULES -- //
 import { eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY } from '../../finance/currency';
+import { visionOf } from '../../providers';
 import { userSetting } from '../db/schema';
 import { settingsSetInput } from '../db/zod';
 import { effectiveProvider, providerSetup } from '../proxy/provider';
@@ -27,6 +29,10 @@ export type SettingsView = {
 	weekStartsOn: number;
 	/** Balances lead with net (what is not owed to bills or goals) and show gross smaller. Display only: the server always works net out. */
 	showNetBalance: boolean;
+	/** What the assistant gets from a photo: the picture itself, or only the text the phone read from it. */
+	photoMode: PhotoMode;
+	/** Whether the host that will run for this person reads pictures. False when no host is set up. Worked out, never stored. */
+	photoVision: boolean;
 	/** The host the assistant will run on for this person: their choice when it is still available, else the server default. Null when the server has none set up. */
 	modelProvider: SelectableProvider | null;
 	/** What the person chose; null means "the server default". It can name a host whose key was removed since. */
@@ -43,6 +49,7 @@ type StoredSettings = Pick<
 	| 'replyLanguage'
 	| 'weekStartsOn'
 	| 'showNetBalance'
+	| 'photoMode'
 	| 'modelProviderChoice'
 >;
 
@@ -54,6 +61,7 @@ export const SETTING_DEFAULTS: StoredSettings = {
 	replyLanguage: 'auto',
 	weekStartsOn: 1,
 	showNetBalance: false,
+	photoMode: 'image',
 	modelProviderChoice: null
 };
 
@@ -62,11 +70,13 @@ export const SETTING_DEFAULTS: StoredSettings = {
 /** Adds what depends on the server's setup: who will run and who can be chosen. Nothing set up means nothing offered. */
 function withProviders(stored: StoredSettings): SettingsView {
 	const setup = providerSetup();
+	const modelProvider = setup
+		? effectiveProvider(stored.modelProviderChoice, setup.available, setup.fallback)
+		: null;
 	return {
 		...stored,
-		modelProvider: setup
-			? effectiveProvider(stored.modelProviderChoice, setup.available, setup.fallback)
-			: null,
+		modelProvider,
+		photoVision: visionOf(modelProvider),
 		availableProviders: setup ? [...setup.available] : []
 	};
 }
@@ -87,6 +97,7 @@ export async function readSettings(tx: Tx, userId: string): Promise<SettingsView
 					replyLanguage: row.replyLanguage,
 					weekStartsOn: row.weekStartsOn,
 					showNetBalance: row.showNetBalance,
+					photoMode: row.photoMode,
 					modelProviderChoice: row.modelProvider
 				}
 			: { ...SETTING_DEFAULTS }
@@ -114,6 +125,7 @@ export async function setSettings(
 			if (input.replyLanguage !== undefined) changes.replyLanguage = input.replyLanguage;
 			if (input.weekStartsOn !== undefined) changes.weekStartsOn = input.weekStartsOn;
 			if (input.showNetBalance !== undefined) changes.showNetBalance = input.showNetBalance;
+			if (input.photoMode !== undefined) changes.photoMode = input.photoMode;
 			// Undefined keeps the choice; null puts the person back on the server default
 			if (input.modelProvider !== undefined) {
 				if (
@@ -141,6 +153,7 @@ export async function setSettings(
 				replyLanguage: before.replyLanguage,
 				weekStartsOn: before.weekStartsOn,
 				showNetBalance: before.showNetBalance,
+				photoMode: before.photoMode,
 				modelProviderChoice: before.modelProviderChoice,
 				...changes
 			});

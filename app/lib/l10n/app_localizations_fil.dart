@@ -1297,6 +1297,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatPhotoMissing => 'Wala na ang litratong ito sa phone na ito.';
 
   @override
+  String get chatPhotoOnlyMessage => 'Heto ang mga litrato.';
+
+  @override
   String chatPhotoOpen(int number, int total) {
     return 'Buksan ang litrato $number sa $total';
   }
@@ -1345,6 +1348,17 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatPhotosWait => 'Hintaying mabasa ang mga litrato.';
+
+  @override
+  String get chatPicturePreparing => 'Inihahanda ang mga larawan…';
+
+  @override
+  String get chatPictureSkipped =>
+      'Hindi maipadala ang isang larawan, kaya teksto lang nito ang ipapadala.';
+
+  @override
+  String get chatPicturesNoted =>
+      'Ang sagot na ito ay batay sa tekstong nabasa mula sa larawan, hindi sa mismong larawan.';
 
   @override
   String get chatPleaseCheck => 'Pakisuri';
@@ -2211,6 +2225,20 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayYours => 'Mga payday mo';
 
   @override
+  String photoNoticeBody(String server) {
+    return 'Mapupunta sa $server ang litrato mo bilang larawan, para makita ng assistant kung ano ang laman nito. Hindi nakatago ang mga pangalan at numero sa larawan gaya sa teksto, at hindi ito iniimbak ng server ng Botler (ang $server ang humahawak nito ayon sa sarili nitong mga tuntunin). Mababago mo ito sa Settings.';
+  }
+
+  @override
+  String get photoNoticeNo => 'Teksto lang';
+
+  @override
+  String get photoNoticeTitle => 'Ipadala ang mismong larawan?';
+
+  @override
+  String get photoNoticeYes => 'Ipadala ang mga larawan';
+
+  @override
   String get purposeCustom => 'Sarili kong label';
 
   @override
@@ -2804,6 +2832,29 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get settingsNetTitle => 'Ipakita ang net na balanse';
+
+  @override
+  String settingsPhotoHelpImage(String server) {
+    return 'Titingnan ng assistant ang mismong larawan, kaya kaya nitong ilarawan ang isang produkto o basahin ang ayos ng isang dokumento. Ang larawan ay napupunta sa $server nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto. Hindi ito iniimbak ng server ng Botler; ang $server ang humahawak nito ayon sa sarili nitong mga tuntunin.';
+  }
+
+  @override
+  String get settingsPhotoHelpText =>
+      'Binabasa ng phone ang mga salita sa litrato at ang mga salitang iyon lang ang ipinapadala. Nakatago pa rin ang mga pangalan at numero gaya ng dati.';
+
+  @override
+  String get settingsPhotoImage => 'Larawan';
+
+  @override
+  String settingsPhotoNoVision(String server) {
+    return 'Hindi makakita ng larawan ang $server, kaya teksto lang mula rito ang natatanggap nito, anuman ang piliin mo rito.';
+  }
+
+  @override
+  String get settingsPhotoText => 'Teksto lang';
+
+  @override
+  String get settingsPhotosTitle => 'Mga litrato para sa assistant';
 
   @override
   String get settingsPrivacy => 'Privacy';

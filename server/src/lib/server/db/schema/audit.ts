@@ -428,7 +428,8 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'reply_language',
 			'week_starts_on',
 			'model_provider',
-			'show_net_balance'
+			'show_net_balance',
+			'photo_mode'
 		],
 		account: '',
 		amount: '',
@@ -456,6 +457,19 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 					'week_starts_on',
 					'model_provider',
 					'show_net_balance'
+				]
+			},
+			{
+				migration: '0036',
+				columns: [
+					'id',
+					'currency',
+					'language',
+					'reply_language',
+					'week_starts_on',
+					'model_provider',
+					'show_net_balance',
+					'photo_mode'
 				]
 			}
 		]

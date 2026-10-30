@@ -32,6 +32,8 @@ class Settings {
     this.replyLanguage = 'auto',
     this.weekStartsOn = 1,
     this.showNetBalance = false,
+    this.photoMode = 'text',
+    this.photoVision = false,
     this.modelProvider,
     this.modelProviderChoice,
     this.availableProviders = const <String>[],
@@ -66,6 +68,17 @@ class Settings {
   /// beneath. Display only: the server always sends both.
   final bool showNetBalance;
 
+  /// What the assistant gets from a photo: 'image' (the picture itself) or 'text' (only what the phone read from it). Kept on the server too.
+  /// Until the server has said, it is 'text': nothing leaves the phone as a picture on a guess.
+  final String photoMode;
+
+  /// The server says whether the AI server that will answer reads pictures. False until it says true (an older server never does), and never
+  /// kept on the phone as a fact: a stale copy could upload pictures nobody will read.
+  final bool photoVision;
+
+  /// The pictures themselves go with a message: the person chose them AND the server has said its AI server reads them. Anything less, and only text goes.
+  bool get usesPictures => photoMode == 'image' && photoVision;
+
   /// The AI server the assistant will use for this person, as the server says (null: not known yet, or the server has none set up).
   final String? modelProvider;
 
@@ -87,6 +100,8 @@ class Settings {
     String? replyLanguage,
     int? weekStartsOn,
     bool? showNetBalance,
+    String? photoMode,
+    bool? photoVision,
     Object? modelProvider = _keep,
     Object? modelProviderChoice = _keep,
     List<String>? availableProviders,
@@ -101,6 +116,8 @@ class Settings {
     replyLanguage: replyLanguage ?? this.replyLanguage,
     weekStartsOn: weekStartsOn ?? this.weekStartsOn,
     showNetBalance: showNetBalance ?? this.showNetBalance,
+    photoMode: photoMode ?? this.photoMode,
+    photoVision: photoVision ?? this.photoVision,
     modelProvider: identical(modelProvider, _keep)
         ? this.modelProvider
         : modelProvider as String?,
@@ -213,12 +230,17 @@ const String _language = 'settings.language';
 const String _reply = 'settings.reply';
 const String _week = 'settings.week';
 const String _showNet = 'settings.showNet';
+const String _photoMode = 'settings.photoMode';
 const String _provider = 'settings.provider';
 const String _providerChoice = 'settings.providerChoice';
 const String _providers = 'settings.providers';
 
 /// The text of a server id from the answer, or null when it is missing or not text.
 String? _providerId(Object? v) => v is String && v.isNotEmpty ? v : null;
+
+/// 'image' or 'text'; anything else (an older server sends nothing) keeps what the phone has.
+String _photoModeId(Object? v, String keep) =>
+    v is String && (v == 'image' || v == 'text') ? v : keep;
 
 /// The server ids from the answer. A missing field or a wrong type is an empty list, so an older server cannot break the screen.
 List<String> _providerIds(Object? v) => <String>[
@@ -241,6 +263,7 @@ Settings readSettings(SharedPreferences p) => Settings(
   replyLanguage: p.getString(_reply) ?? 'auto',
   weekStartsOn: p.getInt(_week) ?? 1,
   showNetBalance: p.getBool(_showNet) ?? false,
+  photoMode: p.getString(_photoMode) == 'image' ? 'image' : 'text',
   modelProvider: p.getString(_provider),
   modelProviderChoice: p.getString(_providerChoice),
   availableProviders: p.getStringList(_providers) ?? const <String>[],
@@ -263,6 +286,7 @@ class SettingsNotifier extends Notifier<Settings> {
     await p.setString(_reply, next.replyLanguage);
     await p.setInt(_week, next.weekStartsOn);
     await p.setBool(_showNet, next.showNetBalance);
+    await p.setString(_photoMode, next.photoMode);
     await _setOrRemove(p, _provider, next.modelProvider);
     await _setOrRemove(p, _providerChoice, next.modelProviderChoice);
     await p.setStringList(_providers, next.availableProviders);
@@ -283,6 +307,9 @@ class SettingsNotifier extends Notifier<Settings> {
           weekStartsOn: intOf(s['weekStartsOn'], state.weekStartsOn),
           // An older server has no such field: keep what the phone has
           showNetBalance: boolOf(s['showNetBalance'], state.showNetBalance),
+          photoMode: _photoModeId(s['photoMode'], state.photoMode),
+          // An older server has no such field: nothing is read as pictures
+          photoVision: boolOf(s['photoVision'], false),
           modelProvider: _providerId(s['modelProvider']),
           modelProviderChoice: _providerId(s['modelProviderChoice']),
           availableProviders: _providerIds(s['availableProviders']),
@@ -301,6 +328,7 @@ class SettingsNotifier extends Notifier<Settings> {
     String? replyLanguage,
     int? weekStartsOn,
     bool? showNetBalance,
+    String? photoMode,
     String? modelProvider,
   }) async {
     final changes = <String, Object?>{
@@ -309,6 +337,7 @@ class SettingsNotifier extends Notifier<Settings> {
       'replyLanguage': ?replyLanguage,
       'weekStartsOn': ?weekStartsOn,
       'showNetBalance': ?showNetBalance,
+      'photoMode': ?photoMode,
       'modelProvider': ?modelProvider,
     };
     final answer = await ref
@@ -322,6 +351,8 @@ class SettingsNotifier extends Notifier<Settings> {
         replyLanguage: str(saved['replyLanguage'], state.replyLanguage),
         weekStartsOn: intOf(saved['weekStartsOn'], state.weekStartsOn),
         showNetBalance: boolOf(saved['showNetBalance'], state.showNetBalance),
+        photoMode: _photoModeId(saved['photoMode'], state.photoMode),
+        photoVision: boolOf(saved['photoVision'], state.photoVision),
         modelProvider: _providerId(saved['modelProvider']),
         modelProviderChoice: _providerId(saved['modelProviderChoice']),
         availableProviders: _providerIds(saved['availableProviders']),

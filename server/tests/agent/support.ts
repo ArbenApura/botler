@@ -205,6 +205,8 @@ export async function play(opts: {
 	text: string;
 	ocrText?: string;
 	ocrTexts?: string[];
+	images?: Parameters<typeof runTurn>[0]['images'];
+	picturesReceived?: number;
 	web?: WebDeps;
 	turnKey?: string;
 	signal?: AbortSignal;
@@ -218,6 +220,8 @@ export async function play(opts: {
 		userText: opts.text,
 		ocrText: opts.ocrText,
 		ocrTexts: opts.ocrTexts,
+		images: opts.images,
+		picturesReceived: opts.picturesReceived,
 		turnKey: opts.turnKey ?? `turn-${opts.f.userId}-${++ids}`,
 		web: opts.web,
 		signal: opts.signal,

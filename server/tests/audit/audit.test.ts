@@ -164,6 +164,16 @@ describe('the registry of audited tables', () => {
 		expect(auditRedefinedSql('0035')).toContain('model_provider,show_net_balance');
 	});
 
+	it('replaces the trigger of user_setting when it gained the photo choice (0036), keeping the net balance choice (0035)', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0036_photo_mode.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditRedefinedSql('0036'));
+		expect(auditRedefinedSql('0035')).not.toContain('photo_mode');
+		expect(auditRedefinedSql('0036')).toContain('show_net_balance,photo_mode');
+	});
+
 	it('replaces the trigger of bill when it gained its start date (0023)', () => {
 		const file = readFileSync(
 			join(__dirname, '../../src/lib/server/db/migrations/0023_bill_starts_on.sql'),

@@ -17,6 +17,7 @@ import { chatTurn } from '../db/schema';
 import { lockPerson } from '../db/tenant';
 import { recentCardLines } from '../ops/actions';
 import { forkSource, resolveChat, touchChat } from '../ops/chats';
+import { getSettings } from '../ops/settings';
 import { loadNotebookContext } from '../ops/notebook';
 import { OpsError, run } from '../ops/context';
 import { verbByName } from '../ops/registry';
@@ -28,6 +29,8 @@ import {
 	queueCompactionIfDue,
 	summaryState
 } from './compact';
+import { visionOf } from '../../providers';
+import { imagesInput, readImages } from './images';
 import { MAX_PHOTO_CHARS, MAX_PHOTOS, MAX_PHOTOS_TOTAL_CHARS, notebookMessage } from './prompt';
 import { buildHistory } from './transcript';
 import { runTurn } from './turn';
@@ -69,7 +72,9 @@ export const chatInput = z.strictObject({
 		.refine((l) => l.reduce((n, t) => n + t.length, 0) <= MAX_PHOTOS_TOTAL_CHARS, {
 			message: 'The photos hold too much text together.'
 		})
-		.optional()
+		.optional(),
+	/** Pictures of the photos. Used only when the person chose the picture and their host reads pictures; otherwise dropped, never kept. Untrusted. */
+	images: imagesInput.optional()
 });
 
 const STALE_RUNNING_MS = 120_000;
@@ -233,14 +238,31 @@ export async function* handleChat(
 	deps: ChatDeps
 ): AsyncGenerator<TurnEvent> {
 	const input = parse(chatInput, raw);
+	// A picture that is not one is refused before the message is claimed, so the person can send it again without that picture
+	const pictures = readImages(input.images);
 	const claimed = await claim(ctx, input);
 	// The message is accepted: the screen starts showing that the assistant is working before memory, history or the model are touched
 	const where =
 		claimed.mode === 'replay'
 			? { turnId: claimed.row.id, chatId: claimed.row.chatId }
 			: { turnId: claimed.id, chatId: claimed.chatId };
+	// Pictures are used only when the person chose the picture AND the host that will answer reads pictures. A settings read that fails
+	// means no pictures (it never falls back to sending them). Decided once, here; the router checks again on every model call
+	const provider =
+		claimed.mode === 'run' ? await deps.provider?.(ctx).catch(() => undefined) : undefined;
+	const usePictures =
+		claimed.mode === 'run' &&
+		pictures.length > 0 &&
+		visionOf(provider) &&
+		(await getSettings(ctx)
+			.then((s) => s.photoMode === 'image')
+			.catch(() => false));
 	// The app learns which message and which chat this is, so it can branch from the message later
-	yield { type: 'start', ...where };
+	yield {
+		type: 'start',
+		...where,
+		...(claimed.mode === 'run' && pictures.length > 0 ? { usedImages: usePictures } : {})
+	};
 	if (claimed.mode === 'replay') {
 		const stored = Array.isArray(claimed.row.events) ? (claimed.row.events as TurnEvent[]) : [];
 		for (const e of stored) if (STORED.has(e.type)) yield e;
@@ -263,7 +285,6 @@ export async function* handleChat(
 					);
 					return null;
 				});
-		const provider = await deps.provider?.(ctx).catch(() => undefined);
 		const earlier = await history(ctx, claimed.id, {
 			provider,
 			budget: deps.historyTokens ?? DEFAULT_HISTORY_TOKENS
@@ -282,6 +303,8 @@ export async function* handleChat(
 			userText: input.text,
 			ocrText: input.ocrText,
 			ocrTexts: input.ocrTexts,
+			images: usePictures ? pictures : undefined,
+			picturesReceived: pictures.length,
 			turnKey: input.clientMessageId,
 			names: [...new Set([...(deps.names ?? []), ...(known?.names ?? [])])],
 			persona: deps.persona,

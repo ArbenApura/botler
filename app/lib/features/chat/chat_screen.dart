@@ -14,10 +14,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/chat_photos.dart';
 import '../../core/device.dart';
 import '../../core/photo_budget.dart';
+import '../../core/photo_upload.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../settings/photo_mode_row.dart';
 import '../update/changelog_sheet.dart';
 import '../update/update_gate.dart';
 import 'chat_group.dart';
@@ -66,6 +68,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// Photos are being read: sending waits for them.
   bool _reading = false;
+
+  /// The pictures of a message are being made ready to send: sending waits for them.
+  bool _preparing = false;
   bool _hearing = false;
 
   /// Words typed and not sent, kept for each chat while the person looks at another one.
@@ -273,14 +278,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // A turn is running: the words stay in the box instead of being lost
     if (ref.read(chatProvider).busy) return;
     // A photo still being read would be left out of the message
-    if (_reading) {
+    if (_reading || _preparing) {
       say(context, context.t.chatPhotosWait);
       return;
     }
     final text = _text.text.trim();
-    final photos = fitPhotoTexts(<String>[for (final p in _photos) p.text]);
-    final receipt = context.t.chatReceiptMessage;
-    if (text.isEmpty && photos.texts.isEmpty) return;
+    // Whether the pictures themselves go with this message: the person chose them AND the server says its AI server reads them. Decided now, at
+    // the moment of sending, whatever it was when the photos were picked
+    var usePictures = ref.read(settingsProvider).usesPictures;
+    // Pictures going for the first time, when the choice was made after the photos were picked: the person is told once, and may say no
+    if (usePictures &&
+        _photos.isNotEmpty &&
+        ref.read(editProvider) == null &&
+        !await pictureNoticeAccepted(context, ref)) {
+      usePictures = false;
+    }
+    if (!mounted) return;
+    // Without the pictures a photo is worth its text only, so the ones that held none are left out
+    final usable = <PhotoNote>[
+      for (final p in _photos)
+        if (usePictures || p.text.isNotEmpty) p,
+    ];
+    if (text.isEmpty && usable.isEmpty) {
+      if (_photos.isNotEmpty) say(context, context.t.chatPhotoEmpty);
+      return;
+    }
     // Sending always brings the newest words into view
     _stick = true;
     // The keyboard goes away with the message, and a dictation still running is stopped so it cannot refill the box
@@ -314,13 +336,68 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ..invalidate(balancesProvider);
       return;
     }
+    final chatId = ref.read(chatProvider).chatId;
+    // The words leave the box now, so anything typed while the pictures are made ready belongs to the next message
     _text.clear();
-    final sent = <String>[for (final p in _photos) p.path];
-    // The copies now belong to the message being sent
+    // The pictures are made ready first, one at a time, with the strip locked: a picture that cannot be made is sent as its text, and a photo
+    // that has neither its picture nor any text has nothing to send
+    var images = <String>[];
+    var sendable = usable;
+    if (usePictures) {
+      setState(() => _preparing = true);
+      final made = await prepareUploads(<String>[
+        for (final p in usable) p.path,
+      ], cancelled: () => !mounted);
+      if (!mounted) return;
+      setState(() => _preparing = false);
+      // Another chat came on screen meanwhile: this message is not sent from it, and its words go back
+      if (ref.read(chatProvider).chatId != chatId) {
+        if (_text.text.isEmpty) _text.text = text;
+        return;
+      }
+      sendable = <PhotoNote>[
+        for (var i = 0; i < usable.length; i++)
+          if (made[i] != null || usable[i].text.isNotEmpty) usable[i],
+      ];
+      images = <String>[
+        for (final m in made)
+          if (m != null) m.data,
+      ];
+      if (made.any((m) => m == null)) {
+        say(
+          context,
+          sendable.length < usable.length
+              ? context.t.chatPhotosSkipped(usable.length - sendable.length)
+              : context.t.chatPictureSkipped,
+        );
+      }
+      if (text.isEmpty && sendable.isEmpty) {
+        _dropPhotos();
+        return;
+      }
+    }
+    if (!mounted) return;
+    final photos = fitPhotoTexts(<String>[
+      for (final p in sendable)
+        if (p.text.isNotEmpty) p.text,
+    ]);
+    final receipt = usePictures && sendable.isNotEmpty
+        ? context.t.chatPhotoOnlyMessage
+        : context.t.chatReceiptMessage;
+    final sent = <String>[for (final p in sendable) p.path];
+    final left = <String>[
+      for (final p in _photos)
+        if (!sendable.contains(p)) p.path,
+    ];
+    // The copies now belong to the message being sent; those left out (no text, and no picture to send) are deleted
     setState(() {
       _photos.clear();
       _sourceOf.clear();
     });
+    if (left.isNotEmpty && mounted) {
+      unawaited(ref.read(chatPhotoStoreProvider).discard(left));
+      if (!usePictures) say(context, context.t.chatPhotosSkipped(left.length));
+    }
     if (photos.trimmed && mounted) say(context, context.t.chatPhotosTrimmed);
     await ref
         .read(chatProvider.notifier)
@@ -328,6 +405,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           text.isEmpty ? receipt : text,
           photoTexts: photos.texts,
           photoPaths: sent,
+          images: images,
         );
     ref
       ..invalidate(syncProvider)
@@ -347,6 +425,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// Takes the photo at [index] of the strip (the ones read first, then the ones still being read) off the next message.
   void _removePhoto(int index) {
+    // Nothing on the strip changes while the pictures are made ready
+    if (_preparing) return;
     final String copy;
     if (index < _photos.length) {
       copy = _photos[index].path;
@@ -364,7 +444,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// Adds photos to the next message: one from the camera or several from the gallery. They are read one after another on the phone,
   /// the ones that hold no text are left out and counted, and a picture chosen twice is added once.
   Future<void> _photo(PhotoSource source) async {
-    if (_reading) return;
+    if (_reading || _preparing) return;
     // The photos wait while a message is edited: an edit sends only new words
     if (ref.read(editProvider) != null) {
       say(context, context.t.chatPhotoEditing);
@@ -375,6 +455,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       say(context, context.t.chatPhotosLimit(maxPhotos));
       return;
     }
+    // The first time pictures would go, the person is told once that a picture is sent as it is, and may choose text only instead
+    var pictures = ref.read(settingsProvider).usesPictures;
+    if (pictures && !await pictureNoticeAccepted(context, ref))
+      pictures = false;
+    if (!mounted) return;
     final reader = PhotoReader();
     final store = ref.read(chatPhotoStoreProvider);
     _store = store;
@@ -424,7 +509,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             continue;
           }
           staged.remove(copy);
-          if (text.isEmpty) {
+          // A picture with no words on it (a dish, a chart, a handwritten note) is still worth sending when the picture itself goes
+          if (text.isEmpty && !pictures) {
             unread++;
             setState(() {
               _pending.remove(copy);
@@ -763,6 +849,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   for (final p in _pending) StripPhoto(p, null),
                 ],
                 onRemove: _removePhoto,
+              ),
+            if (_preparing)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    context.t.chatPicturePreparing,
+                    style: TextStyle(color: c.muted),
+                  ),
+                ),
               ),
             if (ref.watch(editProvider) != null)
               _EditingBar(onCancel: ref.read(editProvider.notifier).stop),

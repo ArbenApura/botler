@@ -29,6 +29,7 @@ export type {
 import {
 	createCore,
 	DOWN,
+	estimateJsonTokens,
 	estimateTokens,
 	finish,
 	maskerFor,
@@ -50,6 +51,7 @@ type CacheControl = { type: 'ephemeral'; ttl?: '1h' };
 
 type Block = (
 	| { type: 'text'; text: string }
+	| { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
 	| { type: 'tool_use'; id: string; name: string; input: unknown }
 	| { type: 'tool_result'; tool_use_id: string; content: string }
 	| WireThinkingBlock
@@ -102,7 +104,7 @@ export function cacheMinimum(model: string): number {
 
 // -- FUNCTIONS -- //
 
-const sizeOf = (v: unknown): number => estimateTokens(JSON.stringify(v).length);
+const sizeOf = (v: unknown): number => estimateJsonTokens(v);
 
 /** The last block of a wire turn, which is where a cache marker for the end of that turn goes. */
 function lastBlock(turn: WireMessage | undefined): Block | null {
@@ -166,9 +168,17 @@ function toWire(
 		if (m.role === 'system') {
 			system.push(m.content);
 		} else if (m.role === 'user') {
+			// The pictures come before the words they go with, which is how the host reads them best
+			const blocks: Block[] = [
+				...(m.images ?? []).map((img): Block => ({
+					type: 'image',
+					source: { type: 'base64', media_type: img.mediaType, data: img.data }
+				})),
+				{ type: 'text', text: m.content }
+			];
 			const merge = lastUser();
-			if (merge) merge.push({ type: 'text', text: m.content });
-			else turns.push({ role: 'user', content: [{ type: 'text', text: m.content }] });
+			if (merge) merge.push(...blocks);
+			else turns.push({ role: 'user', content: blocks });
 		} else if (m.role === 'tool') {
 			const result: Block = {
 				type: 'tool_result',
@@ -362,7 +372,7 @@ export function createAnthropicClient(config: ModelConfig) {
 						cacheWrite1hTokens: wire.usage.cache_creation?.ephemeral_1h_input_tokens ?? 0
 					}
 				: {
-						promptTokens: estimateTokens(JSON.stringify(body.messages).length),
+						promptTokens: estimateJsonTokens(body.messages),
 						completionTokens: estimateTokens(flat.content.length)
 					};
 			await core.record(ctx, req.bucket, usage);
@@ -530,15 +540,14 @@ export function createAnthropicClient(config: ModelConfig) {
 				final =
 					reportedPrompt !== null || reportedOut !== null
 						? {
-								promptTokens:
-									reportedPrompt ?? estimateTokens(JSON.stringify(body.messages).length),
+								promptTokens: reportedPrompt ?? estimateJsonTokens(body.messages),
 								completionTokens: reportedOut ?? estimateTokens(content.length + reasoning.length),
 								cacheReadTokens: reportedRead,
 								cacheWriteTokens: reportedWrite,
 								cacheWrite1hTokens: reportedWrite1h
 							}
 						: {
-								promptTokens: estimateTokens(JSON.stringify(body.messages).length),
+								promptTokens: estimateJsonTokens(body.messages),
 								completionTokens: estimateTokens(content.length + reasoning.length)
 							};
 				await core.record(ctx, req.bucket, final);

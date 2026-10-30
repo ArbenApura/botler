@@ -32,6 +32,8 @@ RUN rm -rf node_modules/onnxruntime-node/bin/napi-v6/darwin node_modules/onnxrun
 
 FROM node:24-slim
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
+# A chat message may carry pictures (about 9.5 MB at most). The route itself still reads only 64 KB unless it asks for more (readJson)
+ENV BODY_SIZE_LIMIT=10485760
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./package.json

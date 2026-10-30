@@ -228,5 +228,19 @@
       "Lalabas sa ilalim ng mensahe mo ang mga litratong ipinadala mo. I-tap para buksan nang buong screen: i-pinch para mag-zoom, i-drag para ilipat, i-double tap para mag-zoom in at balik, mag-swipe para sa susunod na litrato, mag-swipe pababa para isara.",
       "Sa phone na ito lang nananatili ang mga litrato, sa pribadong storage ng app (mga salita lang ang binabasa ng Botler mula sa mga ito). Tatanggalin ang mga ito kapag nag-sign out ka o nag-reset ng chat data."
     ]
+  },
+  {
+    "versionCode": 26,
+    "versionName": "1.1.15",
+    "en": [
+      "New in Settings: Photos for the assistant. Choose Picture and the assistant looks at the photo itself, not only the words on it, so it can describe a product, a chart or a handwritten note. Choose Text only and nothing changes: just the words read on your phone go.",
+      "Pictures go only to an AI server that can look at them (Anthropic). DeepSeek cannot, so it always gets the text. A picture is sent as it is: names and numbers in it are not hidden the way they are in text, and Botler's server does not keep it. You are asked once before the first picture is sent.",
+      "In Picture mode, a photo with no words on it can be sent too, and a message can be just photos."
+    ],
+    "fil": [
+      "Bago sa Settings: Mga litrato para sa assistant. Piliin ang Larawan at titingnan ng assistant ang mismong litrato, hindi lang ang mga salita rito, kaya kaya nitong ilarawan ang isang produkto, chart o sulat-kamay. Piliin ang Teksto lang at walang magbabago: ang mga salitang nabasa sa phone mo lang ang ipapadala.",
+      "Sa AI server lang na nakakakita ng larawan napupunta ang mga larawan (Anthropic). Hindi kaya ng DeepSeek, kaya teksto ang laging natatanggap nito. Ipinapadala ang larawan nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto, at hindi ito iniimbak ng server ng Botler. Tatanungin ka nang minsan bago maipadala ang unang larawan.",
+      "Sa Larawan mode, maipapadala na rin ang litratong walang salita, at puwede nang litrato lang ang mensahe."
+    ]
   }
 ]

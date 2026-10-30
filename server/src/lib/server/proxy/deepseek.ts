@@ -27,6 +27,7 @@ export type {
 import {
 	createCore,
 	DOWN,
+	estimateJsonTokens,
 	estimateTokens,
 	finish,
 	maskerFor,
@@ -34,7 +35,8 @@ import {
 	readWrittenCalls,
 	toolDetail,
 	toolsOffered,
-	within
+	within,
+	withoutImages
 } from './core';
 import { defaultSleep } from './core';
 import { createDsmlGuard } from './dsml';
@@ -115,7 +117,8 @@ export function createModelClient(config: ModelConfig) {
 		const thinking = stream && config.thinking === true && req.bucket === 'chat';
 		return {
 			model: config.model,
-			messages: maskMessages(req.messages, masker),
+			// This host reads text only: a picture is never put on its wire, whatever the caller passed
+			messages: maskMessages(withoutImages(req.messages), masker),
 			stream,
 			...(stream ? { stream_options: { include_usage: true } } : {}),
 			...(thinking
@@ -156,7 +159,7 @@ export function createModelClient(config: ModelConfig) {
 			}
 			const choice = wire.choices?.[0];
 			const content = choice?.message?.content ?? '';
-			const estimated = estimateTokens(JSON.stringify(body.messages).length);
+			const estimated = estimateJsonTokens(body.messages);
 			const usage: Usage = wire.usage
 				? {
 						...readUsage(wire.usage, estimated),
@@ -270,7 +273,7 @@ export function createModelClient(config: ModelConfig) {
 				// Record what was used even when the app disconnected half way, and stop the upstream call
 				await reader.cancel().catch(() => undefined);
 				final = reported ?? {
-					promptTokens: estimateTokens(JSON.stringify(body.messages).length),
+					promptTokens: estimateJsonTokens(body.messages),
 					completionTokens: estimateTokens(content.length + reasoning.length)
 				};
 				await core.record(ctx, req.bucket, final);

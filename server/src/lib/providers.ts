@@ -6,6 +6,12 @@
 /** The hosts the assistant can run on. This is what a person picks from. */
 export const SELECTABLE_PROVIDERS = ['anthropic', 'deepseek'] as const;
 
+/** Whether the host reads pictures. DeepSeek's chat API takes text only; flipping one entry is all it takes if that changes. */
+export const PROVIDER_VISION: Record<SelectableProvider, boolean> = {
+	anthropic: true,
+	deepseek: false
+};
+
 /** Usage rows from before the provider was recorded are 'unknown'. It is never a choice. */
 export const USAGE_PROVIDERS = [...SELECTABLE_PROVIDERS, 'unknown'] as const;
 
@@ -14,6 +20,11 @@ export const USAGE_PROVIDERS = [...SELECTABLE_PROVIDERS, 'unknown'] as const;
 export type SelectableProvider = (typeof SELECTABLE_PROVIDERS)[number];
 
 // -- FUNCTIONS -- //
+
+/** True when the host can be sent a picture. */
+export function visionOf(provider: SelectableProvider | null | undefined): boolean {
+	return provider ? PROVIDER_VISION[provider] : false;
+}
 
 export function isSelectableProvider(value: unknown): value is SelectableProvider {
 	return SELECTABLE_PROVIDERS.some((p) => p === value);

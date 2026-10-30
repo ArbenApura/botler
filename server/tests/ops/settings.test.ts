@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { user } from '../../src/lib/server/db/schema';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { getSettings, setSettings } from '../../src/lib/server/ops/settings';
+import { configureProviders } from '../../src/lib/server/proxy/provider';
+import { PROVIDER_VISION, visionOf } from '../../src/lib/providers';
 import { createTestDb } from '../support/testDb';
 
 // -- STATES -- //
@@ -145,5 +147,45 @@ describe('settings', () => {
 		// One row, whichever came last holds its field and the other field is one of its two values
 		expect(['SGD', 'PHP']).toContain(final.currency);
 		expect(['fil', 'en']).toContain(final.language);
+	});
+
+	it('answers the photo choice as the picture for a person with no row, and keeps what they pick', async () => {
+		const id = 'user_set_b_001';
+		expect((await getSettings(person(id))).photoMode).toBe('image');
+		const r = await setSettings(as(person(id)), { photoMode: 'text' });
+		expect(r.settings.photoMode).toBe('text');
+		expect((await getSettings(person(id))).photoMode).toBe('text');
+		// Another field saved later does not put it back
+		await setSettings(as(person(id)), { weekStartsOn: 0 });
+		expect((await getSettings(person(id))).photoMode).toBe('text');
+	});
+
+	it('refuses a photo choice that is neither the picture nor the text', async () => {
+		await expect(
+			setSettings(as(person('user_set_a_001')), { photoMode: 'video' as never })
+		).rejects.toMatchObject({ code: 'INVALID' });
+	});
+
+	it('says whether the host that will run reads pictures, from the person choice', async () => {
+		configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
+		try {
+			const id = 'user_set_c_001';
+			await setSettings(as(person(id)), { modelProvider: 'anthropic' });
+			expect((await getSettings(person(id))).photoVision).toBe(true);
+			await setSettings(as(person(id)), { modelProvider: 'deepseek' });
+			expect((await getSettings(person(id))).photoVision).toBe(false);
+			// No host set up: nothing reads pictures
+			configureProviders(null);
+			expect((await getSettings(person(id))).photoVision).toBe(false);
+		} finally {
+			configureProviders(null);
+		}
+	});
+
+	it('knows which hosts read pictures', () => {
+		expect(PROVIDER_VISION).toEqual({ anthropic: true, deepseek: false });
+		expect(visionOf('anthropic')).toBe(true);
+		expect(visionOf('deepseek')).toBe(false);
+		expect(visionOf(null)).toBe(false);
 	});
 });

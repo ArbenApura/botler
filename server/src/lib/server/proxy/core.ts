@@ -50,6 +50,34 @@ export const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(
 /** A rough token count for when the model reports none: about four characters per token. */
 export const estimateTokens = (chars: number) => Math.ceil(chars / 4);
 
+/** What one picture counts as in an estimate of tokens, whatever its size in bytes. */
+export const IMAGE_TOKENS = 1600;
+
+/**
+ * A JSON.stringify replacer for any estimate of size taken from messages: a picture's base64 becomes a stand-in of the size a picture counts
+ * as, so six pictures never read as a million tokens. Anything else called data and that long is a signed thinking block, also nearer the stand-in.
+ */
+export function imageStandIn(key: string, value: unknown): unknown {
+	return key === 'data' && typeof value === 'string' && value.length > 1000
+		? 'x'.repeat(IMAGE_TOKENS * 4)
+		: value;
+}
+
+/** The messages without any picture: for a host that reads text only, so no picture bytes ever reach it. */
+export function withoutImages(messages: ChatMessage[]): ChatMessage[] {
+	return messages.some((m) => (m.role === 'user' || m.role === 'system') && m.images)
+		? messages.map((m) => {
+				if ((m.role !== 'user' && m.role !== 'system') || !m.images) return m;
+				const { images: _dropped, ...rest } = m;
+				return rest;
+			})
+		: messages;
+}
+
+/** The estimate of tokens in messages or a wire body, with pictures counted at IMAGE_TOKENS each. */
+export const estimateJsonTokens = (value: unknown): number =>
+	estimateTokens(JSON.stringify(value, imageStandIn).length);
+
 /** An estimate of the tokens in the stable prefix (the first `count` messages), for the log. 0 when the caller named no prefix. */
 export function stableTokens(messages: ChatMessage[], count?: number): number {
 	return count ? estimateTokens(JSON.stringify(messages.slice(0, count)).length) : 0;

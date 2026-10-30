@@ -16,8 +16,16 @@ export type WireThinkingBlock =
 	| { type: 'thinking'; thinking: string; signature: string }
 	| { type: 'redacted_thinking'; data: string };
 
+/** One picture the person attached, checked by agent/images.ts: the type comes from its own bytes and the data is base64. Never stored or logged. */
+export type ChatImage = { mediaType: 'image/jpeg' | 'image/png' | 'image/webp'; data: string };
+
 export type ChatMessage =
-	| { role: 'system' | 'user'; content: string }
+	| {
+			role: 'system' | 'user';
+			content: string;
+			/** Pictures that go with this message. Only a host that reads pictures is given them; every other path drops them. */
+			images?: ChatImage[];
+	  }
 	| {
 			role: 'assistant';
 			content: string | null;

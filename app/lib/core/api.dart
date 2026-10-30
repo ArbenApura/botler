@@ -45,6 +45,9 @@ const Duration _timeout = Duration(seconds: 30);
 /// How long a chat stream may stay silent. The server pings every 10 seconds.
 const Duration _idle = Duration(seconds: 45);
 
+/// A message with pictures can be several megabytes, so the wait for the first answer to it is longer.
+const Duration _uploadTimeout = Duration(seconds: 120);
+
 // -- FUNCTIONS -- //
 
 /// A fresh request id: 8 to 80 characters, unique.
@@ -215,6 +218,7 @@ class ApiClient {
     required String id,
     required String text,
     List<String> ocrTexts = const <String>[],
+    List<String> images = const <String>[],
     String? chatId,
     Future<void>? abort,
     Duration idle = _idle,
@@ -233,10 +237,18 @@ class ApiClient {
             'text': text,
             'chatId': ?chatId,
             if (ocrTexts.isNotEmpty) 'ocrTexts': ocrTexts,
+            // The pictures themselves, as JPEG base64. Sent only when the server has said it will use them (an older server refuses the key)
+            if (images.isNotEmpty)
+              'images': <Map<String, String>>[
+                for (final data in images)
+                  <String, String>{'mediaType': 'image/jpeg', 'data': data},
+              ],
           });
     final http.StreamedResponse res;
     try {
-      res = await _http.send(req).timeout(_timeout);
+      res = await _http
+          .send(req)
+          .timeout(images.isEmpty ? _timeout : _uploadTimeout);
     } on http.RequestAbortedException {
       // Stopped by the person before the server answered
       return;

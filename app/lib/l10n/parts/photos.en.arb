@@ -1,0 +1,19 @@
+{
+  "settingsPhotosTitle": "Photos for the assistant",
+  "settingsPhotoImage": "Picture",
+  "settingsPhotoText": "Text only",
+  "settingsPhotoHelpImage": "The assistant looks at the picture itself, so it can describe a product or read a layout. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler's server does not keep it; {server} handles it under its own terms.",
+  "@settingsPhotoHelpImage": {"placeholders": {"server": {"type": "String"}}},
+  "settingsPhotoHelpText": "The phone reads the words on the photo and only those words are sent. Names and numbers are hidden as usual.",
+  "settingsPhotoNoVision": "{server} cannot look at pictures, so it only gets the text read from them, whatever you choose here.",
+  "@settingsPhotoNoVision": {"placeholders": {"server": {"type": "String"}}},
+  "photoNoticeTitle": "Send the picture itself?",
+  "photoNoticeBody": "Your photo goes to {server} as a picture, so the assistant can see what is in it. Names and numbers in a picture are not hidden the way they are in text, and Botler's server does not keep it ({server} handles it under its own terms). You can change this in Settings.",
+  "@photoNoticeBody": {"placeholders": {"server": {"type": "String"}}},
+  "photoNoticeYes": "Send pictures",
+  "photoNoticeNo": "Text only",
+  "chatPhotoOnlyMessage": "Here are the photos.",
+  "chatPicturesNoted": "This answer goes by the text read from the picture, not the picture itself.",
+  "chatPictureSkipped": "A picture could not be sent, so only its text goes.",
+  "chatPicturePreparing": "Getting the pictures ready…"
+}

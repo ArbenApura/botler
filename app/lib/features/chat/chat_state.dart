@@ -294,6 +294,9 @@ class ChatNotifier extends Notifier<ChatState> {
   String? _turnId;
   int _userItemId = -1;
 
+  // Pictures went with the message being sent, so a server that did not use them is told to the person.
+  bool _picturesSent = false;
+
   // The staged copies of the photos of the message being sent, until the server accepts it.
   List<String> _staged = const <String>[];
 
@@ -697,12 +700,16 @@ class ChatNotifier extends Notifier<ChatState> {
 
   /// Sends one message. [photoTexts] is the text the phone read from each photo, already within the budget of photo_budget.dart.
   ///
+  /// [images] are the pictures themselves (JPEG base64), sent beside the text only when the person and the server both allow it. They are held for the
+  /// attempts of this one message and let go after it: never stored on the phone and never put in a message on screen.
+  ///
   /// [photoPaths] are the staged copies of those photos (see ChatPhotoStore.stage), in the same order. They are filed under the turn once the
   /// server has accepted the message, and deleted if it never does.
   Future<void> send(
     String text, {
     List<String> photoTexts = const <String>[],
     List<String> photoPaths = const <String>[],
+    List<String> images = const <String>[],
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return;
@@ -712,6 +719,8 @@ class ChatNotifier extends Notifier<ChatState> {
     _userItemId = userItemId;
     _sentIds.add(messageId);
     _staged = List<String>.of(photoPaths);
+    var pictures = List<String>.of(images);
+    _picturesSent = pictures.isNotEmpty;
     _add(
       UserItem(
         userItemId,
@@ -735,6 +744,7 @@ class ChatNotifier extends Notifier<ChatState> {
                     id: messageId,
                     text: trimmed,
                     ocrTexts: photoTexts,
+                    images: pictures,
                     chatId: state.chatId,
                     abort: abort.future,
                   )) {
@@ -748,6 +758,15 @@ class ChatNotifier extends Notifier<ChatState> {
           break;
         } on ApiException catch (e) {
           if (_stopped) break;
+          // The server refused the message with its pictures in it (an older server that knows no pictures, or one it will not take): once more
+          // on the text read from them. Nothing was claimed, so the same id is used, and this is not one of the dropped-connection retries
+          if (pictures.isNotEmpty && e.code == 'INVALID') {
+            pictures = const <String>[];
+            _picturesSent = false;
+            _add(NoticeItem(_id(), _words.chatPicturesNoted));
+            attempt--;
+            continue;
+          }
           // A repeat of a finished message is answered from storage, so it is safe to ask again; start the turn's items over
           final again =
               (e.isNetwork || e.code == 'CONFLICT') && attempt < _retries;
@@ -789,6 +808,7 @@ class ChatNotifier extends Notifier<ChatState> {
         }
       }
     } finally {
+      _picturesSent = false;
       // Photos never filed (the server did not accept the message) are not kept
       if (_staged.isNotEmpty) {
         final left = _staged;
@@ -824,6 +844,11 @@ class ChatNotifier extends Notifier<ChatState> {
             _staged = const <String>[];
             unawaited(_keepPhotos(_userItemId, turn, staged));
           }
+        }
+        // The pictures went up but this answer goes by the text read from them (the person or the server's host does not use them)
+        if (_picturesSent && e['usedImages'] == false) {
+          _picturesSent = false;
+          _add(NoticeItem(_id(), _words.chatPicturesNoted));
         }
         state = state.copyWith(
           phase: TurnPhase.waiting,
@@ -883,6 +908,10 @@ class ChatNotifier extends Notifier<ChatState> {
             summary: str(e['summary']),
           ),
         );
+      case 'pictures':
+        // The host would not take the pictures: this answer goes by the text read from them
+        _picturesSent = false;
+        _add(NoticeItem(_id(), _words.chatPicturesNoted));
       case 'fallback':
         _closeThinking();
         _flush();

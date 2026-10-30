@@ -13,6 +13,9 @@ import { getModelClient, getProviderOf } from '#lib/server/proxy/index.js';
 
 const PING_MS = 10_000;
 
+/** A message may carry up to six pictures (agent/images.ts), so this route reads far more than the 64 KB every other route allows. */
+const CHAT_BODY_MAX = 9_500_000;
+
 // -- FUNCTIONS -- //
 
 /**
@@ -26,7 +29,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	let events: AsyncGenerator<unknown>;
 	let first: IteratorResult<unknown>;
 	try {
-		const body = await readJson(request);
+		const body = await readJson(request, CHAT_BODY_MAX);
 		events = handleChat(c.ctx, body, {
 			model: getModelClient(),
 			signal: request.signal,

@@ -1288,6 +1288,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatPhotoMissing => 'This photo is no longer on this phone.';
 
   @override
+  String get chatPhotoOnlyMessage => 'Here are the photos.';
+
+  @override
   String chatPhotoOpen(int number, int total) {
     return 'Open photo $number of $total';
   }
@@ -1336,6 +1339,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatPhotosWait => 'Wait until the photos are read.';
+
+  @override
+  String get chatPicturePreparing => 'Getting the pictures ready…';
+
+  @override
+  String get chatPictureSkipped =>
+      'A picture could not be sent, so only its text goes.';
+
+  @override
+  String get chatPicturesNoted =>
+      'This answer goes by the text read from the picture, not the picture itself.';
 
   @override
   String get chatPleaseCheck => 'Please check';
@@ -2197,6 +2211,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayYours => 'Your paydays';
 
   @override
+  String photoNoticeBody(String server) {
+    return 'Your photo goes to $server as a picture, so the assistant can see what is in it. Names and numbers in a picture are not hidden the way they are in text, and Botler\'s server does not keep it ($server handles it under its own terms). You can change this in Settings.';
+  }
+
+  @override
+  String get photoNoticeNo => 'Text only';
+
+  @override
+  String get photoNoticeTitle => 'Send the picture itself?';
+
+  @override
+  String get photoNoticeYes => 'Send pictures';
+
+  @override
   String get purposeCustom => 'Custom';
 
   @override
@@ -2783,6 +2811,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsNetTitle => 'Show net balance';
+
+  @override
+  String settingsPhotoHelpImage(String server) {
+    return 'The assistant looks at the picture itself, so it can describe a product or read a layout. The picture goes to $server as it is: names and numbers in it are not hidden the way they are in text. Botler\'s server does not keep it; $server handles it under its own terms.';
+  }
+
+  @override
+  String get settingsPhotoHelpText =>
+      'The phone reads the words on the photo and only those words are sent. Names and numbers are hidden as usual.';
+
+  @override
+  String get settingsPhotoImage => 'Picture';
+
+  @override
+  String settingsPhotoNoVision(String server) {
+    return '$server cannot look at pictures, so it only gets the text read from them, whatever you choose here.';
+  }
+
+  @override
+  String get settingsPhotoText => 'Text only';
+
+  @override
+  String get settingsPhotosTitle => 'Photos for the assistant';
 
   @override
   String get settingsPrivacy => 'Privacy';

@@ -55,6 +55,8 @@ services:
     environment:
       BOTLER_BASE_URL: ${BOTLER_BASE_URL:?Set BOTLER_BASE_URL in .env, for example https://botler.arbenger.com}
       # The app works out its own address from these headers, which the proxy sets. Without PROTOCOL_HEADER it assumes https
+      # Pictures in a chat message: adapter-node refuses a larger body before the app sees it. Each route still reads 64 KB unless it asks for more
+      BODY_SIZE_LIMIT: '10485760'
       PROTOCOL_HEADER: x-forwarded-proto
       HOST_HEADER: x-forwarded-host
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in .env}

@@ -20,6 +20,7 @@ import type {
 	StreamEvent,
 	ToolCall
 } from '../proxy/deepseek';
+import type { ChatImage } from '../proxy/types';
 import type { AgentTool, WebDeps } from './tools';
 import type { TranscriptMessage } from './transcript';
 // -- DEP-MODULES -- //
@@ -38,7 +39,9 @@ import { capReasoning, shortenResult, untrustedStub } from './transcript';
 
 export type TurnEvent =
 	// Live only: start, phase, reasoning and tool_start are shown while the turn runs and are never stored or replayed
-	| { type: 'start'; turnId?: string; chatId?: string }
+	| { type: 'start'; turnId?: string; chatId?: string; usedImages?: boolean }
+	// The pictures could not be used by the host, so this answer goes by the text read from them
+	| { type: 'pictures'; used: false }
 	| { type: 'phase'; phase: 'thinking' | 'writing' }
 	| { type: 'reasoning'; text: string }
 	| { type: 'tool_start'; id: string; name: string }
@@ -75,6 +78,10 @@ export type TurnParams = {
 	ocrText?: string;
 	/** Text read from each photo of the message, up to six. Untrusted. Wins over ocrText. */
 	ocrTexts?: string[];
+	/** Pictures that go with the message, checked and allowed (the person chose them and the host reads them). Untrusted. */
+	images?: ChatImage[];
+	/** How many pictures the request carried, used or not. Any of them taints the turn: a picture can hold an instruction as text can. */
+	picturesReceived?: number;
 	/** The chat message id: the request ids of this turn's writes are made from it, so a re-run repeats nothing. */
 	turnKey: string;
 	names?: string[];
@@ -429,7 +436,12 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const byName = new Map(tools.map((t) => [t.name, t]));
 	const defs = toDefs(tools);
 	const state = new TurnState(urlsIn(p.userText));
-	if (photoTexts(p.ocrText, p.ocrTexts).length > 0) state.taint('photo');
+	if (
+		photoTexts(p.ocrText, p.ocrTexts).length > 0 ||
+		(p.picturesReceived ?? 0) > 0 ||
+		(p.images?.length ?? 0) > 0
+	)
+		state.taint('photo');
 	const masker = createMasker(p.names);
 	// The person's currency and reply language. A settings read that fails never stops a chat: it falls back to the defaults
 	const settings =
@@ -447,12 +459,24 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		userText: p.userText,
 		ocrText: p.ocrText,
 		ocrTexts: p.ocrTexts,
+		images: p.images,
 		currency: settings.currency,
 		replyLanguage: settings.replyLanguage
 	});
 	// The system message and the history: the part of the request that is the same from one call to the next
 	// The extra system messages sit inside it, so the host's history breakpoint lands on the real end of the history
 	const stableCount = 1 + (p.system?.length ?? 0) + p.history.length;
+	/** Takes the pictures off the message, once. True when there were any to take. */
+	const dropPictures = (): boolean => {
+		let dropped = false;
+		for (const m of messages) {
+			if ((m.role === 'user' || m.role === 'system') && m.images) {
+				delete m.images;
+				dropped = true;
+			}
+		}
+		return dropped;
+	};
 	// What the message keeps for later messages of the chat
 	const transcript: TranscriptMessage[] = [];
 	const toolsRun: string[] = [];
@@ -513,6 +537,19 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			if (p.signal?.aborted) {
 				stopped = 'cancelled';
 				break;
+			}
+			// The host refused the FIRST call with pictures in it (one it cannot read, or too large): once, with nothing yet written, the same call
+			// goes again without them, on the text read from them, and the person is told
+			if (
+				e instanceof OpsError &&
+				e.code === 'UNAVAILABLE' &&
+				call === 0 &&
+				!writing &&
+				dropPictures()
+			) {
+				yield { type: 'pictures', used: false };
+				call--;
+				continue;
 			}
 			if (e instanceof OpsError && (e.code === 'UNAVAILABLE' || e.code === 'LIMIT')) {
 				const reason = /minute/i.test(e.message) ? 'rate' : e.code === 'LIMIT' ? 'capped' : 'down';

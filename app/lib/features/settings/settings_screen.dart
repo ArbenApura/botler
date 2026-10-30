@@ -23,6 +23,7 @@ import '../money/account_detail_screen.dart';
 import '../money/currency_picker.dart';
 import 'changelog_row.dart';
 import 'failed_writes_row.dart';
+import 'photo_mode_row.dart';
 import 'provider_row.dart';
 import 'rates_row.dart';
 import 'reminder_status_row.dart';
@@ -133,6 +134,10 @@ class SettingsScreen extends ConsumerWidget {
           ProviderRow(
             settings: s,
             onChanged: (p) => _save(context, ref, modelProvider: p),
+          ),
+          PhotoModeRow(
+            settings: s,
+            onChanged: (m) => _save(context, ref, photoMode: m),
           ),
           PaperCard(
             onTap: () => _pickCurrency(context, ref, s.currency),
@@ -314,6 +319,7 @@ class SettingsScreen extends ConsumerWidget {
     String? replyLanguage,
     int? weekStartsOn,
     bool? showNetBalance,
+    String? photoMode,
     String? modelProvider,
   }) async {
     try {
@@ -325,6 +331,7 @@ class SettingsScreen extends ConsumerWidget {
             replyLanguage: replyLanguage,
             weekStartsOn: weekStartsOn,
             showNetBalance: showNetBalance,
+            photoMode: photoMode,
             modelProvider: modelProvider,
           );
       // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language
