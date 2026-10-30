@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
 import 'package:botler/features/chat/drawer_accounts.dart';
+import 'package:botler/features/chat/summary_card.dart';
 import 'package:botler/features/money/accounts_screen.dart';
 import 'package:botler/features/money/net_parts.dart';
 import 'package:botler/l10n/l10n.dart';
@@ -521,6 +522,130 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('chats'), findsOneWidget);
       expect(find.text('Mga account'), findsOneWidget);
+    });
+  });
+
+  group('the wallet button sheet', () {
+    const sync = <String, Object?>{
+      'summary': <String, Object?>{
+        'total': 100000,
+        'currency': 'PHP',
+        'nextBill': null,
+        'firstEventToday': null,
+      },
+    };
+
+    Future<void> openSheet(WidgetTester tester, ProviderContainer c) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp.router(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: buildTheme(Brightness.light),
+            routerConfig: GoRouter(
+              routes: <RouteBase>[
+                GoRoute(
+                  path: '/',
+                  builder: (_, _) => Scaffold(
+                    body: Builder(
+                      builder: (context) => TextButton(
+                        onPressed: () => showSummarySheet(context),
+                        child: const Text('open'),
+                      ),
+                    ),
+                  ),
+                ),
+                GoRoute(
+                  path: '/account/:id',
+                  builder: (_, state) =>
+                      Text('detail ${state.pathParameters['id']}'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<ProviderContainer> withSync({
+      bool net = true,
+      bool serverNet = true,
+    }) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.showNet': net,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final client = MockClient.streaming((req, stream) async {
+        final verb = req.url.path.split('/').last;
+        final result = switch (verb) {
+          'accounts_balances' => <Json>[_account(withNet: serverNet)],
+          'assets_summary' => _assets(withNet: serverNet),
+          _ => <String, Object?>{},
+        };
+        return http.StreamedResponse(
+          Stream<List<int>>.value(
+            utf8.encode(jsonEncode(<String, Object?>{'result': result})),
+          ),
+          200,
+        );
+      });
+      final c = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          syncProvider.overrideWith((ref) async => sync),
+          apiProvider.overrideWithValue(
+            ApiClient(
+              base: 'https://botler.test',
+              token: () async => 'tok',
+              client: client,
+            ),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    testWidgets(
+      'leads with the net total, lists the accounts and what consumed them',
+      (tester) async {
+        await openSheet(tester, await withSync());
+        expect(find.text('Net, after bills and goals'), findsOneWidget);
+        expect(find.text('Balance ₱1,000.00'), findsOneWidget);
+        expect(find.text('Taken from this by'), findsOneWidget);
+        expect(find.text('Rent, due Nov 5'), findsOneWidget);
+        expect(find.text('Short by ₱500.00'), findsOneWidget);
+      },
+    );
+
+    testWidgets('a row opens the account and closes the sheet', (tester) async {
+      await openSheet(tester, await withSync());
+      await tester.tap(find.text('GCash'));
+      await tester.pumpAndSettle();
+      expect(find.text('detail acc-gcash'), findsOneWidget);
+    });
+
+    testWidgets(
+      'is the summary as it was with the net off, and with no net from the server',
+      (tester) async {
+        await openSheet(tester, await withSync(net: false));
+        expect(find.text('Across your accounts'), findsOneWidget);
+        expect(find.text('₱1,000.00'), findsOneWidget);
+        expect(find.text('Taken from this by'), findsNothing);
+        expect(find.text('GCash'), findsNothing);
+      },
+    );
+
+    testWidgets('shows the total as counted when the server sends no net', (
+      tester,
+    ) async {
+      await openSheet(tester, await withSync(serverNet: false));
+      expect(find.text('Net, after bills and goals'), findsNothing);
+      expect(find.text('₱1,000.00'), findsWidgets);
     });
   });
 

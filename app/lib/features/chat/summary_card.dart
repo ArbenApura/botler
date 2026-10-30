@@ -5,6 +5,7 @@
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
@@ -12,8 +13,10 @@ import '../../core/json.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../money/net_parts.dart';
 
 // -- TYPES -- //
 
@@ -24,6 +27,11 @@ class SummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final sync = ref.watch(syncProvider);
+    // The net total comes from assets_summary (the sync answer stays gross): only read when the person leads with the net
+    final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
+    final assets = net ? ref.watch(assetsProvider).value : null;
+    final netTotal = netInt(assets, 'netTotal');
+    final shortTotal = netInt(assets, 'shortfallTotal') ?? 0;
     return PaperCard(
       // A refresh keeps the last answer on screen instead of flashing the card empty
       child: sync.when(
@@ -46,7 +54,9 @@ class SummaryCard extends ConsumerWidget {
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      context.t.chatAcrossAccounts,
+                      netTotal == null
+                          ? context.t.chatAcrossAccounts
+                          : context.t.netTotalTitle,
                       style: TextStyle(color: c.muted),
                     ),
                   ),
@@ -56,9 +66,31 @@ class SummaryCard extends ConsumerWidget {
               const SizedBox(height: 2),
               // The same light figure as every other balance in the app
               Amount(
-                intOf(summary['total']),
+                netTotal ?? intOf(summary['total']),
                 currency: str(summary['currency'], context.currencyCode),
               ),
+              // The balance counted, smaller, and what the bills due before payday still lack
+              if (netTotal != null) ...<Widget>[
+                Text(
+                  context.t.netGross(
+                    context.moneyIn(
+                      intOf(summary['total']),
+                      str(summary['currency'], context.currencyCode),
+                    ),
+                  ),
+                  style: TextStyle(color: c.muted, fontFeatures: tabular),
+                ),
+                if (shortTotal > 0)
+                  Text(
+                    context.t.netShortfall(
+                      context.moneyIn(
+                        shortTotal,
+                        str(summary['currency'], context.currencyCode),
+                      ),
+                    ),
+                    style: TextStyle(color: c.warning, fontFeatures: tabular),
+                  ),
+              ],
               if (intOf(summary['totalMissing']) > 0)
                 Text(
                   context.t.summaryMissingRates(intOf(summary['totalMissing'])),
@@ -141,10 +173,103 @@ void showSummarySheet(BuildContext context) {
     builder: (_) => const SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: SummaryCard(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[SummaryCard(), _SheetAccounts()],
+        ),
       ),
     ),
   );
+}
+
+/// The accounts under the summary in the wallet sheet: one row each with what the person leads with, and, with the net on, the lines that
+/// consumed it. A row opens the account on top of the chat. The sheet scrolls, so a long list needs no cap of its own.
+class _SheetAccounts extends ConsumerWidget {
+  const _SheetAccounts();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colors;
+    // Only with the net on: the sheet is the summary as it always was for a person who leads with the balance counted
+    final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
+    if (!net) return const SizedBox.shrink();
+    final accounts = ref.watch(balancesProvider).value;
+    if (accounts == null || accounts.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // The gap is here, so a sheet with no accounts is exactly as tall as its card
+        const SizedBox(height: 12),
+        Text(context.t.drawerAccounts, style: TextStyle(color: c.muted)),
+        for (final a in accounts) _SheetRow(account: a, net: net),
+      ],
+    );
+  }
+}
+
+class _SheetRow extends StatelessWidget {
+  const _SheetRow({required this.account, required this.net});
+
+  final Json account;
+  final bool net;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final currency = str(account['currency'], context.currencyCode);
+    // The net leads only when the server sent one: never a net of zero for a missing figure
+    final netValue = net ? netInt(account, 'netBalance') : null;
+    final short = netValue == null ? 0 : (netInt(account, 'shortfall') ?? 0);
+    return Semantics(
+      button: true,
+      label: str(account['name']),
+      child: InkWell(
+        onTap: () {
+          final router = GoRouter.of(context);
+          Navigator.of(context).pop();
+          router.push('/account/${str(account['id'])}');
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        str(account['name']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      context.moneyIn(
+                        netValue ?? intOf(account['balance']),
+                        currency,
+                      ),
+                      style: TextStyle(fontFeatures: tabular),
+                    ),
+                  ],
+                ),
+                if (short > 0)
+                  Text(
+                    context.t.drawerAccountShort(
+                      context.moneyIn(short, currency),
+                    ),
+                    style: TextStyle(color: c.warning, fontFeatures: tabular),
+                  ),
+                if (net) NetHoldLines(account: account),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Line extends StatelessWidget {

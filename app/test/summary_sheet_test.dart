@@ -11,6 +11,7 @@ import 'package:botler/ui/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // -- FUNCTIONS -- //
 
@@ -27,9 +28,13 @@ Future<void> openSheet(WidgetTester tester, Future<Object?> sync) async {
   tester.view.physicalSize = const Size(1080, 2200);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
+  // The card reads the net setting, so it needs the stored settings
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+  final prefs = await SharedPreferences.getInstance();
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        prefsProvider.overrideWithValue(prefs),
         syncProvider.overrideWith(
           (ref) => sync.then((v) => v! as Map<String, Object?>),
         ),
