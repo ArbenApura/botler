@@ -4,6 +4,8 @@
   "settingsPhotoText": "Text only",
   "settingsPhotoHelpImage": "The assistant looks at the picture itself, so it can describe a product or read a layout. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler's server does not keep it; {server} handles it under its own terms.",
   "@settingsPhotoHelpImage": {"placeholders": {"server": {"type": "String"}}},
+  "settingsPhotoHelpOther": "{chat} cannot look at pictures, so {server} looks at them for the messages that have one. The rest of your chat stays on {chat}. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler's server does not keep it; {server} handles it under its own terms.",
+  "@settingsPhotoHelpOther": {"placeholders": {"server": {"type": "String"}, "chat": {"type": "String"}}},
   "settingsPhotoHelpText": "The phone reads the words on the photo and only those words are sent. Names and numbers are hidden as usual.",
   "settingsPhotoNoVision": "{server} cannot look at pictures, so it only gets the text read from them, whatever you choose here.",
   "@settingsPhotoNoVision": {"placeholders": {"server": {"type": "String"}}},

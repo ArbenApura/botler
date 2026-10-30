@@ -10,7 +10,7 @@ import { user } from '../../src/lib/server/db/schema';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { getSettings, setSettings } from '../../src/lib/server/ops/settings';
 import { configureProviders } from '../../src/lib/server/proxy/provider';
-import { PROVIDER_VISION, visionOf } from '../../src/lib/providers';
+import { PROVIDER_VISION, pictureProviderFor, visionOf } from '../../src/lib/providers';
 import { createTestDb } from '../support/testDb';
 
 // -- STATES -- //
@@ -166,17 +166,28 @@ describe('settings', () => {
 		).rejects.toMatchObject({ code: 'INVALID' });
 	});
 
-	it('says whether the host that will run reads pictures, from the person choice', async () => {
-		configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
+	it('names the host that reads their pictures: their own when it can, else another with a key, else none', async () => {
 		try {
 			const id = 'user_set_c_001';
+			configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
 			await setSettings(as(person(id)), { modelProvider: 'anthropic' });
-			expect((await getSettings(person(id))).photoVision).toBe(true);
+			expect(await getSettings(person(id))).toMatchObject({
+				photoHost: 'anthropic',
+				photoVision: true
+			});
+			// A person on DeepSeek still gets Picture mode: Anthropic looks at the messages that carry pictures
 			await setSettings(as(person(id)), { modelProvider: 'deepseek' });
-			expect((await getSettings(person(id))).photoVision).toBe(false);
-			// No host set up: nothing reads pictures
+			expect(await getSettings(person(id))).toMatchObject({
+				modelProvider: 'deepseek',
+				photoHost: 'anthropic',
+				photoVision: true
+			});
+			// Only DeepSeek has a key: nothing can look at a picture
+			configureProviders({ available: ['deepseek'], fallback: 'deepseek' });
+			expect(await getSettings(person(id))).toMatchObject({ photoHost: null, photoVision: false });
+			// No host set up at all
 			configureProviders(null);
-			expect((await getSettings(person(id))).photoVision).toBe(false);
+			expect(await getSettings(person(id))).toMatchObject({ photoHost: null, photoVision: false });
 		} finally {
 			configureProviders(null);
 		}
@@ -187,5 +198,9 @@ describe('settings', () => {
 		expect(visionOf('anthropic')).toBe(true);
 		expect(visionOf('deepseek')).toBe(false);
 		expect(visionOf(null)).toBe(false);
+		expect(pictureProviderFor('deepseek', ['deepseek', 'anthropic'])).toBe('anthropic');
+		expect(pictureProviderFor('deepseek', ['deepseek'])).toBeNull();
+		expect(pictureProviderFor('anthropic', ['deepseek'])).toBe('anthropic');
+		expect(pictureProviderFor(null, [])).toBeNull();
 	});
 });

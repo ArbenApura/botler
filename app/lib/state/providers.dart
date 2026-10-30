@@ -34,6 +34,7 @@ class Settings {
     this.showNetBalance = false,
     this.photoMode = 'text',
     this.photoVision = false,
+    this.photoHost,
     this.modelProvider,
     this.modelProviderChoice,
     this.availableProviders = const <String>[],
@@ -76,6 +77,10 @@ class Settings {
   /// kept on the phone as a fact: a stale copy could upload pictures nobody will read.
   final bool photoVision;
 
+  /// The AI server that will look at pictures: the person's own when it can, else another one the server has a key for. Null when none can.
+  /// Not kept on the phone, like [photoVision].
+  final String? photoHost;
+
   /// The pictures themselves go with a message: the person chose them AND the server has said its AI server reads them. Anything less, and only text goes.
   bool get usesPictures => photoMode == 'image' && photoVision;
 
@@ -102,6 +107,7 @@ class Settings {
     bool? showNetBalance,
     String? photoMode,
     bool? photoVision,
+    Object? photoHost = _keep,
     Object? modelProvider = _keep,
     Object? modelProviderChoice = _keep,
     List<String>? availableProviders,
@@ -118,6 +124,9 @@ class Settings {
     showNetBalance: showNetBalance ?? this.showNetBalance,
     photoMode: photoMode ?? this.photoMode,
     photoVision: photoVision ?? this.photoVision,
+    photoHost: identical(photoHost, _keep)
+        ? this.photoHost
+        : photoHost as String?,
     modelProvider: identical(modelProvider, _keep)
         ? this.modelProvider
         : modelProvider as String?,
@@ -310,6 +319,7 @@ class SettingsNotifier extends Notifier<Settings> {
           photoMode: _photoModeId(s['photoMode'], state.photoMode),
           // An older server has no such field: nothing is read as pictures
           photoVision: boolOf(s['photoVision'], false),
+          photoHost: _providerId(s['photoHost']),
           modelProvider: _providerId(s['modelProvider']),
           modelProviderChoice: _providerId(s['modelProviderChoice']),
           availableProviders: _providerIds(s['availableProviders']),
@@ -353,6 +363,7 @@ class SettingsNotifier extends Notifier<Settings> {
         showNetBalance: boolOf(saved['showNetBalance'], state.showNetBalance),
         photoMode: _photoModeId(saved['photoMode'], state.photoMode),
         photoVision: boolOf(saved['photoVision'], state.photoVision),
+        photoHost: _providerId(saved['photoHost']),
         modelProvider: _providerId(saved['modelProvider']),
         modelProviderChoice: _providerId(saved['modelProviderChoice']),
         availableProviders: _providerIds(saved['availableProviders']),

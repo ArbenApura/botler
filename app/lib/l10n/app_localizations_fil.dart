@@ -2839,6 +2839,11 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String settingsPhotoHelpOther(String server, String chat) {
+    return 'Hindi makakita ng larawan ang $chat, kaya ang $server ang tumitingin sa mga mensaheng may larawan. Nasa $chat pa rin ang natitirang chat mo. Ang larawan ay napupunta sa $server nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto. Hindi ito iniimbak ng server ng Botler; ang $server ang humahawak nito ayon sa sarili nitong mga tuntunin.';
+  }
+
+  @override
   String get settingsPhotoHelpText =>
       'Binabasa ng phone ang mga salita sa litrato at ang mga salitang iyon lang ang ipinapadala. Nakatago pa rin ang mga pangalan at numero gaya ng dati.';
 

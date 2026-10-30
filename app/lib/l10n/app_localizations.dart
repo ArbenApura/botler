@@ -4818,6 +4818,12 @@ abstract class AppLocalizations {
   /// **'The assistant looks at the picture itself, so it can describe a product or read a layout. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler\'s server does not keep it; {server} handles it under its own terms.'**
   String settingsPhotoHelpImage(String server);
 
+  /// No description provided for @settingsPhotoHelpOther.
+  ///
+  /// In en, this message translates to:
+  /// **'{chat} cannot look at pictures, so {server} looks at them for the messages that have one. The rest of your chat stays on {chat}. The picture goes to {server} as it is: names and numbers in it are not hidden the way they are in text. Botler\'s server does not keep it; {server} handles it under its own terms.'**
+  String settingsPhotoHelpOther(String server, String chat);
+
   /// No description provided for @settingsPhotoHelpText.
   ///
   /// In en, this message translates to:

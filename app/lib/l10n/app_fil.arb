@@ -785,6 +785,7 @@
   "settingsNetBody": "Una ang matitira pagkatapos ng mga bayarin bago ang susunod na sahod at ng perang nakalaan sa mga goal. Nasa ilalim, mas maliit, ang balanseng binilang mo.",
   "settingsNetTitle": "Ipakita ang net na balanse",
   "settingsPhotoHelpImage": "Titingnan ng assistant ang mismong larawan, kaya kaya nitong ilarawan ang isang produkto o basahin ang ayos ng isang dokumento. Ang larawan ay napupunta sa {server} nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto. Hindi ito iniimbak ng server ng Botler; ang {server} ang humahawak nito ayon sa sarili nitong mga tuntunin.",
+  "settingsPhotoHelpOther": "Hindi makakita ng larawan ang {chat}, kaya ang {server} ang tumitingin sa mga mensaheng may larawan. Nasa {chat} pa rin ang natitirang chat mo. Ang larawan ay napupunta sa {server} nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto. Hindi ito iniimbak ng server ng Botler; ang {server} ang humahawak nito ayon sa sarili nitong mga tuntunin.",
   "settingsPhotoHelpText": "Binabasa ng phone ang mga salita sa litrato at ang mga salitang iyon lang ang ipinapadala. Nakatago pa rin ang mga pangalan at numero gaya ng dati.",
   "settingsPhotoImage": "Larawan",
   "settingsPhotoNoVision": "Hindi makakita ng larawan ang {server}, kaya teksto lang mula rito ang natatanggap nito, anuman ang piliin mo rito.",

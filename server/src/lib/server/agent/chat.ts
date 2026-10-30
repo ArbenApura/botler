@@ -29,7 +29,6 @@ import {
 	queueCompactionIfDue,
 	summaryState
 } from './compact';
-import { visionOf } from '../../providers';
 import { imagesInput, readImages } from './images';
 import { MAX_PHOTO_CHARS, MAX_PHOTOS, MAX_PHOTOS_TOTAL_CHARS, notebookMessage } from './prompt';
 import { buildHistory } from './transcript';
@@ -253,9 +252,8 @@ export async function* handleChat(
 	const usePictures =
 		claimed.mode === 'run' &&
 		pictures.length > 0 &&
-		visionOf(provider) &&
 		(await getSettings(ctx)
-			.then((s) => s.photoMode === 'image')
+			.then((s) => s.photoMode === 'image' && s.photoVision)
 			.catch(() => false));
 	// The app learns which message and which chat this is, so it can branch from the message later
 	yield {

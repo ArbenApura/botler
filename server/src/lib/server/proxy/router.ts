@@ -8,7 +8,7 @@ import type { Ctx } from '../ops/context';
 import type { CompletionRequest } from './types';
 import type { ModelClient } from './deepseek';
 // -- MODULES -- //
-import { visionOf } from '../../providers';
+import { pictureProviderFor, visionOf } from '../../providers';
 import { run } from '../ops/context';
 import { readSettings } from '../ops/settings';
 import { withoutImages } from './core';
@@ -29,30 +29,48 @@ export type RouterConfig = {
 
 export function createProviderRouter(config: RouterConfig) {
 	/** The person's choice when its key is still set, otherwise the default. A stored choice that lost its key is noted in the log. */
-	async function route(ctx: Ctx): Promise<{ provider: SelectableProvider; pictures: boolean }> {
+	async function route(
+		ctx: Ctx
+	): Promise<{ provider: SelectableProvider; picturesTo: SelectableProvider | null }> {
 		const settings = await run(ctx, (tx, userId) => readSettings(tx, userId));
 		const stored = settings.modelProviderChoice;
 		const effective = effectiveProvider(stored, config.available(), config.fallback);
 		if (stored && stored !== effective)
 			console.warn(JSON.stringify({ event: 'provider_choice_unavailable', provider: stored }));
-		// A picture goes only to a host that reads pictures AND only when the person chose the picture. Decided here for every call,
-		// from the settings read inside the call, so a failed read stops the call instead of sending a picture
-		return { provider: effective, pictures: settings.photoMode === 'image' && visionOf(effective) };
+		// Pictures are looked at only when the person chose the picture, and only by a host that reads pictures: their own, or else another one
+		// that has a key. Decided here for every call, from the settings read inside the call, so a failed read stops the call instead of
+		// sending a picture. A host that cannot read them is never handed one
+		const picturesTo =
+			settings.photoMode === 'image' ? pictureProviderFor(effective, config.available()) : null;
+		return { provider: effective, picturesTo };
 	}
 
 	const providerOf = async (ctx: Ctx): Promise<SelectableProvider> => (await route(ctx)).provider;
 
-	const forCall = (req: CompletionRequest, pictures: boolean): CompletionRequest =>
-		pictures ? req : { ...req, messages: withoutImages(req.messages) };
+	const hasPictures = (req: CompletionRequest): boolean =>
+		req.messages.some(
+			(m) => (m.role === 'user' || m.role === 'system') && (m.images?.length ?? 0) > 0
+		);
+
+	/** Which host answers this call, and the request it is given: with pictures only when that host reads them and the person chose them. */
+	async function target(
+		ctx: Ctx,
+		req: CompletionRequest
+	): Promise<{ provider: SelectableProvider; req: CompletionRequest }> {
+		const r = await route(ctx);
+		const host = hasPictures(req) && r.picturesTo ? r.picturesTo : r.provider;
+		const send = r.picturesTo !== null && visionOf(host);
+		return { provider: host, req: send ? req : { ...req, messages: withoutImages(req.messages) } };
+	}
 
 	const client: ModelClient = {
 		async complete(ctx, req) {
-			const r = await route(ctx);
-			return config.clientFor(r.provider).complete(ctx, forCall(req, r.pictures));
+			const t = await target(ctx, req);
+			return config.clientFor(t.provider).complete(ctx, t.req);
 		},
 		async *stream(ctx, req) {
-			const r = await route(ctx);
-			yield* config.clientFor(r.provider).stream(ctx, forCall(req, r.pictures));
+			const t = await target(ctx, req);
+			yield* config.clientFor(t.provider).stream(ctx, t.req);
 		}
 	};
 	return { client, providerOf };

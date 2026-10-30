@@ -276,9 +276,13 @@ describe('the wires', () => {
 });
 
 describe('the router decides on every call', () => {
-	async function viaRouter(choice: 'anthropic' | 'deepseek', mode: 'image' | 'text') {
+	async function viaRouter(
+		choice: 'anthropic' | 'deepseek',
+		mode: 'image' | 'text',
+		available: ('anthropic' | 'deepseek')[] = ['anthropic', 'deepseek']
+	) {
 		const fx = await seedPerson(t);
-		configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
+		configureProviders({ available, fallback: available[0] ?? 'anthropic' });
 		await setSettings(
 			{ ...fx.ctx, requestId: `req-pic-${String(++n).padStart(5, '0')}` },
 			{ modelProvider: choice, photoMode: mode }
@@ -297,26 +301,70 @@ describe('the router decides on every call', () => {
 			}) as unknown as ModelClient;
 		const { client } = createProviderRouter({
 			clientFor: (p) => stub(p),
-			available: () => ['anthropic', 'deepseek'],
-			fallback: 'anthropic'
+			available: () => available,
+			fallback: available[0] ?? 'anthropic'
 		});
 		const req: CompletionRequest = {
 			bucket: 'chat',
 			messages: [{ role: 'user', content: 'hi', images: [picture()] }]
 		};
 		await client.complete(fx.ctx, req);
-		const first = Object.values(got)[0]?.messages[0];
-		return first && 'images' in first ? first.images : undefined;
+		const sees = (name: string) => {
+			const first = got[name]?.messages[0];
+			return first && 'images' in first ? first.images : undefined;
+		};
+		return { answered: Object.keys(got), anthropic: sees('anthropic'), deepseek: sees('deepseek') };
 	}
 
-	it('keeps the picture for a host that reads pictures when the person chose the picture', async () => {
-		expect(await viaRouter('anthropic', 'image')).toHaveLength(1);
+	it('keeps the picture for a person whose own host reads pictures, when they chose the picture', async () => {
+		const r = await viaRouter('anthropic', 'image');
+		expect(r.answered).toEqual(['anthropic']);
+		expect(r.anthropic).toHaveLength(1);
 	});
 
-	it('drops it when the person chose the text, and for a host that reads text only', async () => {
-		expect(await viaRouter('anthropic', 'text')).toBeUndefined();
-		expect(await viaRouter('deepseek', 'image')).toBeUndefined();
-		expect(await viaRouter('deepseek', 'text')).toBeUndefined();
+	it('sends a message with a picture to a host that can see it when the person chose one that cannot', async () => {
+		const r = await viaRouter('deepseek', 'image');
+		expect(r.answered).toEqual(['anthropic']);
+		expect(r.anthropic).toHaveLength(1);
+		expect(r.deepseek).toBeUndefined();
+	});
+
+	it('drops the picture when the person chose the text, whatever their host', async () => {
+		for (const choice of ['anthropic', 'deepseek'] as const) {
+			const r = await viaRouter(choice, 'text');
+			expect(r.answered).toEqual([choice]);
+			expect(r.anthropic).toBeUndefined();
+			expect(r.deepseek).toBeUndefined();
+		}
+	});
+
+	it('never hands DeepSeek a picture, also when it is the only host with a key', async () => {
+		const r = await viaRouter('deepseek', 'image', ['deepseek']);
+		expect(r.answered).toEqual(['deepseek']);
+		expect(r.deepseek).toBeUndefined();
+	});
+
+	it('leaves a message with no picture on the host the person chose', async () => {
+		const fx = await seedPerson(t);
+		configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
+		await setSettings(
+			{ ...fx.ctx, requestId: `req-pic-${String(++n).padStart(5, '0')}` },
+			{ modelProvider: 'deepseek', photoMode: 'image' }
+		);
+		const used: string[] = [];
+		const { client } = createProviderRouter({
+			clientFor: (p) =>
+				({
+					complete: async () => {
+						used.push(p);
+						return { content: p };
+					}
+				}) as unknown as ModelClient,
+			available: () => ['anthropic', 'deepseek'],
+			fallback: 'anthropic'
+		});
+		await client.complete(fx.ctx, { bucket: 'chat', messages: [{ role: 'user', content: 'hi' }] });
+		expect(used).toEqual(['deepseek']);
 	});
 });
 
@@ -324,10 +372,11 @@ describe('a chat message with pictures', () => {
 	async function chat(
 		choice: 'anthropic' | 'deepseek',
 		mode: 'image' | 'text',
-		extra: Record<string, unknown> = {}
+		extra: Record<string, unknown> = {},
+		available: ('anthropic' | 'deepseek')[] = ['anthropic', 'deepseek']
 	) {
 		const fx = await seedPerson(t);
-		configureProviders({ available: ['anthropic', 'deepseek'], fallback: 'anthropic' });
+		configureProviders({ available, fallback: available[0] ?? 'anthropic' });
 		await setSettings(
 			{ ...fx.ctx, requestId: `req-pic-${String(++n).padStart(5, '0')}` },
 			{ modelProvider: choice, photoMode: mode }
@@ -355,13 +404,19 @@ describe('a chat message with pictures', () => {
 		expect(r.events.find((e) => e.type === 'start')).toMatchObject({ usedImages: true });
 	});
 
-	it('hands nothing over, and says so, for the text choice or a host that cannot see', async () => {
-		for (const [choice, mode] of [
-			['anthropic', 'text'],
-			['deepseek', 'image'],
-			['deepseek', 'text']
+	it('uses the picture for a person whose host cannot see, because another host with a key can', async () => {
+		const r = await chat('deepseek', 'image');
+		expect(r.images).toHaveLength(1);
+		expect(r.events.find((e) => e.type === 'start')).toMatchObject({ usedImages: true });
+	});
+
+	it('hands nothing over, and says so, for the text choice or when no host with a key can see', async () => {
+		for (const [choice, mode, available] of [
+			['anthropic', 'text', ['anthropic', 'deepseek']],
+			['deepseek', 'text', ['anthropic', 'deepseek']],
+			['deepseek', 'image', ['deepseek']]
 		] as const) {
-			const r = await chat(choice, mode);
+			const r = await chat(choice, mode, {}, [...available]);
 			expect(r.images).toBeUndefined();
 			expect(r.events.find((e) => e.type === 'start')).toMatchObject({ usedImages: false });
 		}

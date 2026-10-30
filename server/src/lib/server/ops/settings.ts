@@ -12,7 +12,7 @@ import type { PhotoMode } from '../db/schema/settings';
 import { eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY } from '../../finance/currency';
-import { visionOf } from '../../providers';
+import { pictureProviderFor } from '../../providers';
 import { userSetting } from '../db/schema';
 import { settingsSetInput } from '../db/zod';
 import { effectiveProvider, providerSetup } from '../proxy/provider';
@@ -31,7 +31,9 @@ export type SettingsView = {
 	showNetBalance: boolean;
 	/** What the assistant gets from a photo: the picture itself, or only the text the phone read from it. */
 	photoMode: PhotoMode;
-	/** Whether the host that will run for this person reads pictures. False when no host is set up. Worked out, never stored. */
+	/** The host that will read this person's pictures: their own when it can, else another host that has a key and can. Null when none can. Worked out, never stored. */
+	photoHost: SelectableProvider | null;
+	/** Whether a picture can be looked at at all (a host was found). Worked out, never stored. */
 	photoVision: boolean;
 	/** The host the assistant will run on for this person: their choice when it is still available, else the server default. Null when the server has none set up. */
 	modelProvider: SelectableProvider | null;
@@ -73,10 +75,12 @@ function withProviders(stored: StoredSettings): SettingsView {
 	const modelProvider = setup
 		? effectiveProvider(stored.modelProviderChoice, setup.available, setup.fallback)
 		: null;
+	const photoHost = pictureProviderFor(modelProvider, setup?.available ?? []);
 	return {
 		...stored,
 		modelProvider,
-		photoVision: visionOf(modelProvider),
+		photoHost,
+		photoVision: photoHost !== null,
 		availableProviders: setup ? [...setup.available] : []
 	};
 }

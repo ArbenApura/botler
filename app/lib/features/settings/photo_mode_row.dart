@@ -20,9 +20,16 @@ const String pictureNoticeKey = 'photos.noticeSeen';
 
 // -- FUNCTIONS -- //
 
-/// The name of the AI server that will answer, for the words that name it.
+/// The name of the AI server a picture goes to, for the words that name it: the one that looks at pictures, which is the person's own server
+/// when it can and another one when it cannot.
 String answeringServer(Settings s) =>
-    providerLabel(s.modelProvider ?? 'anthropic');
+    providerLabel(s.photoHost ?? s.modelProvider ?? 'anthropic');
+
+/// True when the pictures go to a different server from the one that answers the rest of the chat.
+bool picturesGoElsewhere(Settings s) =>
+    s.photoHost != null &&
+    s.modelProvider != null &&
+    s.photoHost != s.modelProvider;
 
 /// Tells the person once that a picture is sent as it is, and asks. True when pictures may go; false when they chose text only (which is saved).
 /// Nothing is asked again after the first answer.
@@ -110,8 +117,15 @@ class PhotoModeRow extends StatelessWidget {
           Text(
             image
                 ? (settings.photoVision
-                      ? t.settingsPhotoHelpImage(server)
-                      : t.settingsPhotoNoVision(server))
+                      ? (picturesGoElsewhere(settings)
+                            ? t.settingsPhotoHelpOther(
+                                server,
+                                providerLabel(settings.modelProvider ?? ''),
+                              )
+                            : t.settingsPhotoHelpImage(server))
+                      : t.settingsPhotoNoVision(
+                          providerLabel(settings.modelProvider ?? 'anthropic'),
+                        ))
                 : t.settingsPhotoHelpText,
             style: TextStyle(color: c.muted),
           ),

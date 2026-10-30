@@ -2818,6 +2818,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settingsPhotoHelpOther(String server, String chat) {
+    return '$chat cannot look at pictures, so $server looks at them for the messages that have one. The rest of your chat stays on $chat. The picture goes to $server as it is: names and numbers in it are not hidden the way they are in text. Botler\'s server does not keep it; $server handles it under its own terms.';
+  }
+
+  @override
   String get settingsPhotoHelpText =>
       'The phone reads the words on the photo and only those words are sent. Names and numbers are hidden as usual.';
 

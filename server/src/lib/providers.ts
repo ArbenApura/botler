@@ -26,6 +26,18 @@ export function visionOf(provider: SelectableProvider | null | undefined): boole
 	return provider ? PROVIDER_VISION[provider] : false;
 }
 
+/**
+ * The host that reads the pictures of a message for this person: their own when it can, else the first available one that can, else null.
+ * A person on a host that cannot read pictures still gets Picture mode: only the messages that carry pictures go to the other host.
+ */
+export function pictureProviderFor(
+	effective: SelectableProvider | null | undefined,
+	available: readonly SelectableProvider[]
+): SelectableProvider | null {
+	if (effective && visionOf(effective)) return effective;
+	return available.find((p) => visionOf(p)) ?? null;
+}
+
 export function isSelectableProvider(value: unknown): value is SelectableProvider {
 	return SELECTABLE_PROVIDERS.some((p) => p === value);
 }

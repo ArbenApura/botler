@@ -85,7 +85,32 @@ void main() {
       expect(find.textContaining('not hidden'), findsOneWidget);
     });
 
-    testWidgets('says plainly when the server cannot look at pictures', (
+    testWidgets(
+      'names both servers when the pictures go to another one than the chat',
+      (tester) async {
+        await pumpRow(
+          tester,
+          const Settings(
+            photoMode: 'image',
+            photoVision: true,
+            photoHost: 'anthropic',
+            modelProvider: 'deepseek',
+          ),
+        );
+        expect(
+          find.textContaining(
+            'DeepSeek cannot look at pictures, so Anthropic looks at them',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('The rest of your chat stays on DeepSeek'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('says plainly when no server can look at pictures', (
       tester,
     ) async {
       await pumpRow(
@@ -164,11 +189,13 @@ void main() {
         final c = await containerWith(<String, Object?>{
           'photoMode': 'image',
           'photoVision': true,
+          'photoHost': 'anthropic',
         });
         addTearDown(c.dispose);
         await c.read(settingsProvider.notifier).pullFromServer();
         expect(c.read(settingsProvider).photoMode, 'image');
         expect(c.read(settingsProvider).photoVision, isTrue);
+        expect(c.read(settingsProvider).photoHost, 'anthropic');
         final prefs = await SharedPreferences.getInstance();
         expect(readSettings(prefs).photoMode, 'image');
         // A stale copy of "the server can read pictures" is never believed on the next start

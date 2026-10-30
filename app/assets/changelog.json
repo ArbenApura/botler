@@ -242,5 +242,17 @@
       "Sa AI server lang na nakakakita ng larawan napupunta ang mga larawan (Anthropic). Hindi kaya ng DeepSeek, kaya teksto ang laging natatanggap nito. Ipinapadala ang larawan nang buo: hindi nakatago ang mga pangalan at numero rito gaya sa teksto, at hindi ito iniimbak ng server ng Botler. Tatanungin ka nang minsan bago maipadala ang unang larawan.",
       "Sa Larawan mode, maipapadala na rin ang litratong walang salita, at puwede nang litrato lang ang mensahe."
     ]
+  },
+  {
+    "versionCode": 27,
+    "versionName": "1.1.16",
+    "en": [
+      "Picture mode now works whichever AI server you chose. DeepSeek cannot look at pictures, so a message with a photo goes to Anthropic, which can; the rest of your chat stays on DeepSeek. Ask about an animal, a dish or a sign and the assistant sees it, even when the photo has no words on it.",
+      "Settings says which server looks at your pictures. If no server with a key can, it tells you so and only the text read from the photo goes."
+    ],
+    "fil": [
+      "Gumagana na ang Larawan mode kahit anong AI server ang pinili mo. Hindi makakita ng larawan ang DeepSeek, kaya ang mensaheng may litrato ay napupunta sa Anthropic, na nakakakita; nasa DeepSeek pa rin ang natitirang chat mo. Magtanong tungkol sa hayop, pagkain o karatula at makikita ito ng assistant, kahit walang salita ang litrato.",
+      "Sinasabi ng Settings kung aling server ang tumitingin sa mga larawan mo. Kung walang server na may key ang makakakita, sasabihin nito at ang tekstong nabasa mula sa litrato lang ang ipapadala."
+    ]
   }
 ]
