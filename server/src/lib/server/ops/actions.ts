@@ -22,6 +22,7 @@ import {
 } from '../db/schema';
 import { OpsError, run } from './context';
 import { balanceFor } from './ledger';
+import { redactText } from './notebook';
 import { readSettings } from './settings';
 import { invokeVerb, verbByName } from './registry';
 import { firstProblem, mapped, plain, requirePerson } from './shared';
@@ -44,6 +45,26 @@ const CONFIRMING_VERBS = new Set(['expense_log', 'expense_from_text', 'snapshot_
 
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 const text = (v: unknown, max = 60): string => (typeof v === 'string' ? v.slice(0, max) : '');
+
+/** The words of a note or page on a card: all of it up to 2000 characters, and the rest counted, so nothing the person approves is hidden. */
+const words = (v: unknown, max = 2000): string =>
+	typeof v === 'string'
+		? v.length > max
+			? `${v.slice(0, max)}... (and ${v.length - max} more characters)`
+			: v
+		: '';
+
+/** The words the verb will save for the assistant: account, card and phone numbers taken out, as the page verbs do, so the card shows what is kept. */
+const kept = (v: unknown, max = 2000): string =>
+	words(typeof v === 'string' ? redactText(v) : v, max);
+
+/** Where a parent named on a card is: under a page, or (an empty name) the top level. */
+const underParent = (v: unknown): string =>
+	typeof v === 'string' ? (v.trim() ? ` under "${text(v, 80)}"` : ' at the top level') : '';
+
+/** A page named on a card by its titles. */
+const pageName = (a: Args): string =>
+	`the page "${text(a.page, 80)}"${underParent(a.parent)} in the notebook "${text(a.notebook, 80)}"`;
 const moneyIn = (currency: string, v: unknown) =>
 	num(v) === null ? 'an amount' : formatMoney(num(v) as number, currency);
 
@@ -220,6 +241,36 @@ export function describeAction(
 			return `Delete the notebook "${text(args.notebook, 80)}". It can be restored for 30 days.`;
 		case 'notebook_undelete':
 			return `Put the deleted notebook "${text(args.notebook, 80)}" back.`;
+		// The pages: every card shows the words that will be kept, up to the most a card holds (the rest is counted), and names the page by its titles
+		case 'page_create':
+			return `In the notebook "${text(args.notebook, 80)}" make a new page "${text(args.title, 80)}"${typeof args.parent === 'string' && args.parent.trim() ? ` under "${text(args.parent, 80)}"` : ''}${typeof args.text === 'string' && args.text ? ` with this text: "${kept(args.text)}"` : ''}.`;
+		case 'page_edit': {
+			const page = pageName(args);
+			return args.op === 'add'
+				? `Add this to ${page} under "${text(typeof args.heading === 'string' ? redactText(args.heading) : '', 80)}": "${kept(args.line)}".`
+				: args.op === 'replace'
+					? `In ${page}, change "${words(args.find)}" to "${kept(args.replacement)}".`
+					: `Remove this from ${page}: "${words(args.find)}".`;
+		}
+		case 'page_rename':
+			return `Rename ${pageName(args)} to "${text(args.newTitle, 80)}".`;
+		case 'page_move':
+			return `Move ${pageName(args)} ${typeof args.toParent === 'string' && args.toParent.trim() ? `under "${text(args.toParent, 80)}" in ` : 'to the top level of '}${typeof args.toNotebook === 'string' ? `the notebook "${text(args.toNotebook, 80)}"` : 'its notebook'}${num(args.position) !== null ? `, at place ${(num(args.position) ?? 0) + 1}` : ''}.`;
+		case 'page_merge': {
+			const sources = Array.isArray(args.sources)
+				? args.sources
+						.map((s: unknown) =>
+							s && typeof s === 'object' ? `"${text((s as Args).page, 80)}"` : ''
+						)
+						.filter(Boolean)
+						.join(', ')
+				: 'the named pages';
+			return `Merge ${sources} into ${pageName(args)}: their text is added at its end, as it is, under their titles, and the merged pages are deleted. They can be restored for 30 days.`;
+		}
+		case 'page_delete':
+			return `Delete ${pageName(args)} with its sub-pages. They can be restored for 30 days.`;
+		case 'page_undelete':
+			return `Put the deleted page ${pageName(args)} back.`;
 		default:
 			return `Run "${verbName.replaceAll('_', ' ')}".`;
 	}

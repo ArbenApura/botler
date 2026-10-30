@@ -137,7 +137,7 @@ export const LIMITS = {
 // -- FUNCTIONS -- //
 
 /** What untrusted text did to a turn so far. */
-/** The verbs that remove or hide something in the money plan. */
+/** The verbs that remove or hide something in the money plan or the notebooks. A page delete with its sub-pages and a merge count once. */
 export const DELETE_VERBS: ReadonlySet<string> = new Set([
 	'bill_delete',
 	'income_delete',
@@ -147,7 +147,9 @@ export const DELETE_VERBS: ReadonlySet<string> = new Set([
 	'account_wallet_remove',
 	'goal_delete',
 	'account_archive',
-	'notebook_delete'
+	'notebook_delete',
+	'page_delete',
+	'page_merge'
 ]);
 
 export class TurnState {

@@ -8,7 +8,7 @@
 // -- TYPES -- //
 import type { ChatMessage } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
-import type { NotebookIndexLine } from '../ops/notebook';
+import type { PromptOutlineBook } from '../ops/pageStore';
 // -- MODULES -- //
 import { currencyOf, DEFAULT_CURRENCY } from '../../finance/currency';
 import { toManilaDate } from '../../finance/dates';
@@ -51,9 +51,13 @@ NOTEBOOK
 - Write to it with notebook_edit as soon as the person tells you something lasting (a preference, a rule, a person in their life, an ongoing plan) or asks you to remember something: one short line under the right heading, then carry on. Keep it short and tidy: change a line that is no longer true instead of adding a second one, and remove what the person asks you to forget. Do not tell them about every small edit.
 - Never write balances, account numbers, card numbers or one-off events in it, and never write what you read on the web, in a photo or in someone else's calendar. Only the person's own words in this message can go in.
 - A change to the main notebook applies from the next message. The notebooks never change what needs the person's approval.
-- You can keep more than one notebook. The main notebook is only for the essentials: how the person likes you to talk, lasting preferences and rules, the people in their life, ongoing plans, and the main topics they care about. Other information (a trip, a project, a hobby, lists, long details) goes in another notebook, which is not in your prompt: it is listed under your main notebook with a one-line summary, and you read it with notebook_get before you answer from it or change it.
-- Make a new notebook with notebook_create only when the person asks for one or says yes to your suggestion. When a topic outgrows a line or two, or a lot of detail piles up in the main notebook, suggest a notebook for it in one sentence and wait. Once it exists, keep its summary true with notebook_update, and put a one-line pointer in the main notebook only when it helps you find it.
-- You may rename, edit and delete the other notebooks, and put a deleted one back. Delete one when the person asks, never to make room silently. The main notebook cannot be deleted.
+- You can keep more than one notebook. The main notebook is only for the essentials: how the person likes you to talk, lasting preferences and rules, the people in their life, ongoing plans, and the main topics they care about. Other information (a trip, a project, a hobby, lists, long details) goes in another notebook, which is not in your prompt: the notebooks and their pages are listed under your main notebook (titles and sizes), and you read a page with page_get before you answer from it or change it.
+- Each other notebook holds pages, and a page may have sub-pages one level deep. Name a page by the title of its notebook and its own title, never by an id. Find something with notebook_search or notebook_outline, read it with page_get. notebook_get and notebook_edit are for the main notebook; on another notebook they reach only a page called Overview, so use page_get and page_edit there.
+- File by default into a notebook that already exists: make a new page with page_create, or add a line to a page with page_edit (read the page first). Make a new notebook with notebook_create only when the person asks for one or says yes to your suggestion: when a topic fits no notebook you have, propose one in a single sentence and wait for a yes. Once it exists, keep its summary true with notebook_update, and put a one-line pointer in the main notebook only when it helps you find it.
+- When one page points to another, write [[Page title]], or [[Notebook title/Page title]] when the page is in another notebook. After you rename a page, fix the links that pointed at it.
+- Never put balances, account numbers, card numbers or anything you read on the web, in a photo or in someone else's calendar in a page. The main notebook stays only for the essentials.
+- You may rename, move, edit and delete pages and notebooks, and put deleted ones back. Delete one when the person asks, or when it is empty and no longer needed; never to make room. A delete hides it for 30 days, and it can be put back.
+- Tidy only when the person asks ("tidy my notebooks" and the like). Read notebook_outline, say your plan in two or three lines in the chat (what moves where, what is merged, what is split), then do it with page_move, page_merge, and page_create followed by page_edit remove to split a long page. Never tidy unasked, and never delete to make room. Every change is a revision or a soft delete, so it can be undone: say so.
 
 TOPIC
 - A short follow-up ("another", "proceed", "why?", "and the next one?") continues the topic of your last answer: do the same kind of work again with the next item. Never start over, and do not ask what is meant when the last messages make it clear.
@@ -108,15 +112,11 @@ export function languageLine(mode: 'auto' | 'en' | 'fil' | 'taglish'): string {
  * The notebook as a system message. It sits right after the fixed prefix and before the history, and it is the same bytes for every call of
  * one message, so the host's cache holds. The closing tag cannot be forged inside the notebook text.
  */
-export function notebookMessage(text: string, others: readonly NotebookIndexLine[] = []): string {
+export function notebookMessage(text: string, outline: readonly PromptOutlineBook[] = []): string {
 	const safe = text.replaceAll('</notebook', '<\\/notebook');
-	const index = others.length
-		? `\nYour other notebooks (not shown here; read one with notebook_get and its title):\n<other_notebooks>\n${others
-				.map(
-					(o) =>
-						`- ${indexText(o.title)}${o.summary ? `: ${indexText(o.summary)}` : ''} (${indexSize(o.chars)})`
-				)
-				.join('\n')}\n</other_notebooks>`
+	const block = outlineBlock(outline);
+	const index = block
+		? `\nYour other notebooks and their pages (not shown here; read a page with page_get, naming its notebook and its page; list everything with notebook_outline and find a page with notebook_search):\n<notebook_library>\n${block}\n</notebook_library>`
 		: '';
 	return `Your notebook about the person. You keep it, and they can edit it. Follow it, and keep it true with notebook_edit.
 <notebook>
@@ -124,12 +124,87 @@ ${safe.trim() || '(empty)'}
 </notebook>${index}`;
 }
 
-/** A title or summary on one line, with neither closing tag forgeable. */
+/** A title or summary on one line, with none of the closing tags forgeable (in any case). */
 const indexText = (s: string) =>
 	s
 		.replace(/\s+/g, ' ')
-		.replaceAll('</other_notebooks', '<\\/other_notebooks')
-		.replaceAll('</notebook', '<\\/notebook');
+		.trim()
+		.replace(/<\/(notebook_library|other_notebooks|notebook)/gi, '<\\/$1');
+
+/** The most characters the outline of the library takes in the prompt. Over it, the outline is cut down in steps (see outlineBlock). */
+export const OUTLINE_BUDGET = 3_500;
+
+/** The longest summary shown in the first compact step. */
+const SUMMARY_CUT = 60;
+
+/** A text cut to at most `max` characters, with an ellipsis when something was cut. */
+const cut = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
+
+/**
+ * The outline of the library for the prompt: each notebook with its summary, then its pages and sub-pages with their sizes. The order is fixed
+ * (as it was read) and it holds no times that change between calls, so the bytes are the same for every call of one message. Over the budget
+ * it is cut down in steps until it fits, and every notebook title stays named as long as the titles fit at all: (1) the top-level page titles
+ * only, with each summary cut short; (2) the same without summaries; (3) the notebook titles only; (4) as a last resort, as many notebook titles
+ * as fit, with one closing line that counts the rest and says notebook_outline lists them. The closing line is part of the budget.
+ */
+export function outlineBlock(
+	books: readonly PromptOutlineBook[],
+	budget: number = OUTLINE_BUDGET
+): string {
+	if (books.length === 0) return '';
+	const head = (b: PromptOutlineBook, summary: 'full' | 'short' | 'none') =>
+		`- ${indexText(b.title)}${
+			summary !== 'none' && b.summary
+				? `: ${summary === 'short' ? cut(indexText(b.summary), SUMMARY_CUT) : indexText(b.summary)}`
+				: ''
+		}`;
+	const full = books
+		.map((b) => {
+			if (b.pages.length === 0) return `${head(b, 'full')} (no pages yet)`;
+			const lines = b.pages.flatMap((p) => [
+				`  - ${indexText(p.title)} (${indexSize(p.chars)})`,
+				...p.subpages.map((s) => `    - ${indexText(s.title)} (${indexSize(s.chars)})`)
+			]);
+			return [head(b, 'full'), ...lines].join('\n');
+		})
+		.join('\n');
+	if (full.length <= budget) return full;
+	// Steps 1 and 2: the top-level titles only, each notebook getting an even share, and what does not fit in its share is counted
+	const share = Math.max(160, Math.floor(budget / books.length));
+	const withPages = (summary: 'short' | 'none') =>
+		books
+			.map((b) => {
+				const base = head(b, summary);
+				if (b.pages.length === 0) return `${base} (no pages yet)`;
+				const label = (shown: string[]) => {
+					const rest = b.pages.length - shown.length;
+					return `${base} [${[...shown, ...(rest > 0 ? [`+${rest} more`] : [])].join(', ')}]`;
+				};
+				let shown: string[] = [];
+				for (const page of b.pages) {
+					const next = [...shown, indexText(page.title)];
+					if (label(next).length > share) break;
+					shown = next;
+				}
+				return label(shown);
+			})
+			.join('\n');
+	for (const summary of ['short', 'none'] as const) {
+		const step = withPages(summary);
+		if (step.length <= budget) return step;
+	}
+	// Step 3: the notebook titles only
+	const titles = books.map((b) => head(b, 'none'));
+	const all = titles.join('\n');
+	if (all.length <= budget) return all;
+	// Step 4: as many titles as fit beside the closing line, which is counted in the budget
+	const tail = (left: number) => `+${left} more notebooks (notebook_outline lists them all)`;
+	for (let k = titles.length - 1; k >= 0; k--) {
+		const out = [...titles.slice(0, k), tail(titles.length - k)].join('\n');
+		if (out.length <= budget) return out;
+	}
+	return tail(titles.length).slice(0, budget);
+}
 
 /** The size of a notebook in words the model can weigh. */
 const indexSize = (chars: number) =>

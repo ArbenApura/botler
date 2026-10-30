@@ -260,6 +260,13 @@
       "when": 1793343520401,
       "tag": "0036_photo_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793361290836,
+      "tag": "0037_notebook_pages",
+      "breakpoints": true
     }
   ]
 }

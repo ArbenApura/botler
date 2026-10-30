@@ -304,5 +304,21 @@
       "Hindi na mapaplano nang dalawang beses ang payday na may aprubadong split, kaya hindi na maitatala nang dalawang beses ang sahod. Sinasabi na ng mga split kung may nilaktawang rule, at nilalaktawan ang rule para sa nakatagong account.",
       "Wala nang numerong lumalabas sa ilalim ng mga larawan sa chat."
     ]
+  },
+  {
+    "versionCode": 32,
+    "versionName": "1.2.0",
+    "en": [
+      "Your notebooks now hold pages, and pages can hold sub-pages. Open the library to read them, pin the ones you need, and keep reading the pinned ones without a connection.",
+      "Search your notebooks and open the page right at the words you looked for. Link one page to another with [[Page]] or [[Notebook/Page]], and see which pages link to the one you are reading.",
+      "When Botler changes a page you have not read yet, a dot shows on it and the new lines are marked when you open it. The library lists Botler's recent changes, and you can undo the newest one.",
+      "Move pages and sub-pages to another notebook or another place, put back a deleted page within 30 days, and copy a whole notebook as Markdown. The page editor has a small row of buttons for headings, lists, checkboxes and links."
+    ],
+    "fil": [
+      "May mga pahina na ang mga kuwaderno mo, at puwedeng may sub-pahina ang bawat pahina. Buksan ang library para basahin ang mga ito, i-pin ang mga kailangan mo, at mabasa ang mga naka-pin kahit walang koneksyon.",
+      "Hanapin sa mga kuwaderno mo at buksan ang pahina mismo sa mga salitang hinanap mo. I-link ang isang pahina sa iba gamit ang [[Pahina]] o [[Kuwaderno/Pahina]], at tingnan kung aling mga pahina ang may link sa binabasa mo.",
+      "Kapag may binago si Botler na pahinang hindi mo pa nababasa, may lalabas na tuldok dito at mamarkahan ang mga bagong linya pagbukas mo. Nakalista sa library ang mga kamakailang pagbabago ni Botler, at puwede mong i-undo ang pinakabago.",
+      "Ilipat ang mga pahina at sub-pahina sa ibang kuwaderno o ibang lugar, ibalik ang binurang pahina sa loob ng 30 araw, at kopyahin ang buong kuwaderno bilang Markdown. May maliit na hanay ng mga button sa editor ng pahina para sa pamagat, listahan, checkbox at link."
+    ]
   }
 ]

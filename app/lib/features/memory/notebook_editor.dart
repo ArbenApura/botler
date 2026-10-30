@@ -15,6 +15,8 @@ import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'markdown_edit.dart';
+import 'markdown_toolbar.dart';
 import 'notebook_text.dart';
 
 // -- TYPES -- //
@@ -27,6 +29,8 @@ class NotebookEditor extends ConsumerStatefulWidget {
     required this.version,
     this.notebookId,
     this.title,
+    this.pageId,
+    this.maxChars = notebookMaxChars,
     super.key,
   });
 
@@ -38,6 +42,13 @@ class NotebookEditor extends ConsumerStatefulWidget {
   final String? notebookId;
   final String? title;
 
+  /// A page of a notebook with pages: the text is read and saved with the page verbs, checked against the page's own version. Without it
+  /// this is the main notebook (or an older one-page notebook) and nothing changes.
+  final String? pageId;
+
+  /// The longest text the server accepts here: a page takes more than the main notebook.
+  final int maxChars;
+
   @override
   ConsumerState<NotebookEditor> createState() => _NotebookEditorState();
 }
@@ -48,6 +59,7 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initial,
   );
+  final FocusNode _focus = FocusNode();
   late int _version = widget.version;
   bool _saving = false;
   String? _key;
@@ -61,14 +73,24 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
   int get _count => _controller.text.length;
 
   /// Names the notebook to the server; the main notebook needs no name.
-  Map<String, Object?> get _target => <String, Object?>{
-    'notebookId': ?widget.notebookId,
-  };
+  Map<String, Object?> get _target => widget.pageId != null
+      ? <String, Object?>{'pageId': widget.pageId}
+      : <String, Object?>{'notebookId': ?widget.notebookId};
+
+  bool get _isPage => widget.pageId != null;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  /// A toolbar button: the text changes where the cursor is, and the field keeps the keyboard.
+  void _edit(MarkdownEdit edit) {
+    _controller.value = applyMarkdownEdit(_controller.value, edit);
+    _focus.requestFocus();
+    setState(() {});
   }
 
   /// The request id of this text at this version: a repeat of the same save carries the same one.
@@ -91,10 +113,13 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
     try {
       if (overwrite) {
         // The newest version is read first, so this save is made from it: what it replaces stays in the changes
-        final latest = await api.verbJson('notebook_get', _target);
+        final latest = await api.verbJson(
+          _isPage ? 'page_get' : 'notebook_get',
+          _target,
+        );
         _version = intOf(latest['version']);
       }
-      await api.verb('notebook_save', <String, Object?>{
+      await api.verb(_isPage ? 'page_save' : 'notebook_save', <String, Object?>{
         ..._target,
         'text': _controller.text,
         'expectVersion': _version,
@@ -167,7 +192,7 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final over = _count > notebookMaxChars;
+    final over = _count > widget.maxChars;
     return PopScope(
       // Typed words are asked about before they are thrown away
       canPop: !_changed || _saving,
@@ -208,6 +233,7 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
                     textField: true,
                     child: TextField(
                       controller: _controller,
+                      focusNode: _focus,
                       expands: true,
                       maxLines: null,
                       minLines: null,
@@ -224,12 +250,14 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // Only a page has the Markdown buttons; the main notebook is edited as before
+                if (_isPage && !_saving) MarkdownToolbar(onEdit: _edit),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
                     context.t.notebookCount(
                       _count.toString(),
-                      notebookMaxChars.toString(),
+                      widget.maxChars.toString(),
                     ),
                     style: TextStyle(
                       color: over ? c.danger : c.muted,

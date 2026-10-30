@@ -280,6 +280,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get acctTabUndone => 'Undone';
 
   @override
+  String activityUndoCreatedBody(String page) {
+    return 'Botler made \"$page\". Undoing it deletes the page. You can put it back for 30 days.';
+  }
+
+  @override
+  String get activityUndoCreatedTitle => 'Delete the page Botler made?';
+
+  @override
+  String get activityUndoUnavailable =>
+      'The earlier text is no longer kept, so this cannot be undone.';
+
+  @override
+  String get activityUndoneDeleted =>
+      'Deleted. You can put it back for 30 days.';
+
+  @override
+  String get activityUndoneRestored => 'Put back the earlier text.';
+
+  @override
   String get add => 'Add';
 
   @override
@@ -1745,6 +1764,166 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String libraryActionsFor(String title) {
+    return 'More for $title';
+  }
+
+  @override
+  String get libraryActivity => 'Botler\'s recent changes';
+
+  @override
+  String libraryActivityAll(int count) {
+    return 'Show all $count';
+  }
+
+  @override
+  String get libraryActivityFewer => 'Show fewer';
+
+  @override
+  String libraryActivityLine(String page, String notebook) {
+    return 'Botler changed $page in $notebook';
+  }
+
+  @override
+  String libraryAgoDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days ago',
+      one: '1 day ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String libraryAgoHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hours ago',
+      one: '1 hour ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String libraryAgoMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes ago',
+      one: '1 minute ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get libraryAgoNow => 'just now';
+
+  @override
+  String get libraryAsk => 'Ask Botler to file something';
+
+  @override
+  String get libraryEmpty => 'Botler will fill this as you talk.';
+
+  @override
+  String get libraryMain => 'Main notebook';
+
+  @override
+  String get libraryMainLine => 'What Botler keeps in mind about you';
+
+  @override
+  String get libraryNeedsConnection =>
+      'This needs a connection. Try again when you are online.';
+
+  @override
+  String get libraryNotebooks => 'Notebooks';
+
+  @override
+  String get libraryOffline => 'Offline copy';
+
+  @override
+  String libraryOfflineSince(String when) {
+    return 'Offline copy from $when';
+  }
+
+  @override
+  String libraryOpenNotebook(String title) {
+    return 'Open notebook $title';
+  }
+
+  @override
+  String libraryOpenPage(String title) {
+    return 'Open page $title';
+  }
+
+  @override
+  String libraryPageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pages',
+      one: '1 page',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get libraryPinned => 'Pinned';
+
+  @override
+  String get libraryPinnedRecent => 'Pinned and recent';
+
+  @override
+  String get libraryQueued =>
+      'No connection. The change is kept on your phone and will be sent once.';
+
+  @override
+  String get librarySearchClear => 'Clear';
+
+  @override
+  String get librarySearchFailed => 'Search did not work. Try again.';
+
+  @override
+  String get librarySearchHint => 'Search your notebooks';
+
+  @override
+  String get librarySearchMore =>
+      'There are more matches. Add a word to narrow it down.';
+
+  @override
+  String get librarySearchNone => 'Nothing found.';
+
+  @override
+  String get librarySearchOffline =>
+      'Search needs a connection. Your pages can still be read offline.';
+
+  @override
+  String get librarySearchPrompt =>
+      'Type at least two letters, then press search.';
+
+  @override
+  String get librarySearchTitle => 'Search';
+
+  @override
+  String get libraryTitle => 'Notebooks';
+
+  @override
+  String get libraryUndo => 'Undo';
+
+  @override
+  String libraryUndoFor(String page) {
+    return 'Undo Botler\'s change to $page';
+  }
+
+  @override
+  String get libraryUpdateServer =>
+      'The server is older than this app and cannot show pages yet. Update the server.';
+
+  @override
+  String get libraryUpdated => 'Botler updated';
+
+  @override
   String get lockReason => 'Open Botler';
 
   @override
@@ -1752,6 +1931,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lockUnlock => 'Unlock';
+
+  @override
+  String get mdBold => 'Bold';
+
+  @override
+  String get mdCheckbox => 'Checkbox';
+
+  @override
+  String get mdHeading => 'Heading';
+
+  @override
+  String get mdLink => 'Link';
+
+  @override
+  String get mdList => 'List';
+
+  @override
+  String get mdPageLink => 'Link to a page';
 
   @override
   String get memoryCopied => 'Copied everything to the clipboard.';
@@ -2005,6 +2202,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing here yet. Tell Botler something to remember, or tap Edit.';
 
   @override
+  String get notebookExport => 'Copy as Markdown';
+
+  @override
+  String notebookExported(int count) {
+    return 'Copied $count pages as Markdown.';
+  }
+
+  @override
+  String get notebookExporting => 'Collecting the pages...';
+
+  @override
   String get notebookFieldSummary => 'What is in it?';
 
   @override
@@ -2013,6 +2221,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notebookFieldTitle => 'Title';
+
+  @override
+  String get notebookGoBack => 'Back';
+
+  @override
+  String get notebookGone => 'This notebook is gone';
+
+  @override
+  String get notebookGoneBody => 'It was deleted, here or on another phone.';
 
   @override
   String get notebookKeepEditing => 'Keep editing';
@@ -2035,8 +2252,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notebookNew => 'New notebook';
 
   @override
+  String get notebookNoPages =>
+      'No pages yet. Ask Botler to write one, or add a page yourself.';
+
+  @override
   String get notebookOffline =>
       'No connection. Your text is still here: try again when you are online.';
+
+  @override
+  String get notebookOpenFirst => 'Open the first page';
 
   @override
   String get notebookOthers => 'Other notebooks';
@@ -2087,6 +2311,173 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outboxFailedTitle => 'Changes the server refused';
+
+  @override
+  String get pageAddedMark => 'Added since you last read';
+
+  @override
+  String pageBreadcrumb(String trail) {
+    return 'Page $trail';
+  }
+
+  @override
+  String get pageChangedALot =>
+      'This page changed a lot since you last read it, so the new lines are not marked.';
+
+  @override
+  String get pageChangesLegend =>
+      'Marked on the left: what was added since you last read.';
+
+  @override
+  String get pageContents => 'Contents';
+
+  @override
+  String get pageContentsEmpty => 'This page has no headings.';
+
+  @override
+  String get pageCopied => 'Copied the page.';
+
+  @override
+  String get pageCopyText => 'Copy the text';
+
+  @override
+  String get pageCreate => 'Create';
+
+  @override
+  String pageDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days left',
+      one: '1 day left',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pageDelete => 'Delete page';
+
+  @override
+  String get pageDeleteBody =>
+      'The page and its sub-pages are hidden. You can put them back for 30 days.';
+
+  @override
+  String get pageDeleteTitle => 'Delete this page?';
+
+  @override
+  String get pageDeleted => 'Deleted.';
+
+  @override
+  String get pageDeletedEmpty => 'No deleted pages.';
+
+  @override
+  String get pageDeletedTitle => 'Deleted pages';
+
+  @override
+  String get pageEditOffline =>
+      'Reading an offline copy. Editing needs a connection.';
+
+  @override
+  String get pageEmpty =>
+      'This page is empty. Tap Edit to write on it, or ask Botler.';
+
+  @override
+  String get pageGone => 'This page is gone';
+
+  @override
+  String get pageGoneBody => 'Botler, or another phone, deleted it.';
+
+  @override
+  String pageLinkMissing(String title) {
+    return 'No page called $title';
+  }
+
+  @override
+  String get pageLinkedFrom => 'Linked from';
+
+  @override
+  String pageLinkedFromRow(String page, String notebook) {
+    return 'Open $page, in $notebook, which links here';
+  }
+
+  @override
+  String get pageMove => 'Move to...';
+
+  @override
+  String get pageMoveDown => 'Move down';
+
+  @override
+  String get pageMoveHasKids =>
+      'This page has sub-pages, so it can only go to the top level.';
+
+  @override
+  String get pageMoveHere => 'where it is now';
+
+  @override
+  String pageMoveTitle(String title) {
+    return 'Move $title';
+  }
+
+  @override
+  String get pageMoveTop => 'Top level of the notebook';
+
+  @override
+  String pageMoveUnder(String title) {
+    return 'Under $title';
+  }
+
+  @override
+  String get pageMoveUp => 'Move up';
+
+  @override
+  String get pageMoved => 'Moved.';
+
+  @override
+  String get pageNew => 'New page';
+
+  @override
+  String get pagePin => 'Pin';
+
+  @override
+  String get pageRename => 'Rename';
+
+  @override
+  String get pageRenamed => 'Renamed.';
+
+  @override
+  String pageRestoreFor(String title) {
+    return 'Restore $title';
+  }
+
+  @override
+  String get pageRestored => 'Put back.';
+
+  @override
+  String get pageSubpages => 'Sub-pages';
+
+  @override
+  String get pageTitleHint => 'Wi-Fi and the router';
+
+  @override
+  String get pageTitleLabel => 'Page title';
+
+  @override
+  String pageToggleClose(String title) {
+    return 'Hide the sub-pages of $title';
+  }
+
+  @override
+  String pageToggleOpen(String title) {
+    return 'Show the sub-pages of $title';
+  }
+
+  @override
+  String get pageUnpin => 'Unpin';
+
+  @override
+  String pageUpdatedBy(String who, String when) {
+    return 'Updated by $who, $when';
+  }
 
   @override
   String get paydayAdd => 'Add a payday';

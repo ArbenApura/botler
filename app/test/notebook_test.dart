@@ -5,9 +5,12 @@
 import 'dart:convert';
 
 import 'package:botler/core/api.dart';
+import 'package:botler/core/library.dart';
 import 'package:botler/features/memory/notebook_screen.dart';
+import 'package:botler/features/notebooks/library_screen.dart';
 import 'package:botler/features/money/goals_screen.dart';
 import 'package:botler/l10n/l10n.dart';
+import 'package:botler/state/library.dart';
 import 'package:botler/state/providers.dart';
 import 'package:botler/theme/theme.dart';
 import 'package:flutter/material.dart';
@@ -127,6 +130,35 @@ class FakeBotler {
                 'chars': (n['text']! as String).length,
               },
           ],
+        });
+      case 'notebook_outline':
+        // Each other notebook has its one page, Overview, as an older notebook does on the new server
+        return _ok(<String, Object?>{
+          'notebooks': <Map<String, Object?>>[
+            for (final n in others)
+              <String, Object?>{
+                'id': n['id'],
+                'title': n['title'],
+                'summary': n['summary'],
+                'pinnedAt': null,
+                'pageCount': 1,
+                'pages': <Map<String, Object?>>[
+                  <String, Object?>{
+                    'id': 'page-${n['id']}',
+                    'parentPageId': null,
+                    'title': 'Overview',
+                    'position': 0,
+                    'chars': (n['text']! as String).length,
+                    'version': 1,
+                    'seenVersion': 0,
+                    'pinnedAt': null,
+                    'updatedBy': 'user',
+                  },
+                ],
+              },
+          ],
+          'deleted': false,
+          'maxPages': 500,
         });
       case 'notebook_create':
         final made = <String, Object?>{
@@ -356,36 +388,34 @@ void main() {
         },
       ];
 
-    testWidgets('lists them under the main notebook and opens one', (
-      tester,
-    ) async {
-      final fake = withTrip();
-      await pump(tester, fake, const NotebookScreen());
-      expect(find.text('Other notebooks'), findsOneWidget);
-      expect(find.text('Trip to Japan'), findsOneWidget);
-      expect(find.text('Flights and hotels'), findsOneWidget);
-      // The main notebook keeps the one primary action
-      expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
-      await tester.tap(find.text('Trip to Japan'));
-      await tester.pumpAndSettle();
-      expect(find.text('Leave on 3 March'), findsOneWidget);
-      expect(find.text('Other notebooks'), findsNothing);
-      expect(fake.of('notebook_get').last.body['notebookId'], 'nb-1');
-    });
+    testWidgets(
+      'the library lists them under the main notebook and opens one',
+      (tester) async {
+        final fake = withTrip();
+        await pump(tester, fake, const LibraryScreen());
+        expect(find.text('Main notebook'), findsOneWidget);
+        expect(find.text('Trip to Japan'), findsOneWidget);
+        expect(find.text('Flights and hotels'), findsOneWidget);
+        expect(find.text('1 page'), findsOneWidget);
+        await tester.tap(find.text('Trip to Japan'));
+        await tester.pumpAndSettle();
+        // Its pages: an older notebook has the one, Overview
+        expect(find.text('Overview'), findsOneWidget);
+        expect(find.text('Open the first page'), findsOneWidget);
+      },
+    );
 
     testWidgets('says so when there are none yet', (tester) async {
-      await pump(tester, FakeBotler(), const NotebookScreen());
-      expect(find.textContaining('None yet.'), findsOneWidget);
-      expect(find.text('New notebook'), findsOneWidget);
+      await pump(tester, FakeBotler(), const LibraryScreen());
+      expect(find.text('Botler will fill this as you talk.'), findsOneWidget);
     });
 
     testWidgets(
       'makes a new notebook with a title and a summary, then opens it',
       (tester) async {
         final fake = FakeBotler();
-        await pump(tester, fake, const NotebookScreen());
-        await tester.tap(find.text('New notebook'));
-        await tester.pumpAndSettle();
+        await pump(tester, fake, const LibraryScreen());
+        await openMenuItem(tester, 'New notebook');
         await tester.enterText(
           find.widgetWithText(TextField, 'Title'),
           'Recipes',
@@ -455,7 +485,7 @@ void main() {
             'text': 'x',
           },
         ];
-      await pump(tester, fake, const NotebookScreen());
+      await pump(tester, fake, const LibraryScreen());
       await openMenuItem(tester, 'Deleted notebooks');
       expect(find.text('Old plans'), findsOneWidget);
       await tester.tap(find.text('Restore'));
@@ -730,6 +760,33 @@ void main() {
       expect(fake.of('memory_wipe').single.body, <String, Object?>{
         'confirm': true,
       });
+    });
+
+    testWidgets('a wipe also clears the pages kept on the phone', (
+      tester,
+    ) async {
+      final fake = FakeBotler();
+      await pump(tester, fake, const NotebookScreen());
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(NotebookScreen)),
+      );
+      await container.read(pageCacheProvider).saveRecents(<RecentPage>[
+        RecentPage(
+          id: 'p-1',
+          title: 'Wi-Fi',
+          notebook: 'Home manual',
+          at: DateTime(2026, 10, 30),
+        ),
+      ]);
+      container.invalidate(recentsProvider);
+      expect(container.read(recentsProvider), hasLength(1));
+      await openMenuItem(tester, 'Wipe the notebook and conversations');
+      await tester.enterText(find.byType(TextField), 'WIPE');
+      await tester.tap(find.widgetWithText(FilledButton, 'Wipe'));
+      await tester.pumpAndSettle();
+      expect(fake.of('memory_wipe'), hasLength(1));
+      expect(container.read(pageCacheProvider).recents(), isEmpty);
+      expect(container.read(recentsProvider), isEmpty);
     });
   });
 

@@ -225,6 +225,18 @@
   "acctTabIn": "Money in",
   "acctTabOut": "Money out",
   "acctTabUndone": "Undone",
+  "activityUndoCreatedBody": "Botler made \"{page}\". Undoing it deletes the page. You can put it back for 30 days.",
+  "@activityUndoCreatedBody": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "activityUndoCreatedTitle": "Delete the page Botler made?",
+  "activityUndoUnavailable": "The earlier text is no longer kept, so this cannot be undone.",
+  "activityUndoneDeleted": "Deleted. You can put it back for 30 days.",
+  "activityUndoneRestored": "Put back the earlier text.",
   "add": "Add",
   "agendaAddEvent": "Add an event",
   "agendaAddRoutine": "Add a routine",
@@ -1291,9 +1303,131 @@
       }
     }
   },
+  "libraryActionsFor": "More for {title}",
+  "@libraryActionsFor": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryActivity": "Botler's recent changes",
+  "libraryActivityAll": "Show all {count}",
+  "@libraryActivityAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryActivityFewer": "Show fewer",
+  "libraryActivityLine": "Botler changed {page} in {notebook}",
+  "@libraryActivityLine": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      },
+      "notebook": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryAgoDays": "{count, plural, =1{1 day ago} other{{count} days ago}}",
+  "@libraryAgoDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAgoHours": "{count, plural, =1{1 hour ago} other{{count} hours ago}}",
+  "@libraryAgoHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAgoMinutes": "{count, plural, =1{1 minute ago} other{{count} minutes ago}}",
+  "@libraryAgoMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryAgoNow": "just now",
+  "libraryAsk": "Ask Botler to file something",
+  "libraryEmpty": "Botler will fill this as you talk.",
+  "libraryMain": "Main notebook",
+  "libraryMainLine": "What Botler keeps in mind about you",
+  "libraryNeedsConnection": "This needs a connection. Try again when you are online.",
+  "libraryNotebooks": "Notebooks",
+  "libraryOffline": "Offline copy",
+  "libraryOfflineSince": "Offline copy from {when}",
+  "@libraryOfflineSince": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryOpenNotebook": "Open notebook {title}",
+  "@libraryOpenNotebook": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryOpenPage": "Open page {title}",
+  "@libraryOpenPage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryPageCount": "{count, plural, =1{1 page} other{{count} pages}}",
+  "@libraryPageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryPinned": "Pinned",
+  "libraryPinnedRecent": "Pinned and recent",
+  "libraryQueued": "No connection. The change is kept on your phone and will be sent once.",
+  "librarySearchClear": "Clear",
+  "librarySearchFailed": "Search did not work. Try again.",
+  "librarySearchHint": "Search your notebooks",
+  "librarySearchMore": "There are more matches. Add a word to narrow it down.",
+  "librarySearchNone": "Nothing found.",
+  "librarySearchOffline": "Search needs a connection. Your pages can still be read offline.",
+  "librarySearchPrompt": "Type at least two letters, then press search.",
+  "librarySearchTitle": "Search",
+  "libraryTitle": "Notebooks",
+  "libraryUndo": "Undo",
+  "libraryUndoFor": "Undo Botler's change to {page}",
+  "@libraryUndoFor": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryUpdateServer": "The server is older than this app and cannot show pages yet. Update the server.",
+  "libraryUpdated": "Botler updated",
   "lockReason": "Open Botler",
   "lockTitle": "Botler is locked",
   "lockUnlock": "Unlock",
+  "mdBold": "Bold",
+  "mdCheckbox": "Checkbox",
+  "mdHeading": "Heading",
+  "mdLink": "Link",
+  "mdList": "List",
+  "mdPageLink": "Link to a page",
   "memoryCopied": "Copied everything to the clipboard.",
   "memoryCopyAll": "Copy everything (notebook and money) as text",
   "memoryMore": "More",
@@ -1435,9 +1569,22 @@
   "notebookEditHint": "Write what Botler should keep in mind about you",
   "notebookEditTitle": "Edit your notebook",
   "notebookEmpty": "Nothing here yet. Tell Botler something to remember, or tap Edit.",
+  "notebookExport": "Copy as Markdown",
+  "notebookExported": "Copied {count} pages as Markdown.",
+  "@notebookExported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notebookExporting": "Collecting the pages...",
   "notebookFieldSummary": "What is in it?",
   "notebookFieldSummaryHint": "One line, so Botler knows when to open it",
   "notebookFieldTitle": "Title",
+  "notebookGoBack": "Back",
+  "notebookGone": "This notebook is gone",
+  "notebookGoneBody": "It was deleted, here or on another phone.",
   "notebookKeepEditing": "Keep editing",
   "notebookNameRemove": "Remove {name}",
   "@notebookNameRemove": {
@@ -1451,7 +1598,9 @@
   "notebookNamesAdd": "Add a name",
   "notebookNamesAddButton": "Add",
   "notebookNew": "New notebook",
+  "notebookNoPages": "No pages yet. Ask Botler to write one, or add a page yourself.",
   "notebookOffline": "No connection. Your text is still here: try again when you are online.",
+  "notebookOpenFirst": "Open the first page",
   "notebookOthers": "Other notebooks",
   "notebookOthersEmpty": "None yet. Botler keeps the essentials here and can start a notebook for a trip, a project or a list. Ask for one, or make it yourself.",
   "notebookRestore": "Restore",
@@ -1474,6 +1623,127 @@
     }
   },
   "outboxFailedTitle": "Changes the server refused",
+  "pageAddedMark": "Added since you last read",
+  "pageBreadcrumb": "Page {trail}",
+  "@pageBreadcrumb": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "pageChangedALot": "This page changed a lot since you last read it, so the new lines are not marked.",
+  "pageChangesLegend": "Marked on the left: what was added since you last read.",
+  "pageContents": "Contents",
+  "pageContentsEmpty": "This page has no headings.",
+  "pageCopied": "Copied the page.",
+  "pageCopyText": "Copy the text",
+  "pageCreate": "Create",
+  "pageDaysLeft": "{count, plural, =1{1 day left} other{{count} days left}}",
+  "@pageDaysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pageDelete": "Delete page",
+  "pageDeleteBody": "The page and its sub-pages are hidden. You can put them back for 30 days.",
+  "pageDeleteTitle": "Delete this page?",
+  "pageDeleted": "Deleted.",
+  "pageDeletedEmpty": "No deleted pages.",
+  "pageDeletedTitle": "Deleted pages",
+  "pageEditOffline": "Reading an offline copy. Editing needs a connection.",
+  "pageEmpty": "This page is empty. Tap Edit to write on it, or ask Botler.",
+  "pageGone": "This page is gone",
+  "pageGoneBody": "Botler, or another phone, deleted it.",
+  "pageLinkMissing": "No page called {title}",
+  "@pageLinkMissing": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageLinkedFrom": "Linked from",
+  "pageLinkedFromRow": "Open {page}, in {notebook}, which links here",
+  "@pageLinkedFromRow": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      },
+      "notebook": {
+        "type": "String"
+      }
+    }
+  },
+  "pageMove": "Move to...",
+  "pageMoveDown": "Move down",
+  "pageMoveHasKids": "This page has sub-pages, so it can only go to the top level.",
+  "pageMoveHere": "where it is now",
+  "pageMoveTitle": "Move {title}",
+  "@pageMoveTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageMoveTop": "Top level of the notebook",
+  "pageMoveUnder": "Under {title}",
+  "@pageMoveUnder": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageMoveUp": "Move up",
+  "pageMoved": "Moved.",
+  "pageNew": "New page",
+  "pagePin": "Pin",
+  "pageRename": "Rename",
+  "pageRenamed": "Renamed.",
+  "pageRestoreFor": "Restore {title}",
+  "@pageRestoreFor": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageRestored": "Put back.",
+  "pageSubpages": "Sub-pages",
+  "pageTitleHint": "Wi-Fi and the router",
+  "pageTitleLabel": "Page title",
+  "pageToggleClose": "Hide the sub-pages of {title}",
+  "@pageToggleClose": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageToggleOpen": "Show the sub-pages of {title}",
+  "@pageToggleOpen": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "pageUnpin": "Unpin",
+  "pageUpdatedBy": "Updated by {who}, {when}",
+  "@pageUpdatedBy": {
+    "placeholders": {
+      "who": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
   "paydayAdd": "Add a payday",
   "paydayAddRule": "Add a rule",
   "paydayApprove": "Approve",

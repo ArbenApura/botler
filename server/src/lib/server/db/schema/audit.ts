@@ -496,7 +496,10 @@ export const EXEMPT_FROM_AUDIT: Record<string, string> = {
 	memory_summary: 'memory has its own provenance, editing and wipe',
 	notebook:
 		'personal text with its own revisions (who changed it, and the text it replaced) and its own wipe, kept out of the trail like the transcript',
-	notebook_revision: 'the revisions of the notebook: the notebook is the history, not the trail'
+	notebook_revision: 'the revisions of the notebook: the notebook is the history, not the trail',
+	notebook_page:
+		'personal text with its own revisions (who changed it, and the text it replaced) and its own wipe, kept out of the trail like the notebook it belongs to',
+	notebook_page_revision: 'the revisions of a page: the page is the history, not the trail'
 };
 
 // -- AUDIT -- //

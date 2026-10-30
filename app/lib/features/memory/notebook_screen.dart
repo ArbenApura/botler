@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
+import '../../state/library.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
@@ -44,9 +45,9 @@ final DateFormat _when = DateFormat('d MMM, HH:mm');
 
 // -- TYPES -- //
 
-enum _More { changes, names, copy, wipe, deleted, describe, delete }
+enum _More { changes, names, copy, wipe, describe, delete }
 
-/// The main notebook (no [notebookId]) or one of the other notebooks, opened from the list under the main one.
+/// The main notebook (no [notebookId]), opened from the top of the library. A notebook id still opens an older one-page notebook by its text.
 class NotebookScreen extends ConsumerStatefulWidget {
   const NotebookScreen({this.notebookId, this.title, super.key});
 
@@ -67,7 +68,8 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
   void _refresh() => ref
     ..invalidate(_notebook(_id))
     ..invalidate(_revisions(_id))
-    ..invalidate(notebookListProvider);
+    ..invalidate(notebookListProvider)
+    ..invalidate(libraryProvider);
 
   Future<void> _edit(Json book) async {
     final saved = context.t.memorySaved;
@@ -165,6 +167,11 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
       await ref.read(apiProvider).verb('memory_wipe', <String, Object?>{
         'confirm': true,
       });
+      // The wipe took the library's pages with it: the copies kept on the phone and the recently opened list are old now
+      await ref.read(pageCacheProvider).wipe();
+      ref
+        ..invalidate(recentsProvider)
+        ..invalidate(libraryProvider);
       _refresh();
       if (mounted) say(context, wiped);
     } catch (e) {
@@ -185,26 +192,6 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
     }
   }
 
-  Future<void> _openOther(Json n) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            NotebookScreen(notebookId: str(n['id']), title: str(n['title'])),
-      ),
-    );
-    // What was changed in it shows in the list when this page comes back
-    ref.invalidate(notebookListProvider);
-  }
-
-  Future<void> _new() async {
-    final made = await showFormSheet<Json>(
-      context,
-      title: context.t.notebookNew,
-      builder: (sheet, close) => NotebookInfoForm(onDone: close),
-    );
-    if (made != null && mounted) await _openOther(made);
-  }
-
   Future<void> _describe(Json book) async {
     final saved = context.t.memorySaved;
     final done = await showFormSheet<Json>(
@@ -217,16 +204,6 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
       _refresh();
       if (mounted) say(context, saved);
     }
-  }
-
-  Future<void> _deleted() async {
-    await showFormSheet<void>(
-      context,
-      title: context.t.notebookDeleted,
-      builder: (sheet, close) =>
-          DeletedNotebooks(onRestored: () => close(null)),
-    );
-    ref.invalidate(notebookListProvider);
   }
 
   Future<void> _delete(Json book) async {
@@ -243,7 +220,9 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
       await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
         'notebookId': str(book['id']),
       });
-      ref.invalidate(notebookListProvider);
+      ref
+        ..invalidate(notebookListProvider)
+        ..invalidate(libraryProvider);
       if (!mounted) return;
       say(context, gone);
       Navigator.of(context).pop();
@@ -254,8 +233,6 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
 
   void _more(_More what, Json? book) {
     switch (what) {
-      case _More.deleted:
-        _deleted();
       case _More.describe:
         if (book != null) _describe(book);
       case _More.delete:
@@ -296,10 +273,6 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
               ),
               if (_main) ...<PopupMenuEntry<_More>>[
                 PopupMenuItem<_More>(
-                  value: _More.deleted,
-                  child: Text(context.t.notebookDeleted),
-                ),
-                PopupMenuItem<_More>(
                   value: _More.names,
                   child: Text(context.t.notebookNames),
                 ),
@@ -337,14 +310,7 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
           child: SkeletonRows(count: 4, kind: SkeletonKind.tile),
         ),
         onRetry: () => ref.invalidate(_notebook(_id)),
-        data: (b) => _Page(
-          book: b,
-          onEdit: () => _edit(b),
-          // Only the main notebook lists the others
-          others: _main
-              ? NotebookOthers(onOpen: _openOther, onNew: _new)
-              : null,
-        ),
+        data: (b) => _Page(book: b, onEdit: () => _edit(b)),
       ),
     );
   }
@@ -352,13 +318,10 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
 
 /// The notebook as a page: Edit, a note while it is still the first draft, then the sections.
 class _Page extends StatelessWidget {
-  const _Page({required this.book, required this.onEdit, this.others});
+  const _Page({required this.book, required this.onEdit});
 
   final Json book;
   final VoidCallback onEdit;
-
-  /// The list of the other notebooks, shown under the main notebook only.
-  final Widget? others;
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +388,6 @@ class _Page extends StatelessWidget {
                     ),
             ),
           ],
-        ?others,
         Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Align(

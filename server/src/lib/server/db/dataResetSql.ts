@@ -43,12 +43,14 @@ export const SCOPE_TABLES: Record<
 	],
 	schedule: ['reminder', 'task', 'calendar_event', 'routine'],
 	// A chat is deleted after its turns (the turns point at it)
-	// The revisions of the notebook go before the notebook they point at
+	// The revisions of the notebook go before the notebook they point at; the revisions of a page before the page, and the pages before the notebook
 	memory_and_chat: [
 		'chat_turn',
 		'chat',
 		'memory_fact',
 		'memory_summary',
+		'notebook_page_revision',
+		'notebook_page',
 		'notebook_revision',
 		'notebook'
 	]
@@ -56,6 +58,9 @@ export const SCOPE_TABLES: Record<
 
 /** The notebook and its revisions: erased by a memory and chat reset since migration 0031. */
 const NOTEBOOK_TABLES: readonly string[] = ['notebook_revision', 'notebook'];
+
+/** The pages of the extra notebooks and their revisions: erased by a memory and chat reset since migration 0037. */
+const PAGE_TABLES: readonly string[] = ['notebook_page_revision', 'notebook_page'];
 
 /**
  * The money scope as migration 0017 shipped it, kept as it was so the 0017 file stays checkable. Later tables are added to SCOPE_TABLES
@@ -70,12 +75,17 @@ const MONEY_0021: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'ac
 
 /** The memory and chat scope as migrations 0017 and 0018 shipped it, before conversations existed (0021 adds the chat table). */
 const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
-	(t) => t !== 'chat' && !NOTEBOOK_TABLES.includes(t)
+	(t) => t !== 'chat' && !NOTEBOOK_TABLES.includes(t) && !PAGE_TABLES.includes(t)
 );
 
 /** The memory and chat scope as migrations 0021 and 0025 shipped it, before the notebook existed (0031 adds its two tables). */
 const MEMORY_0025: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
-	(t) => !NOTEBOOK_TABLES.includes(t)
+	(t) => !NOTEBOOK_TABLES.includes(t) && !PAGE_TABLES.includes(t)
+);
+
+/** The memory and chat scope as migration 0031 shipped it, with the notebook but before its pages (0037 adds the page tables). */
+const MEMORY_0031: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
+	(t) => !PAGE_TABLES.includes(t)
 );
 
 /** What 'everything' empties on top of the three scopes: the persona and what the person told it about themselves. */
@@ -222,7 +232,17 @@ export function dataResetWalletsSql(): string {
 	]);
 }
 
-/** The function as it is now: what the newest migration (0031, the notebook) installs over the one of 0025. */
+/** The function migration 0031 installed (the notebook and its revisions, before the pages of the extra notebooks). */
+export function dataResetNotebookSql(): string {
+	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0031, [
+		...SCOPE_TABLES.money,
+		...SCOPE_TABLES.schedule,
+		...MEMORY_0031,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0037, the notebook pages) installs over the one of 0031. */
 export function dataResetLatestSql(): string {
 	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
 }

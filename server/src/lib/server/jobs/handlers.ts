@@ -6,7 +6,7 @@ import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
 import { lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { notebook, NOTEBOOK_TRASH_DAYS, requestLog, undoJournal } from '../db/schema';
+import { notebook, notebookPage, NOTEBOOK_TRASH_DAYS, requestLog, undoJournal } from '../db/schema';
 
 // -- CONSTANTS -- //
 
@@ -22,7 +22,16 @@ export const purgeOld: JobHandler = async (_job, tx) => {
 	await tx
 		.delete(undoJournal)
 		.where(lt(undoJournal.createdAt, sql`now() - ${UNDO_DAYS} * interval '1 day'`));
-	// A deleted notebook can be restored for a while; after that it goes, with its changes (they follow it by the composite key)
+	// A deleted page can be restored for a while; after that it goes, with its changes (they follow it by the composite key). A parent is
+	// kept while any sub-page stays (a live one, or a hidden one that is not old enough yet), so a page never goes from under a live sub-page.
+	await tx.delete(notebookPage).where(
+		sql`${notebookPage.deletedAt} < now() - ${NOTEBOOK_TRASH_DAYS} * interval '1 day'
+			and not exists (
+				select 1 from notebook_page c
+				where c.user_id = ${notebookPage.userId} and c.parent_page_id = ${notebookPage.id}
+				  and (c.deleted_at is null or c.deleted_at >= now() - ${NOTEBOOK_TRASH_DAYS} * interval '1 day'))`
+	);
+	// A deleted notebook can be restored for a while; after that it goes, with its pages and changes (they follow it by the composite key)
 	await tx
 		.delete(notebook)
 		.where(lt(notebook.deletedAt, sql`now() - ${NOTEBOOK_TRASH_DAYS} * interval '1 day'`));

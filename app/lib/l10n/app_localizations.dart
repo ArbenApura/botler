@@ -542,6 +542,36 @@ abstract class AppLocalizations {
   /// **'Undone'**
   String get acctTabUndone;
 
+  /// No description provided for @activityUndoCreatedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler made \"{page}\". Undoing it deletes the page. You can put it back for 30 days.'**
+  String activityUndoCreatedBody(String page);
+
+  /// No description provided for @activityUndoCreatedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the page Botler made?'**
+  String get activityUndoCreatedTitle;
+
+  /// No description provided for @activityUndoUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The earlier text is no longer kept, so this cannot be undone.'**
+  String get activityUndoUnavailable;
+
+  /// No description provided for @activityUndoneDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted. You can put it back for 30 days.'**
+  String get activityUndoneDeleted;
+
+  /// No description provided for @activityUndoneRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Put back the earlier text.'**
+  String get activityUndoneRestored;
+
   /// No description provided for @add.
   ///
   /// In en, this message translates to:
@@ -2947,6 +2977,222 @@ abstract class AppLocalizations {
   /// **'{amount} went untracked (found when you counted an account).'**
   String historyUntracked(String amount);
 
+  /// No description provided for @libraryActionsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'More for {title}'**
+  String libraryActionsFor(String title);
+
+  /// No description provided for @libraryActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler\'s recent changes'**
+  String get libraryActivity;
+
+  /// No description provided for @libraryActivityAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all {count}'**
+  String libraryActivityAll(int count);
+
+  /// No description provided for @libraryActivityFewer.
+  ///
+  /// In en, this message translates to:
+  /// **'Show fewer'**
+  String get libraryActivityFewer;
+
+  /// No description provided for @libraryActivityLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler changed {page} in {notebook}'**
+  String libraryActivityLine(String page, String notebook);
+
+  /// No description provided for @libraryAgoDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day ago} other{{count} days ago}}'**
+  String libraryAgoDays(int count);
+
+  /// No description provided for @libraryAgoHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hour ago} other{{count} hours ago}}'**
+  String libraryAgoHours(int count);
+
+  /// No description provided for @libraryAgoMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 minute ago} other{{count} minutes ago}}'**
+  String libraryAgoMinutes(int count);
+
+  /// No description provided for @libraryAgoNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get libraryAgoNow;
+
+  /// No description provided for @libraryAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Botler to file something'**
+  String get libraryAsk;
+
+  /// No description provided for @libraryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler will fill this as you talk.'**
+  String get libraryEmpty;
+
+  /// No description provided for @libraryMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Main notebook'**
+  String get libraryMain;
+
+  /// No description provided for @libraryMainLine.
+  ///
+  /// In en, this message translates to:
+  /// **'What Botler keeps in mind about you'**
+  String get libraryMainLine;
+
+  /// No description provided for @libraryNeedsConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a connection. Try again when you are online.'**
+  String get libraryNeedsConnection;
+
+  /// No description provided for @libraryNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebooks'**
+  String get libraryNotebooks;
+
+  /// No description provided for @libraryOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline copy'**
+  String get libraryOffline;
+
+  /// No description provided for @libraryOfflineSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline copy from {when}'**
+  String libraryOfflineSince(String when);
+
+  /// No description provided for @libraryOpenNotebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Open notebook {title}'**
+  String libraryOpenNotebook(String title);
+
+  /// No description provided for @libraryOpenPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open page {title}'**
+  String libraryOpenPage(String title);
+
+  /// No description provided for @libraryPageCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 page} other{{count} pages}}'**
+  String libraryPageCount(int count);
+
+  /// No description provided for @libraryPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get libraryPinned;
+
+  /// No description provided for @libraryPinnedRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned and recent'**
+  String get libraryPinnedRecent;
+
+  /// No description provided for @libraryQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. The change is kept on your phone and will be sent once.'**
+  String get libraryQueued;
+
+  /// No description provided for @librarySearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get librarySearchClear;
+
+  /// No description provided for @librarySearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Search did not work. Try again.'**
+  String get librarySearchFailed;
+
+  /// No description provided for @librarySearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search your notebooks'**
+  String get librarySearchHint;
+
+  /// No description provided for @librarySearchMore.
+  ///
+  /// In en, this message translates to:
+  /// **'There are more matches. Add a word to narrow it down.'**
+  String get librarySearchMore;
+
+  /// No description provided for @librarySearchNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found.'**
+  String get librarySearchNone;
+
+  /// No description provided for @librarySearchOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Search needs a connection. Your pages can still be read offline.'**
+  String get librarySearchOffline;
+
+  /// No description provided for @librarySearchPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Type at least two letters, then press search.'**
+  String get librarySearchPrompt;
+
+  /// No description provided for @librarySearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get librarySearchTitle;
+
+  /// No description provided for @libraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Notebooks'**
+  String get libraryTitle;
+
+  /// No description provided for @libraryUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get libraryUndo;
+
+  /// No description provided for @libraryUndoFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo Botler\'s change to {page}'**
+  String libraryUndoFor(String page);
+
+  /// No description provided for @libraryUpdateServer.
+  ///
+  /// In en, this message translates to:
+  /// **'The server is older than this app and cannot show pages yet. Update the server.'**
+  String get libraryUpdateServer;
+
+  /// No description provided for @libraryUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler updated'**
+  String get libraryUpdated;
+
   /// No description provided for @lockReason.
   ///
   /// In en, this message translates to:
@@ -2964,6 +3210,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlock'**
   String get lockUnlock;
+
+  /// No description provided for @mdBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get mdBold;
+
+  /// No description provided for @mdCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkbox'**
+  String get mdCheckbox;
+
+  /// No description provided for @mdHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading'**
+  String get mdHeading;
+
+  /// No description provided for @mdLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get mdLink;
+
+  /// No description provided for @mdList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get mdList;
+
+  /// No description provided for @mdPageLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link to a page'**
+  String get mdPageLink;
 
   /// No description provided for @memoryCopied.
   ///
@@ -3421,6 +3703,24 @@ abstract class AppLocalizations {
   /// **'Nothing here yet. Tell Botler something to remember, or tap Edit.'**
   String get notebookEmpty;
 
+  /// No description provided for @notebookExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy as Markdown'**
+  String get notebookExport;
+
+  /// No description provided for @notebookExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied {count} pages as Markdown.'**
+  String notebookExported(int count);
+
+  /// No description provided for @notebookExporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Collecting the pages...'**
+  String get notebookExporting;
+
   /// No description provided for @notebookFieldSummary.
   ///
   /// In en, this message translates to:
@@ -3438,6 +3738,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Title'**
   String get notebookFieldTitle;
+
+  /// No description provided for @notebookGoBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get notebookGoBack;
+
+  /// No description provided for @notebookGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This notebook is gone'**
+  String get notebookGone;
+
+  /// No description provided for @notebookGoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It was deleted, here or on another phone.'**
+  String get notebookGoneBody;
 
   /// No description provided for @notebookKeepEditing.
   ///
@@ -3475,11 +3793,23 @@ abstract class AppLocalizations {
   /// **'New notebook'**
   String get notebookNew;
 
+  /// No description provided for @notebookNoPages.
+  ///
+  /// In en, this message translates to:
+  /// **'No pages yet. Ask Botler to write one, or add a page yourself.'**
+  String get notebookNoPages;
+
   /// No description provided for @notebookOffline.
   ///
   /// In en, this message translates to:
   /// **'No connection. Your text is still here: try again when you are online.'**
   String get notebookOffline;
+
+  /// No description provided for @notebookOpenFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the first page'**
+  String get notebookOpenFirst;
 
   /// No description provided for @notebookOthers.
   ///
@@ -3570,6 +3900,276 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Changes the server refused'**
   String get outboxFailedTitle;
+
+  /// No description provided for @pageAddedMark.
+  ///
+  /// In en, this message translates to:
+  /// **'Added since you last read'**
+  String get pageAddedMark;
+
+  /// No description provided for @pageBreadcrumb.
+  ///
+  /// In en, this message translates to:
+  /// **'Page {trail}'**
+  String pageBreadcrumb(String trail);
+
+  /// No description provided for @pageChangedALot.
+  ///
+  /// In en, this message translates to:
+  /// **'This page changed a lot since you last read it, so the new lines are not marked.'**
+  String get pageChangedALot;
+
+  /// No description provided for @pageChangesLegend.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked on the left: what was added since you last read.'**
+  String get pageChangesLegend;
+
+  /// No description provided for @pageContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get pageContents;
+
+  /// No description provided for @pageContentsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This page has no headings.'**
+  String get pageContentsEmpty;
+
+  /// No description provided for @pageCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied the page.'**
+  String get pageCopied;
+
+  /// No description provided for @pageCopyText.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the text'**
+  String get pageCopyText;
+
+  /// No description provided for @pageCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get pageCreate;
+
+  /// No description provided for @pageDaysLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day left} other{{count} days left}}'**
+  String pageDaysLeft(int count);
+
+  /// No description provided for @pageDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete page'**
+  String get pageDelete;
+
+  /// No description provided for @pageDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The page and its sub-pages are hidden. You can put them back for 30 days.'**
+  String get pageDeleteBody;
+
+  /// No description provided for @pageDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this page?'**
+  String get pageDeleteTitle;
+
+  /// No description provided for @pageDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted.'**
+  String get pageDeleted;
+
+  /// No description provided for @pageDeletedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deleted pages.'**
+  String get pageDeletedEmpty;
+
+  /// No description provided for @pageDeletedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted pages'**
+  String get pageDeletedTitle;
+
+  /// No description provided for @pageEditOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading an offline copy. Editing needs a connection.'**
+  String get pageEditOffline;
+
+  /// No description provided for @pageEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This page is empty. Tap Edit to write on it, or ask Botler.'**
+  String get pageEmpty;
+
+  /// No description provided for @pageGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This page is gone'**
+  String get pageGone;
+
+  /// No description provided for @pageGoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler, or another phone, deleted it.'**
+  String get pageGoneBody;
+
+  /// No description provided for @pageLinkMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No page called {title}'**
+  String pageLinkMissing(String title);
+
+  /// No description provided for @pageLinkedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked from'**
+  String get pageLinkedFrom;
+
+  /// No description provided for @pageLinkedFromRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {page}, in {notebook}, which links here'**
+  String pageLinkedFromRow(String page, String notebook);
+
+  /// No description provided for @pageMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to...'**
+  String get pageMove;
+
+  /// No description provided for @pageMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get pageMoveDown;
+
+  /// No description provided for @pageMoveHasKids.
+  ///
+  /// In en, this message translates to:
+  /// **'This page has sub-pages, so it can only go to the top level.'**
+  String get pageMoveHasKids;
+
+  /// No description provided for @pageMoveHere.
+  ///
+  /// In en, this message translates to:
+  /// **'where it is now'**
+  String get pageMoveHere;
+
+  /// No description provided for @pageMoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move {title}'**
+  String pageMoveTitle(String title);
+
+  /// No description provided for @pageMoveTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top level of the notebook'**
+  String get pageMoveTop;
+
+  /// No description provided for @pageMoveUnder.
+  ///
+  /// In en, this message translates to:
+  /// **'Under {title}'**
+  String pageMoveUnder(String title);
+
+  /// No description provided for @pageMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get pageMoveUp;
+
+  /// No description provided for @pageMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved.'**
+  String get pageMoved;
+
+  /// No description provided for @pageNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New page'**
+  String get pageNew;
+
+  /// No description provided for @pagePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get pagePin;
+
+  /// No description provided for @pageRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get pageRename;
+
+  /// No description provided for @pageRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed.'**
+  String get pageRenamed;
+
+  /// No description provided for @pageRestoreFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore {title}'**
+  String pageRestoreFor(String title);
+
+  /// No description provided for @pageRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Put back.'**
+  String get pageRestored;
+
+  /// No description provided for @pageSubpages.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-pages'**
+  String get pageSubpages;
+
+  /// No description provided for @pageTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wi-Fi and the router'**
+  String get pageTitleHint;
+
+  /// No description provided for @pageTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Page title'**
+  String get pageTitleLabel;
+
+  /// No description provided for @pageToggleClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the sub-pages of {title}'**
+  String pageToggleClose(String title);
+
+  /// No description provided for @pageToggleOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the sub-pages of {title}'**
+  String pageToggleOpen(String title);
+
+  /// No description provided for @pageUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get pageUnpin;
+
+  /// No description provided for @pageUpdatedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated by {who}, {when}'**
+  String pageUpdatedBy(String who, String when);
 
   /// No description provided for @paydayAdd.
   ///

@@ -106,8 +106,13 @@ describe('the verb registry', () => {
 			'fx_rates_refresh',
 			'memory_export',
 			'memory_wipe',
+			'notebook_pin',
 			'notebook_restore',
 			'notebook_save',
+			'page_pin',
+			'page_restore',
+			'page_save',
+			'page_seen',
 			'rule_approve',
 			'rule_retire',
 			'settings_set',
@@ -153,6 +158,13 @@ describe('the verb registry', () => {
 				'notebook_edit',
 				'notebook_undelete',
 				'notebook_update',
+				'page_create',
+				'page_delete',
+				'page_edit',
+				'page_merge',
+				'page_move',
+				'page_rename',
+				'page_undelete',
 				'profile_set',
 				'refund_record',
 				'reminder_cancel',
@@ -171,7 +183,7 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(35);
+		expect(by('read')).toHaveLength(42);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {

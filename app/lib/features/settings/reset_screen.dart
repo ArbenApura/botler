@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
+import '../../state/library.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -139,6 +140,13 @@ class _State extends ConsumerState<ResetScreen> {
         } on Object {
           // The reset itself is done; a folder that will not go is swept later
         }
+      }
+      // The notebook pages kept for offline reading are old now too
+      if (scope == 'memory_and_chat' || scope == 'everything') {
+        await ref.read(pageCacheProvider).wipe();
+        ref
+          ..invalidate(recentsProvider)
+          ..invalidate(libraryProvider);
       }
       await ref.read(prefsProvider).remove(calendarCacheKey);
       // The saved time travel answers hold the old balances too

@@ -283,6 +283,26 @@ class AppLocalizationsFil extends AppLocalizations {
   String get acctTabUndone => 'Binawi';
 
   @override
+  String activityUndoCreatedBody(String page) {
+    return 'Ginawa ni Botler ang \"$page\". Buburahin ng pag-undo ang pahina. Maibabalik mo ito sa loob ng 30 araw.';
+  }
+
+  @override
+  String get activityUndoCreatedTitle =>
+      'Buburahin ang pahinang ginawa ni Botler?';
+
+  @override
+  String get activityUndoUnavailable =>
+      'Hindi na nakaimbak ang naunang teksto, kaya hindi na ito ma-undo.';
+
+  @override
+  String get activityUndoneDeleted =>
+      'Nabura. Maibabalik mo ito sa loob ng 30 araw.';
+
+  @override
+  String get activityUndoneRestored => 'Naibalik ang naunang teksto.';
+
+  @override
   String get add => 'Idagdag';
 
   @override
@@ -1755,6 +1775,167 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String libraryActionsFor(String title) {
+    return 'Iba pang gawin sa $title';
+  }
+
+  @override
+  String get libraryActivity => 'Mga kamakailang pagbabago ni Botler';
+
+  @override
+  String libraryActivityAll(int count) {
+    return 'Ipakita lahat ($count)';
+  }
+
+  @override
+  String get libraryActivityFewer => 'Ipakita ang kaunti';
+
+  @override
+  String libraryActivityLine(String page, String notebook) {
+    return 'Binago ni Botler ang $page sa $notebook';
+  }
+
+  @override
+  String libraryAgoDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count araw ang nakalipas',
+      one: '1 araw ang nakalipas',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String libraryAgoHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count oras ang nakalipas',
+      one: '1 oras ang nakalipas',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String libraryAgoMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minuto ang nakalipas',
+      one: '1 minuto ang nakalipas',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get libraryAgoNow => 'ngayon lang';
+
+  @override
+  String get libraryAsk => 'Utusan si Botler na mag-ayos ng laman';
+
+  @override
+  String get libraryEmpty => 'Pupunuin ito ni Botler habang nag-uusap kayo.';
+
+  @override
+  String get libraryMain => 'Pangunahing kuwaderno';
+
+  @override
+  String get libraryMainLine => 'Ang inaalala ni Botler tungkol sa iyo';
+
+  @override
+  String get libraryNeedsConnection =>
+      'Kailangan nito ng koneksyon. Subukan muli kapag online ka na.';
+
+  @override
+  String get libraryNotebooks => 'Mga kuwaderno';
+
+  @override
+  String get libraryOffline => 'Kopyang offline';
+
+  @override
+  String libraryOfflineSince(String when) {
+    return 'Kopyang offline mula $when';
+  }
+
+  @override
+  String libraryOpenNotebook(String title) {
+    return 'Buksan ang kuwaderno $title';
+  }
+
+  @override
+  String libraryOpenPage(String title) {
+    return 'Buksan ang pahina $title';
+  }
+
+  @override
+  String libraryPageCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pahina',
+      one: '1 pahina',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get libraryPinned => 'Naka-pin';
+
+  @override
+  String get libraryPinnedRecent => 'Naka-pin at kamakailan';
+
+  @override
+  String get libraryQueued =>
+      'Walang koneksyon. Itinabi sa telepono mo ang pagbabago at ipapadala ito nang isang beses.';
+
+  @override
+  String get librarySearchClear => 'Burahin';
+
+  @override
+  String get librarySearchFailed =>
+      'Hindi gumana ang paghahanap. Subukan ulit.';
+
+  @override
+  String get librarySearchHint => 'Maghanap sa mga kuwaderno mo';
+
+  @override
+  String get librarySearchMore =>
+      'May iba pang tugma. Magdagdag ng salita para paliitin.';
+
+  @override
+  String get librarySearchNone => 'Walang nakita.';
+
+  @override
+  String get librarySearchOffline =>
+      'Kailangan ng koneksyon ang paghahanap. Mababasa mo pa rin ang mga pahina offline.';
+
+  @override
+  String get librarySearchPrompt =>
+      'Mag-type ng hindi bababa sa dalawang titik, saka pindutin ang hanapin.';
+
+  @override
+  String get librarySearchTitle => 'Hanapin';
+
+  @override
+  String get libraryTitle => 'Mga kuwaderno';
+
+  @override
+  String get libraryUndo => 'I-undo';
+
+  @override
+  String libraryUndoFor(String page) {
+    return 'I-undo ang pagbabago ni Botler sa $page';
+  }
+
+  @override
+  String get libraryUpdateServer =>
+      'Mas luma ang server kaysa sa app na ito at hindi pa nito maipapakita ang mga pahina. I-update ang server.';
+
+  @override
+  String get libraryUpdated => 'Binago ni Botler';
+
+  @override
   String get lockReason => 'Buksan ang Botler';
 
   @override
@@ -1762,6 +1943,24 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get lockUnlock => 'I-unlock';
+
+  @override
+  String get mdBold => 'Makapal';
+
+  @override
+  String get mdCheckbox => 'Checkbox';
+
+  @override
+  String get mdHeading => 'Pamagat';
+
+  @override
+  String get mdLink => 'Link';
+
+  @override
+  String get mdList => 'Listahan';
+
+  @override
+  String get mdPageLink => 'Link sa pahina';
 
   @override
   String get memoryCopied => 'Nakopya ang lahat sa clipboard.';
@@ -2019,6 +2218,17 @@ class AppLocalizationsFil extends AppLocalizations {
       'Wala pa rito. Sabihan si Botler ng dapat tandaan, o i-tap ang Baguhin.';
 
   @override
+  String get notebookExport => 'Kopyahin bilang Markdown';
+
+  @override
+  String notebookExported(int count) {
+    return 'Nakopya ang $count pahina bilang Markdown.';
+  }
+
+  @override
+  String get notebookExporting => 'Kinokolekta ang mga pahina...';
+
+  @override
   String get notebookFieldSummary => 'Ano ang laman nito?';
 
   @override
@@ -2027,6 +2237,15 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get notebookFieldTitle => 'Pamagat';
+
+  @override
+  String get notebookGoBack => 'Bumalik';
+
+  @override
+  String get notebookGone => 'Wala na ang kuwadernong ito';
+
+  @override
+  String get notebookGoneBody => 'Binura ito, dito o sa ibang telepono.';
 
   @override
   String get notebookKeepEditing => 'Ituloy ang pag-edit';
@@ -2049,8 +2268,15 @@ class AppLocalizationsFil extends AppLocalizations {
   String get notebookNew => 'Bagong kuwaderno';
 
   @override
+  String get notebookNoPages =>
+      'Wala pang pahina. Ipasulat kay Botler ang una, o magdagdag ka ng pahina.';
+
+  @override
   String get notebookOffline =>
       'Walang koneksyon. Nandito pa rin ang isinulat mo: subukan ulit kapag online ka na.';
+
+  @override
+  String get notebookOpenFirst => 'Buksan ang unang pahina';
 
   @override
   String get notebookOthers => 'Iba pang kuwaderno';
@@ -2101,6 +2327,173 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get outboxFailedTitle => 'Mga pagbabagong tinanggihan ng server';
+
+  @override
+  String get pageAddedMark => 'Idinagdag mula nang huli mong basahin';
+
+  @override
+  String pageBreadcrumb(String trail) {
+    return 'Pahina $trail';
+  }
+
+  @override
+  String get pageChangedALot =>
+      'Marami nang nagbago sa pahinang ito mula nang huli mong basahin, kaya hindi namarkahan ang mga bagong linya.';
+
+  @override
+  String get pageChangesLegend =>
+      'Namarkahan sa kaliwa: ang idinagdag mula nang huli mong basahin.';
+
+  @override
+  String get pageContents => 'Nilalaman';
+
+  @override
+  String get pageContentsEmpty => 'Walang mga heading ang pahinang ito.';
+
+  @override
+  String get pageCopied => 'Nakopya ang pahina.';
+
+  @override
+  String get pageCopyText => 'Kopyahin ang teksto';
+
+  @override
+  String get pageCreate => 'Gawin';
+
+  @override
+  String pageDaysLeft(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count araw na lang',
+      one: '1 araw na lang',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get pageDelete => 'Burahin ang pahina';
+
+  @override
+  String get pageDeleteBody =>
+      'Itatago ang pahina at ang mga sub-pahina nito. Maibabalik mo ito sa loob ng 30 araw.';
+
+  @override
+  String get pageDeleteTitle => 'Burahin ang pahinang ito?';
+
+  @override
+  String get pageDeleted => 'Nabura na.';
+
+  @override
+  String get pageDeletedEmpty => 'Walang binurang pahina.';
+
+  @override
+  String get pageDeletedTitle => 'Mga binurang pahina';
+
+  @override
+  String get pageEditOffline =>
+      'Kopyang offline ang binabasa mo. Kailangan ng koneksyon para magbago.';
+
+  @override
+  String get pageEmpty =>
+      'Walang laman ang pahinang ito. I-tap ang Baguhin para magsulat, o ipasulat kay Botler.';
+
+  @override
+  String get pageGone => 'Wala na ang pahinang ito';
+
+  @override
+  String get pageGoneBody => 'Binura ito ni Botler, o ng ibang telepono.';
+
+  @override
+  String pageLinkMissing(String title) {
+    return 'Walang pahinang $title';
+  }
+
+  @override
+  String get pageLinkedFrom => 'Naka-link mula sa';
+
+  @override
+  String pageLinkedFromRow(String page, String notebook) {
+    return 'Buksan ang $page, sa $notebook, na may link dito';
+  }
+
+  @override
+  String get pageMove => 'Ilipat sa...';
+
+  @override
+  String get pageMoveDown => 'Ibaba';
+
+  @override
+  String get pageMoveHasKids =>
+      'May mga sub-pahina ang pahinang ito, kaya sa pinakataas na antas lang ito mailalagay.';
+
+  @override
+  String get pageMoveHere => 'kinalalagyan ngayon';
+
+  @override
+  String pageMoveTitle(String title) {
+    return 'Ilipat ang $title';
+  }
+
+  @override
+  String get pageMoveTop => 'Pinakataas na antas ng kuwaderno';
+
+  @override
+  String pageMoveUnder(String title) {
+    return 'Sa ilalim ng $title';
+  }
+
+  @override
+  String get pageMoveUp => 'Itaas';
+
+  @override
+  String get pageMoved => 'Nailipat.';
+
+  @override
+  String get pageNew => 'Bagong pahina';
+
+  @override
+  String get pagePin => 'I-pin';
+
+  @override
+  String get pageRename => 'Palitan ang pangalan';
+
+  @override
+  String get pageRenamed => 'Napalitan na ang pangalan.';
+
+  @override
+  String pageRestoreFor(String title) {
+    return 'Ibalik ang $title';
+  }
+
+  @override
+  String get pageRestored => 'Naibalik.';
+
+  @override
+  String get pageSubpages => 'Mga sub-pahina';
+
+  @override
+  String get pageTitleHint => 'Wi-Fi at ang router';
+
+  @override
+  String get pageTitleLabel => 'Pamagat ng pahina';
+
+  @override
+  String pageToggleClose(String title) {
+    return 'Itago ang mga sub-pahina ng $title';
+  }
+
+  @override
+  String pageToggleOpen(String title) {
+    return 'Ipakita ang mga sub-pahina ng $title';
+  }
+
+  @override
+  String get pageUnpin => 'Alisin ang pin';
+
+  @override
+  String pageUpdatedBy(String who, String when) {
+    return 'Binago ni $who, $when';
+  }
 
   @override
   String get paydayAdd => 'Magdagdag ng payday';

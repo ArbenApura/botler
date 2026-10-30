@@ -294,7 +294,7 @@ export async function* handleChat(
 			// The notebook is the second system message and the summary the third: both are the same for every call of this message, even
 			// when the assistant edits the notebook meanwhile, so the cached prefix holds
 			system: [
-				...(known ? [notebookMessage(known.text, known.others)] : []),
+				...(known ? [notebookMessage(known.text, known.outline)] : []),
 				...(earlier.summary ? [summaryMessage(earlier.summary)] : [])
 			],
 			rewindNote: await rewindNote(ctx, claimed.chatId).catch(() => undefined),

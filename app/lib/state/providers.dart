@@ -15,6 +15,7 @@ import '../core/chat_photos.dart';
 import '../core/config.dart';
 import '../core/json.dart';
 import '../core/outbox.dart';
+import '../core/page_cache.dart';
 import '../core/push.dart';
 
 // -- TYPES -- //
@@ -218,6 +219,12 @@ class SessionNotifier extends AsyncNotifier<Session?> {
       await ref.read(chatPhotoStoreProvider).wipe();
     } on Object {
       // Signing out never waits on the photo folder
+    }
+    // Nor the notebook pages kept for reading offline
+    try {
+      await PageCache(ref.read(prefsProvider)).wipe();
+    } on Object {
+      // Signing out never waits on the saved pages
     }
     await ref.read(sessionStoreProvider).clear();
     state = const AsyncData<Session?>(null);

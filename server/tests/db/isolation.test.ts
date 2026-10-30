@@ -6,7 +6,7 @@
 import type { Tx } from '../../src/lib/server/db/client';
 import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
@@ -32,6 +32,8 @@ import {
 	auditEvent,
 	memorySummary,
 	notebook,
+	notebookPage,
+	notebookPageRevision,
 	notebookRevision,
 	modelUsage,
 	reminder,
@@ -180,6 +182,33 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		await tx
 			.insert(notebookRevision)
 			.values({ userId, notebookId: book!.id, version: 1, text: 'before', actor: 'user' });
+	},
+	// A page hangs off the person's main notebook here (the database does not limit pages to extra notebooks), so the notebook table keeps its one row
+	notebook_page: async (tx, userId) => {
+		const [book] = await tx
+			.insert(notebook)
+			.values({ userId, text: 'current' })
+			.onConflictDoUpdate({
+				target: notebook.userId,
+				targetWhere: sql`kind = 'main'`,
+				set: { updatedAt: new Date() }
+			})
+			.returning({ id: notebook.id });
+		await tx.insert(notebookPage).values({ userId, notebookId: book!.id, title: 'Overview' });
+	},
+	// The revision hangs off the page the previous case made, so the page table keeps its one row (another person sees none: the policy refuses the row before the key is looked at)
+	notebook_page_revision: async (tx, userId) => {
+		const [page] = await tx
+			.select({ id: notebookPage.id })
+			.from(notebookPage)
+			.where(eq(notebookPage.userId, userId));
+		await tx.insert(notebookPageRevision).values({
+			userId,
+			pageId: page?.id ?? crypto.randomUUID(),
+			version: 1,
+			text: 'before',
+			actor: 'user'
+		});
 	},
 	chat: (tx, userId) => tx.insert(chat).values({ userId, title: 'A chat' }),
 	chat_turn: async (tx, userId) =>

@@ -61,10 +61,25 @@ import {
 	notebookCreateInput,
 	notebookEditInput,
 	notebookListInput,
+	notebookOutlineInput,
+	notebookPinInput,
 	notebookRestoreInput,
 	notebookSaveInput,
+	notebookSearchInput,
 	notebookTargetInput,
 	notebookUpdateInput,
+	pageCreateInput,
+	pageEditInput,
+	pageIdInput,
+	pageMergeInput,
+	pageMoveInput,
+	pagePinInput,
+	pageRenameInput,
+	pageRevisionInput,
+	pageSaveInput,
+	pageSeenInput,
+	pageTargetInput,
+	pageUndeleteInput,
 	memoryListInput,
 	memoryRememberInput,
 	memoryResolveInput,
@@ -209,6 +224,27 @@ import {
 	undeleteNotebook,
 	updateNotebook
 } from './notebook';
+import {
+	createPage,
+	deletePage,
+	editPage,
+	getPage,
+	mergePages,
+	movePage,
+	notebookOutline,
+	notebookSearch,
+	pageActivity,
+	pageBacklinks,
+	pageRevisionGet,
+	pageRevisions,
+	pageSeen,
+	pinNotebook,
+	pinPage,
+	renamePage,
+	restorePage,
+	savePage,
+	undeletePage
+} from './notebookPage';
 import {
 	approveRule,
 	deleteRule,
@@ -495,7 +531,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'notebook_get',
 		kind: 'read',
 		description:
-			'Read a notebook: its text, version and who wrote it last. Name an extra notebook by its title; leave the title out for the main notebook (which is already in your prompt). The other notebooks are listed under your main notebook; read one before you answer from it or change it.',
+			'Read the main notebook (leave the title out; it is already in your prompt), or the page called Overview of another notebook, named by its title. For the other pages of a notebook use notebook_outline to see them and page_get to read them.',
 		input: notebookTargetInput,
 		agentOmit: ['notebookId'],
 		agentStrict: true,
@@ -505,7 +541,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'notebook_list',
 		kind: 'read',
 		description:
-			'List your notebooks: the main one first, then the others with their title, one-line summary and size. With deleted true, the deleted ones that can still be restored.',
+			'List your notebooks: the main one first, then the others with their title, one-line summary and size (their pages are in notebook_outline). With deleted true, the deleted ones that can still be restored.',
 		input: notebookListInput,
 		run: (ctx, a) => listNotebooks(ctx, a)
 	}),
@@ -516,6 +552,68 @@ export const VERBS: readonly Verb[] = [
 		description: 'The changes made to a notebook, newest first.',
 		input: notebookTargetInput,
 		run: (ctx, a) => listRevisions(ctx, a)
+	}),
+	verb({
+		name: 'notebook_outline',
+		kind: 'read',
+		description:
+			'The outline of your notebook library: every notebook with its summary and its pages in order (a page, then its sub-pages), each with its size. Name one notebook by its title to see only that one. With deleted true, the deleted pages that can still be restored. Read it before you file, move, merge or tidy anything, so you use the pages that exist.',
+		input: notebookOutlineInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => notebookOutline(ctx, a)
+	}),
+	verb({
+		name: 'notebook_search',
+		kind: 'read',
+		description:
+			'Search the titles and texts of your pages (not the main notebook, which is in your prompt). Returns the notebook, the page, and a snippet around the match. Use it to find where something is kept before you open it with page_get.',
+		input: notebookSearchInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => notebookSearch(ctx, a)
+	}),
+	verb({
+		name: 'page_get',
+		kind: 'read',
+		description:
+			'Read a page: its text, version, who wrote it last and its sub-pages. Name it by its notebook title and its page title (and its parent page only when the same title is used under two parents; parent "top level" means the top-level one). Read a page before you answer from it or change it.',
+		input: pageTargetInput,
+		agentOmit: ['pageId'],
+		agentStrict: true,
+		run: (ctx, a) => getPage(ctx, a)
+	}),
+	verb({
+		name: 'page_revisions',
+		kind: 'read',
+		agent: false,
+		description: 'The changes made to a page, newest first.',
+		input: pageIdInput,
+		run: (ctx, a) => pageRevisions(ctx, a)
+	}),
+	verb({
+		name: 'page_revision_get',
+		kind: 'read',
+		agent: false,
+		description: 'The full text of one earlier version of a page.',
+		input: pageRevisionInput,
+		run: (ctx, a) => pageRevisionGet(ctx, a)
+	}),
+	verb({
+		name: 'page_backlinks',
+		kind: 'read',
+		agent: false,
+		description: 'The pages that point at this page with [[Page]] or [[Notebook/Page]].',
+		input: pageIdInput,
+		run: (ctx, a) => pageBacklinks(ctx, a)
+	}),
+	verb({
+		name: 'page_activity',
+		kind: 'read',
+		agent: false,
+		description: 'The pages the assistant changed in the last 14 days, newest first.',
+		input: emptyInput,
+		run: (ctx) => pageActivity(ctx)
 	}),
 	verb({
 		name: 'memory_list',
@@ -663,7 +761,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'notebook_edit',
 		kind: 'free',
 		description:
-			'Change a notebook: your main notebook (the notes you keep about the person, read before every answer, for their main topics and essentials: how they like you to talk, lasting preferences and rules, the people in their life, ongoing plans) or another notebook, named by its title (for other information that does not belong in the main one). Leave the notebook out for the main one. Write a lasting fact here as soon as the person says it or asks you to remember it. op add: heading and line (one short sentence; the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Never put a balance, an account number or anything one-off in it. A change to the main notebook applies from the next message; another notebook is read with notebook_get.',
+			'Change a notebook: your main notebook (the notes you keep about the person, read before every answer, for their main topics and essentials: how they like you to talk, lasting preferences and rules, the people in their life, ongoing plans) or another notebook, named by its title (for other information that does not belong in the main one). Leave the notebook out for the main one; on another notebook this reaches only its page called Overview, so use page_edit for its other pages. Write a lasting fact here as soon as the person says it or asks you to remember it. op add: heading and line (one short sentence; the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Never put a balance, an account number or anything one-off in it. A change to the main notebook applies from the next message.',
 		input: notebookEditInput,
 		agentOmit: ['notebookId'],
 		agentStrict: true,
@@ -706,6 +804,76 @@ export const VERBS: readonly Verb[] = [
 		agentOmit: ['notebookId'],
 		agentStrict: true,
 		run: (ctx, a) => undeleteNotebook(ctx, a)
+	}),
+	verb({
+		name: 'page_create',
+		kind: 'free',
+		description:
+			'Make a new page in one of your notebooks, named by its title (the notebook must exist: file into an existing notebook by default). Give a short unique title and the text in Markdown. Name a top-level page as parent to make a sub-page (one level only). Never put a balance, an account number or anything from the web, a photo or someone else calendar in it. At most 500 pages, and 20 sub-pages under one page.',
+		input: pageCreateInput,
+		agentOmit: ['notebookId', 'parentPageId'],
+		agentStrict: true,
+		run: (ctx, a) => createPage(ctx, a)
+	}),
+	verb({
+		name: 'page_edit',
+		kind: 'free',
+		description:
+			'Change a page by exact text, named by its notebook title and page title. op add: heading and line (the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Read the page with page_get first. To split a long page: page_create the new page with the moved text, then page_edit remove on the old one.',
+		input: pageEditInput,
+		agentOmit: ['pageId'],
+		agentStrict: true,
+		run: (ctx, a) => editPage(ctx, a)
+	}),
+	verb({
+		name: 'page_rename',
+		kind: 'free',
+		description:
+			'Give a page another title (newTitle). Titles are unique among the pages that share a parent, ignoring case. Links written as [[Old title]] in other pages are not changed: fix them with page_edit.',
+		input: pageRenameInput,
+		agentOmit: ['pageId'],
+		agentStrict: true,
+		run: (ctx, a) => renamePage(ctx, a)
+	}),
+	verb({
+		name: 'page_move',
+		kind: 'free',
+		description:
+			'Move a page: to another notebook (toNotebook), under a top-level page (toParent) or to a place (position, 0 is first). With no toParent the page goes to the top level of its notebook, so to reorder a sub-page name its parent again. A page with sub-pages cannot be put under another page. Nothing is lost.',
+		input: pageMoveInput,
+		agentOmit: ['pageId', 'toNotebookId', 'toParentPageId'],
+		agentStrict: true,
+		run: (ctx, a) => movePage(ctx, a)
+	}),
+	verb({
+		name: 'page_merge',
+		kind: 'free',
+		description:
+			'Merge pages into one: name the target page (notebook and page) and the pages to merge into it (sources: page titles, with notebook when it is another one). Each source text is added at the end of the target under a heading with its title, the target keeps its old text as a revision, and the sources are deleted (restorable for 30 days). A source with sub-pages is refused. It counts as one delete.',
+		input: pageMergeInput,
+		agentOmit: ['pageId', 'sourceIds'],
+		agentStrict: true,
+		run: (ctx, a) => mergePages(ctx, a)
+	}),
+	verb({
+		name: 'page_delete',
+		kind: 'free',
+		description:
+			'Delete a page with its sub-pages when the person asks, or when it is empty and no longer needed; never to make room. They are hidden and can be restored for 30 days with page_undelete. The answer holds the removed page.',
+		input: pageTargetInput,
+		agentOmit: ['pageId'],
+		agentStrict: true,
+		run: (ctx, a) => deletePage(ctx, a)
+	}),
+	verb({
+		name: 'page_undelete',
+		kind: 'free',
+		description:
+			'Put a deleted page back (with the sub-pages deleted with it), named by its notebook and page title (see notebook_outline with deleted true). It returns to its old parent, or to the top level.',
+		input: pageUndeleteInput,
+		agentOmit: ['pageId'],
+		agentStrict: true,
+		run: (ctx, a) => undeletePage(ctx, a)
 	}),
 	verb({
 		name: 'memory_remember',
@@ -1162,6 +1330,41 @@ export const VERBS: readonly Verb[] = [
 		description: 'Put an earlier text of the notebook back.',
 		input: notebookRestoreInput,
 		run: (ctx, a) => restoreRevision(ctx, a)
+	}),
+	verb({
+		name: 'page_save',
+		kind: 'person',
+		description: 'Save the whole text of a page, from the version that was opened.',
+		input: pageSaveInput,
+		run: (ctx, a) => savePage(ctx, a)
+	}),
+	verb({
+		name: 'page_restore',
+		kind: 'person',
+		description: 'Put an earlier text of a page back.',
+		input: pageRevisionInput,
+		run: (ctx, a) => restorePage(ctx, a)
+	}),
+	verb({
+		name: 'page_pin',
+		kind: 'person',
+		description: 'Pin a page to the top of its notebook, or unpin it.',
+		input: pagePinInput,
+		run: (ctx, a) => pinPage(ctx, a)
+	}),
+	verb({
+		name: 'notebook_pin',
+		kind: 'person',
+		description: 'Pin a notebook to the top of the library, or unpin it.',
+		input: notebookPinInput,
+		run: (ctx, a) => pinNotebook(ctx, a)
+	}),
+	verb({
+		name: 'page_seen',
+		kind: 'person',
+		description: 'Mark a page as looked at up to a version. Only the seen mark moves.',
+		input: pageSeenInput,
+		run: (ctx, a) => pageSeen(ctx, a)
 	}),
 	verb({
 		name: 'memory_wipe',

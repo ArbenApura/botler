@@ -1,4 +1,4 @@
-// THE OTHER NOTEBOOKS: THE LIST UNDER THE MAIN NOTEBOOK, THE FORM THAT MAKES OR RENAMES ONE, AND THE DELETED ONES THAT CAN BE PUT BACK.
+// THE OTHER NOTEBOOKS: THE FORM THAT MAKES OR RENAMES ONE, AND THE DELETED ONES THAT CAN BE PUT BACK. (THE LIST OF THEM IS THE LIBRARY SCREEN.)
 // The main notebook keeps the essentials; Botler (or you) keeps other information in notebooks of their own. Each has a title and a one-line
 // summary, which is also how Botler finds it. A deleted notebook is only hidden for 30 days.
 
@@ -9,8 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
+import '../../state/library.dart';
 import '../../state/providers.dart';
-import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 
@@ -40,82 +40,6 @@ final FutureProvider<List<Json>> _deletedProvider =
     });
 
 // -- WIDGETS -- //
-
-/// The list of the other notebooks, with a way to make a new one.
-class NotebookOthers extends ConsumerWidget {
-  const NotebookOthers({required this.onOpen, required this.onNew, super.key});
-
-  final void Function(Json notebook) onOpen;
-  final VoidCallback onNew;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.colors;
-    final list = ref.watch(notebookListProvider);
-    final items = list.asData?.value ?? const <Json>[];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        SectionTitle(context.t.notebookOthers),
-        if (items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              context.t.notebookOthersEmpty,
-              style: TextStyle(color: c.muted),
-            ),
-          ),
-        for (final n in items)
-          Padding(
-            key: ValueKey<String>('notebook.${str(n['id'])}'),
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Semantics(
-              button: true,
-              label: str(n['title']),
-              child: PaperCard(
-                onTap: () => onOpen(n),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            str(n['title']),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          if (str(n['summary']).isNotEmpty)
-                            Text(
-                              str(n['summary']),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: c.muted),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      context.t.notebookChars(intOf(n['chars']).toString()),
-                      style: TextStyle(color: c.muted, fontFeatures: tabular),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: onNew,
-            icon: const Icon(Icons.add),
-            label: Text(context.t.notebookNew),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 /// Makes a new notebook (no [notebook]) or renames and describes one. [onDone] gets the notebook the server answered with.
 class NotebookInfoForm extends ConsumerStatefulWidget {
@@ -168,7 +92,9 @@ class _NotebookInfoFormState extends ConsumerState<NotebookInfoForm> {
           'summary': _summary.text.trim(),
         });
       }
-      ref.invalidate(notebookListProvider);
+      ref
+        ..invalidate(notebookListProvider)
+        ..invalidate(libraryProvider);
       widget.onDone(made);
     } catch (e) {
       if (mounted) say(context, errorWords(e, context));
@@ -226,7 +152,9 @@ class DeletedNotebooks extends ConsumerWidget {
       await ref.read(apiProvider).verb('notebook_undelete', <String, Object?>{
         'notebookId': str(n['id']),
       });
-      ref.invalidate(notebookListProvider);
+      ref
+        ..invalidate(notebookListProvider)
+        ..invalidate(libraryProvider);
       if (context.mounted) {
         say(context, restored);
         onRestored();

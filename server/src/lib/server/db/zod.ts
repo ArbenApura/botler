@@ -20,7 +20,10 @@ import {
 	goal,
 	incomeSchedule,
 	ledgerTxn,
+	notebookPage,
 	NOTEBOOK_MAX_CHARS,
+	NOTEBOOK_PAGE_MAX_CHARS,
+	NOTEBOOK_PAGE_TITLE_MAX,
 	NOTEBOOK_SUMMARY_MAX,
 	NOTEBOOK_TITLE_MAX,
 	userSetting
@@ -886,6 +889,130 @@ export const notebookUpdateInput = z.object({
 
 /** The notebook list: with deleted true, the deleted ones that can still be restored. */
 export const notebookListInput = z.object({ deleted: z.boolean().optional() });
+
+// -- NOTEBOOK PAGES -- //
+
+/** A page title: one line, at most 80 characters. */
+const pageTitleField = z.string().trim().min(1).max(NOTEBOOK_PAGE_TITLE_MAX);
+
+/**
+ * A parent page named by its title. An empty text, or "top level", means no parent: the top-level page of that title (so a top-level page and a
+ * sub-page that share a title can always be told apart).
+ */
+const parentField = z.string().trim().max(NOTEBOOK_PAGE_TITLE_MAX);
+
+/**
+ * Which page a verb is about. The app names it by id. The assistant names it by the title of its notebook and its own title, and by the
+ * title of its parent page only when the same title is used under two parents of one notebook (parent "top level" picks the top-level one).
+ * Naming both ways is refused by the verb.
+ */
+const pageTarget = {
+	pageId: idField.optional(),
+	notebook: z.string().trim().min(1).max(NOTEBOOK_TITLE_MAX).optional(),
+	page: pageTitleField.optional(),
+	parent: parentField.optional()
+};
+
+export const pageTargetInput = z.object(pageTarget);
+
+/** A new page, generated from the page table: its title and first text. The notebook and the parent are named by title (the assistant) or by id (the app). */
+export const pageCreateInput = createInsertSchema(notebookPage, {
+	title: pageTitleField,
+	text: z.string().max(NOTEBOOK_PAGE_MAX_CHARS).optional()
+})
+	.pick({ title: true, text: true })
+	.extend({
+		notebookId: idField.optional(),
+		notebook: pageTarget.notebook,
+		parentPageId: idField.optional(),
+		parent: pageTarget.parent,
+		position: z.number().int().min(0).max(1000).optional()
+	});
+
+/** One change to a page by exact text, like notebook_edit: add a line under a heading, or replace or remove text that appears once. */
+export const pageEditInput = z.object({
+	...pageTarget,
+	op: z.enum(['add', 'replace', 'remove'], {
+		error:
+			'op must be "add" (with heading and line), "replace" (with find and replacement) or "remove" (with find).'
+	}),
+	/** For add: the heading to add the line under. It is made when it is not there yet. */
+	heading: z.string().trim().min(1).max(80).optional(),
+	/** For add: the line or lines to add. */
+	line: z.string().trim().min(1).max(NOTEBOOK_PAGE_MAX_CHARS).optional(),
+	/** For replace and remove: the exact text to change. It must appear once in the page. */
+	find: z.string().min(1).max(NOTEBOOK_PAGE_MAX_CHARS).optional(),
+	/** For replace: the text that takes its place. */
+	replacement: z.string().max(NOTEBOOK_PAGE_MAX_CHARS).optional()
+});
+
+/** The person saves the whole text of a page, from the version they opened. A stale version is refused. */
+export const pageSaveInput = z.object({
+	pageId: idField,
+	text: z.string().max(NOTEBOOK_PAGE_MAX_CHARS),
+	expectVersion: z.number().int().min(1)
+});
+
+export const pageRenameInput = z.object({ ...pageTarget, newTitle: pageTitleField });
+
+/**
+ * Move a page. The destination names a notebook and, for a sub-page, its top-level parent; with neither the page goes to the top level of its own
+ * notebook. `position` is the place among the pages there (0 is first); left out it goes last. To reorder a sub-page, name its parent again.
+ */
+export const pageMoveInput = z.object({
+	...pageTarget,
+	toNotebookId: idField.optional(),
+	toNotebook: pageTarget.notebook,
+	toParentPageId: idField.optional(),
+	toParent: pageTarget.parent,
+	position: z.number().int().min(0).max(1000).optional()
+});
+
+const pageSource = z.object({
+	notebook: pageTarget.notebook,
+	page: pageTitleField,
+	parent: pageTarget.parent
+});
+
+/** Merge pages into one: the text of each source is added under its own heading at the end of the target, and the sources are deleted (restorable). */
+export const pageMergeInput = z.object({
+	...pageTarget,
+	sources: z.array(pageSource).min(1).max(10).optional(),
+	sourceIds: z.array(idField).min(1).max(10).optional()
+});
+
+export const pageUndeleteInput = pageTargetInput;
+
+/** The person pins or unpins a page. */
+export const pagePinInput = z.object({ pageId: idField, pinned: z.boolean() });
+
+/** The person pins or unpins a notebook. */
+export const notebookPinInput = z.object({ notebookId: idField, pinned: z.boolean() });
+
+/** The person has looked at a page up to this version. Only the seen mark moves. */
+export const pageSeenInput = z.object({
+	pageId: idField,
+	version: z.number().int().min(1).max(2147483647)
+});
+
+export const pageIdInput = z.object({ pageId: idField });
+
+export const pageRevisionInput = z.object({ revisionId: idField });
+
+/** The outline: every live notebook with its pages, or one notebook. With deleted true, the deleted pages that can still be restored. */
+export const notebookOutlineInput = z.object({
+	notebookId: idField.optional(),
+	notebook: pageTarget.notebook,
+	deleted: z.boolean().optional()
+});
+
+/** Search the titles and texts of the pages (the main notebook is in the prompt already). */
+export const notebookSearchInput = z.object({
+	query: z.string().trim().min(2).max(100),
+	notebook: pageTarget.notebook,
+	notebookId: idField.optional(),
+	limit: z.number().int().min(1).max(50).optional()
+});
 
 export const wipeInput = z.object({ confirm: z.literal(true) });
 

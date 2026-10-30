@@ -30,6 +30,8 @@ import {
 	memoryProfile,
 	memorySummary,
 	notebook,
+	notebookPage,
+	notebookPageRevision,
 	notebookRevision,
 	splitPlan
 } from '../db/schema';
@@ -439,6 +441,17 @@ export async function exportAll(ctx: Ctx) {
 					.from(notebookRevision)
 					.where(mine(notebookRevision))
 					.orderBy(notebookRevision.version),
+				// The pages of the extra notebooks (live and deleted ones, with their parent links) and the changes made to each
+				notebookPages: await tx
+					.select()
+					.from(notebookPage)
+					.where(mine(notebookPage))
+					.orderBy(notebookPage.notebookId, notebookPage.position, notebookPage.title),
+				notebookPageRevisions: await tx
+					.select()
+					.from(notebookPageRevision)
+					.where(mine(notebookPageRevision))
+					.orderBy(notebookPageRevision.pageId, notebookPageRevision.version),
 				conversations: await tx
 					.select({
 						clientMessageId: chatTurn.clientMessageId,
@@ -497,6 +510,12 @@ export async function wipeMemory(ctx: Ctx, raw: unknown) {
 			await tx.delete(chat).where(eq(chat.userId, userId));
 			// The notebook is what the assistant remembers of the person now: it goes with its revisions. The old persona and about lines
 			// were copied into it, so they are cleared too, or the next notebook would be built from them again. The private names stay
+			// The pages of the extra notebooks go first: their changes, then the pages, then the notebooks they sit in
+			await tx.delete(notebookPageRevision).where(eq(notebookPageRevision.userId, userId));
+			const pageRows = await tx
+				.delete(notebookPage)
+				.where(eq(notebookPage.userId, userId))
+				.returning({ id: notebookPage.id });
 			const notes = await tx
 				.delete(notebook)
 				.where(eq(notebook.userId, userId))
@@ -519,7 +538,8 @@ export async function wipeMemory(ctx: Ctx, raw: unknown) {
 				facts: facts.length,
 				summaries: summaries.length,
 				conversations: turns.length,
-				notebooks: notes.length
+				notebooks: notes.length,
+				pages: pageRows.length
 			};
 		})
 	);

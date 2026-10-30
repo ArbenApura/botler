@@ -35,6 +35,8 @@ String errorWords(Object e, [BuildContext? context]) {
   final words = context != null
       ? context.t
       : wordsFor(ui.PlatformDispatcher.instance.locale.languageCode);
+  // An older server cannot serve the pages: say what to do, not that something broke
+  if (e is ServerTooOld) return words.libraryUpdateServer;
   return words.uiError;
 }
 
@@ -50,6 +52,7 @@ class PaperCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
+    this.onLongPress,
     super.key,
   });
 
@@ -57,15 +60,19 @@ class PaperCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
 
+  /// A press and hold, for the more-actions sheet of a card that opens something on a tap.
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     final card = Card(
       child: Padding(padding: padding, child: child),
     );
-    if (onTap == null) return card;
+    if (onTap == null && onLongPress == null) return card;
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
+      onLongPress: onLongPress,
       child: card,
     );
   }

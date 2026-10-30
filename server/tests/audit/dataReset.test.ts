@@ -14,6 +14,7 @@ import {
 	dataResetChatsSql,
 	dataResetLatestSql,
 	dataResetMigrationSql,
+	dataResetNotebookSql,
 	dataResetWalletsSql,
 	EVERYTHING_TABLES,
 	KEPT_ON_RESET,
@@ -174,12 +175,30 @@ describe('the notebook copy of the function', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0031_notebook.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		// 0031 holds the function as it was then, before the pages of the extra notebooks were added to the memory scope
+		expect(file).toContain(dataResetNotebookSql());
+		expect(dataResetNotebookSql()).not.toContain('notebook_page');
 		const memory = SCOPE_TABLES.memory_and_chat;
 		expect(memory.indexOf('notebook_revision')).toBeGreaterThanOrEqual(0);
 		expect(memory.indexOf('notebook_revision')).toBeLessThan(memory.indexOf('notebook'));
 		expect(EVERYTHING_TABLES).toContain('notebook');
 		expect(EVERYTHING_TABLES).toContain('notebook_revision');
+	});
+});
+
+describe('the notebook pages copy of the function', () => {
+	it('is installed by migration 0037 and erases the revisions of a page, then the pages, then the notebook', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0037_notebook_pages.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		const memory = SCOPE_TABLES.memory_and_chat;
+		expect(memory.indexOf('notebook_page_revision')).toBeGreaterThanOrEqual(0);
+		expect(memory.indexOf('notebook_page_revision')).toBeLessThan(memory.indexOf('notebook_page'));
+		expect(memory.indexOf('notebook_page')).toBeLessThan(memory.indexOf('notebook'));
+		expect(EVERYTHING_TABLES).toContain('notebook_page');
+		expect(EVERYTHING_TABLES).toContain('notebook_page_revision');
 	});
 });
 

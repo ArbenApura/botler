@@ -35,6 +35,14 @@ class ApiException implements Exception {
   String toString() => 'ApiException($code, $status)';
 }
 
+/// The server does not know an operation the app needs: it is older than the app. The screen says to update the server.
+class ServerTooOld implements Exception {
+  const ServerTooOld();
+
+  @override
+  String toString() => 'ServerTooOld';
+}
+
 typedef TokenReader = Future<String?> Function();
 
 // -- CONSTANTS -- //

@@ -110,12 +110,18 @@ class FlushReport {
 const String _prefsKey = 'outbox.v1';
 const String _failedKey = 'outbox.failed.v1';
 
-/// The writes that move money. When the server refuses one for good it is kept for the person to see, not only reported once.
+/// The writes that move money, and the changes to pages made offline. When the server refuses one for good it is kept for the person to see,
+/// not only reported once.
 const Set<String> _keptWhenRefused = <String>{
   'bill_mark_paid',
   'transfer_record',
   'expense_log',
   'income_record',
+  // A move, a rename or a pin aimed at a page that is gone by the time it is sent stays visible, so the person knows it did not happen
+  'page_move',
+  'page_rename',
+  'page_pin',
+  'notebook_pin',
 };
 
 /// An item that failed this many times for a reason that is not the network is given up on.

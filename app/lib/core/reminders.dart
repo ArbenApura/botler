@@ -18,6 +18,7 @@ import 'package:workmanager/workmanager.dart';
 
 // -- MODULES -- //
 import '../l10n/l10n.dart';
+import '../state/library.dart';
 import '../state/providers.dart';
 import 'api.dart';
 import 'auth.dart';
@@ -123,8 +124,13 @@ Future<void> flushAndSync(ProviderContainer container) async {
   final prefs = container.read(prefsProvider);
   try {
     final report = await container.read(outboxProvider).flush(api);
-    if (report.sent > 0 || report.dropped.isNotEmpty)
+    if (report.sent > 0 || report.dropped.isNotEmpty) {
       container.read(outboxCountProvider.notifier).refresh();
+      // A pin, rename or move may have gone out (or been refused): the notebooks are read again
+      container
+        ..invalidate(libraryProvider)
+        ..invalidate(pageProvider);
+    }
     await syncReminders(api, prefs);
   } on ApiException {
     // Offline: what is already scheduled keeps ringing
