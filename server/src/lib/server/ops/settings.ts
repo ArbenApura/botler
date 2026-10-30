@@ -25,6 +25,8 @@ export type SettingsView = {
 	replyLanguage: 'auto' | 'en' | 'fil' | 'taglish';
 	/** 0 is Sunday, 1 is Monday. */
 	weekStartsOn: number;
+	/** Balances lead with net (what is not owed to bills or goals) and show gross smaller. Display only: the server always works net out. */
+	showNetBalance: boolean;
 	/** The host the assistant will run on for this person: their choice when it is still available, else the server default. Null when the server has none set up. */
 	modelProvider: SelectableProvider | null;
 	/** What the person chose; null means "the server default". It can name a host whose key was removed since. */
@@ -36,7 +38,12 @@ export type SettingsView = {
 /** The part of the view that is stored in the table; the rest is worked out from the server's setup. */
 type StoredSettings = Pick<
 	SettingsView,
-	'currency' | 'language' | 'replyLanguage' | 'weekStartsOn' | 'modelProviderChoice'
+	| 'currency'
+	| 'language'
+	| 'replyLanguage'
+	| 'weekStartsOn'
+	| 'showNetBalance'
+	| 'modelProviderChoice'
 >;
 
 // -- CONSTANTS -- //
@@ -46,6 +53,7 @@ export const SETTING_DEFAULTS: StoredSettings = {
 	language: 'en',
 	replyLanguage: 'auto',
 	weekStartsOn: 1,
+	showNetBalance: false,
 	modelProviderChoice: null
 };
 
@@ -78,6 +86,7 @@ export async function readSettings(tx: Tx, userId: string): Promise<SettingsView
 					language: row.language,
 					replyLanguage: row.replyLanguage,
 					weekStartsOn: row.weekStartsOn,
+					showNetBalance: row.showNetBalance,
 					modelProviderChoice: row.modelProvider
 				}
 			: { ...SETTING_DEFAULTS }
@@ -104,6 +113,7 @@ export async function setSettings(
 			if (input.language !== undefined) changes.language = input.language;
 			if (input.replyLanguage !== undefined) changes.replyLanguage = input.replyLanguage;
 			if (input.weekStartsOn !== undefined) changes.weekStartsOn = input.weekStartsOn;
+			if (input.showNetBalance !== undefined) changes.showNetBalance = input.showNetBalance;
 			// Undefined keeps the choice; null puts the person back on the server default
 			if (input.modelProvider !== undefined) {
 				if (
@@ -130,6 +140,7 @@ export async function setSettings(
 				language: before.language,
 				replyLanguage: before.replyLanguage,
 				weekStartsOn: before.weekStartsOn,
+				showNetBalance: before.showNetBalance,
 				modelProviderChoice: before.modelProviderChoice,
 				...changes
 			});

@@ -83,6 +83,24 @@ describe('settings', () => {
 		expect((await getSettings(person('user_set_b_001'))).currency).toBe('PHP');
 	});
 
+	it('keeps the net balance choice: off by default, saved on and off, kept when another field changes (BTL-20261030-0546)', async () => {
+		const a = person('user_set_c_001');
+		expect((await getSettings(a)).showNetBalance).toBe(false);
+		expect((await setSettings(as(a), { showNetBalance: true })).settings.showNetBalance).toBe(true);
+		expect((await setSettings(as(a), { language: 'fil' })).settings.showNetBalance).toBe(true);
+		expect((await getSettings(a)).showNetBalance).toBe(true);
+		// false is a value, not "left out"
+		expect((await setSettings(as(a), { showNetBalance: false })).settings.showNetBalance).toBe(
+			false
+		);
+		expect((await getSettings(a)).showNetBalance).toBe(false);
+		// Another person is untouched, and the assistant cannot change it
+		expect((await getSettings(person('user_set_b_001'))).showNetBalance).toBe(false);
+		await expect(
+			invokeVerb(agent('user_set_c_001'), 'settings_set', { showNetBalance: true })
+		).rejects.toMatchObject({ code: expect.any(String) });
+	});
+
 	it('refuses a currency or value that is not allowed, and unknown fields', async () => {
 		const a = person('user_set_a_001');
 		await expect(setSettings(as(a), { currency: 'XXX' })).rejects.toMatchObject({

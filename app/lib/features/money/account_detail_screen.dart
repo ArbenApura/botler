@@ -19,6 +19,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'accounts_screen.dart';
 import 'audit_words.dart';
+import 'net_parts.dart';
 import 'purpose.dart';
 import 'transfer_sheet.dart';
 
@@ -321,6 +322,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
     final account = _account();
     final code = _currency();
     final wallets = account == null ? const <Json>[] : walletsOf(account);
+    // The net of the wallet shown, when the person leads with it and the server sent one
+    final netOn = ref.watch(settingsProvider.select((s) => s.showNetBalance));
+    final netWallet = account == null || !netOn
+        ? null
+        : walletIn(account, code);
     final verify = ref.watch(auditVerifyProvider).value;
     // A check that could not run is said, never shown as a clean chain
     final unverified = ref.watch(auditVerifyProvider).hasError;
@@ -478,6 +484,8 @@ class _State extends ConsumerState<AccountDetailScreen> {
                 ],
               ),
             ),
+            if (netWallet != null && netInt(netWallet, 'netBalance') != null)
+              NetHolds(wallet: netWallet, currency: code),
             _Filters(
               filter: _filter,
               search: _search,

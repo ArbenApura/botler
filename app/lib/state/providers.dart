@@ -30,6 +30,7 @@ class Settings {
     this.language = 'en',
     this.replyLanguage = 'auto',
     this.weekStartsOn = 1,
+    this.showNetBalance = false,
     this.modelProvider,
     this.modelProviderChoice,
     this.availableProviders = const <String>[],
@@ -60,6 +61,10 @@ class Settings {
   /// The first day of the week: 0 is Sunday, 1 is Monday.
   final int weekStartsOn;
 
+  /// Balances lead with the net (what is left after bills due before the next payday and money kept for goals), the balance counted smaller
+  /// beneath. Display only: the server always sends both.
+  final bool showNetBalance;
+
   /// The AI server the assistant will use for this person, as the server says (null: not known yet, or the server has none set up).
   final String? modelProvider;
 
@@ -80,6 +85,7 @@ class Settings {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    bool? showNetBalance,
     Object? modelProvider = _keep,
     Object? modelProviderChoice = _keep,
     List<String>? availableProviders,
@@ -93,6 +99,7 @@ class Settings {
     language: language ?? this.language,
     replyLanguage: replyLanguage ?? this.replyLanguage,
     weekStartsOn: weekStartsOn ?? this.weekStartsOn,
+    showNetBalance: showNetBalance ?? this.showNetBalance,
     modelProvider: identical(modelProvider, _keep)
         ? this.modelProvider
         : modelProvider as String?,
@@ -189,6 +196,7 @@ const String _currency = 'settings.currency';
 const String _language = 'settings.language';
 const String _reply = 'settings.reply';
 const String _week = 'settings.week';
+const String _showNet = 'settings.showNet';
 const String _provider = 'settings.provider';
 const String _providerChoice = 'settings.providerChoice';
 const String _providers = 'settings.providers';
@@ -216,6 +224,7 @@ Settings readSettings(SharedPreferences p) => Settings(
   language: p.getString(_language) ?? 'en',
   replyLanguage: p.getString(_reply) ?? 'auto',
   weekStartsOn: p.getInt(_week) ?? 1,
+  showNetBalance: p.getBool(_showNet) ?? false,
   modelProvider: p.getString(_provider),
   modelProviderChoice: p.getString(_providerChoice),
   availableProviders: p.getStringList(_providers) ?? const <String>[],
@@ -237,6 +246,7 @@ class SettingsNotifier extends Notifier<Settings> {
     await p.setString(_language, next.language);
     await p.setString(_reply, next.replyLanguage);
     await p.setInt(_week, next.weekStartsOn);
+    await p.setBool(_showNet, next.showNetBalance);
     await _setOrRemove(p, _provider, next.modelProvider);
     await _setOrRemove(p, _providerChoice, next.modelProviderChoice);
     await p.setStringList(_providers, next.availableProviders);
@@ -255,6 +265,8 @@ class SettingsNotifier extends Notifier<Settings> {
           language: str(s['language'], state.language),
           replyLanguage: str(s['replyLanguage'], state.replyLanguage),
           weekStartsOn: intOf(s['weekStartsOn'], state.weekStartsOn),
+          // An older server has no such field: keep what the phone has
+          showNetBalance: boolOf(s['showNetBalance'], state.showNetBalance),
           modelProvider: _providerId(s['modelProvider']),
           modelProviderChoice: _providerId(s['modelProviderChoice']),
           availableProviders: _providerIds(s['availableProviders']),
@@ -272,6 +284,7 @@ class SettingsNotifier extends Notifier<Settings> {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    bool? showNetBalance,
     String? modelProvider,
   }) async {
     final changes = <String, Object?>{
@@ -279,6 +292,7 @@ class SettingsNotifier extends Notifier<Settings> {
       'language': ?language,
       'replyLanguage': ?replyLanguage,
       'weekStartsOn': ?weekStartsOn,
+      'showNetBalance': ?showNetBalance,
       'modelProvider': ?modelProvider,
     };
     final answer = await ref
@@ -291,6 +305,7 @@ class SettingsNotifier extends Notifier<Settings> {
         language: str(saved['language'], state.language),
         replyLanguage: str(saved['replyLanguage'], state.replyLanguage),
         weekStartsOn: intOf(saved['weekStartsOn'], state.weekStartsOn),
+        showNetBalance: boolOf(saved['showNetBalance'], state.showNetBalance),
         modelProvider: _providerId(saved['modelProvider']),
         modelProviderChoice: _providerId(saved['modelProviderChoice']),
         availableProviders: _providerIds(saved['availableProviders']),

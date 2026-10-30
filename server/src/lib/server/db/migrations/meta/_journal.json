@@ -246,6 +246,13 @@
       "when": 1793334724547,
       "tag": "0034_notebook_many",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793339458619,
+      "tag": "0035_net_balance",
+      "breakpoints": true
     }
   ]
 }

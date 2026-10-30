@@ -1792,6 +1792,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuTitle => 'Menu';
 
   @override
+  String netGross(String amount) {
+    return 'Balance $amount';
+  }
+
+  @override
+  String netHeldBill(String label, String date) {
+    return '$label, due $date';
+  }
+
+  @override
+  String netHeldGoal(String label) {
+    return 'Kept for the goal: $label';
+  }
+
+  @override
+  String get netHeldNothing => 'Nothing is held: all of it is net.';
+
+  @override
+  String netHeldRule(String label, String date) {
+    return '$label, saved for the bill due $date';
+  }
+
+  @override
+  String get netHeldTitle => 'Held in this wallet';
+
+  @override
+  String get netNetNow => 'Net now';
+
+  @override
+  String netShortfall(String amount) {
+    return 'Short by $amount for bills due before payday';
+  }
+
+  @override
+  String get netShowGross => 'Show the balance as counted';
+
+  @override
+  String get netShowNet => 'Show net balance';
+
+  @override
+  String get netTotalTitle => 'Net, after bills and goals';
+
+  @override
+  String get netUnavailable =>
+      'The net balance could not be worked out just now. Balances are shown as counted.';
+
+  @override
   String get no => 'No';
 
   @override
@@ -2669,6 +2716,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMonday => 'Monday';
+
+  @override
+  String get settingsNetBody =>
+      'Lead with what is left after bills due before the next payday and money kept for goals. The balance you counted stays smaller beneath it.';
+
+  @override
+  String get settingsNetTitle => 'Show net balance';
 
   @override
   String get settingsPrivacy => 'Privacy';

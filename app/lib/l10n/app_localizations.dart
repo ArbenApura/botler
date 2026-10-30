@@ -3061,6 +3061,78 @@ abstract class AppLocalizations {
   /// **'Menu'**
   String get menuTitle;
 
+  /// No description provided for @netGross.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance {amount}'**
+  String netGross(String amount);
+
+  /// No description provided for @netHeldBill.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, due {date}'**
+  String netHeldBill(String label, String date);
+
+  /// No description provided for @netHeldGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept for the goal: {label}'**
+  String netHeldGoal(String label);
+
+  /// No description provided for @netHeldNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is held: all of it is net.'**
+  String get netHeldNothing;
+
+  /// No description provided for @netHeldRule.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, saved for the bill due {date}'**
+  String netHeldRule(String label, String date);
+
+  /// No description provided for @netHeldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Held in this wallet'**
+  String get netHeldTitle;
+
+  /// No description provided for @netNetNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Net now'**
+  String get netNetNow;
+
+  /// No description provided for @netShortfall.
+  ///
+  /// In en, this message translates to:
+  /// **'Short by {amount} for bills due before payday'**
+  String netShortfall(String amount);
+
+  /// No description provided for @netShowGross.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the balance as counted'**
+  String get netShowGross;
+
+  /// No description provided for @netShowNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Show net balance'**
+  String get netShowNet;
+
+  /// No description provided for @netTotalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Net, after bills and goals'**
+  String get netTotalTitle;
+
+  /// No description provided for @netUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The net balance could not be worked out just now. Balances are shown as counted.'**
+  String get netUnavailable;
+
   /// No description provided for @no.
   ///
   /// In en, this message translates to:
@@ -4583,6 +4655,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Monday'**
   String get settingsMonday;
+
+  /// No description provided for @settingsNetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Lead with what is left after bills due before the next payday and money kept for goals. The balance you counted stays smaller beneath it.'**
+  String get settingsNetBody;
+
+  /// No description provided for @settingsNetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show net balance'**
+  String get settingsNetTitle;
 
   /// No description provided for @settingsPrivacy.
   ///

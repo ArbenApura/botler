@@ -114,7 +114,6 @@ import {
 } from './chats';
 import { calendarRange } from './calendarRange';
 import { previewDataReset, resetData } from './dataReset';
-import { assetsSummary } from './assets';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
 import { balanceSimulate } from './simulate';
@@ -140,8 +139,8 @@ import {
 	updateBillOccurrence
 } from './bills';
 import { OpsError, run } from './context';
+import { accountBalancesWithNet, assetsSummaryWithNet } from './net';
 import {
-	accountBalances,
 	listTransactions,
 	listUndoable,
 	logExpense,
@@ -315,17 +314,18 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'accounts_balances',
 		kind: 'read',
-		description: 'The balance of every account right now.',
+		description:
+			'The balance of every account right now, and its net: netBalance is what is left of the wallet after money already owed to bills due before the next payday (held, with holds naming each bill or linked rule with its date) and money kept for a goal. shortfall is what a bill due before the next payday still lacks. The minimum balance is separate (belowMinimum). Say that a figure is net and name what is held.',
 		input: emptyInput,
-		run: (ctx) => accountBalances(ctx)
+		run: (ctx) => accountBalancesWithNet(ctx)
 	}),
 	verb({
 		name: 'assets_summary',
 		kind: 'read',
 		description:
-			'The total of everything the person owns, in their main currency: every currency wallet of every account with its balance, its value in the main currency, the rate used and the date of the rates. A currency with no known rate is listed as missing and left out of the total. Use this for "how much do I have in total".',
+			'The total of everything the person owns, in their main currency: every currency wallet of every account with its balance, its value in the main currency, the rate used and the date of the rates. A currency with no known rate is listed as missing and left out of the total. netTotal is the same total after money held for bills due before the next payday and for goals (shortfallTotal is what those bills still lack). Use this for "how much do I have in total".',
 		input: emptyInput,
-		run: (ctx) => assetsSummary(ctx)
+		run: (ctx) => assetsSummaryWithNet(ctx)
 	}),
 	verb({
 		name: 'fx_convert',

@@ -20,6 +20,7 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'currency_picker.dart';
+import 'net_parts.dart';
 import 'purpose.dart';
 import 'rates.dart';
 
@@ -33,6 +34,7 @@ class AccountsScreen extends ConsumerWidget {
     final c = context.colors;
     final accounts = ref.watch(balancesProvider);
     final assets = ref.watch(assetsProvider);
+    final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
     // What each account comes to in all, from the same answer as the total
     final subtotals = <String, Json>{
       for (final a in asJsonList(assets.value?['accounts']))
@@ -53,7 +55,7 @@ class AccountsScreen extends ConsumerWidget {
         data: (list) => ListView(
           padding: pagePadding(context),
           children: <Widget>[
-            if (list.isNotEmpty) _TotalCard(assets: assets),
+            if (list.isNotEmpty) _TotalCard(assets: assets, net: net),
             if (list.isEmpty) Note(context.t.accountsEmpty),
             for (final a in list)
               Padding(
@@ -100,6 +102,7 @@ class AccountsScreen extends ConsumerWidget {
                         account: a,
                         subtotal: subtotals[str(a['id'])],
                         main: context.currencyCode,
+                        net: net,
                       ),
                     ],
                   ),
@@ -403,9 +406,12 @@ Map<String, String> rateLinesOf(Json assets, String main) {
 
 /// Everything the person has, in the main currency, with the date of the rates and what is missing. Tapping it updates the rates.
 class _TotalCard extends ConsumerWidget {
-  const _TotalCard({required this.assets});
+  const _TotalCard({required this.assets, required this.net});
 
   final AsyncValue<Json> assets;
+
+  /// The person chose to lead with the net.
+  final bool net;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -434,15 +440,36 @@ class _TotalCard extends ConsumerWidget {
     final missing = asList(data['missing']).whereType<String>().toList();
     final offline = boolOf(data['offline']);
     final main = str(data['currency'], context.currencyCode);
+    // The net leads only when the server sent it: an older answer or one it could not work out shows the total as counted
+    final netTotal = net ? netInt(data, 'netTotal') : null;
+    final shortTotal = netInt(data, 'shortfallTotal') ?? 0;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: PaperCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(t.accountsTotalTitle, style: TextStyle(color: c.muted)),
+            Text(
+              netTotal == null ? t.accountsTotalTitle : t.netTotalTitle,
+              style: TextStyle(color: c.muted),
+            ),
             const SizedBox(height: 4),
-            Amount(intOf(data['total']), currency: main),
+            Amount(netTotal ?? intOf(data['total']), currency: main),
+            if (netTotal != null) ...<Widget>[
+              Text(
+                t.netGross(context.moneyIn(intOf(data['total']), main)),
+                style: TextStyle(color: c.muted, fontFeatures: tabular),
+              ),
+              if (shortTotal > 0)
+                Text(
+                  t.netShortfall(context.moneyIn(shortTotal, main)),
+                  style: TextStyle(color: c.warning, fontFeatures: tabular),
+                ),
+            ],
+            if (net && netTotal == null) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(t.netUnavailable, style: TextStyle(color: c.muted)),
+            ],
             if (missing.isNotEmpty) ...<Widget>[
               const SizedBox(height: 6),
               Text(
@@ -506,6 +533,8 @@ class _TotalCard extends ConsumerWidget {
                 ),
               ),
             ),
+            // Net or as counted: the same setting as in Settings, a line like the two above
+            const NetToggleLine(),
           ],
         ),
       ),
@@ -521,36 +550,53 @@ class _Wallets extends StatelessWidget {
     required this.account,
     required this.subtotal,
     required this.main,
+    required this.net,
   });
 
   final Json account;
   final Json? subtotal;
   final String main;
 
+  /// Lead with each wallet's net where the server sent one.
+  final bool net;
+
   @override
   Widget build(BuildContext context) {
     final wallets = walletsOf(account);
     final own = str(account['currency'], defaultCurrency);
     if (wallets.length == 1) {
-      return Amount(
-        intOf(wallets.first['balance']),
-        currency: str(wallets.first['currency'], own),
-      );
+      final only = wallets.first;
+      final code = str(only['currency'], own);
+      if (net && netInt(only, 'netBalance') != null) {
+        return NetAmount(wallet: only, currency: code);
+      }
+      return Amount(intOf(only['balance']), currency: code);
     }
     final sub = subtotal;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
         for (final w in wallets)
-          Amount(
-            intOf(w['balance']),
-            currency: str(w['currency'], own),
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          if (net && netInt(w, 'netBalance') != null)
+            NetAmount(
+              wallet: w,
+              currency: str(w['currency'], own),
+              style: Theme.of(context).textTheme.titleMedium,
+            )
+          else
+            Amount(
+              intOf(w['balance']),
+              currency: str(w['currency'], own),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
         if (sub != null)
           Text(
             context.t.accountsSubtotal(
-              context.moneyIn(intOf(sub['subtotal']), main),
+              context.moneyIn(
+                (net ? netInt(sub, 'netSubtotal') : null) ??
+                    intOf(sub['subtotal']),
+                main,
+              ),
             ),
             style: TextStyle(
               color: context.colors.muted,

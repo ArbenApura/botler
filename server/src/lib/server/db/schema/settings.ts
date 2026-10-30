@@ -1,7 +1,7 @@
 // SETTINGS OF ONE PERSON: THE CURRENCY AMOUNTS ARE SHOWN IN, THE LANGUAGE OF THE APP, HOW THE ASSISTANT REPLIES, AND THE FIRST DAY OF THE WEEK
 
 // -- DEP-MODULES -- //
-import { check, integer, text, unique } from 'drizzle-orm/pg-core';
+import { boolean, check, integer, text, unique } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { CURRENCY_CODES, DEFAULT_CURRENCY } from '../../../finance/currency';
@@ -33,6 +33,8 @@ export const userSetting = userTable(
 		weekStartsOn: integer('week_starts_on').notNull().default(1),
 		/** The model host this person chose. Null means the server default (MODEL_PROVIDER). */
 		modelProvider: text('model_provider', { enum: SELECTABLE_PROVIDERS }),
+		/** Balances lead with net (what is not owed to bills or goals) and show gross smaller. Display only. */
+		showNetBalance: boolean('show_net_balance').notNull().default(false),
 		...stamps()
 	},
 	(t) => [

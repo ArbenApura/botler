@@ -1805,6 +1805,53 @@ class AppLocalizationsFil extends AppLocalizations {
   String get menuTitle => 'Menu';
 
   @override
+  String netGross(String amount) {
+    return 'Balanse $amount';
+  }
+
+  @override
+  String netHeldBill(String label, String date) {
+    return '$label, due sa $date';
+  }
+
+  @override
+  String netHeldGoal(String label) {
+    return 'Nakalaan para sa goal: $label';
+  }
+
+  @override
+  String get netHeldNothing => 'Walang nakalaan: net lahat ito.';
+
+  @override
+  String netHeldRule(String label, String date) {
+    return '$label, inipon para sa bayarin na due sa $date';
+  }
+
+  @override
+  String get netHeldTitle => 'Nakalaan sa wallet na ito';
+
+  @override
+  String get netNetNow => 'Net ngayon';
+
+  @override
+  String netShortfall(String amount) {
+    return 'Kulang ng $amount para sa mga bayarin bago ang sahod';
+  }
+
+  @override
+  String get netShowGross => 'Ipakita ang balanseng binilang';
+
+  @override
+  String get netShowNet => 'Ipakita ang net na balanse';
+
+  @override
+  String get netTotalTitle => 'Net, pagkatapos ng bayarin at goal';
+
+  @override
+  String get netUnavailable =>
+      'Hindi makuha ang net na balanse ngayon. Ipinapakita ang balanseng binilang.';
+
+  @override
   String get no => 'Hindi';
 
   @override
@@ -2689,6 +2736,13 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get settingsMonday => 'Lunes';
+
+  @override
+  String get settingsNetBody =>
+      'Una ang matitira pagkatapos ng mga bayarin bago ang susunod na sahod at ng perang nakalaan sa mga goal. Nasa ilalim, mas maliit, ang balanseng binilang mo.';
+
+  @override
+  String get settingsNetTitle => 'Ipakita ang net na balanse';
 
   @override
   String get settingsPrivacy => 'Privacy';

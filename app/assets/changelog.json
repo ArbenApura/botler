@@ -202,5 +202,17 @@
       "Kaya na ngayon ng Botler na laktawan ang isang sahod, halimbawa kapag maagang dumating ang sahod mo, o simulan o itigil ang isang sahod sa petsang pipiliin mo. Sabihin lang kay Botler.",
       "Sinusubukan na ngayon ng Botler ang ideya ng iskedyul gamit ang preview sa halip na baguhin ang totoong sahod mo para subukan ito."
     ]
+  },
+  {
+    "versionCode": 24,
+    "versionName": "1.1.13",
+    "en": [
+      "New setting: Show net balance. Accounts, and the total, can now lead with what is left after the bills due before your next payday and the money kept for your goals, with the balance you counted shown smaller below.",
+      "Open an account to see exactly what is held and why. Botler can tell you your net balance too."
+    ],
+    "fil": [
+      "Bagong setting: Ipakita ang net na balanse. Ang mga account at ang kabuuan ay puwede nang mauna ang matitira pagkatapos ng mga bayarin bago ang susunod na sahod at ng perang nakalaan sa mga goal, at nasa ilalim, mas maliit, ang balanseng binilang mo.",
+      "Buksan ang isang account para makita kung ano ang nakalaan at bakit. Masasabi na rin ng Botler ang net na balanse mo."
+    ]
   }
 ]

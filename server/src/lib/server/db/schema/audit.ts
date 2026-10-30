@@ -421,7 +421,15 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 	},
 	{
 		table: 'user_setting',
-		columns: ['id', 'currency', 'language', 'reply_language', 'week_starts_on', 'model_provider'],
+		columns: [
+			'id',
+			'currency',
+			'language',
+			'reply_language',
+			'week_starts_on',
+			'model_provider',
+			'show_net_balance'
+		],
 		account: '',
 		amount: '',
 		firstColumns: ['id', 'currency', 'language', 'reply_language', 'week_starts_on'],
@@ -436,6 +444,18 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 					'reply_language',
 					'week_starts_on',
 					'model_provider'
+				]
+			},
+			{
+				migration: '0035',
+				columns: [
+					'id',
+					'currency',
+					'language',
+					'reply_language',
+					'week_starts_on',
+					'model_provider',
+					'show_net_balance'
 				]
 			}
 		]

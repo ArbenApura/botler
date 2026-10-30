@@ -571,41 +571,44 @@ export async function walletCurrencies(
  * main currency: an account with no wallet in it is not below its minimum (there is nothing to judge), never "empty".
  */
 export async function accountBalances(ctx: Ctx) {
-	return run(ctx, async (tx, userId) => {
-		const main = (await readSettings(tx, userId)).currency;
-		const accounts = await tx
-			.select()
-			.from(account)
-			.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
-			.orderBy(account.sortOrder, account.name);
-		const out = [];
-		for (const a of accounts) {
-			const wallets: WalletBalance[] = [];
-			for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
-				const b = await balanceFor(tx, userId, a.id, currency);
-				wallets.push({
-					currency,
-					balance: b.balance,
-					countedAt: b.countedAt?.toISOString() ?? null
-				});
-			}
-			const own = wallets[0] as WalletBalance;
-			const inMain = wallets.find((w) => w.currency === main);
-			out.push({
-				id: a.id,
-				name: a.name,
-				kind: a.kind,
-				minBalance: a.minBalance,
-				purpose: a.purpose,
-				currency: a.currency,
-				balance: own.balance,
-				countedAt: own.countedAt,
-				belowMinimum: inMain ? inMain.balance < a.minBalance : false,
-				wallets
+	return run(ctx, (tx, userId) => balancesIn(tx, userId));
+}
+
+/** The balances of every active account inside a transaction. ops/net.ts adds the net to the same rows in the same transaction. */
+export async function balancesIn(tx: Tx, userId: string) {
+	const main = (await readSettings(tx, userId)).currency;
+	const accounts = await tx
+		.select()
+		.from(account)
+		.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
+		.orderBy(account.sortOrder, account.name);
+	const out = [];
+	for (const a of accounts) {
+		const wallets: WalletBalance[] = [];
+		for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
+			const b = await balanceFor(tx, userId, a.id, currency);
+			wallets.push({
+				currency,
+				balance: b.balance,
+				countedAt: b.countedAt?.toISOString() ?? null
 			});
 		}
-		return out;
-	});
+		const own = wallets[0] as WalletBalance;
+		const inMain = wallets.find((w) => w.currency === main);
+		out.push({
+			id: a.id,
+			name: a.name,
+			kind: a.kind,
+			minBalance: a.minBalance,
+			purpose: a.purpose,
+			currency: a.currency,
+			balance: own.balance,
+			countedAt: own.countedAt,
+			belowMinimum: inMain ? inMain.balance < a.minBalance : false,
+			wallets
+		});
+	}
+	return out;
 }
 
 /** Recent entries, newest first. `from` and `to` are Manila dates, inclusive. */

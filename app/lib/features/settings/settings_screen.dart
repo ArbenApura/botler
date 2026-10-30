@@ -175,6 +175,14 @@ class SettingsScreen extends ConsumerWidget {
             onSelectionChanged: (w) =>
                 _save(context, ref, weekStartsOn: w.first),
           ),
+          // Net balance (BTL-20261030-0546): the same setting as the line on the accounts screen
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t.settingsNetTitle),
+            subtitle: Text(t.settingsNetBody, style: TextStyle(color: c.muted)),
+            value: s.showNetBalance,
+            onChanged: (on) => _save(context, ref, showNetBalance: on),
+          ),
 
           // -- PRIVACY -- //
           SectionTitle(t.settingsPrivacy),
@@ -305,6 +313,7 @@ class SettingsScreen extends ConsumerWidget {
     String? language,
     String? replyLanguage,
     int? weekStartsOn,
+    bool? showNetBalance,
     String? modelProvider,
   }) async {
     try {
@@ -315,6 +324,7 @@ class SettingsScreen extends ConsumerWidget {
             language: language,
             replyLanguage: replyLanguage,
             weekStartsOn: weekStartsOn,
+            showNetBalance: showNetBalance,
             modelProvider: modelProvider,
           );
       // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language

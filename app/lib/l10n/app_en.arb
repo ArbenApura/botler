@@ -1269,6 +1269,59 @@
   "menuSimulate": "Time travel",
   "menuSimulateLine": "Your balances on any past or future day",
   "menuTitle": "Menu",
+  "netGross": "Balance {amount}",
+  "@netGross": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "netHeldBill": "{label}, due {date}",
+  "@netHeldBill": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "netHeldGoal": "Kept for the goal: {label}",
+  "@netHeldGoal": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "netHeldNothing": "Nothing is held: all of it is net.",
+  "netHeldRule": "{label}, saved for the bill due {date}",
+  "@netHeldRule": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "netHeldTitle": "Held in this wallet",
+  "netNetNow": "Net now",
+  "netShortfall": "Short by {amount} for bills due before payday",
+  "@netShortfall": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "netShowGross": "Show the balance as counted",
+  "netShowNet": "Show net balance",
+  "netTotalTitle": "Net, after bills and goals",
+  "netUnavailable": "The net balance could not be worked out just now. Balances are shown as counted.",
   "no": "No",
   "notebookByBotler": "Botler",
   "notebookBySeed": "Tidy-up",
@@ -1889,6 +1942,8 @@
   "settingsLookLight": "Light",
   "settingsLookPhone": "Phone",
   "settingsMonday": "Monday",
+  "settingsNetBody": "Lead with what is left after bills due before the next payday and money kept for goals. The balance you counted stays smaller beneath it.",
+  "settingsNetTitle": "Show net balance",
   "settingsPrivacy": "Privacy",
   "settingsRatesLine": "Fetched {date} from {source}",
   "@settingsRatesLine": {

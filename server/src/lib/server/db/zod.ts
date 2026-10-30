@@ -342,7 +342,8 @@ export const settingsSetInput = createInsertSchema(userSetting, {
 		replyLanguage: true,
 		weekStartsOn: true,
 		// Null puts the person back on the server default; whether the key exists is checked in the ops layer
-		modelProvider: true
+		modelProvider: true,
+		showNetBalance: true
 	})
 	.partial();
 
