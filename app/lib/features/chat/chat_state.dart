@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
+import '../../core/chat_photos.dart';
 import '../../core/json.dart';
 import '../../core/reminders.dart';
 import '../../l10n/l10n.dart';
@@ -31,18 +32,30 @@ sealed class ChatItem {
 }
 
 final class UserItem extends ChatItem {
-  const UserItem(super.id, this.text, {this.photos = 0, this.turnId});
+  const UserItem(
+    super.id,
+    this.text, {
+    this.photos = 0,
+    this.photoPaths = const <String>[],
+    this.turnId,
+  });
 
   final String text;
 
   /// How many photos' text went along with it.
   final int photos;
 
+  /// The pictures of those photos, kept on this phone, when they are still there. Empty for a message from before this phone kept them.
+  final List<String> photoPaths;
+
   /// The server's id for this message, known once the server has accepted it. Branching and editing start from it.
   final String? turnId;
 
   UserItem withTurn(String turn) =>
-      UserItem(id, text, photos: photos, turnId: turn);
+      UserItem(id, text, photos: photos, photoPaths: photoPaths, turnId: turn);
+
+  UserItem withPhotoPaths(List<String> paths) =>
+      UserItem(id, text, photos: photos, photoPaths: paths, turnId: turnId);
 }
 
 final class AgentItem extends ChatItem {
@@ -281,6 +294,9 @@ class ChatNotifier extends Notifier<ChatState> {
   String? _turnId;
   int _userItemId = -1;
 
+  // The staged copies of the photos of the message being sent, until the server accepts it.
+  List<String> _staged = const <String>[];
+
   // A branch is made once per action: asking again after a failure reuses the request id, so no second branch appears.
   final Map<String, String> _forkKeys = <String, String>{};
 
@@ -448,10 +464,12 @@ class ChatNotifier extends Notifier<ChatState> {
       final origin = asJson(head['forkedFrom']);
       final turns = asJsonList(answer['turns']);
       final items = <ChatItem>[];
+      final store = await _openPhotos();
+      if (generation != _generation) return;
       for (final t in turns) {
         // A turn already sent in this run is on screen as it happened
         if (_sentIds.contains(str(t['clientMessageId']))) continue;
-        items.addAll(_restoredTurn(t));
+        items.addAll(_restoredTurn(t, store));
       }
       state = ChatState(
         chatId: head['id'] is String ? str(head['id']) : state.chatId,
@@ -478,9 +496,18 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   /// One earlier turn as read-only items: what was said, what was done, what was answered.
-  List<ChatItem> _restoredTurn(Json t) {
+  List<ChatItem> _restoredTurn(Json t, ChatPhotoStore? store) {
     final turn = t['id'] is String ? str(t['id']) : null;
-    final out = <ChatItem>[UserItem(_id(), str(t['text']), turnId: turn)];
+    final out = <ChatItem>[
+      UserItem(
+        _id(),
+        str(t['text']),
+        photoPaths: turn == null || store == null
+            ? const <String>[]
+            : store.photosOf(turn),
+        turnId: turn,
+      ),
+    ];
     for (final e in asJsonList(t['events'])) {
       switch (str(e['type'])) {
         case 'tool':
@@ -523,6 +550,56 @@ class ChatNotifier extends Notifier<ChatState> {
       out.add(NoticeItem(_id(), _words.chatNoAnswer));
     }
     return out;
+  }
+
+  // -- PHOTOS -- //
+
+  /// The photo store with its index read, or null when this phone holds no photos (or cannot read them): the conversation then shows words only.
+  Future<ChatPhotoStore?> _openPhotos() async {
+    try {
+      // Nothing was ever kept: no need to touch the files at all
+      final kept = ref
+          .read(prefsProvider)
+          .getKeys()
+          .any((k) => k.startsWith(photoIndexPrefix));
+      // Photos belong to a signed-in person: with no session the store is not opened
+      if (!kept || ref.read(sessionProvider).value == null) return null;
+      final store = ref.read(chatPhotoStoreProvider);
+      await store.ready();
+      return store;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Files the staged photos of the message just accepted under its turn and swaps their paths into the message on screen.
+  Future<void> _keepPhotos(int itemId, String turn, List<String> staged) async {
+    final generation = _generation;
+    try {
+      final kept = await ref.read(chatPhotoStoreProvider).promote(turn, staged);
+      if (generation != _generation) return;
+      // Nothing filed (a wipe, or the files would not move): the message goes back to words only rather than point at staging
+      _replace(
+        itemId,
+        (old) => old is UserItem ? old.withPhotoPaths(kept) : old,
+      );
+    } on Object {
+      // The thumbnails are a convenience: the message itself was sent
+      if (generation == _generation) {
+        _replace(
+          itemId,
+          (old) => old is UserItem ? old.withPhotoPaths(const <String>[]) : old,
+        );
+      }
+    }
+  }
+
+  Future<void> _discardPhotos(List<String> staged) async {
+    try {
+      await ref.read(chatPhotoStoreProvider).discard(staged);
+    } on Object {
+      // A leftover is swept at the next start
+    }
   }
 
   // -- BATCHING -- //
@@ -619,9 +696,13 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   /// Sends one message. [photoTexts] is the text the phone read from each photo, already within the budget of photo_budget.dart.
+  ///
+  /// [photoPaths] are the staged copies of those photos (see ChatPhotoStore.stage), in the same order. They are filed under the turn once the
+  /// server has accepted the message, and deleted if it never does.
   Future<void> send(
     String text, {
     List<String> photoTexts = const <String>[],
+    List<String> photoPaths = const <String>[],
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return;
@@ -630,7 +711,15 @@ class ChatNotifier extends Notifier<ChatState> {
     final userItemId = _id();
     _userItemId = userItemId;
     _sentIds.add(messageId);
-    _add(UserItem(userItemId, trimmed, photos: photoTexts.length));
+    _staged = List<String>.of(photoPaths);
+    _add(
+      UserItem(
+        userItemId,
+        trimmed,
+        photos: photoTexts.length,
+        photoPaths: photoPaths,
+      ),
+    );
     state = state.copyWith(busy: true, phase: TurnPhase.waiting);
     _stopped = false;
     final abort = Completer<void>();
@@ -700,6 +789,16 @@ class ChatNotifier extends Notifier<ChatState> {
         }
       }
     } finally {
+      // Photos never filed (the server did not accept the message) are not kept
+      if (_staged.isNotEmpty) {
+        final left = _staged;
+        _staged = const <String>[];
+        _replace(
+          userItemId,
+          (old) => old is UserItem ? old.withPhotoPaths(const <String>[]) : old,
+        );
+        unawaited(_discardPhotos(left));
+      }
       _closeTurn();
       if (_stopped) _add(NoticeItem(_id(), _words.chatStopped));
       _stopped = false;
@@ -719,6 +818,12 @@ class ChatNotifier extends Notifier<ChatState> {
             _userItemId,
             (old) => old is UserItem ? old.withTurn(turn) : old,
           );
+          // Once: a retried send reports its start again, and the files have already moved
+          if (_staged.isNotEmpty) {
+            final staged = _staged;
+            _staged = const <String>[];
+            unawaited(_keepPhotos(_userItemId, turn, staged));
+          }
         }
         state = state.copyWith(
           phase: TurnPhase.waiting,

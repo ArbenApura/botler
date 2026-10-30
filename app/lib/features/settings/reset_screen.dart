@@ -132,6 +132,14 @@ class _State extends ConsumerState<ResetScreen> {
       // Writes queued before the reset must not replay onto the empty account, and the saved calendar is old now
       await ref.read(outboxProvider).clear();
       ref.read(outboxCountProvider.notifier).refresh();
+      // The pictures of sent messages are part of what was reset
+      if (scope == 'memory_and_chat' || scope == 'everything') {
+        try {
+          await ref.read(chatPhotoStoreProvider).wipe();
+        } on Object {
+          // The reset itself is done; a folder that will not go is swept later
+        }
+      }
       await ref.read(prefsProvider).remove(calendarCacheKey);
       // The saved time travel answers hold the old balances too
       for (final key in simulateCacheKeys) {

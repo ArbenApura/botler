@@ -214,5 +214,19 @@
       "Bagong setting: Ipakita ang net na balanse. Ang mga account at ang kabuuan ay puwede nang mauna ang matitira pagkatapos ng mga bayarin bago ang susunod na sahod at ng perang nakalaan sa mga goal, at nasa ilalim, mas maliit, ang balanseng binilang mo.",
       "Buksan ang isang account para makita kung ano ang nakalaan at bakit. Masasabi na rin ng Botler ang net na balanse mo."
     ]
+  },
+  {
+    "versionCode": 25,
+    "versionName": "1.1.14",
+    "en": [
+      "When you choose photos for a message you now see the pictures themselves, with a spinner while Botler reads each one. Tap one to look at it, or tap the x to take it off.",
+      "Photos you sent show under your message. Tap one to open it full screen: pinch to zoom, drag to move, double tap to zoom in and back, swipe for the next photo, swipe down to close.",
+      "The pictures stay on this phone only, in the app's private storage (Botler still reads just the words from them). They are removed when you sign out or reset your chat data."
+    ],
+    "fil": [
+      "Kapag pumili ka ng mga litrato para sa mensahe, makikita mo na ang mismong litrato, may spinner habang binabasa ng Botler ang bawat isa. I-tap para tingnan, o i-tap ang x para alisin.",
+      "Lalabas sa ilalim ng mensahe mo ang mga litratong ipinadala mo. I-tap para buksan nang buong screen: i-pinch para mag-zoom, i-drag para ilipat, i-double tap para mag-zoom in at balik, mag-swipe para sa susunod na litrato, mag-swipe pababa para isara.",
+      "Sa phone na ito lang nananatili ang mga litrato, sa pribadong storage ng app (mga salita lang ang binabasa ng Botler mula sa mga ito). Tatanggalin ang mga ito kapag nag-sign out ka o nag-reset ng chat data."
+    ]
   }
 ]

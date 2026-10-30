@@ -25,6 +25,8 @@ class BotlerColors extends ThemeExtension<BotlerColors> {
     required this.warning,
     required this.success,
     required this.info,
+    required this.scrim,
+    required this.onScrim,
   });
 
   /// The page behind everything.
@@ -53,6 +55,12 @@ class BotlerColors extends ThemeExtension<BotlerColors> {
   final Color success;
   final Color info;
 
+  /// The backdrop of a picture shown full screen: dark in both modes so a photo is seen on its own.
+  final Color scrim;
+
+  /// Text and icons over [scrim].
+  final Color onScrim;
+
   @override
   BotlerColors copyWith({
     Color? paper,
@@ -69,6 +77,8 @@ class BotlerColors extends ThemeExtension<BotlerColors> {
     Color? warning,
     Color? success,
     Color? info,
+    Color? scrim,
+    Color? onScrim,
   }) => BotlerColors(
     paper: paper ?? this.paper,
     surface: surface ?? this.surface,
@@ -84,6 +94,8 @@ class BotlerColors extends ThemeExtension<BotlerColors> {
     warning: warning ?? this.warning,
     success: success ?? this.success,
     info: info ?? this.info,
+    scrim: scrim ?? this.scrim,
+    onScrim: onScrim ?? this.onScrim,
   );
 
   @override
@@ -105,6 +117,8 @@ class BotlerColors extends ThemeExtension<BotlerColors> {
       warning: mix(warning, other.warning),
       success: mix(success, other.success),
       info: mix(info, other.info),
+      scrim: mix(scrim, other.scrim),
+      onScrim: mix(onScrim, other.onScrim),
     );
   }
 }
@@ -126,6 +140,8 @@ const BotlerColors lightColors = BotlerColors(
   warning: Color(0xFF8A5E0B),
   success: Color(0xFF2F6B3E),
   info: Color(0xFF2F6285),
+  scrim: Color(0xFF14110E),
+  onScrim: Color(0xFFF3EEE3),
 );
 
 const BotlerColors darkColors = BotlerColors(
@@ -143,6 +159,8 @@ const BotlerColors darkColors = BotlerColors(
   warning: Color(0xFFE0B04F),
   success: Color(0xFF8CCB99),
   info: Color(0xFF8DBBDA),
+  scrim: Color(0xFF0B0A08),
+  onScrim: Color(0xFFEDE7DA),
 );
 
 // -- FUNCTIONS -- //

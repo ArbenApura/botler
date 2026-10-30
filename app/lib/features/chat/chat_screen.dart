@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import '../../core/chat_photos.dart';
 import '../../core/device.dart';
 import '../../core/photo_budget.dart';
 import '../../l10n/l10n.dart';
@@ -26,6 +27,7 @@ import 'chat_state.dart';
 import 'chats_drawer.dart';
 import 'live_parts.dart';
 import 'message_actions.dart';
+import 'photo_widgets.dart';
 import 'summary_card.dart';
 
 // -- TYPES -- //
@@ -53,6 +55,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// The photos read for the next message, in the order they were added.
   final List<PhotoNote> _photos = <PhotoNote>[];
 
+  /// Photos copied and shown, still being read. They have a tile with a spinner; sending waits for them.
+  final List<String> _pending = <String>[];
+
+  /// Where each copy came from, so a picture chosen twice is added once.
+  final Map<String, String> _sourceOf = <String, String>{};
+
+  /// The strip was showing at the last build: it appearing or going moves the end of the list.
+  bool _stripShown = false;
+
   /// Photos are being read: sending waits for them.
   bool _reading = false;
   bool _hearing = false;
@@ -65,6 +76,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// The person has scrolled well above the newest words, so the jump button shows.
   final ValueNotifier<bool> _away = ValueNotifier<bool>(false);
+
+  /// The photo store last used, so the copies still on the strip can be deleted when this screen goes away.
+  ChatPhotoStore? _store;
 
   /// The keyboard height last seen, to tell when it opens.
   double _keyboard = 0;
@@ -103,6 +117,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    // Photos chosen and never sent are not kept
+    final left = <String>[for (final p in _photos) p.path, ..._pending];
+    if (left.isNotEmpty)
+      unawaited(_store?.discard(left) ?? Future<void>.value());
     _away.dispose();
     // Release the microphone if the screen goes away while listening
     unawaited(_listener.stop());
@@ -297,59 +315,155 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       return;
     }
     _text.clear();
-    setState(_photos.clear);
+    final sent = <String>[for (final p in _photos) p.path];
+    // The copies now belong to the message being sent
+    setState(() {
+      _photos.clear();
+      _sourceOf.clear();
+    });
     if (photos.trimmed && mounted) say(context, context.t.chatPhotosTrimmed);
     await ref
         .read(chatProvider.notifier)
-        .send(text.isEmpty ? receipt : text, photoTexts: photos.texts);
+        .send(
+          text.isEmpty ? receipt : text,
+          photoTexts: photos.texts,
+          photoPaths: sent,
+        );
     ref
       ..invalidate(syncProvider)
       ..invalidate(balancesProvider);
+  }
+
+  /// Forgets every photo chosen for the next message and deletes their copies.
+  void _dropPhotos() {
+    final copies = <String>[for (final p in _photos) p.path, ..._pending];
+    setState(() {
+      _photos.clear();
+      _pending.clear();
+      _sourceOf.clear();
+    });
+    unawaited(ref.read(chatPhotoStoreProvider).discard(copies));
+  }
+
+  /// Takes the photo at [index] of the strip (the ones read first, then the ones still being read) off the next message.
+  void _removePhoto(int index) {
+    final String copy;
+    if (index < _photos.length) {
+      copy = _photos[index].path;
+    } else {
+      copy = _pending[index - _photos.length];
+    }
+    setState(() {
+      _photos.removeWhere((p) => p.path == copy);
+      _pending.remove(copy);
+      _sourceOf.remove(copy);
+    });
+    unawaited(ref.read(chatPhotoStoreProvider).discard(<String>[copy]));
   }
 
   /// Adds photos to the next message: one from the camera or several from the gallery. They are read one after another on the phone,
   /// the ones that hold no text are left out and counted, and a picture chosen twice is added once.
   Future<void> _photo(PhotoSource source) async {
     if (_reading) return;
+    // The photos wait while a message is edited: an edit sends only new words
+    if (ref.read(editProvider) != null) {
+      say(context, context.t.chatPhotoEditing);
+      return;
+    }
     final room = maxPhotos - _photos.length;
     if (room <= 0) {
       say(context, context.t.chatPhotosLimit(maxPhotos));
       return;
     }
     final reader = PhotoReader();
+    final store = ref.read(chatPhotoStoreProvider);
+    _store = store;
     final chatId = ref.read(chatProvider).chatId;
     var picked = 0;
     var unread = 0;
     var failed = false;
+    // The copies this pick made that are not yet read or dropped
+    final staged = <String>[];
     try {
       final paths = await pickPhotos(source, room: room);
       if (paths.isEmpty || !mounted) return;
       picked = paths.length;
       setState(() => _reading = true);
-      final seen = <String>{for (final p in _photos) p.path};
+      // Every picture is copied first (the picker's own copy can be cleared by the phone) so its tile shows at once, then read one by one
       for (final path in paths) {
+        if (staged.length + _photos.length + _pending.length >= maxPhotos) {
+          break;
+        }
+        if (_sourceOf.containsValue(path)) continue;
+        final copy = await store.stage(path);
+        if (copy == null) {
+          unread++;
+          continue;
+        }
+        staged.add(copy);
+        // Gone from the screen, or the person moved to another chat meanwhile: nothing of this pick is kept
+        if (!mounted || ref.read(chatProvider).chatId != chatId) return;
+        _sourceOf[copy] = path;
+        setState(() => _pending.add(copy));
+      }
+      for (final copy in List<String>.of(staged)) {
         if (!mounted) return;
-        if (_photos.length >= maxPhotos) break;
-        if (!seen.add(path)) continue;
+        // Removed by the person while waiting
+        if (!_pending.contains(copy)) {
+          staged.remove(copy);
+          continue;
+        }
         try {
-          final text = await reader.read(path);
+          final text = await reader.read(copy);
           if (!mounted) return;
-          // The person moved to another chat while this was read: the text is left out
+          // The person moved to another chat while this was read: the photo is left out
           if (ref.read(chatProvider).chatId != chatId) return;
+          // Removed during the read: not an unreadable photo, the person took it off
+          if (!_pending.contains(copy)) {
+            staged.remove(copy);
+            continue;
+          }
+          staged.remove(copy);
           if (text.isEmpty) {
             unread++;
+            setState(() {
+              _pending.remove(copy);
+              _sourceOf.remove(copy);
+            });
+            unawaited(store.discard(<String>[copy]));
           } else {
-            setState(() => _photos.add(PhotoNote(path, text)));
+            setState(() {
+              _pending.remove(copy);
+              _photos.add(PhotoNote(copy, text));
+            });
           }
         } on Object {
           // One photo that cannot be read does not stop the others
-          unread++;
+          staged.remove(copy);
+          if (_pending.contains(copy)) unread++;
+          if (mounted) {
+            setState(() {
+              _pending.remove(copy);
+              _sourceOf.remove(copy);
+            });
+          }
+          unawaited(store.discard(<String>[copy]));
         }
       }
     } on Object {
       failed = true;
     } finally {
       await reader.close();
+      // Copies left over (a chat switch, the screen going away, an error) are deleted and leave the strip
+      if (staged.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _pending.removeWhere(staged.contains);
+            staged.forEach(_sourceOf.remove);
+          });
+        }
+        unawaited(store.discard(staged));
+      }
       if (mounted) setState(() => _reading = false);
     }
     if (!mounted) return;
@@ -398,6 +512,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final c = context.colors;
     final chat = ref.watch(chatProvider);
     final pending = ref.watch(outboxCountProvider);
+    // While a message is edited the photos wait out of sight: an edit sends only new words
+    final stripShown =
+        (_photos.isNotEmpty || _pending.isNotEmpty) &&
+        ref.watch(editProvider) == null;
+    if (stripShown != _stripShown) {
+      _stripShown = stripShown;
+      // The strip shrinks or grows the list from the bottom: a person at the end stays at the end
+      _toEnd();
+    }
     ref.listen<EditTarget?>(editProvider, (prev, next) {
       if (next != null && next != prev) {
         _fill(next.text);
@@ -419,7 +542,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         // An edit belongs to the chat it was started in
         ref.read(editProvider.notifier).stop();
         // Photos belong to the chat they were added in: receipts for one conversation never go into another
-        if (_photos.isNotEmpty) setState(_photos.clear);
+        if (_photos.isNotEmpty || _pending.isNotEmpty) _dropPhotos();
       }
       if ((prev?.restored.isEmpty ?? true) && next.restored.isNotEmpty) {
         _keepPlaceAfterRestore();
@@ -633,35 +756,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 ],
               ),
             ),
-            if (_photos.isNotEmpty || _reading)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: <Widget>[
-                      for (var i = 0; i < _photos.length; i++)
-                        InputChip(
-                          key: ValueKey<String>('photo-${_photos[i].path}'),
-                          label: Text(
-                            context.t.chatPhotoItem(
-                              i + 1,
-                              _photos[i].text.length,
-                            ),
-                          ),
-                          deleteButtonTooltipMessage: context.t.chatPhotoRemove(
-                            i + 1,
-                          ),
-                          materialTapTargetSize: MaterialTapTargetSize.padded,
-                          onDeleted: () => setState(() => _photos.removeAt(i)),
-                        ),
-                      if (_reading)
-                        Chip(label: Text(context.t.chatPhotosReading)),
-                    ],
-                  ),
-                ),
+            if (stripShown)
+              PhotoStrip(
+                photos: <StripPhoto>[
+                  for (final p in _photos) StripPhoto(p.path, p.text.length),
+                  for (final p in _pending) StripPhoto(p, null),
+                ],
+                onRemove: _removePhoto,
               ),
             if (ref.watch(editProvider) != null)
               _EditingBar(onCancel: ref.read(editProvider.notifier).stop),

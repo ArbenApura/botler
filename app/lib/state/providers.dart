@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // -- MODULES -- //
 import '../core/api.dart';
 import '../core/auth.dart';
+import '../core/chat_photos.dart';
 import '../core/config.dart';
 import '../core/json.dart';
 import '../core/outbox.dart';
@@ -138,6 +139,15 @@ final Provider<Outbox> outboxProvider = Provider<Outbox>(
   (ref) => Outbox(ref.watch(prefsProvider)),
 );
 
+/// The photos of sent messages, kept on this phone for the signed-in person only. Tests override it with a temporary folder.
+final Provider<ChatPhotoStore> chatPhotoStoreProvider =
+    Provider<ChatPhotoStore>(
+      (ref) => ChatPhotoStore(
+        prefs: ref.watch(prefsProvider),
+        owner: ref.watch(sessionProvider).value?.email ?? 'local',
+      ),
+    );
+
 /// The seam to Firebase. Tests override it.
 final Provider<PushHost> pushHostProvider = Provider<PushHost>(
   (ref) => const FirebasePushHost(),
@@ -176,6 +186,12 @@ class SessionNotifier extends AsyncNotifier<Session?> {
           .timeout(const Duration(seconds: 8));
     } on Exception {
       // Push is optional: signing out never waits on it
+    }
+    // The next person on this phone must not find these photos
+    try {
+      await ref.read(chatPhotoStoreProvider).wipe();
+    } on Object {
+      // Signing out never waits on the photo folder
     }
     await ref.read(sessionStoreProvider).clear();
     state = const AsyncData<Session?>(null);

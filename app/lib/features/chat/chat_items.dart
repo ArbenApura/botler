@@ -22,6 +22,7 @@ import 'agent_text.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
 import 'message_actions.dart';
+import 'photo_widgets.dart';
 
 // -- FUNCTIONS -- //
 
@@ -63,34 +64,48 @@ class ChatItemView extends ConsumerWidget {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     return switch (item) {
-      UserItem(:final text, :final photos, :final turnId) => Align(
-        alignment: Alignment.centerRight,
-        child: _Actionable(
-          text: text,
-          turnId: turnId,
-          mine: true,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.8,
-            ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: c.chip,
-                borderRadius: BorderRadius.circular(18),
+      UserItem(:final text, :final photos, :final photoPaths, :final turnId) =>
+        Align(
+          alignment: Alignment.centerRight,
+          child: _Actionable(
+            text: text,
+            turnId: turnId,
+            mine: true,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.8,
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: c.chip,
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: Text(
-                  photos > 0 ? context.t.chatWithPhotos(text, photos) : text,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // The pictures themselves when this phone still has them, otherwise just the count of photos in words
+                      if (photoPaths.isNotEmpty) ...<Widget>[
+                        PhotoGrid(paths: photoPaths),
+                        const SizedBox(height: 8),
+                      ],
+                      Text(
+                        photos > 0 && photoPaths.isEmpty
+                            ? context.t.chatWithPhotos(text, photos)
+                            : text,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
       AgentItem(:final text, :final streaming, :final turnId) => Padding(
         padding: const EdgeInsets.only(right: 24),
         child: _Actionable(
