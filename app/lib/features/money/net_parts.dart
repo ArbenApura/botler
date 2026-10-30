@@ -49,6 +49,28 @@ Future<void> setShowNet(BuildContext context, WidgetRef ref, bool on) async {
   }
 }
 
+/// One hold in words: the bill with its date, the rule saving for a bill, the goal.
+String holdWords(BuildContext context, Json h) {
+  final t = context.t;
+  final label = str(h['label']);
+  final date = h['dueDate'] is String ? _day(context, str(h['dueDate'])) : '';
+  return switch (str(h['kind'])) {
+    'goal' => t.netHeldGoal(label),
+    'rule' => t.netHeldRule(label, date),
+    _ => t.netHeldBill(label, date),
+  };
+}
+
+/// Every hold of every wallet of an account, each with the currency of its own wallet, in the order the server sent them. Only wallets that
+/// have a net count: an older answer or one the server could not work out has no holds to show.
+List<({Json hold, String currency})> accountHolds(Json account) =>
+    <({Json hold, String currency})>[
+      for (final w in asJsonList(account['wallets']))
+        if (netInt(w, 'netBalance') != null)
+          for (final h in asJsonList(w['holds']))
+            (hold: h, currency: str(w['currency'], str(account['currency']))),
+    ];
+
 // -- WIDGETS -- //
 
 /// One wallet with the net leading: the net, then the balance counted smaller, then what a due bill still lacks. A wallet with no net shows
@@ -207,7 +229,7 @@ class NetHolds extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Expanded(child: Text(_holdWords(context, h))),
+                          Expanded(child: Text(holdWords(context, h))),
                           const SizedBox(width: 8),
                           Text(
                             context.moneyIn(intOf(h['amount']), currency),
@@ -223,15 +245,61 @@ class NetHolds extends StatelessWidget {
       ],
     );
   }
+}
 
-  String _holdWords(BuildContext context, Json h) {
-    final t = context.t;
-    final label = str(h['label']);
-    final date = h['dueDate'] is String ? _day(context, str(h['dueDate'])) : '';
-    return switch (str(h['kind'])) {
-      'goal' => t.netHeldGoal(label),
-      'rule' => t.netHeldRule(label, date),
-      _ => t.netHeldBill(label, date),
-    };
+/// What consumed an account, right on its card: the first few holds (bill with date, rule, goal) with their amounts, then "+N more". Nothing
+/// when the account holds nothing or has no net.
+class NetHoldLines extends StatelessWidget {
+  const NetHoldLines({required this.account, super.key});
+
+  final Json account;
+
+  /// More than this many lines are folded into a "+N more" line (the whole list is on the account's own screen).
+  static const int maxLines = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final holds = accountHolds(account);
+    if (holds.isEmpty) return const SizedBox.shrink();
+    final c = context.colors;
+    final shown = holds.take(maxLines).toList();
+    final more = holds.length - shown.length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(context.t.netTakenBy, style: TextStyle(color: c.muted)),
+          for (final h in shown)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      holdWords(context, h.hold),
+                      style: TextStyle(color: c.muted),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '-${context.moneyIn(intOf(h.hold['amount']), h.currency)}',
+                    style: TextStyle(color: c.muted, fontFeatures: tabular),
+                  ),
+                ],
+              ),
+            ),
+          if (more > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                context.t.netTakenMore(more),
+                style: TextStyle(color: c.muted),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

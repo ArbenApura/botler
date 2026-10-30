@@ -12,5 +12,12 @@
   "netHeldRule": "{label}, inipon para sa bayarin na due sa {date}",
   "netHeldGoal": "Nakalaan para sa goal: {label}",
   "netHeldNothing": "Walang nakalaan: net lahat ito.",
-  "netNetNow": "Net ngayon"
+  "netNetNow": "Net ngayon",
+  "netTakenBy": "Kinuha rito ng",
+  "netTakenMore": "+{count} pa, buksan ang account para makita lahat",
+  "drawerAccounts": "Mga account",
+  "drawerAccountsOpen": "Buksan ang lahat ng account",
+  "drawerAccountsEmpty": "Wala pang account.",
+  "drawerAccountsError": "Hindi ma-load ang mga account.",
+  "drawerAccountShort": "Kulang ng {amount}"
 }

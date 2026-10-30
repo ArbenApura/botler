@@ -1260,6 +1260,23 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String chatPhotoChars(int count) {
+    return '$count karakter ang nabasa';
+  }
+
+  @override
+  String get chatPhotoClose => 'Isara';
+
+  @override
+  String chatPhotoCount(int current, int total) {
+    return '$current sa $total';
+  }
+
+  @override
+  String get chatPhotoEditing =>
+      'Maghihintay ang mga litrato habang nag-e-edit ka ng mensahe.';
+
+  @override
   String get chatPhotoEmpty => 'Wala akong mabasang teksto sa litratong iyon.';
 
   @override
@@ -1277,12 +1294,31 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get chatPhotoMissing => 'Wala na ang litratong ito sa phone na ito.';
+
+  @override
+  String chatPhotoOpen(int number, int total) {
+    return 'Buksan ang litrato $number sa $total';
+  }
+
+  @override
   String chatPhotoRemove(int number) {
     return 'Alisin ang litrato $number';
   }
 
   @override
+  String chatPhotoTileReading(int number) {
+    return 'Binabasa ang litrato $number';
+  }
+
+  @override
   String get chatPhotoTooltip => 'Litrato ng resibo';
+
+  @override
+  String get chatPhotoZoomIn => 'I-zoom in';
+
+  @override
+  String get chatPhotoZoomOut => 'I-zoom out';
 
   @override
   String chatPhotosLimit(int count) {
@@ -1525,6 +1561,23 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get done => 'Tapos na';
+
+  @override
+  String drawerAccountShort(String amount) {
+    return 'Kulang ng $amount';
+  }
+
+  @override
+  String get drawerAccounts => 'Mga account';
+
+  @override
+  String get drawerAccountsEmpty => 'Wala pang account.';
+
+  @override
+  String get drawerAccountsError => 'Hindi ma-load ang mga account.';
+
+  @override
+  String get drawerAccountsOpen => 'Buksan ang lahat ng account';
 
   @override
   String get entryCurrencyLabel => 'Pera';
@@ -1843,6 +1896,14 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get netShowNet => 'Ipakita ang net na balanse';
+
+  @override
+  String get netTakenBy => 'Kinuha rito ng';
+
+  @override
+  String netTakenMore(int count) {
+    return '+$count pa, buksan ang account para makita lahat';
+  }
 
   @override
   String get netTotalTitle => 'Net, pagkatapos ng bayarin at goal';

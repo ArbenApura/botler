@@ -2119,6 +2119,30 @@ abstract class AppLocalizations {
   /// **'{count} waiting to be sent'**
   String chatPendingTooltip(int count);
 
+  /// No description provided for @chatPhotoChars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters read'**
+  String chatPhotoChars(int count);
+
+  /// No description provided for @chatPhotoClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get chatPhotoClose;
+
+  /// No description provided for @chatPhotoCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String chatPhotoCount(int current, int total);
+
+  /// No description provided for @chatPhotoEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos wait while you edit a message.'**
+  String get chatPhotoEditing;
+
   /// No description provided for @chatPhotoEmpty.
   ///
   /// In en, this message translates to:
@@ -2137,17 +2161,47 @@ abstract class AppLocalizations {
   /// **'Photo {number} ({count, plural, =1{{count} character} other{{count} characters}})'**
   String chatPhotoItem(int number, int count);
 
+  /// No description provided for @chatPhotoMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo is no longer on this phone.'**
+  String get chatPhotoMissing;
+
+  /// No description provided for @chatPhotoOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open photo {number} of {total}'**
+  String chatPhotoOpen(int number, int total);
+
   /// No description provided for @chatPhotoRemove.
   ///
   /// In en, this message translates to:
   /// **'Remove photo {number}'**
   String chatPhotoRemove(int number);
 
+  /// No description provided for @chatPhotoTileReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading photo {number}'**
+  String chatPhotoTileReading(int number);
+
   /// No description provided for @chatPhotoTooltip.
   ///
   /// In en, this message translates to:
   /// **'Photo of a receipt'**
   String get chatPhotoTooltip;
+
+  /// No description provided for @chatPhotoZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get chatPhotoZoomIn;
+
+  /// No description provided for @chatPhotoZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get chatPhotoZoomOut;
 
   /// No description provided for @chatPhotosLimit.
   ///
@@ -2568,6 +2622,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get done;
+
+  /// No description provided for @drawerAccountShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Short by {amount}'**
+  String drawerAccountShort(String amount);
+
+  /// No description provided for @drawerAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get drawerAccounts;
+
+  /// No description provided for @drawerAccountsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts yet.'**
+  String get drawerAccountsEmpty;
+
+  /// No description provided for @drawerAccountsError.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts could not be loaded.'**
+  String get drawerAccountsError;
+
+  /// No description provided for @drawerAccountsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open all accounts'**
+  String get drawerAccountsOpen;
 
   /// No description provided for @entryCurrencyLabel.
   ///
@@ -3120,6 +3204,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show net balance'**
   String get netShowNet;
+
+  /// No description provided for @netTakenBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Taken from this by'**
+  String get netTakenBy;
+
+  /// No description provided for @netTakenMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more, open the account to see all'**
+  String netTakenMore(int count);
 
   /// No description provided for @netTotalTitle.
   ///

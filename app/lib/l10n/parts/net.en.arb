@@ -17,5 +17,14 @@
   "netHeldGoal": "Kept for the goal: {label}",
   "@netHeldGoal": { "placeholders": { "label": { "type": "String" } } },
   "netHeldNothing": "Nothing is held: all of it is net.",
-  "netNetNow": "Net now"
+  "netNetNow": "Net now",
+  "netTakenBy": "Taken from this by",
+  "netTakenMore": "+{count} more, open the account to see all",
+  "@netTakenMore": { "placeholders": { "count": { "type": "int" } } },
+  "drawerAccounts": "Accounts",
+  "drawerAccountsOpen": "Open all accounts",
+  "drawerAccountsEmpty": "No accounts yet.",
+  "drawerAccountsError": "Accounts could not be loaded.",
+  "drawerAccountShort": "Short by {amount}",
+  "@drawerAccountShort": { "placeholders": { "amount": { "type": "String" } } }
 }

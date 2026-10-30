@@ -1252,6 +1252,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String chatPhotoChars(int count) {
+    return '$count characters read';
+  }
+
+  @override
+  String get chatPhotoClose => 'Close';
+
+  @override
+  String chatPhotoCount(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get chatPhotoEditing => 'Photos wait while you edit a message.';
+
+  @override
   String get chatPhotoEmpty => 'I could not read any text on that photo.';
 
   @override
@@ -1269,12 +1285,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatPhotoMissing => 'This photo is no longer on this phone.';
+
+  @override
+  String chatPhotoOpen(int number, int total) {
+    return 'Open photo $number of $total';
+  }
+
+  @override
   String chatPhotoRemove(int number) {
     return 'Remove photo $number';
   }
 
   @override
+  String chatPhotoTileReading(int number) {
+    return 'Reading photo $number';
+  }
+
+  @override
   String get chatPhotoTooltip => 'Photo of a receipt';
+
+  @override
+  String get chatPhotoZoomIn => 'Zoom in';
+
+  @override
+  String get chatPhotoZoomOut => 'Zoom out';
 
   @override
   String chatPhotosLimit(int count) {
@@ -1516,6 +1551,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get done => 'Done';
+
+  @override
+  String drawerAccountShort(String amount) {
+    return 'Short by $amount';
+  }
+
+  @override
+  String get drawerAccounts => 'Accounts';
+
+  @override
+  String get drawerAccountsEmpty => 'No accounts yet.';
+
+  @override
+  String get drawerAccountsError => 'Accounts could not be loaded.';
+
+  @override
+  String get drawerAccountsOpen => 'Open all accounts';
 
   @override
   String get entryCurrencyLabel => 'Currency';
@@ -1830,6 +1882,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get netShowNet => 'Show net balance';
+
+  @override
+  String get netTakenBy => 'Taken from this by';
+
+  @override
+  String netTakenMore(int count) {
+    return '+$count more, open the account to see all';
+  }
 
   @override
   String get netTotalTitle => 'Net, after bills and goals';

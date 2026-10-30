@@ -62,48 +62,57 @@ class AccountsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: PaperCard(
                   onTap: () => context.push('/account/${str(a['id'])}'),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              str(a['name']),
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            PurposeChip(purposeOf(a)),
-                            Text(
-                              a['countedAt'] == null
-                                  ? context.t.accountsNeverCounted
-                                  : context.t.accountsCounted(
-                                      _ago(context, str(a['countedAt'])),
-                                    ),
-                              style: TextStyle(color: c.muted),
-                            ),
-                            if (boolOf(a['belowMinimum']))
-                              Text(
-                                context.t.accountsBelowMinimum,
-                                style: TextStyle(color: c.warning),
-                              ),
-                            if (!hasWalletIn(a, context.currencyCode) &&
-                                intOf(a['minBalance']) > 0)
-                              Text(
-                                context.t.accountsNoMainWallet(
-                                  context.currencyCode,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  str(a['name']),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
                                 ),
-                                style: TextStyle(color: c.muted),
-                              ),
-                          ],
-                        ),
+                                PurposeChip(purposeOf(a)),
+                                Text(
+                                  a['countedAt'] == null
+                                      ? context.t.accountsNeverCounted
+                                      : context.t.accountsCounted(
+                                          _ago(context, str(a['countedAt'])),
+                                        ),
+                                  style: TextStyle(color: c.muted),
+                                ),
+                                if (boolOf(a['belowMinimum']))
+                                  Text(
+                                    context.t.accountsBelowMinimum,
+                                    style: TextStyle(color: c.warning),
+                                  ),
+                                if (!hasWalletIn(a, context.currencyCode) &&
+                                    intOf(a['minBalance']) > 0)
+                                  Text(
+                                    context.t.accountsNoMainWallet(
+                                      context.currencyCode,
+                                    ),
+                                    style: TextStyle(color: c.muted),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          _Wallets(
+                            account: a,
+                            subtotal: subtotals[str(a['id'])],
+                            main: context.currencyCode,
+                            net: net,
+                          ),
+                        ],
                       ),
-                      _Wallets(
-                        account: a,
-                        subtotal: subtotals[str(a['id'])],
-                        main: context.currencyCode,
-                        net: net,
-                      ),
+                      // What consumed the net: the first few bills, rules and goals (only with the net on and sent)
+                      if (net) NetHoldLines(account: a),
                     ],
                   ),
                 ),

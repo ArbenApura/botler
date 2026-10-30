@@ -946,6 +946,27 @@
       }
     }
   },
+  "chatPhotoChars": "{count} characters read",
+  "@chatPhotoChars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoClose": "Close",
+  "chatPhotoCount": "{current} of {total}",
+  "@chatPhotoCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "chatPhotoEditing": "Photos wait while you edit a message.",
   "chatPhotoEmpty": "I could not read any text on that photo.",
   "chatPhotoFailed": "The photo could not be read.",
   "chatPhotoItem": "Photo {number} ({count, plural, =1{{count} character} other{{count} characters}})",
@@ -959,6 +980,18 @@
       }
     }
   },
+  "chatPhotoMissing": "This photo is no longer on this phone.",
+  "chatPhotoOpen": "Open photo {number} of {total}",
+  "@chatPhotoOpen": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "chatPhotoRemove": "Remove photo {number}",
   "@chatPhotoRemove": {
     "placeholders": {
@@ -967,7 +1000,17 @@
       }
     }
   },
+  "chatPhotoTileReading": "Reading photo {number}",
+  "@chatPhotoTileReading": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "chatPhotoTooltip": "Photo of a receipt",
+  "chatPhotoZoomIn": "Zoom in",
+  "chatPhotoZoomOut": "Zoom out",
   "chatPhotosLimit": "At most {count} photos in one message.",
   "@chatPhotosLimit": {
     "placeholders": {
@@ -1100,6 +1143,18 @@
   "close": "Close",
   "delete": "Delete",
   "done": "Done",
+  "drawerAccountShort": "Short by {amount}",
+  "@drawerAccountShort": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "drawerAccounts": "Accounts",
+  "drawerAccountsEmpty": "No accounts yet.",
+  "drawerAccountsError": "Accounts could not be loaded.",
+  "drawerAccountsOpen": "Open all accounts",
   "entryCurrencyLabel": "Currency",
   "entryCurrencyOther": "Other…",
   "expenseAmountError": "Type the amount in {code}, like 180 or 1,250.50.",
@@ -1320,6 +1375,15 @@
   },
   "netShowGross": "Show the balance as counted",
   "netShowNet": "Show net balance",
+  "netTakenBy": "Taken from this by",
+  "netTakenMore": "+{count} more, open the account to see all",
+  "@netTakenMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "netTotalTitle": "Net, after bills and goals",
   "netUnavailable": "The net balance could not be worked out just now. Balances are shown as counted.",
   "no": "No",

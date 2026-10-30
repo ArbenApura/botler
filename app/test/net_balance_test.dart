@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
+import 'package:botler/features/chat/drawer_accounts.dart';
 import 'package:botler/features/money/accounts_screen.dart';
 import 'package:botler/features/money/net_parts.dart';
 import 'package:botler/l10n/l10n.dart';
@@ -85,6 +86,7 @@ Future<ProviderContainer> _container({
   bool netNull = false,
   bool refuseSave = false,
   List<String>? saved,
+  List<Json>? accounts,
 }) async {
   SharedPreferences.setMockInitialValues(<String, Object>{
     'settings.showNet': net,
@@ -109,9 +111,8 @@ Future<ProviderContainer> _container({
       saved?.add(jsonEncode(body));
     }
     final result = switch (verb) {
-      'accounts_balances' => <Json>[
-        _account(withNet: serverNet, netNull: netNull),
-      ],
+      'accounts_balances' =>
+        accounts ?? <Json>[_account(withNet: serverNet, netNull: netNull)],
       'assets_summary' => _assets(withNet: serverNet && !netNull),
       'settings_set' => <String, Object?>{
         'settings': <String, Object?>{'showNetBalance': !net},
@@ -359,6 +360,167 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('₱1,234.00'), findsOneWidget);
       expect(find.textContaining('Balance'), findsNothing);
+    });
+  });
+
+  group('what consumed an account', () {
+    Json four() {
+      final a = _account();
+      final w = asJsonList(a['wallets']).first;
+      return <String, Object?>{
+        ...a,
+        'wallets': <Json>[
+          <String, Object?>{
+            ...w,
+            'holds': <Json>[
+              for (final n in <String>['Rent', 'Meralco', 'Wifi', 'Water'])
+                <String, Object?>{
+                  'kind': 'bill',
+                  'label': n,
+                  'amount': 10000,
+                  'dueDate': '2026-11-05',
+                },
+            ],
+          },
+        ],
+      };
+    }
+
+    testWidgets('lists the first three bills on the card and folds the rest', (
+      tester,
+    ) async {
+      final c = await _container(accounts: <Json>[four()]);
+      await tester.pumpWidget(_app(c, const AccountsScreen()));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Taken from this by'), 200);
+      expect(find.text('Rent, due Nov 5'), findsOneWidget);
+      expect(find.text('Meralco, due Nov 5'), findsOneWidget);
+      expect(find.text('Wifi, due Nov 5'), findsOneWidget);
+      expect(find.text('Water, due Nov 5'), findsNothing);
+      expect(find.text('+1 more, open the account to see all'), findsOneWidget);
+      expect(find.text('-₱100.00'), findsNWidgets(3));
+    });
+
+    testWidgets('shows no lines with the net off', (tester) async {
+      final c = await _container(net: false, accounts: <Json>[four()]);
+      await tester.pumpWidget(_app(c, const AccountsScreen()));
+      await tester.pumpAndSettle();
+      expect(find.text('Taken from this by'), findsNothing);
+    });
+
+    testWidgets('shows no lines when the server sent no net', (tester) async {
+      final c = await _container(serverNet: false);
+      await tester.pumpWidget(_app(c, const AccountsScreen()));
+      await tester.pumpAndSettle();
+      expect(find.text('Taken from this by'), findsNothing);
+    });
+  });
+
+  group('the chat drawer shortcut', () {
+    Widget drawerApp(ProviderContainer c) => UncontrolledProviderScope(
+      container: c,
+      child: MaterialApp.router(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: buildTheme(Brightness.light),
+        routerConfig: GoRouter(
+          routes: <RouteBase>[
+            GoRoute(
+              path: '/',
+              builder: (_, _) => Scaffold(
+                appBar: AppBar(),
+                drawer: const Drawer(child: DrawerAccounts()),
+                body: const SizedBox(),
+              ),
+            ),
+            GoRoute(
+              path: '/account/:id',
+              builder: (_, state) =>
+                  Text('detail ${state.pathParameters['id']}'),
+            ),
+            GoRoute(path: '/accounts', builder: (_, _) => const Text('all')),
+          ],
+        ),
+      ),
+    );
+
+    Future<void> open(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Open navigation menu'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shows each account with its net, and what a due bill lacks', (
+      tester,
+    ) async {
+      await tester.pumpWidget(drawerApp(await _container()));
+      await tester.pumpAndSettle();
+      await open(tester);
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.text('GCash'), findsOneWidget);
+      expect(find.text('₱0.00'), findsOneWidget);
+      expect(find.text('Short by ₱500.00'), findsOneWidget);
+    });
+
+    testWidgets('shows the balance as counted with the net off', (
+      tester,
+    ) async {
+      await tester.pumpWidget(drawerApp(await _container(net: false)));
+      await tester.pumpAndSettle();
+      await open(tester);
+      expect(find.text('₱1,000.00'), findsOneWidget);
+      expect(find.textContaining('Short by'), findsNothing);
+    });
+
+    testWidgets('opens the account, or all accounts, and closes the drawer', (
+      tester,
+    ) async {
+      await tester.pumpWidget(drawerApp(await _container()));
+      await tester.pumpAndSettle();
+      await open(tester);
+      await tester.tap(find.text('GCash'));
+      await tester.pumpAndSettle();
+      expect(find.text('detail acc-gcash'), findsOneWidget);
+    });
+
+    testWidgets('holds at 360 dp in Filipino with many accounts', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360 * 2, 640 * 2);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      final many = <Json>[
+        for (var i = 0; i < 8; i++)
+          <String, Object?>{
+            ..._account(),
+            'id': 'a$i',
+            'name': 'Account number $i',
+          },
+      ];
+      final c = await _container(accounts: many);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            locale: const Locale('fil'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: buildTheme(Brightness.light),
+            home: const Scaffold(
+              body: Column(
+                children: <Widget>[
+                  Expanded(child: Center(child: Text('chats'))),
+                  DrawerAccounts(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('chats'), findsOneWidget);
+      expect(find.text('Mga account'), findsOneWidget);
     });
   });
 
