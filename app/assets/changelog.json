@@ -288,5 +288,21 @@
       "Ipinapakita na ng wallet button sa chat ang bawat currency ng isang account. Ang Wise account na may piso at dolyar ay nagpapakita ng pareho, hindi lang ang piso.",
       "Wala na ang listahan ng mga account sa ilalim ng menu ng chat. Buksan ang Accounts mula sa wallet button o sa pangunahing menu."
     ]
+  },
+  {
+    "versionCode": 31,
+    "versionName": "1.1.20",
+    "en": [
+      "You can now delete earlier payday splits, one by one or all at once, from the Payday screen. Botler can delete them too when you ask. You choose whether the pay and transfers they recorded are also taken out of your balances.",
+      "The Payday screen is simpler. Your next payday comes first and its split sits right under it, ready to approve. Tap a payday to change or delete it, and stop or delete a rule from its menu. The pay is filled in for you.",
+      "A payday that already has an approved split can no longer be planned twice, so the pay is never recorded twice. Splits now say when a rule was skipped, and a rule for a hidden account is skipped.",
+      "Photos in the chat no longer show a number under them."
+    ],
+    "fil": [
+      "Puwede mo nang burahin ang mga naunang split ng payday, isa-isa o lahat nang sabay, sa Payday screen. Mabubura rin ito ni Botler kapag hiniling mo. Ikaw ang pipili kung aalisin din sa mga balanse mo ang sahod at mga transfer na naitala nito.",
+      "Mas simple na ang Payday screen. Nauuna ang susunod mong payday at nasa ilalim nito ang split, handa nang aprubahan. I-tap ang payday para baguhin o burahin ito, at itigil o burahin ang rule mula sa menu nito. Nakalagay na ang sahod.",
+      "Hindi na mapaplano nang dalawang beses ang payday na may aprubadong split, kaya hindi na maitatala nang dalawang beses ang sahod. Sinasabi na ng mga split kung may nilaktawang rule, at nilalaktawan ang rule para sa nakatagong account.",
+      "Wala nang numerong lumalabas sa ilalim ng mga larawan sa chat."
+    ]
   }
 ]

@@ -735,7 +735,11 @@ export const goalDeleteInput = z.object({ goalId: idField });
 export const billDeleteInput = z.object({ billId: idField });
 
 /** A payday schedule removed. One that a payday split was made for is switched off instead. */
-export const incomeDeleteInput = z.object({ incomeId: idField });
+/** withSplits also removes the payday splits made for it, so the payday itself can go instead of being switched off. */
+export const incomeDeleteInput = z.object({
+	incomeId: idField,
+	withSplits: z.boolean().optional()
+});
 
 /** A payday rule removed for good, whatever its status. */
 export const ruleDeleteInput = z.object({ ruleId: idField });
@@ -897,11 +901,28 @@ export const splitProposeInput = z.object({
 
 export const splitIdInput = z.object({ splitId: idField });
 
+export const splitListInput = z.object({
+	limit: z.number().int().min(1).max(50).optional(),
+	/** Splits replaced by a newer proposal are left out unless this is true. */
+	includeReplaced: z.boolean().optional()
+});
+
 export const splitApproveInput = z.object({
 	splitId: idField,
 	/** Write the pay into the ledger too. Defaults to yes once the payday has come, and to no before it. */
 	recordIncome: z.boolean().optional()
 });
+
+/** Removes one recorded split, or all of them. removeEntries also voids the pay and the transfers the split wrote to the ledger. */
+export const splitDeleteInput = z
+	.object({
+		splitId: idField.optional(),
+		all: z.boolean().optional(),
+		removeEntries: z.boolean().optional()
+	})
+	.refine((v) => (v.splitId !== undefined) !== (v.all === true), {
+		message: 'Name one split (splitId), or send all: true to remove every split.'
+	});
 
 export const splitSentInput = z.object({
 	splitId: idField,

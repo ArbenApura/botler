@@ -51,7 +51,8 @@ void main() {
       );
       expect(find.byType(PhotoThumb), findsNWidgets(2));
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('120'), findsOneWidget);
+      // The number of characters read is not shown
+      expect(find.text('120'), findsNothing);
     });
 
     testWidgets(
@@ -91,47 +92,43 @@ void main() {
       },
     );
 
-    testWidgets(
-      'keeps one height whatever it holds, and grows only with the text size',
-      (tester) async {
-        await tester.pumpWidget(
-          _app(
-            PhotoStrip(
-              photos: const <StripPhoto>[StripPhoto('/nope/a.jpg', 5)],
-              onRemove: (_) {},
-            ),
+    testWidgets('keeps one height whatever it holds and at any text size', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          PhotoStrip(
+            photos: const <StripPhoto>[StripPhoto('/nope/a.jpg', 5)],
+            onRemove: (_) {},
           ),
-        );
-        final one = tester.getSize(find.byType(PhotoStrip)).height;
-        await tester.pumpWidget(
-          _app(
-            PhotoStrip(
-              photos: const <StripPhoto>[
-                StripPhoto('/nope/a.jpg', 5),
-                StripPhoto('/nope/b.jpg', null),
-                StripPhoto('/nope/c.jpg', 77777),
-              ],
-              onRemove: (_) {},
-            ),
+        ),
+      );
+      final one = tester.getSize(find.byType(PhotoStrip)).height;
+      await tester.pumpWidget(
+        _app(
+          PhotoStrip(
+            photos: const <StripPhoto>[
+              StripPhoto('/nope/a.jpg', 5),
+              StripPhoto('/nope/b.jpg', null),
+              StripPhoto('/nope/c.jpg', 77777),
+            ],
+            onRemove: (_) {},
           ),
-        );
-        expect(tester.getSize(find.byType(PhotoStrip)).height, one);
-        await tester.pumpWidget(
-          _app(
-            PhotoStrip(
-              photos: const <StripPhoto>[StripPhoto('/nope/a.jpg', 5)],
-              onRemove: (_) {},
-            ),
-            textScale: 2,
+        ),
+      );
+      expect(tester.getSize(find.byType(PhotoStrip)).height, one);
+      await tester.pumpWidget(
+        _app(
+          PhotoStrip(
+            photos: const <StripPhoto>[StripPhoto('/nope/a.jpg', 5)],
+            onRemove: (_) {},
           ),
-        );
-        expect(
-          tester.getSize(find.byType(PhotoStrip)).height,
-          greaterThan(one),
-        );
-        expect(tester.takeException(), isNull);
-      },
-    );
+          textScale: 2,
+        ),
+      );
+      expect(tester.getSize(find.byType(PhotoStrip)).height, one);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('PhotoGrid', () {

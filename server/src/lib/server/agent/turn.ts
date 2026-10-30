@@ -142,6 +142,7 @@ export const DELETE_VERBS: ReadonlySet<string> = new Set([
 	'bill_delete',
 	'income_delete',
 	'rule_delete',
+	'split_delete',
 	'account_delete',
 	'account_wallet_remove',
 	'goal_delete',
@@ -379,7 +380,8 @@ async function executeTool(
 	if (tool.kind === 'free' && state.tainted)
 		return asCard('Untrusted text was read in this message, so even records wait for approval.');
 	if (tool.kind === 'free' && DELETE_VERBS.has(tool.name)) {
-		state.deletes += 1;
+		// Clearing every split at once uses the whole allowance of the message, so it cannot be followed by more deletes
+		state.deletes += tool.name === 'split_delete' && args.all === true ? limits.maxDeletes : 1;
 		if (state.deletes > limits.maxDeletes)
 			return asCard(
 				`At most ${limits.maxDeletes} deletes are done at once in one message, so this one waits for approval.`

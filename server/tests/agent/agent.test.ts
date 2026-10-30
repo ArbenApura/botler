@@ -131,6 +131,7 @@ describe('the verb registry', () => {
 				'income_create',
 				'income_delete',
 				'rule_delete',
+				'split_delete',
 				'bill_update',
 				'bill_mark_paid',
 				'bill_occurrence_update',

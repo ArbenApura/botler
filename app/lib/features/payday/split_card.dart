@@ -14,15 +14,24 @@ import '../../state/providers.dart';
 import '../../theme/theme.dart' show tabular;
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'payday_actions.dart';
 
 // -- TYPES -- //
 
 class SplitCard extends ConsumerStatefulWidget {
-  const SplitCard({required this.plan, this.onChanged, super.key});
+  const SplitCard({
+    required this.plan,
+    this.onChanged,
+    this.onPlanAgain,
+    super.key,
+  });
 
   /// A split plan as the server sends it.
   final Json plan;
   final VoidCallback? onChanged;
+
+  /// Asks for a new split for the same payday. Offered only while the split is not approved yet.
+  final VoidCallback? onPlanAgain;
 
   @override
   ConsumerState<SplitCard> createState() => _SplitCardState();
@@ -41,18 +50,9 @@ class _SplitCardState extends ConsumerState<SplitCard> {
     try {
       final r = await ref.read(apiProvider).verb(verb, args);
       if (!mounted) return;
-      // Approve returns the plan; mark-sent returns the transfer, so the plan is read again after it
+      // Approve returns the plan; mark-sent returns the transfer and the plan with it
       if (verb == 'split_approve') _plan = asJson(r);
-      if (verb == 'split_mark_sent') {
-        final plans = await ref.read(apiProvider).verbList(
-          'split_list',
-          <String, Object?>{'limit': 10},
-        );
-        _plan = plans.firstWhere(
-          (p) => str(p['id']) == str(_plan['id']),
-          orElse: () => _plan,
-        );
-      }
+      if (verb == 'split_mark_sent') _plan = asJson(asJson(r)['plan']);
       if (!mounted) return;
       say(context, done);
       widget.onChanged?.call();
@@ -76,11 +76,31 @@ class _SplitCardState extends ConsumerState<SplitCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            context.t.splitPayday(str(_plan['payday'])),
-            style: Theme.of(context).textTheme.titleMedium,
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  context.t.splitPayday(str(_plan['payday'])),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: context.t.splitMenu,
+                enabled: !_busy,
+                onSelected: (_) async {
+                  if (await deleteSplitSheet(context, ref, plan: _plan)) {
+                    widget.onChanged?.call();
+                  }
+                },
+                itemBuilder: (_) => <PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Text(context.t.splitDeleteButton),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
           Amount(
             intOf(_plan['pay']),
             style: Theme.of(context).textTheme.headlineMedium,
@@ -119,6 +139,13 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 ),
               ),
           ],
+          // A rule left out of this split (its goal is off, or its account is hidden) is said, so the pay is never moved without a reason
+          if (!_short)
+            for (final r in asJsonList(_result['skippedRules']))
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(str(r['note']), style: TextStyle(color: c.warning)),
+              ),
           // What of the bills did not come from this pay: money already in their account, and what a rule saved for them (BTL-20261029-0119)
           if (!_short) _FromElsewhere(result: _result, names: names),
           // Bills in another currency were counted at the rate of the day the split was made, and the split keeps that rate
@@ -160,6 +187,16 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 }, done: context.t.splitMarkedSent),
               ),
           ],
+          if (_short && widget.onPlanAgain != null) ...<Widget>[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _busy ? null : widget.onPlanAgain,
+                child: Text(context.t.splitPlanAgain),
+              ),
+            ),
+          ],
           if (!_short && !_approved) ...<Widget>[
             const SizedBox(height: 12),
             SizedBox(
@@ -173,6 +210,14 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 child: Text(context.t.splitApproveButton),
               ),
             ),
+            if (widget.onPlanAgain != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _busy ? null : widget.onPlanAgain,
+                  child: Text(context.t.splitPlanAgain),
+                ),
+              ),
           ],
           if (_approved)
             Padding(

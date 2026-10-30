@@ -93,6 +93,8 @@ import {
 	rulesListInput,
 	snapshotRecordInput,
 	splitApproveInput,
+	splitDeleteInput,
+	splitListInput,
 	splitProposeInput,
 	splitSentInput,
 	transferRecordInput,
@@ -219,6 +221,7 @@ import {
 import { parse, requireBill } from './shared';
 import {
 	approveSplit,
+	deleteSplits,
 	listSplits,
 	markTransferSent,
 	proposeSplitPlan,
@@ -449,9 +452,10 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'split_list',
 		kind: 'read',
-		description: 'Recent payday splits.',
-		input: limitInput,
-		run: (ctx, a) => listSplits(ctx, a.limit)
+		description:
+			'Recent payday splits, newest first, with their id, payday, pay and status. Splits replaced by a newer proposal are left out unless includeReplaced is true.',
+		input: splitListInput,
+		run: (ctx, a) => listSplits(ctx, a.limit, a.includeReplaced)
 	}),
 	verb({
 		name: 'split_upcoming',
@@ -962,7 +966,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'income_delete',
 		kind: 'free',
 		description:
-			'Remove a payday schedule. Done at once, no card. One that a payday split was made for keeps that history and is switched off instead. The answer holds the removed schedule. Name what you removed.',
+			'Remove a payday schedule. Done at once, no card. One that a payday split was made for keeps that history and is switched off instead, unless withSplits is true, which removes its splits (split_delete) and then the payday. The answer holds the removed schedule. Name what you removed.',
 		input: incomeDeleteInput,
 		run: (ctx, a) => deleteIncome(ctx, a)
 	}),
@@ -973,6 +977,14 @@ export const VERBS: readonly Verb[] = [
 			'Give a payday rule a short label saying what it is for (like "Emergency fund"), or link it to the bill it saves for with fundsBillId (a fixed rule into the account the bill is paid from; the split then pays the bill from what the rule set aside). A field left out stays as it is; null clears it. Amounts and targets need a new rule. Answers with the changed rule.',
 		input: ruleUpdateInput,
 		run: (ctx, a) => updateRule(ctx, a)
+	}),
+	verb({
+		name: 'split_delete',
+		kind: 'free',
+		description:
+			'Remove recorded payday splits for good, whatever their status: one with splitId (read split_list with includeReplaced true first and name it back to the person), or every split with all true (only when the person clearly asked to clear them all; it uses up the delete allowance of the message). Done at once when nothing untrusted was read. The money that really moved stays in the ledger as plain entries; removeEntries true takes the pay and transfers of those splits out of the balances too, changes what the person sees in every account, and always waits for their approval as a card. Bills, rules and paydays are not touched. The answer holds the removed split (the whole row for one) and cannot be undone. Name what you removed.',
+		input: splitDeleteInput,
+		run: (ctx, a) => deleteSplits(ctx, a)
 	}),
 	verb({
 		name: 'rule_delete',

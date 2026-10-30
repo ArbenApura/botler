@@ -1,6 +1,7 @@
-// PAYDAY: WHEN YOUR PAY ARRIVES, THE SPLIT FOR EACH PAYDAY (PLAN IT, THEN APPROVE IT), AND THE RULES FOR WHERE THE REST GOES.
+// PAYDAY: THE NEXT PAYDAYS WITH THEIR SPLIT RIGHT UNDER THEM (PLAN IT, CHECK IT, APPROVE IT), YOUR PAYDAYS, THE RULES FOR WHERE THE REST GOES, AND THE EARLIER SPLITS.
 // A rule you write in words ("20% to emergency fund") is shown as a sentence and applies only after you approve it. A pay that is too small is
-// shown with the gap and what could be cut, and there is nothing to approve until you decide.
+// shown with the gap and what could be cut, and there is nothing to approve until you decide. Everything here can be changed or deleted:
+// paydays, rules and splits each have a menu, and every delete says first what it does.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
@@ -15,7 +16,7 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../money/bills_parts.dart' show niceDate;
-import '../money/schedule_picker.dart';
+import 'payday_actions.dart';
 import 'rule_funding.dart';
 import 'split_card.dart';
 
@@ -40,9 +41,26 @@ final FutureProvider<List<Json>> _billsProvider =
 final FutureProvider<List<Json>> _splitsProvider =
     FutureProvider.autoDispose<List<Json>>(
       (ref) => ref.watch(apiProvider).verbList('split_list', <String, Object?>{
-        'limit': 8,
+        'limit': 30,
       }),
     );
+
+/// The statuses of a split that is still being worked on: shown right under its payday rather than among the earlier ones.
+const Set<String> _openStatuses = <String>{'proposed', 'shortfall', 'approved'};
+
+// -- FUNCTIONS -- //
+
+/// The split being worked on for this payday of this income, or null.
+Json? _openPlanFor(List<Json> plans, Json upcoming) {
+  for (final p in plans) {
+    if (_openStatuses.contains(str(p['status'])) &&
+        str(p['incomeScheduleId']) == str(upcoming['incomeId']) &&
+        str(p['payday']) == str(upcoming['payday'])) {
+      return p;
+    }
+  }
+  return null;
+}
 
 // -- TYPES -- //
 
@@ -65,38 +83,12 @@ class PaydayScreen extends ConsumerWidget {
     final c = context.colors;
     // The bills a rule can save for; while they load or if they fail, the rule cards just show no "Saves for" row
     final bills = ref.watch(_billsProvider).value ?? const <Json>[];
+    final plans = ref.watch(_splitsProvider).value ?? const <Json>[];
     return Scaffold(
       appBar: AppBar(title: Text(context.t.paydayTitle)),
       body: ListView(
         padding: pagePadding(context),
         children: <Widget>[
-          SectionTitle(context.t.paydayYours),
-          AsyncBody<List<Json>>(
-            value: ref.watch(_incomeProvider),
-            skeleton: const SkeletonRows(count: 2),
-            onRetry: () => ref.invalidate(_incomeProvider),
-            data: (list) => Column(
-              children: <Widget>[
-                if (list.isEmpty) Note(context.t.paydayEmpty),
-                for (final i in list)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(str(i['label'])),
-                    subtitle: Text(
-                      i['expectedAmount'] == null
-                          ? context.t.paydayDifferent
-                          : '${context.t.paydayUsually(context.moneyMain(intOf(i['expectedAmount'])))} · ${describeSchedule(context.t, Localizations.localeOf(context).toString(), asJson(i['schedule'])) ?? context.t.schedUnknown}',
-                      style: TextStyle(color: c.muted),
-                    ),
-                  ),
-                OutlinedButton.icon(
-                  onPressed: () => _addIncome(context, ref),
-                  icon: const Icon(Icons.add),
-                  label: Text(context.t.paydayAdd),
-                ),
-              ],
-            ),
-          ),
           SectionTitle(context.t.paydayComingUp),
           AsyncBody<List<Json>>(
             value: ref.watch(_upcomingProvider),
@@ -105,37 +97,26 @@ class PaydayScreen extends ConsumerWidget {
             data: (list) => Column(
               children: <Widget>[
                 if (list.isEmpty) Note(context.t.paydayNoneAhead),
-                for (final u in list)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: PaperCard(
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  str(u['label']),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
-                                ),
-                                Text(
-                                  niceDate(context, str(u['payday'])),
-                                  style: TextStyle(color: c.muted),
-                                ),
-                              ],
-                            ),
-                          ),
-                          FilledButton(
-                            onPressed: () => _plan(context, ref, u),
-                            child: Text(context.t.paydayPlan),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                for (final u in list) _upcoming(context, ref, u, plans, c),
+              ],
+            ),
+          ),
+          SectionTitle(context.t.paydayYours),
+          AsyncBody<List<Json>>(
+            value: ref.watch(_incomeProvider),
+            skeleton: const SkeletonRows(count: 2),
+            onRetry: () => ref.invalidate(_incomeProvider),
+            data: (list) => Column(
+              children: <Widget>[
+                if (list.isEmpty) Note(context.t.paydayEmpty),
+                for (final i in list) _incomeTile(context, ref, i, c),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    if (await incomeSheet(context, ref)) _refresh(ref);
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text(context.t.paydayAdd),
+                ),
               ],
             ),
           ),
@@ -146,80 +127,13 @@ class PaydayScreen extends ConsumerWidget {
             onRetry: () => ref.invalidate(_rulesProvider),
             data: (list) => Column(
               children: <Widget>[
-                if (list.where((r) => str(r['status']) != 'retired').isEmpty)
-                  Note(context.t.paydayRulesEmpty),
-                for (final r in list.where(
-                  (r) => str(r['status']) != 'retired',
-                ))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: PaperCard(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                if (str(r['label']).isNotEmpty)
-                                  Text(
-                                    str(r['label']),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                Text(ruleSentence(r)),
-                                // A rule that can save for a bill offers it; one that already does names the bill
-                                if (str(r['fundsBillName']).isNotEmpty ||
-                                    billsForRule(
-                                      r,
-                                      bills,
-                                      context.currencyCode,
-                                    ).isNotEmpty)
-                                  SavesForRow(
-                                    billName: str(r['fundsBillName']),
-                                    onTap: () async {
-                                      if (await pickSavesFor(
-                                        context,
-                                        ref,
-                                        r,
-                                        billsForRule(
-                                          r,
-                                          bills,
-                                          context.currencyCode,
-                                        ),
-                                      )) {
-                                        _refresh(ref);
-                                      }
-                                    },
-                                  ),
-                                if (str(r['status']) == 'proposed')
-                                  Text(
-                                    context.t.paydayWaiting,
-                                    style: TextStyle(color: c.warning),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (str(r['status']) == 'proposed')
-                            FilledButton(
-                              onPressed: () =>
-                                  _do(context, ref, 'rule_approve', r),
-                              child: Text(context.t.paydayApprove),
-                            ),
-                          TextButton(
-                            onPressed: () =>
-                                _do(context, ref, 'rule_retire', r),
-                            child: Text(
-                              str(r['status']) == 'proposed'
-                                  ? context.t.paydayDecline
-                                  : context.t.paydayStop,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                if (list.isEmpty) Note(context.t.paydayRulesEmpty),
+                // Rules in force and waiting first, stopped ones after them
+                for (final r in <Json>[
+                  ...list.where((r) => str(r['status']) != 'retired'),
+                  ...list.where((r) => str(r['status']) == 'retired'),
+                ])
+                  _ruleCard(context, ref, r, bills, c),
                 OutlinedButton.icon(
                   onPressed: () => _addRule(context, ref),
                   icon: const Icon(Icons.add),
@@ -233,27 +147,301 @@ class PaydayScreen extends ConsumerWidget {
             value: ref.watch(_splitsProvider),
             skeleton: const SkeletonRows(count: 2),
             onRetry: () => ref.invalidate(_splitsProvider),
-            data: (list) => Column(
-              children: <Widget>[
-                if (!list.any((p) => str(p['status']) != 'superseded'))
-                  Note(context.t.paydayNoEarlier),
-                for (final p in list.where(
-                  (p) => str(p['status']) != 'superseded',
-                ))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: SplitCard(
-                      key: ValueKey<String>(
-                        '${str(p['id'])}${str(p['status'])}',
+            data: (list) {
+              final upcoming = ref.watch(_upcomingProvider).value ?? const [];
+              final shown = <String>{
+                for (final u in upcoming)
+                  if (_openPlanFor(list, u) case final p?) str(p['id']),
+              };
+              final earlier = <Json>[
+                for (final p in list)
+                  if (!shown.contains(str(p['id']))) p,
+              ];
+              return Column(
+                children: <Widget>[
+                  if (earlier.isEmpty) Note(context.t.paydayNoEarlier),
+                  for (final p in earlier)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: SplitCard(
+                        key: ValueKey<String>(
+                          '${str(p['id'])}${str(p['status'])}',
+                        ),
+                        plan: p,
+                        onChanged: () => _refresh(ref),
                       ),
-                      plan: p,
-                      onChanged: () => _refresh(ref),
                     ),
+                  if (earlier.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () async {
+                          if (await deleteSplitSheet(context, ref)) {
+                            _refresh(ref);
+                          }
+                        },
+                        child: Text(
+                          context.t.splitClearAll,
+                          style: TextStyle(color: c.danger),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One coming payday: its name and date with the button that plans it, or, once planned, the split itself with its own buttons.
+  Widget _upcoming(
+    BuildContext context,
+    WidgetRef ref,
+    Json u,
+    List<Json> plans,
+    BotlerColors c,
+  ) {
+    final plan = _openPlanFor(plans, u);
+    final head = Row(
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                str(u['label']),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                niceDate(context, str(u['payday'])),
+                style: TextStyle(color: c.muted),
+              ),
+            ],
+          ),
+        ),
+        if (plan == null)
+          FilledButton(
+            onPressed: () => _plan(context, ref, u),
+            child: Text(context.t.paydayPlan),
+          ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: plan == null
+          ? PaperCard(child: head)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                  child: head,
+                ),
+                SplitCard(
+                  key: ValueKey<String>(
+                    '${str(plan['id'])}${str(plan['status'])}',
+                  ),
+                  plan: plan,
+                  onChanged: () => _refresh(ref),
+                  // An approved split is not planned again: it is deleted first, which the card's menu does
+                  onPlanAgain: str(plan['status']) == 'approved'
+                      ? null
+                      : () => _plan(context, ref, u),
+                ),
+              ],
+            ),
+    );
+  }
+
+  /// One payday of yours. A tap opens it to change or delete.
+  Widget _incomeTile(
+    BuildContext context,
+    WidgetRef ref,
+    Json i,
+    BotlerColors c,
+  ) {
+    final off = i['active'] == false;
+    return Semantics(
+      button: true,
+      label: context.t.paydayEditMenu,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        minTileHeight: 56,
+        title: Text(str(i['label'])),
+        subtitle: Text(
+          [
+            if (off) context.t.paydayOff,
+            if (i['expectedAmount'] == null)
+              context.t.paydayDifferent
+            else
+              context.t.paydayUsually(
+                context.moneyMain(intOf(i['expectedAmount'])),
+              ),
+            describeSchedule(
+                  context.t,
+                  Localizations.localeOf(context).toString(),
+                  asJson(i['schedule']),
+                ) ??
+                context.t.schedUnknown,
+          ].join(' Â· '),
+          style: TextStyle(color: off ? c.warning : c.muted),
+        ),
+        trailing: Icon(Icons.chevron_right, color: c.muted),
+        onTap: () async {
+          if (await incomeSheet(context, ref, existing: i)) _refresh(ref);
+        },
+      ),
+    );
+  }
+
+  /// One rule: its sentence, what it saves for, and the buttons that fit where it is. A waiting rule is approved or declined; one in force
+  /// can be stopped or deleted; a stopped one can be deleted.
+  Widget _ruleCard(
+    BuildContext context,
+    WidgetRef ref,
+    Json r,
+    List<Json> bills,
+    BotlerColors c,
+  ) {
+    final status = str(r['status']);
+    final stopped = status == 'retired';
+    final waiting = status == 'proposed';
+    final name = str(r['label']).isNotEmpty ? str(r['label']) : ruleSentence(r);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: PaperCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      if (str(r['label']).isNotEmpty)
+                        Text(
+                          str(r['label']),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      Text(
+                        ruleSentence(r),
+                        style: TextStyle(color: stopped ? c.muted : null),
+                      ),
+                      if (waiting)
+                        Text(
+                          context.t.paydayWaiting,
+                          style: TextStyle(color: c.warning),
+                        ),
+                      if (stopped)
+                        Text(
+                          context.t.paydayRuleStopped,
+                          style: TextStyle(color: c.muted),
+                        ),
+                    ],
+                  ),
+                ),
+                if (!waiting)
+                  PopupMenuButton<String>(
+                    tooltip: context.t.paydayRuleMenu,
+                    onSelected: (v) async {
+                      if (v == 'stop') {
+                        final yes = await confirm(
+                          context,
+                          title: context.t.paydayStopTitle,
+                          body: context.t.paydayStopBody,
+                          yes: context.t.paydayStopYes,
+                        );
+                        if (yes && context.mounted) {
+                          await _do(
+                            context,
+                            ref,
+                            'rule_retire',
+                            r,
+                            context.t.paydayStopped,
+                          );
+                        }
+                      } else if (v == 'delete') {
+                        final yes = await confirm(
+                          context,
+                          title: context.t.paydayRuleDeleteTitle,
+                          body: context.t.paydayRuleDeleteBody(name),
+                          yes: context.t.paydayRuleDeleteYes,
+                          danger: true,
+                        );
+                        if (yes && context.mounted) {
+                          await _do(
+                            context,
+                            ref,
+                            'rule_delete',
+                            r,
+                            context.t.paydayRuleDeleted,
+                          );
+                        }
+                      }
+                    },
+                    itemBuilder: (_) => <PopupMenuEntry<String>>[
+                      if (!stopped)
+                        PopupMenuItem<String>(
+                          value: 'stop',
+                          child: Text(context.t.paydayStop),
+                        ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Text(context.t.paydayRuleDeleteButton),
+                      ),
+                    ],
                   ),
               ],
             ),
-          ),
-        ],
+            // A rule that can save for a bill offers it; one that already does names the bill
+            if (!stopped &&
+                (str(r['fundsBillName']).isNotEmpty ||
+                    billsForRule(r, bills, context.currencyCode).isNotEmpty))
+              SavesForRow(
+                billName: str(r['fundsBillName']),
+                onTap: () async {
+                  if (await pickSavesFor(
+                    context,
+                    ref,
+                    r,
+                    billsForRule(r, bills, context.currencyCode),
+                  )) {
+                    _refresh(ref);
+                  }
+                },
+              ),
+            if (waiting)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => _do(
+                        context,
+                        ref,
+                        'rule_retire',
+                        r,
+                        context.t.paydayDeclined,
+                      ),
+                      child: Text(context.t.paydayDecline),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () =>
+                          _do(context, ref, 'rule_approve', r, null),
+                      child: Text(context.t.paydayApprove),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -263,31 +451,38 @@ class PaydayScreen extends ConsumerWidget {
     WidgetRef ref,
     String verb,
     Json rule,
+    String? done,
   ) async {
     try {
       await ref.read(apiProvider).verb(verb, <String, Object?>{
         'ruleId': str(rule['id']),
       });
       _refresh(ref);
+      if (done != null && context.mounted) say(context, done);
     } catch (e) {
       if (context.mounted) say(context, errorWords(e, context));
     }
   }
 
   Future<void> _plan(BuildContext context, WidgetRef ref, Json upcoming) async {
-    final pay = TextEditingController();
+    // The usual pay is filled in, so the common case is one tap
+    final usual = _usualPay(ref, upcoming);
+    final pay = TextEditingController(
+      text: usual == null ? '' : context.plainAmountMain(usual),
+    );
     final result = await showFormSheet<Json>(
       context,
       title: context.t.paydayPlanTitle(
         str(upcoming['label']),
-        str(upcoming['payday']),
+        niceDate(context, str(upcoming['payday'])),
       ),
       builder: (sheet, close) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Field(
             controller: pay,
-            label: sheet.t.paydayPayLabel,
+            label: sheet.t.paydayPayThisTime(sheet.currencyCode),
+            hint: sheet.t.paydayPayEmptyHint,
             keyboard: const TextInputType.numberWithOptions(decimal: true),
           ),
           FilledButton(
@@ -329,6 +524,19 @@ class PaydayScreen extends ConsumerWidget {
       return;
     }
     _refresh(ref);
+    // The split now sits right under its payday, so say where to look
+    say(context, context.t.paydaySplitReady);
+  }
+
+  /// What this income usually pays, in minor units, or null when it varies.
+  int? _usualPay(WidgetRef ref, Json upcoming) {
+    final incomes = ref.read(_incomeProvider).value ?? const <Json>[];
+    for (final i in incomes) {
+      if (str(i['id']) == str(upcoming['incomeId'])) {
+        return i['expectedAmount'] is int ? intOf(i['expectedAmount']) : null;
+      }
+    }
+    return null;
   }
 
   Future<void> _addRule(BuildContext context, WidgetRef ref) async {
@@ -373,94 +581,6 @@ class PaydayScreen extends ConsumerWidget {
             child: Text(sheet.t.paydayRuleAddButton),
           ),
         ],
-      ),
-    );
-    if (done == true) _refresh(ref);
-  }
-
-  Future<void> _addIncome(BuildContext context, WidgetRef ref) async {
-    final label = TextEditingController(text: context.t.paydayIncomeDefault);
-    final amount = TextEditingController();
-    final schedule = ScheduleValue(
-      pattern: SchedulePattern.semiMonthly,
-      day: 15,
-      day2: 30,
-    );
-    final accounts = await ref.read(balancesProvider.future);
-    var accountId = str(accounts.firstOrNull?['id']);
-    if (!context.mounted) return;
-    final done = await showFormSheet<bool>(
-      context,
-      title: context.t.paydayIncomeTitle,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(
-              controller: label,
-              label: sheet.t.paydayIncomeLabel,
-              capitalization: TextCapitalization.words,
-            ),
-            Field(
-              controller: amount,
-              label: sheet.t.paydayIncomeAmountLabel(sheet.currencyCode),
-              keyboard: const TextInputType.numberWithOptions(decimal: true),
-            ),
-            Text(
-              sheet.t.paydayLandsIn,
-              style: TextStyle(color: sheet.colors.muted),
-            ),
-            Wrap(
-              spacing: 8,
-              children: <Widget>[
-                for (final a in accounts)
-                  ChoiceChip(
-                    label: Text(str(a['name'])),
-                    selected: str(a['id']) == accountId,
-                    onSelected: (_) => setState(() => accountId = str(a['id'])),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // A payday is one day, so the patterns that give a window of days are not offered
-            SchedulePicker(
-              value: schedule,
-              weekend: 'before',
-              singleDayOnly: true,
-              onChanged: () => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: () async {
-                final cents = amount.text.trim().isEmpty
-                    ? null
-                    : context.parseAmountMain(amount.text);
-                if (label.text.trim().isEmpty ||
-                    accountId.isEmpty ||
-                    (amount.text.trim().isNotEmpty && cents == null)) {
-                  say(sheet, sheet.t.paydayIncomeInvalid);
-                  return;
-                }
-                try {
-                  await ref.read(apiProvider).verb(
-                    'income_create',
-                    <String, Object?>{
-                      'label': label.text.trim(),
-                      'accountId': accountId,
-                      'expectedAmount': cents,
-                      'schedule': schedule.toJson(),
-                      'weekendRule': 'before',
-                    },
-                  );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.save),
-            ),
-          ],
-        ),
       ),
     );
     if (done == true) _refresh(ref);

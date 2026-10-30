@@ -162,6 +162,10 @@ export function describeAction(
 			return `Propose a payday rule: ${args.mode === 'fixed' ? money(args.amount) : args.mode === 'percent' ? `${(num(args.basisPoints) ?? 0) / 100}%` : 'the rest'} to ${nm(args.targetAccountId ?? args.targetGoalId)}${typeof args.label === 'string' ? `, named "${text(args.label, 60)}"` : ''}${typeof args.fundsBillId === 'string' ? `, saving for the bill "${names.get(args.fundsBillId) ?? 'a bill'}"` : ''}. It still waits for your approval.`;
 		case 'rule_delete':
 			return `Remove the payday rule ${names.get(typeof args.ruleId === 'string' ? args.ruleId : '') ?? 'a rule'} for good.`;
+		case 'split_delete':
+			return args.all === true
+				? `Remove every recorded payday split for good, as they are when you approve${args.removeEntries === true ? ', and take the pay and transfers they wrote out of your balances, which changes your account balances' : '. The pay and transfers already in your ledger stay'}. This cannot be undone.`
+				: `Remove one recorded payday split for good${args.removeEntries === true ? ', and take its pay and transfers out of your balances, which changes your account balances' : '. The pay and transfers it wrote to your ledger stay'}. This cannot be undone.`;
 		case 'account_delete':
 			return `Remove the account ${nm(args.accountId)}. If it has entries or balance counts it is hidden instead and its history stays; if a bill, payday, goal or rule still uses it, nothing happens.`;
 		case 'account_wallet_remove':

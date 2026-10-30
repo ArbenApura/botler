@@ -12,15 +12,15 @@ import type { BrokenLink } from '../../finance/funding';
 import type { SplitResult } from '../../finance/split';
 import type { SplitProposeInput } from '../db/zod';
 // -- DEP-MODULES -- //
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { canConvert, convertUp, showRate } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
 import { fundingAt, planFlows } from '../../finance/planFlows';
 import { proposeSplit } from '../../finance/split';
-import { account, allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
-import { splitApproveInput, splitProposeInput, splitSentInput } from '../db/zod';
+import { account, allocationRule, goal, incomeSchedule, ledgerTxn, splitPlan } from '../db/schema';
+import { splitApproveInput, splitDeleteInput, splitProposeInput, splitSentInput } from '../db/zod';
 import { OpsError, run, runWrite } from './context';
 import { loadRates } from '../fx/store';
 import { dueBills } from './bills';
@@ -112,7 +112,7 @@ export async function proposeSplitPlan(
 		const due = (await dueBills(tx, userId, payday, periodEnd)).filter((b) => !b.paid);
 		const unknown = due.filter((b) => b.unknownAmount);
 		const accounts = await tx
-			.select({ id: account.id, name: account.name })
+			.select({ id: account.id, name: account.name, archivedAt: account.archivedAt })
 			.from(account)
 			.where(eq(account.userId, userId));
 		const everyGoal = await tx.select().from(goal).where(eq(goal.userId, userId));
@@ -124,7 +124,13 @@ export async function proposeSplitPlan(
 			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')));
 		// A rule that points at a goal that is switched off cannot be placed: it is left out before the totals and the checks, so the pay it
 		// would have taken goes where unclaimed pay always goes, and the plan says which rule was skipped
-		const rules = inForce.filter((r) => !r.targetGoalId || live.has(r.targetGoalId));
+		// A rule into an account the person hid is left out the same way, so money never goes to an account they no longer see
+		const hidden = new Set(accounts.filter((a) => a.archivedAt !== null).map((a) => a.id));
+		const rules = inForce.filter(
+			(r) =>
+				(!r.targetGoalId || live.has(r.targetGoalId)) &&
+				(!r.targetAccountId || !hidden.has(r.targetAccountId))
+		);
 		// What the split may take from money already in the accounts, and the rules that save for bills: the plan's own flows from today to
 		// the day before this payday give each account's balance at its start, as the forecast does
 		const now = new Date();
@@ -149,12 +155,30 @@ export async function proposeSplitPlan(
 				? planFlows(plan, { mode: 'future', from: today, to: addDays(payday, -1), today }).flows
 				: [];
 		const funding = fundingAt(plan, before, payday, today);
-		const skipped = inForce
-			.filter((r) => r.targetGoalId && !live.has(r.targetGoalId))
-			.map((r) => ({
-				ruleId: r.id,
-				goal: everyGoal.find((g) => g.id === r.targetGoalId)?.name ?? 'a goal that is gone'
-			}));
+		const skipped = [
+			...inForce
+				.filter((r) => r.targetGoalId && !live.has(r.targetGoalId))
+				.map((r) => {
+					const goalName =
+						everyGoal.find((g) => g.id === r.targetGoalId)?.name ?? 'a goal that is gone';
+					return {
+						ruleId: r.id,
+						goal: goalName,
+						note: `The rule for "${goalName}" was skipped because that goal is switched off. Its share stayed with the rest of the pay.`
+					};
+				}),
+			...inForce
+				.filter((r) => r.targetAccountId && hidden.has(r.targetAccountId))
+				.map((r) => {
+					const accountName =
+						accounts.find((a) => a.id === r.targetAccountId)?.name ?? 'an account that is gone';
+					return {
+						ruleId: r.id,
+						goal: accountName,
+						note: `The rule for "${accountName}" was skipped because that account is hidden. Its share stayed with the rest of the pay.`
+					};
+				})
+		];
 		return {
 			inc,
 			payday,
@@ -258,10 +282,7 @@ export async function proposeSplitPlan(
 		accountNames: names,
 		...(gathered.skipped.length > 0
 			? {
-					skippedRules: gathered.skipped.map((s) => ({
-						...s,
-						note: `The rule for "${s.goal}" was skipped because that goal is switched off.`
-					}))
+					skippedRules: gathered.skipped
 				}
 			: {}),
 		...(foreignBills.length > 0 ? { foreignBills } : {}),
@@ -269,6 +290,29 @@ export async function proposeSplitPlan(
 	};
 	return mapped(() =>
 		runWrite(ctx, 'split.propose', input, async (tx, userId) => {
+			// One approved split per payday: the income row is locked so a propose racing an approve cannot slip past
+			await tx
+				.select({ id: incomeSchedule.id })
+				.from(incomeSchedule)
+				.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, gathered.inc.id)))
+				.for('update');
+			const [approved] = await tx
+				.select({ id: splitPlan.id })
+				.from(splitPlan)
+				.where(
+					and(
+						eq(splitPlan.userId, userId),
+						eq(splitPlan.incomeScheduleId, gathered.inc.id),
+						eq(splitPlan.payday, gathered.payday),
+						eq(splitPlan.status, 'approved')
+					)
+				)
+				.limit(1);
+			if (approved)
+				throw new OpsError(
+					'CONFLICT',
+					`The split for ${gathered.payday} is already approved. Delete it first if you want to plan this payday again.`
+				);
 			// A newer proposal for the same payday replaces the open ones
 			await tx
 				.update(splitPlan)
@@ -300,7 +344,10 @@ export async function proposeSplitPlan(
 }
 
 /** The person approves a split. A shortfall cannot be approved. Only a person can. */
-export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncome?: boolean }) {
+export async function approveSplit(
+	ctx: Ctx,
+	raw: { splitId: string; recordIncome?: boolean }
+): Promise<SplitPlanView & { payRecorded: boolean }> {
 	requirePerson(ctx.actor.kind, 'approve a split');
 	const input = parse(splitApproveInput, raw);
 	return mapped(() =>
@@ -317,6 +364,34 @@ export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncom
 				);
 			if (plan.status !== 'proposed')
 				throw new OpsError('CONFLICT', 'That split is not waiting for approval.');
+			// Never two approved splits for one payday: the income row is locked for the check
+			if (plan.incomeScheduleId) {
+				await tx
+					.select({ id: incomeSchedule.id })
+					.from(incomeSchedule)
+					.where(
+						and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, plan.incomeScheduleId))
+					)
+					.for('update');
+				const [other] = await tx
+					.select({ id: splitPlan.id })
+					.from(splitPlan)
+					.where(
+						and(
+							eq(splitPlan.userId, userId),
+							eq(splitPlan.incomeScheduleId, plan.incomeScheduleId),
+							eq(splitPlan.payday, plan.payday),
+							eq(splitPlan.status, 'approved'),
+							ne(splitPlan.id, plan.id)
+						)
+					)
+					.limit(1);
+				if (other)
+					throw new OpsError(
+						'CONFLICT',
+						`The split for ${plan.payday} is already approved. Delete it first if you want to use this one.`
+					);
+			}
 			const stored = plan.result as StoredSplit;
 			const today = toManilaDate(new Date());
 			const [done] = await tx
@@ -337,37 +412,64 @@ export async function approveSplit(ctx: Ctx, raw: { splitId: string; recordIncom
 				.returning();
 			if (!done) throw new OpsError('CONFLICT', 'That split changed while you approved it.');
 			// The split is a money plan, so the pay lands in the main currency wallet of the income account (opened if need be)
-			if (input.recordIncome ?? plan.payday <= today)
-				await insertTxn(
-					tx,
-					userId,
-					ctx.requestId,
-					{
-						type: 'income',
-						accountId: stored.incomeAccountId,
-						amount: plan.pay,
-						currency: (await readSettings(tx, userId)).currency,
-						category: 'income',
-						note: 'Pay',
-						source: 'split',
-						splitId: plan.id
-					},
-					{ journal: false }
-				);
-			return view(done);
+			// A pay the person already recorded that day (same account, same amount) is not recorded a second time
+			let payRecorded = false;
+			if (input.recordIncome ?? plan.payday <= today) {
+				const [already] = await tx
+					.select({ id: ledgerTxn.id })
+					.from(ledgerTxn)
+					.where(
+						and(
+							eq(ledgerTxn.userId, userId),
+							eq(ledgerTxn.accountId, stored.incomeAccountId),
+							eq(ledgerTxn.type, 'income'),
+							eq(ledgerTxn.amount, plan.pay),
+							isNull(ledgerTxn.voidedAt),
+							ne(ledgerTxn.source, 'split'),
+							gte(ledgerTxn.occurredAt, manilaStart(plan.payday)),
+							lt(ledgerTxn.occurredAt, manilaStart(addDays(plan.payday, 1)))
+						)
+					)
+					.limit(1);
+				if (!already) {
+					await insertTxn(
+						tx,
+						userId,
+						ctx.requestId,
+						{
+							type: 'income',
+							accountId: stored.incomeAccountId,
+							amount: plan.pay,
+							currency: (await readSettings(tx, userId)).currency,
+							category: 'income',
+							note: 'Pay',
+							source: 'split',
+							splitId: plan.id
+						},
+						{ journal: false }
+					);
+					payRecorded = true;
+				}
+			}
+			return { ...view(done), payRecorded };
 		})
 	);
 }
 
 /** Records that the person made one transfer of the approved split. It becomes a transfer in the ledger, so it is never spending. */
-export async function markTransferSent(ctx: Ctx, raw: { splitId: string; index: number }) {
+export async function markTransferSent(
+	ctx: Ctx,
+	raw: { splitId: string; index: number }
+): Promise<{ txnId: string; index: number; plan: SplitPlanView }> {
 	const input = parse(splitSentInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'split.markSent', input, async (tx, userId) => {
 			const [plan] = await tx
 				.select()
 				.from(splitPlan)
-				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, input.splitId)));
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, input.splitId)))
+				// The row is held until this transfer is saved, so a double tap or a second phone cannot send it twice
+				.for('update');
 			if (!plan) throw new OpsError('NOT_FOUND', 'That split does not exist.');
 			if (plan.status !== 'approved') throw new OpsError('INVALID', 'Approve the split first.');
 			const stored = plan.result as StoredSplit;
@@ -390,24 +492,102 @@ export async function markTransferSent(ctx: Ctx, raw: { splitId: string; index: 
 				source: 'split',
 				splitId: plan.id
 			});
-			await tx
+			const [updated] = await tx
 				.update(splitPlan)
 				.set({
 					sentTransfers: [...sent, { index: input.index, txnId: txn.id }],
 					updatedAt: sql`now()`
 				})
-				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, plan.id)));
-			return { txnId: txn.id, index: input.index };
+				.where(and(eq(splitPlan.userId, userId), eq(splitPlan.id, plan.id)))
+				.returning();
+			if (!updated) throw new OpsError('NOT_FOUND', 'That split does not exist.');
+			return { txnId: txn.id, index: input.index, plan: view(updated) };
 		})
 	);
 }
 
-export async function listSplits(ctx: Ctx, limit = 10): Promise<SplitPlanView[]> {
+/**
+ * Removes recorded payday splits for good: one, or every one of the person, whatever their status (proposed, shortfall, approved,
+ * replaced). The person and the assistant may both do it (owner decision 2026-10-31). The money that really moved stays in the ledger as
+ * plain entries unless removeEntries is set, which voids the pay and the transfers the splits wrote so the balances go back. Nothing else
+ * is touched: bills, rules and paydays stay. The audit trail keeps every delete. The answer lists what was removed.
+ */
+export async function deleteSplits(
+	ctx: Ctx,
+	raw: unknown
+): Promise<{
+	deleted: number;
+	entriesVoided: number;
+	voidedTxnIds: string[];
+	/** One split deleted: the whole removed row, so it can be read back. Many: a short line each (the newest 50). */
+	splits: (SplitPlanView | { id: string; payday: string; pay: number; status: string })[];
+}> {
+	const input = parse(splitDeleteInput, raw);
+	// Taking the pay and transfers out of the balances changes what the person sees in every account, so it is theirs to do: the assistant
+	// asks with a card (a free verb that needs the person comes back as one)
+	if (input.removeEntries) requirePerson(ctx.actor.kind, 'take split entries out of the balances');
+	return mapped(() =>
+		runWrite(ctx, 'split.delete', input, async (tx, userId) => {
+			const rows = await tx
+				.select()
+				.from(splitPlan)
+				.where(
+					input.splitId
+						? and(eq(splitPlan.userId, userId), eq(splitPlan.id, input.splitId))
+						: eq(splitPlan.userId, userId)
+				);
+			if (input.splitId && rows.length === 0)
+				throw new OpsError('NOT_FOUND', 'That split does not exist.');
+			const ids = rows.map((r) => r.id);
+			let voidedTxnIds: string[] = [];
+			if (input.removeEntries && ids.length > 0) {
+				const voided = await tx
+					.update(ledgerTxn)
+					.set({ voidedAt: sql`now()`, updatedAt: sql`now()` })
+					.where(
+						and(
+							eq(ledgerTxn.userId, userId),
+							inArray(ledgerTxn.splitId, ids),
+							isNull(ledgerTxn.voidedAt)
+						)
+					)
+					.returning({ id: ledgerTxn.id });
+				voidedTxnIds = voided.map((v) => v.id);
+			}
+			if (ids.length > 0)
+				await tx
+					.delete(splitPlan)
+					.where(and(eq(splitPlan.userId, userId), inArray(splitPlan.id, ids)));
+			return {
+				deleted: rows.length,
+				entriesVoided: voidedTxnIds.length,
+				voidedTxnIds,
+				splits: input.splitId
+					? rows.map(view)
+					: rows
+							.sort((a, b) => (a.payday < b.payday ? 1 : -1))
+							.slice(0, 50)
+							.map((r) => ({ id: r.id, payday: r.payday, pay: r.pay, status: r.status }))
+			};
+		})
+	);
+}
+
+export async function listSplits(
+	ctx: Ctx,
+	limit = 10,
+	includeReplaced = false
+): Promise<SplitPlanView[]> {
 	const rows = await run(ctx, (tx, userId) =>
 		tx
 			.select()
 			.from(splitPlan)
-			.where(eq(splitPlan.userId, userId))
+			// A split replaced by a newer proposal is not shown unless asked for: it would use up the rows of the list
+			.where(
+				includeReplaced
+					? eq(splitPlan.userId, userId)
+					: and(eq(splitPlan.userId, userId), ne(splitPlan.status, 'superseded'))
+			)
 			.orderBy(desc(splitPlan.createdAt))
 			.limit(Math.min(Math.max(limit, 1), 50))
 	);

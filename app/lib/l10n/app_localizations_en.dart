@@ -2104,10 +2104,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayDecline => 'Decline';
 
   @override
+  String get paydayDeclined => 'Rule declined.';
+
+  @override
+  String paydayDeleteBody(String label) {
+    return '“$label” will be deleted for good. Money you already recorded stays where it is.';
+  }
+
+  @override
+  String get paydayDeleteButton => 'Delete this payday';
+
+  @override
+  String get paydayDeleteTitle => 'Delete this payday?';
+
+  @override
+  String paydayDeleteWithSplitsBody(String label) {
+    return '“$label” has earlier splits. Delete the payday and its splits for good? Money you already recorded stays where it is.';
+  }
+
+  @override
+  String get paydayDeleteYes => 'Delete it';
+
+  @override
+  String get paydayDeleted => 'Payday deleted.';
+
+  @override
   String get paydayDifferent => 'Different every time';
 
   @override
   String get paydayEarlier => 'Earlier splits';
+
+  @override
+  String get paydayEditMenu => 'Change or delete this payday';
+
+  @override
+  String get paydayEditTitle => 'Change this payday';
 
   @override
   String get paydayEmpty => 'Tell Botler when you get paid.';
@@ -2148,6 +2179,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayNoneAhead => 'No payday ahead yet.';
 
   @override
+  String get paydayOff => 'Switched off';
+
+  @override
+  String get paydayPayEmptyHint => 'Leave empty to use what you usually get';
+
+  @override
   String paydayPayInvalid(String currency) {
     return 'Type the pay in $currency.';
   }
@@ -2155,6 +2192,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get paydayPayLabel =>
       'How much is the pay this time? (leave empty for the usual)';
+
+  @override
+  String paydayPayThisTime(String currency) {
+    return 'How much is the pay this time? ($currency)';
+  }
 
   @override
   String get paydayPlan => 'Plan the split';
@@ -2168,6 +2210,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayRuleAddButton => 'Add the rule';
 
   @override
+  String paydayRuleDeleteBody(String rule) {
+    return '“$rule” will be deleted for good. Splits already made keep their numbers.';
+  }
+
+  @override
+  String get paydayRuleDeleteButton => 'Delete the rule';
+
+  @override
+  String get paydayRuleDeleteTitle => 'Delete this rule?';
+
+  @override
+  String get paydayRuleDeleteYes => 'Delete it';
+
+  @override
+  String get paydayRuleDeleted => 'Rule deleted.';
+
+  @override
   String get paydayRuleExamples =>
       'Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.';
 
@@ -2178,10 +2237,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayRuleLabel => 'Say it in your own words';
 
   @override
+  String get paydayRuleMenu => 'More about this rule';
+
+  @override
   String get paydayRuleNameHint => 'Emergency fund';
 
   @override
   String get paydayRuleNameLabel => 'Name (optional)';
+
+  @override
+  String get paydayRuleStopped => 'Stopped';
 
   @override
   String get paydayRuleTitle => 'Add a rule';
@@ -2194,7 +2259,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayRulesTitle => 'Rules for the rest';
 
   @override
+  String get paydaySplitReady =>
+      'Your split is ready below. Check it, then approve.';
+
+  @override
   String get paydayStop => 'Stop';
+
+  @override
+  String get paydayStopBody =>
+      'It stops applying to new splits. You can delete it any time.';
+
+  @override
+  String get paydayStopTitle => 'Stop this rule?';
+
+  @override
+  String get paydayStopYes => 'Stop it';
+
+  @override
+  String get paydayStopped => 'Rule stopped.';
 
   @override
   String get paydayTitle => 'Payday';
@@ -3483,6 +3565,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get splitClearAll => 'Delete all earlier splits';
+
+  @override
+  String get splitClearAllBody =>
+      'Every recorded split, approved or not, is deleted for good. Your bills, rules and paydays stay.';
+
+  @override
+  String get splitClearAllTitle => 'Delete all earlier splits?';
+
+  @override
+  String get splitClearAllYes => 'Delete them all';
+
+  @override
+  String get splitCleared => 'Splits deleted.';
+
+  @override
   String splitCopied(String amount) {
     return 'Copied $amount';
   }
@@ -3497,6 +3595,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splitCutOrMove => 'You could cut or move:';
+
+  @override
+  String splitDeleteBody(String date, String amount) {
+    return 'The split for payday $date ($amount) is deleted for good.';
+  }
+
+  @override
+  String get splitDeleteButton => 'Delete this split';
+
+  @override
+  String get splitDeleteEntriesHelp => 'This changes your account balances.';
+
+  @override
+  String get splitDeleteEntriesSwitch =>
+      'Also take its pay and transfers out of my balances';
+
+  @override
+  String get splitDeleteKeepsMoney =>
+      'Money you already recorded or marked as sent stays in your accounts.';
+
+  @override
+  String get splitDeleteTitle => 'Delete this split?';
+
+  @override
+  String get splitDeleteYes => 'Delete it';
+
+  @override
+  String get splitDeleted => 'Split deleted.';
 
   @override
   String splitForeignLine(
@@ -3526,9 +3652,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splitMarkedSent => 'Marked as sent.';
 
   @override
+  String get splitMenu => 'More about this split';
+
+  @override
   String splitPayday(String date) {
     return 'Payday $date';
   }
+
+  @override
+  String get splitPlanAgain => 'Plan again';
 
   @override
   String get splitSent => 'Sent';

@@ -1479,8 +1479,31 @@
   "paydayApprove": "Approve",
   "paydayComingUp": "Coming up",
   "paydayDecline": "Decline",
+  "paydayDeclined": "Rule declined.",
+  "paydayDeleteBody": "“{label}” will be deleted for good. Money you already recorded stays where it is.",
+  "@paydayDeleteBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayDeleteButton": "Delete this payday",
+  "paydayDeleteTitle": "Delete this payday?",
+  "paydayDeleteWithSplitsBody": "“{label}” has earlier splits. Delete the payday and its splits for good? Money you already recorded stays where it is.",
+  "@paydayDeleteWithSplitsBody": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayDeleteYes": "Delete it",
+  "paydayDeleted": "Payday deleted.",
   "paydayDifferent": "Different every time",
   "paydayEarlier": "Earlier splits",
+  "paydayEditMenu": "Change or delete this payday",
+  "paydayEditTitle": "Change this payday",
   "paydayEmpty": "Tell Botler when you get paid.",
   "paydayIncomeAmountLabel": "How much, usually? ({currency}, optional)",
   "@paydayIncomeAmountLabel": {
@@ -1506,6 +1529,8 @@
   },
   "paydayNoEarlier": "No earlier splits yet.",
   "paydayNoneAhead": "No payday ahead yet.",
+  "paydayOff": "Switched off",
+  "paydayPayEmptyHint": "Leave empty to use what you usually get",
   "paydayPayInvalid": "Type the pay in {currency}.",
   "@paydayPayInvalid": {
     "placeholders": {
@@ -1515,6 +1540,14 @@
     }
   },
   "paydayPayLabel": "How much is the pay this time? (leave empty for the usual)",
+  "paydayPayThisTime": "How much is the pay this time? ({currency})",
+  "@paydayPayThisTime": {
+    "placeholders": {
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
   "paydayPlan": "Plan the split",
   "paydayPlanTitle": "Plan {label} on {date}",
   "@paydayPlanTitle": {
@@ -1528,15 +1561,34 @@
     }
   },
   "paydayRuleAddButton": "Add the rule",
+  "paydayRuleDeleteBody": "“{rule}” will be deleted for good. Splits already made keep their numbers.",
+  "@paydayRuleDeleteBody": {
+    "placeholders": {
+      "rule": {
+        "type": "String"
+      }
+    }
+  },
+  "paydayRuleDeleteButton": "Delete the rule",
+  "paydayRuleDeleteTitle": "Delete this rule?",
+  "paydayRuleDeleteYes": "Delete it",
+  "paydayRuleDeleted": "Rule deleted.",
   "paydayRuleExamples": "Examples: “500 to GCash”, “10% of what is left to Maya”, “the rest to RCBC”.",
   "paydayRuleHint": "20% to emergency fund",
   "paydayRuleLabel": "Say it in your own words",
+  "paydayRuleMenu": "More about this rule",
   "paydayRuleNameHint": "Emergency fund",
   "paydayRuleNameLabel": "Name (optional)",
+  "paydayRuleStopped": "Stopped",
   "paydayRuleTitle": "Add a rule",
   "paydayRulesEmpty": "No rules yet. Say what should happen to what is left, like “20% to emergency fund”.",
   "paydayRulesTitle": "Rules for the rest",
+  "paydaySplitReady": "Your split is ready below. Check it, then approve.",
   "paydayStop": "Stop",
+  "paydayStopBody": "It stops applying to new splits. You can delete it any time.",
+  "paydayStopTitle": "Stop this rule?",
+  "paydayStopYes": "Stop it",
+  "paydayStopped": "Rule stopped.",
   "paydayTitle": "Payday",
   "paydayUsually": "Usually {amount}",
   "@paydayUsually": {
@@ -2484,6 +2536,11 @@
       }
     }
   },
+  "splitClearAll": "Delete all earlier splits",
+  "splitClearAllBody": "Every recorded split, approved or not, is deleted for good. Your bills, rules and paydays stay.",
+  "splitClearAllTitle": "Delete all earlier splits?",
+  "splitClearAllYes": "Delete them all",
+  "splitCleared": "Splits deleted.",
   "splitCopied": "Copied {amount}",
   "@splitCopied": {
     "placeholders": {
@@ -2505,6 +2562,24 @@
     }
   },
   "splitCutOrMove": "You could cut or move:",
+  "splitDeleteBody": "The split for payday {date} ({amount}) is deleted for good.",
+  "@splitDeleteBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "splitDeleteButton": "Delete this split",
+  "splitDeleteEntriesHelp": "This changes your account balances.",
+  "splitDeleteEntriesSwitch": "Also take its pay and transfers out of my balances",
+  "splitDeleteKeepsMoney": "Money you already recorded or marked as sent stays in your accounts.",
+  "splitDeleteTitle": "Delete this split?",
+  "splitDeleteYes": "Delete it",
+  "splitDeleted": "Split deleted.",
   "splitForeignLine": "{name}: {amount} counted as {converted} ({rate})",
   "@splitForeignLine": {
     "placeholders": {
@@ -2537,6 +2612,7 @@
   },
   "splitMarkSent": "Mark sent",
   "splitMarkedSent": "Marked as sent.",
+  "splitMenu": "More about this split",
   "splitPayday": "Payday {date}",
   "@splitPayday": {
     "placeholders": {
@@ -2545,6 +2621,7 @@
       }
     }
   },
+  "splitPlanAgain": "Plan again",
   "splitSent": "Sent",
   "splitShort": "This pay is {gap} short of what you set aside.",
   "@splitShort": {

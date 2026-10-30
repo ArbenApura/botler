@@ -27,7 +27,7 @@ const double _gap = 6;
 
 // -- TYPES -- //
 
-/// One photo in the strip: where its copy is, how many characters were read from it, or null while it is still being read.
+/// One photo in the strip: where its copy is, and how many characters were read from it (null while it is still being read). The count is never shown.
 class StripPhoto {
   const StripPhoto(this.path, this.chars);
 
@@ -73,12 +73,8 @@ class PhotoStrip extends StatelessWidget {
   final List<StripPhoto> photos;
   final void Function(int index) onRemove;
 
-  /// The height the strip takes: the tile, the room for the remove buttons, and one line of caption that grows with the text size.
-  static double heightFor(BuildContext context) =>
-      _badgeRoom +
-      stripTile +
-      4 +
-      MediaQuery.textScalerOf(context).scale(12) * 1.3;
+  /// The height the strip takes: the tile and the room for the remove buttons. It never changes with the text size or what is in it.
+  static double heightFor(BuildContext context) => _badgeRoom + stripTile;
 
   @override
   Widget build(BuildContext context) {
@@ -151,22 +147,6 @@ class PhotoStrip extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // The number of characters read, short enough for one line at any text size
-                      ExcludeSemantics(
-                        child: Text(
-                          reading ? '…' : '${p.chars}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: c.muted,
-                            fontFeatures: const <FontFeature>[
-                              FontFeature.tabularFigures(),
-                            ],
                           ),
                         ),
                       ),

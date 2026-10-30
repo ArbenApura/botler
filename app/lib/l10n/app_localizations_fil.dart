@@ -2118,10 +2118,41 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayDecline => 'Tanggihan';
 
   @override
+  String get paydayDeclined => 'Tinanggihan ang rule.';
+
+  @override
+  String paydayDeleteBody(String label) {
+    return 'Buburahin nang tuluyan ang “$label”. Mananatili kung nasaan ang perang naitala mo na.';
+  }
+
+  @override
+  String get paydayDeleteButton => 'Burahin ang payday na ito';
+
+  @override
+  String get paydayDeleteTitle => 'Buburahin ang payday na ito?';
+
+  @override
+  String paydayDeleteWithSplitsBody(String label) {
+    return 'May mga naunang split ang “$label”. Buburahin nang tuluyan ang payday at ang mga split nito? Mananatili kung nasaan ang perang naitala mo na.';
+  }
+
+  @override
+  String get paydayDeleteYes => 'Burahin';
+
+  @override
+  String get paydayDeleted => 'Nabura ang payday.';
+
+  @override
   String get paydayDifferent => 'Iba-iba tuwing sweldo';
 
   @override
   String get paydayEarlier => 'Mga naunang split';
+
+  @override
+  String get paydayEditMenu => 'Baguhin o burahin ang payday na ito';
+
+  @override
+  String get paydayEditTitle => 'Baguhin ang payday na ito';
 
   @override
   String get paydayEmpty => 'Sabihin kay Botler kung kailan ka sumusweldo.';
@@ -2162,6 +2193,13 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayNoneAhead => 'Wala pang paparating na payday.';
 
   @override
+  String get paydayOff => 'Naka-off';
+
+  @override
+  String get paydayPayEmptyHint =>
+      'Iwanang walang laman para gamitin ang karaniwan mong sahod';
+
+  @override
   String paydayPayInvalid(String currency) {
     return 'I-type ang sweldo sa $currency.';
   }
@@ -2169,6 +2207,11 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String get paydayPayLabel =>
       'Magkano ang sweldo ngayon? (iwanang walang laman para sa karaniwan)';
+
+  @override
+  String paydayPayThisTime(String currency) {
+    return 'Magkano ang sahod ngayon? ($currency)';
+  }
 
   @override
   String get paydayPlan => 'I-plano ang split';
@@ -2182,6 +2225,23 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayRuleAddButton => 'Idagdag ang rule';
 
   @override
+  String paydayRuleDeleteBody(String rule) {
+    return 'Buburahin nang tuluyan ang “$rule”. Mananatili ang mga numero ng mga split na nagawa na.';
+  }
+
+  @override
+  String get paydayRuleDeleteButton => 'Burahin ang rule';
+
+  @override
+  String get paydayRuleDeleteTitle => 'Buburahin ang rule na ito?';
+
+  @override
+  String get paydayRuleDeleteYes => 'Burahin';
+
+  @override
+  String get paydayRuleDeleted => 'Nabura ang rule.';
+
+  @override
   String get paydayRuleExamples =>
       'Mga halimbawa: “500 sa GCash”, “10% ng matitira sa Maya”, “ang natitira sa RCBC”.';
 
@@ -2192,10 +2252,16 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayRuleLabel => 'Sabihin sa sarili mong salita';
 
   @override
+  String get paydayRuleMenu => 'Iba pa tungkol sa rule na ito';
+
+  @override
   String get paydayRuleNameHint => 'Emergency fund';
 
   @override
   String get paydayRuleNameLabel => 'Pangalan (opsyonal)';
+
+  @override
+  String get paydayRuleStopped => 'Itinigil';
 
   @override
   String get paydayRuleTitle => 'Magdagdag ng rule';
@@ -2208,7 +2274,24 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayRulesTitle => 'Mga rule para sa matitira';
 
   @override
+  String get paydaySplitReady =>
+      'Handa na ang split mo sa ibaba. Suriin, saka aprubahan.';
+
+  @override
   String get paydayStop => 'Itigil';
+
+  @override
+  String get paydayStopBody =>
+      'Hindi na ito gagamitin sa mga bagong split. Puwede mo itong burahin anumang oras.';
+
+  @override
+  String get paydayStopTitle => 'Ihihinto ang rule na ito?';
+
+  @override
+  String get paydayStopYes => 'Ihinto';
+
+  @override
+  String get paydayStopped => 'Inihinto ang rule.';
 
   @override
   String get paydayTitle => 'Payday';
@@ -3505,6 +3588,22 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get splitClearAll => 'Burahin ang lahat ng naunang split';
+
+  @override
+  String get splitClearAllBody =>
+      'Buburahin nang tuluyan ang bawat naitalang split, aprubado man o hindi. Mananatili ang mga bill, rule at payday mo.';
+
+  @override
+  String get splitClearAllTitle => 'Buburahin ang lahat ng naunang split?';
+
+  @override
+  String get splitClearAllYes => 'Burahin lahat';
+
+  @override
+  String get splitCleared => 'Nabura ang mga split.';
+
+  @override
   String splitCopied(String amount) {
     return 'Nakopya ang $amount';
   }
@@ -3519,6 +3618,35 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get splitCutOrMove => 'Puwede mong bawasan o ilipat:';
+
+  @override
+  String splitDeleteBody(String date, String amount) {
+    return 'Buburahin nang tuluyan ang split para sa payday na $date ($amount).';
+  }
+
+  @override
+  String get splitDeleteButton => 'Burahin ang split na ito';
+
+  @override
+  String get splitDeleteEntriesHelp =>
+      'Magbabago ang mga balanse ng account mo.';
+
+  @override
+  String get splitDeleteEntriesSwitch =>
+      'Alisin din sa mga balanse ko ang sahod at mga transfer nito';
+
+  @override
+  String get splitDeleteKeepsMoney =>
+      'Mananatili sa mga account mo ang perang naitala mo na o minarkahang naipadala.';
+
+  @override
+  String get splitDeleteTitle => 'Buburahin ang split na ito?';
+
+  @override
+  String get splitDeleteYes => 'Burahin';
+
+  @override
+  String get splitDeleted => 'Nabura ang split.';
 
   @override
   String splitForeignLine(
@@ -3548,9 +3676,15 @@ class AppLocalizationsFil extends AppLocalizations {
   String get splitMarkedSent => 'Namarkahang naipadala na.';
 
   @override
+  String get splitMenu => 'Iba pa tungkol sa split na ito';
+
+  @override
   String splitPayday(String date) {
     return 'Payday $date';
   }
+
+  @override
+  String get splitPlanAgain => 'Planuhin ulit';
 
   @override
   String get splitSent => 'Naipadala';

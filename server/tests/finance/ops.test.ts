@@ -48,7 +48,12 @@ import {
 	proposeRule,
 	proposeRuleFromText
 } from '../../src/lib/server/ops/rules';
-import { approveSplit, markTransferSent, proposeSplitPlan } from '../../src/lib/server/ops/split';
+import {
+	approveSplit,
+	deleteSplits,
+	markTransferSent,
+	proposeSplitPlan
+} from '../../src/lib/server/ops/split';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { createTestDb } from '../support/testDb';
 
@@ -350,6 +355,8 @@ describe('the payday split, end to end', () => {
 	});
 
 	it('answers a shortfall with the gap and refuses to approve it', async () => {
+		// The payday above is approved, so it is planned again only after that split is deleted (the sent transfers stay in the ledger)
+		await deleteSplits(as(ben()), { all: true });
 		const plan = await proposeSplitPlan(as(ben()), {
 			incomeScheduleId: incomeId,
 			payday: '2026-11-30',

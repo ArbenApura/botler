@@ -654,6 +654,7 @@ const EXPECTED_TOOLS = [
 	'schedule_preview',
 	'settings_get',
 	'snapshot_record',
+	'split_delete',
 	'split_list',
 	'split_mark_sent',
 	'split_propose',

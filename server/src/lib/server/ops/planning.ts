@@ -83,10 +83,15 @@ export async function updateIncome(ctx: Ctx, raw: IncomeUpdateInput): Promise<In
  * answer says so. The assistant may call it (owner decision 2026-10-28); the removed schedule is returned whole.
  */
 export async function deleteIncome(ctx: Ctx, raw: unknown) {
-	const { incomeId } = parse(incomeDeleteInput, raw);
+	const { incomeId, withSplits } = parse(incomeDeleteInput, raw);
 	return mapped(() =>
-		runWrite(ctx, 'income.delete', { incomeId }, async (tx, userId) => {
+		runWrite(ctx, 'income.delete', { incomeId, withSplits }, async (tx, userId) => {
 			const current = await requireIncome(tx, userId, incomeId);
+			// The splits made for it go first when asked (the reference from a split to its payday allows no delete). Ledger entries stay
+			if (withSplits)
+				await tx
+					.delete(splitPlan)
+					.where(and(eq(splitPlan.userId, userId), eq(splitPlan.incomeScheduleId, incomeId)));
 			const [plans] = await tx
 				.select({ n: sql<number>`count(*)::int` })
 				.from(splitPlan)

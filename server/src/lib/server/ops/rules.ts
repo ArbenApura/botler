@@ -335,6 +335,8 @@ export async function approveRule(ctx: Ctx, raw: { ruleId: string }): Promise<Ru
 			const active = await activeRules(tx, userId);
 			const problems = validateRules([...active, row].map((r) => toRule(r)));
 			if (problems[0]) throw new OpsError('INVALID', problems[0]);
+			// The bill it saves for may have moved, changed currency or been switched off since it was proposed
+			if (row.fundsBillId) await requireLinkable(tx, userId, row, row.fundsBillId);
 			const [done] = await tx
 				.update(allocationRule)
 				.set({

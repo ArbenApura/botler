@@ -3601,6 +3601,48 @@ abstract class AppLocalizations {
   /// **'Decline'**
   String get paydayDecline;
 
+  /// No description provided for @paydayDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule declined.'**
+  String get paydayDeclined;
+
+  /// No description provided for @paydayDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{label}” will be deleted for good. Money you already recorded stays where it is.'**
+  String paydayDeleteBody(String label);
+
+  /// No description provided for @paydayDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this payday'**
+  String get paydayDeleteButton;
+
+  /// No description provided for @paydayDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this payday?'**
+  String get paydayDeleteTitle;
+
+  /// No description provided for @paydayDeleteWithSplitsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{label}” has earlier splits. Delete the payday and its splits for good? Money you already recorded stays where it is.'**
+  String paydayDeleteWithSplitsBody(String label);
+
+  /// No description provided for @paydayDeleteYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete it'**
+  String get paydayDeleteYes;
+
+  /// No description provided for @paydayDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Payday deleted.'**
+  String get paydayDeleted;
+
   /// No description provided for @paydayDifferent.
   ///
   /// In en, this message translates to:
@@ -3612,6 +3654,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Earlier splits'**
   String get paydayEarlier;
+
+  /// No description provided for @paydayEditMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Change or delete this payday'**
+  String get paydayEditMenu;
+
+  /// No description provided for @paydayEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change this payday'**
+  String get paydayEditTitle;
 
   /// No description provided for @paydayEmpty.
   ///
@@ -3679,6 +3733,18 @@ abstract class AppLocalizations {
   /// **'No payday ahead yet.'**
   String get paydayNoneAhead;
 
+  /// No description provided for @paydayOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched off'**
+  String get paydayOff;
+
+  /// No description provided for @paydayPayEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use what you usually get'**
+  String get paydayPayEmptyHint;
+
   /// No description provided for @paydayPayInvalid.
   ///
   /// In en, this message translates to:
@@ -3690,6 +3756,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How much is the pay this time? (leave empty for the usual)'**
   String get paydayPayLabel;
+
+  /// No description provided for @paydayPayThisTime.
+  ///
+  /// In en, this message translates to:
+  /// **'How much is the pay this time? ({currency})'**
+  String paydayPayThisTime(String currency);
 
   /// No description provided for @paydayPlan.
   ///
@@ -3709,6 +3781,36 @@ abstract class AppLocalizations {
   /// **'Add the rule'**
   String get paydayRuleAddButton;
 
+  /// No description provided for @paydayRuleDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{rule}” will be deleted for good. Splits already made keep their numbers.'**
+  String paydayRuleDeleteBody(String rule);
+
+  /// No description provided for @paydayRuleDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the rule'**
+  String get paydayRuleDeleteButton;
+
+  /// No description provided for @paydayRuleDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this rule?'**
+  String get paydayRuleDeleteTitle;
+
+  /// No description provided for @paydayRuleDeleteYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete it'**
+  String get paydayRuleDeleteYes;
+
+  /// No description provided for @paydayRuleDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule deleted.'**
+  String get paydayRuleDeleted;
+
   /// No description provided for @paydayRuleExamples.
   ///
   /// In en, this message translates to:
@@ -3727,6 +3829,12 @@ abstract class AppLocalizations {
   /// **'Say it in your own words'**
   String get paydayRuleLabel;
 
+  /// No description provided for @paydayRuleMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'More about this rule'**
+  String get paydayRuleMenu;
+
   /// No description provided for @paydayRuleNameHint.
   ///
   /// In en, this message translates to:
@@ -3738,6 +3846,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name (optional)'**
   String get paydayRuleNameLabel;
+
+  /// No description provided for @paydayRuleStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get paydayRuleStopped;
 
   /// No description provided for @paydayRuleTitle.
   ///
@@ -3757,11 +3871,41 @@ abstract class AppLocalizations {
   /// **'Rules for the rest'**
   String get paydayRulesTitle;
 
+  /// No description provided for @paydaySplitReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Your split is ready below. Check it, then approve.'**
+  String get paydaySplitReady;
+
   /// No description provided for @paydayStop.
   ///
   /// In en, this message translates to:
   /// **'Stop'**
   String get paydayStop;
+
+  /// No description provided for @paydayStopBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It stops applying to new splits. You can delete it any time.'**
+  String get paydayStopBody;
+
+  /// No description provided for @paydayStopTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop this rule?'**
+  String get paydayStopTitle;
+
+  /// No description provided for @paydayStopYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop it'**
+  String get paydayStopYes;
+
+  /// No description provided for @paydayStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule stopped.'**
+  String get paydayStopped;
 
   /// No description provided for @paydayTitle.
   ///
@@ -5898,6 +6042,36 @@ abstract class AppLocalizations {
   /// **'{rule} cannot save for {bill}: {reason}.'**
   String splitBrokenLink(String rule, String bill, String reason);
 
+  /// No description provided for @splitClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all earlier splits'**
+  String get splitClearAll;
+
+  /// No description provided for @splitClearAllBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every recorded split, approved or not, is deleted for good. Your bills, rules and paydays stay.'**
+  String get splitClearAllBody;
+
+  /// No description provided for @splitClearAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all earlier splits?'**
+  String get splitClearAllTitle;
+
+  /// No description provided for @splitClearAllYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete them all'**
+  String get splitClearAllYes;
+
+  /// No description provided for @splitCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Splits deleted.'**
+  String get splitCleared;
+
   /// No description provided for @splitCopied.
   ///
   /// In en, this message translates to:
@@ -5921,6 +6095,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You could cut or move:'**
   String get splitCutOrMove;
+
+  /// No description provided for @splitDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The split for payday {date} ({amount}) is deleted for good.'**
+  String splitDeleteBody(String date, String amount);
+
+  /// No description provided for @splitDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this split'**
+  String get splitDeleteButton;
+
+  /// No description provided for @splitDeleteEntriesHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'This changes your account balances.'**
+  String get splitDeleteEntriesHelp;
+
+  /// No description provided for @splitDeleteEntriesSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Also take its pay and transfers out of my balances'**
+  String get splitDeleteEntriesSwitch;
+
+  /// No description provided for @splitDeleteKeepsMoney.
+  ///
+  /// In en, this message translates to:
+  /// **'Money you already recorded or marked as sent stays in your accounts.'**
+  String get splitDeleteKeepsMoney;
+
+  /// No description provided for @splitDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this split?'**
+  String get splitDeleteTitle;
+
+  /// No description provided for @splitDeleteYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete it'**
+  String get splitDeleteYes;
+
+  /// No description provided for @splitDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Split deleted.'**
+  String get splitDeleted;
 
   /// No description provided for @splitForeignLine.
   ///
@@ -5963,11 +6185,23 @@ abstract class AppLocalizations {
   /// **'Marked as sent.'**
   String get splitMarkedSent;
 
+  /// No description provided for @splitMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'More about this split'**
+  String get splitMenu;
+
   /// No description provided for @splitPayday.
   ///
   /// In en, this message translates to:
   /// **'Payday {date}'**
   String splitPayday(String date);
+
+  /// No description provided for @splitPlanAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan again'**
+  String get splitPlanAgain;
 
   /// No description provided for @splitSent.
   ///
