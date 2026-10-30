@@ -16,7 +16,6 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'chat_state.dart';
 import 'chats_state.dart';
-import 'drawer_accounts.dart';
 
 // -- CONSTANTS -- //
 
@@ -378,8 +377,6 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
                 },
               ),
             ),
-            // The accounts shortcut sits above the archive: the chats keep the room in between
-            if (!_archive) const DrawerAccounts(),
             if (!_archive)
               ListTile(
                 minTileHeight: 52,

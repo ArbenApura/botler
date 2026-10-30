@@ -16,6 +16,7 @@ import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import '../money/accounts_screen.dart' show walletsOf;
 import '../money/net_parts.dart';
 
 // -- TYPES -- //
@@ -241,11 +242,9 @@ class _SheetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    final currency = str(account['currency'], context.currencyCode);
-    // The net leads only when the server sent one: never a net of zero for a missing figure
-    final netValue = net ? netInt(account, 'netBalance') : null;
-    final short = netValue == null ? 0 : (netInt(account, 'shortfall') ?? 0);
+    final own = str(account['currency'], context.currencyCode);
+    // Every wallet of the account, like the Accounts screen: a Wise with pesos and dollars shows both
+    final wallets = walletsOf(account);
     return Semantics(
       button: true,
       label: str(account['name']),
@@ -263,6 +262,7 @@ class _SheetRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Expanded(
                       child: Text(
@@ -272,22 +272,27 @@ class _SheetRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      context.moneyIn(
-                        netValue ?? intOf(account['balance']),
-                        currency,
-                      ),
-                      style: TextStyle(fontFeatures: tabular),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        for (final w in wallets)
+                          // The net leads only when the server sent one for this wallet: never a net of zero for a missing figure
+                          if (net && netInt(w, 'netBalance') != null)
+                            NetAmount(
+                              wallet: w,
+                              currency: str(w['currency'], own),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            )
+                          else
+                            Amount(
+                              intOf(w['balance']),
+                              currency: str(w['currency'], own),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                      ],
                     ),
                   ],
                 ),
-                if (short > 0)
-                  Text(
-                    context.t.drawerAccountShort(
-                      context.moneyIn(short, currency),
-                    ),
-                    style: TextStyle(color: c.warning, fontFeatures: tabular),
-                  ),
                 if (net) NetHoldLines(account: account),
               ],
             ),

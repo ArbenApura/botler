@@ -276,5 +276,17 @@
     "fil": [
       "Sa DeepSeek na lang tumatakbo ang assistant ng Botler. Wala na ang Anthropic server, kaya DeepSeek na lang ang AI server na nakikita sa Settings, at tuloy pa rin ang mga chat, larawan at tala mo."
     ]
+  },
+  {
+    "versionCode": 30,
+    "versionName": "1.1.19",
+    "en": [
+      "The wallet button in the chat now shows every currency of an account. A Wise account with pesos and dollars lists both, instead of only the pesos.",
+      "The chat menu no longer lists your accounts at the bottom. Open Accounts from the wallet button or the main menu instead."
+    ],
+    "fil": [
+      "Ipinapakita na ng wallet button sa chat ang bawat currency ng isang account. Ang Wise account na may piso at dolyar ay nagpapakita ng pareho, hindi lang ang piso.",
+      "Wala na ang listahan ng mga account sa ilalim ng menu ng chat. Buksan ang Accounts mula sa wallet button o sa pangunahing menu."
+    ]
   }
 ]
