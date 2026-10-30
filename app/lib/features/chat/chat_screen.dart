@@ -607,6 +607,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       // The strip shrinks or grows the list from the bottom: a person at the end stays at the end
       _toEnd();
     }
+    // With the net on the money is kept ready while the chat is open: the drawer's accounts and the wallet sheet then open with their numbers,
+    // with no skeleton and no jump
+    if (ref.watch(settingsProvider.select((s) => s.showNetBalance))) {
+      ref.listen(balancesProvider, (_, _) {});
+      ref.listen(assetsProvider, (_, _) {});
+    }
     ref.listen<EditTarget?>(editProvider, (prev, next) {
       if (next != null && next != prev) {
         _fill(next.text);

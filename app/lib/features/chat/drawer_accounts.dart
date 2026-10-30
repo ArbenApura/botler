@@ -23,6 +23,9 @@ import '../money/net_parts.dart';
 /// The most height the account rows take before they scroll.
 const double _maxRowsHeight = 168;
 
+/// The height of one account row and of one bar of the skeleton.
+const double _rowHeight = 48;
+
 // -- TYPES -- //
 
 class DrawerAccounts extends ConsumerWidget {
@@ -47,9 +50,10 @@ class DrawerAccounts extends ConsumerWidget {
           onTap: () => _open(context, '/accounts'),
         ),
         accounts.when(
+          // A fixed height of three rows (a usual number of accounts), so the drawer does not jump when the real rows arrive
           loading: () => const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: SkeletonRows(count: 2),
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _RowsSkeleton(),
           ),
           error: (_, _) => Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -80,6 +84,31 @@ class DrawerAccounts extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Three bars of the height of a row (48), so the loaded rows land where the bars were.
+class _RowsSkeleton extends StatelessWidget {
+  const _RowsSkeleton();
+
+  @override
+  Widget build(BuildContext context) => const SkeletonGroup(
+    child: Column(
+      children: <Widget>[
+        SizedBox(
+          height: _rowHeight,
+          child: Center(child: SkeletonLine(widthFactor: 0.7, height: 16)),
+        ),
+        SizedBox(
+          height: _rowHeight,
+          child: Center(child: SkeletonLine(widthFactor: 0.55, height: 16)),
+        ),
+        SizedBox(
+          height: _rowHeight,
+          child: Center(child: SkeletonLine(widthFactor: 0.65, height: 16)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Row extends StatelessWidget {

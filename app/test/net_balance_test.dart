@@ -3,6 +3,7 @@
 // THE SERVER IS A STAND-IN.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:botler/core/api.dart';
@@ -14,6 +15,7 @@ import 'package:botler/features/money/net_parts.dart';
 import 'package:botler/l10n/l10n.dart';
 import 'package:botler/state/providers.dart';
 import 'package:botler/theme/theme.dart';
+import 'package:botler/ui/skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -646,6 +648,129 @@ void main() {
       await openSheet(tester, await withSync(serverNet: false));
       expect(find.text('Net, after bills and goals'), findsNothing);
       expect(find.text('₱1,000.00'), findsWidgets);
+    });
+  });
+
+  group('while the money loads', () {
+    Future<ProviderContainer> slow(Completer<void> gate) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.showNet': true,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final client = MockClient.streaming((req, stream) async {
+        final verb = req.url.path.split('/').last;
+        if (verb == 'accounts_balances' || verb == 'assets_summary') {
+          await gate.future;
+        }
+        final result = switch (verb) {
+          'accounts_balances' => <Json>[_account()],
+          'assets_summary' => _assets(),
+          _ => <String, Object?>{},
+        };
+        return http.StreamedResponse(
+          Stream<List<int>>.value(
+            utf8.encode(jsonEncode(<String, Object?>{'result': result})),
+          ),
+          200,
+        );
+      });
+      final c = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs),
+          syncProvider.overrideWith(
+            (ref) async => <String, Object?>{
+              'summary': <String, Object?>{
+                'total': 100000,
+                'currency': 'PHP',
+                'nextBill': null,
+                'firstEventToday': null,
+              },
+            },
+          ),
+          apiProvider.overrideWithValue(
+            ApiClient(
+              base: 'https://botler.test',
+              token: () async => 'tok',
+              client: client,
+            ),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    testWidgets(
+      'the card and the sheet accounts hold their place as skeletons, then fill without the card growing',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2200);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+        final gate = Completer<void>();
+        final c = await slow(gate);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: c,
+            child: MaterialApp(
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              theme: buildTheme(Brightness.light),
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: TextButton(
+                    onPressed: () => showSummarySheet(context),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('open'));
+        await tester.pump(const Duration(milliseconds: 600));
+        // Waiting: skeletons, and none of the net lines yet
+        expect(find.byType(Skeleton), findsWidgets);
+        expect(find.text('Net, after bills and goals'), findsNothing);
+        final waitingCard = tester.getSize(find.byType(SummaryCard)).height;
+        gate.complete();
+        await tester.pumpAndSettle();
+        expect(find.text('Net, after bills and goals'), findsOneWidget);
+        expect(find.text('GCash'), findsOneWidget);
+        // The card keeps its height (its skeleton has the net lines): it was 78 px shorter while loading before the net lines were reserved
+        final loadedCard = tester.getSize(find.byType(SummaryCard)).height;
+        expect((loadedCard - waitingCard).abs(), lessThan(60));
+      },
+    );
+
+    testWidgets('the drawer rows hold three rows of room while they load', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      final c = await slow(gate);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: buildTheme(Brightness.light),
+            home: const Scaffold(body: DrawerAccounts()),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      final waiting = tester.getSize(find.byType(DrawerAccounts)).height;
+      expect(find.byType(Skeleton), findsWidgets);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('GCash'), findsOneWidget);
+      // One account is shorter than the three-row skeleton: the skeleton never made the drawer grow
+      expect(
+        tester.getSize(find.byType(DrawerAccounts)).height,
+        lessThanOrEqualTo(waiting),
+      );
     });
   });
 

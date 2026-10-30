@@ -29,17 +29,22 @@ class SummaryCard extends ConsumerWidget {
     final sync = ref.watch(syncProvider);
     // The net total comes from assets_summary (the sync answer stays gross): only read when the person leads with the net
     final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
-    final assets = net ? ref.watch(assetsProvider).value : null;
+    final assetsAsync = net ? ref.watch(assetsProvider) : null;
+    final assets = assetsAsync?.value;
+    // With the net on the card waits for its figures, so it does not grow when they arrive
+    final waiting =
+        assetsAsync != null && assetsAsync.isLoading && !assetsAsync.hasValue;
     final netTotal = netInt(assets, 'netTotal');
     final shortTotal = netInt(assets, 'shortfallTotal') ?? 0;
     return PaperCard(
       // A refresh keeps the last answer on screen instead of flashing the card empty
       child: sync.when(
         skipLoadingOnReload: true,
-        loading: () => const _SummarySkeleton(),
+        loading: () => _SummarySkeleton(net: net),
         error: (e, _) =>
             Text(errorWords(e, context), style: TextStyle(color: c.muted)),
         data: (s) {
+          if (waiting) return _SummarySkeleton(net: net);
           final summary = asJson(s['summary']);
           final bill = summary['nextBill'] is Map<Object?, Object?>
               ? asJson(summary['nextBill'])
@@ -123,20 +128,29 @@ class SummaryCard extends ConsumerWidget {
 
 /// The card while it loads: the same lines in the same places, so it does not change height when the answer comes.
 class _SummarySkeleton extends StatelessWidget {
-  const _SummarySkeleton();
+  const _SummarySkeleton({required this.net});
+
+  /// With the net on the loaded card has two more lines (the balance counted, and what a due bill lacks), so the skeleton has them too.
+  final bool net;
 
   @override
-  Widget build(BuildContext context) => const SkeletonGroup(
+  Widget build(BuildContext context) => SkeletonGroup(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SkeletonLine(widthFactor: 0.4, height: 20),
-        SizedBox(height: 2),
-        SkeletonLine(widthFactor: 0.55, height: 36),
-        SizedBox(height: 14),
-        SkeletonLine(widthFactor: 0.75, height: 20),
-        SizedBox(height: 8),
-        SkeletonLine(widthFactor: 0.65, height: 20),
+        const SkeletonLine(widthFactor: 0.4, height: 20),
+        const SizedBox(height: 2),
+        const SkeletonLine(widthFactor: 0.55, height: 36),
+        if (net) ...<Widget>[
+          const SizedBox(height: 2),
+          const SkeletonLine(widthFactor: 0.35, height: 22),
+          const SizedBox(height: 2),
+          const SkeletonLine(widthFactor: 0.6, height: 22),
+        ],
+        const SizedBox(height: 14),
+        const SkeletonLine(widthFactor: 0.75, height: 20),
+        const SizedBox(height: 8),
+        const SkeletonLine(widthFactor: 0.65, height: 20),
       ],
     ),
   );
@@ -193,7 +207,19 @@ class _SheetAccounts extends ConsumerWidget {
     // Only with the net on: the sheet is the summary as it always was for a person who leads with the balance counted
     final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
     if (!net) return const SizedBox.shrink();
-    final accounts = ref.watch(balancesProvider).value;
+    final balances = ref.watch(balancesProvider);
+    // While they load, rows of the same kind hold the place, so the sheet does not jump up when they arrive
+    if (balances.isLoading && !balances.hasValue) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const SizedBox(height: 12),
+          Text(context.t.drawerAccounts, style: TextStyle(color: c.muted)),
+          const SkeletonRows(count: 3),
+        ],
+      );
+    }
+    final accounts = balances.value;
     if (accounts == null || accounts.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
