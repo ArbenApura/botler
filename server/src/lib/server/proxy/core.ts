@@ -58,7 +58,9 @@ export const IMAGE_TOKENS = 1600;
  * as, so six pictures never read as a million tokens. Anything else called data and that long is a signed thinking block, also nearer the stand-in.
  */
 export function imageStandIn(key: string, value: unknown): unknown {
-	return key === 'data' && typeof value === 'string' && value.length > 1000
+	if (typeof value !== 'string' || value.length <= 1000) return value;
+	// Anthropic puts the base64 in a field called data; DeepSeek puts a data URL in image_url.url
+	return key === 'data' || (key === 'url' && value.startsWith('data:image/'))
 		? 'x'.repeat(IMAGE_TOKENS * 4)
 		: value;
 }

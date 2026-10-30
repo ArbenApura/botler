@@ -13,7 +13,14 @@
 import type { Ctx } from '../ops/context';
 import type { Usage } from './limits';
 import type { Masker } from './mask';
-import type { Completion, CompletionRequest, ModelConfig, StreamEvent, ToolCall } from './types';
+import type {
+	ChatMessage,
+	Completion,
+	CompletionRequest,
+	ModelConfig,
+	StreamEvent,
+	ToolCall
+} from './types';
 export type {
 	Completion,
 	CompletionRequest,
@@ -95,6 +102,27 @@ let cacheFieldsNoted = false;
 
 // -- FUNCTIONS -- //
 
+/**
+ * The masked messages as this host takes them. A user message with pictures becomes a list of parts: each picture as an image_url data URL, then
+ * the words. The pictures were never masked and are not changed here. A picture on any other role is dropped: the host takes them in user messages only.
+ */
+function withPictureParts(messages: ChatMessage[]): unknown[] {
+	return messages.map((m) => {
+		if (m.role !== 'user' || !m.images?.length) return withoutImages([m])[0];
+		const { images, ...rest } = m;
+		return {
+			...rest,
+			content: [
+				...images.map((img) => ({
+					type: 'image_url',
+					image_url: { url: `data:${img.mediaType};base64,${img.data}` }
+				})),
+				{ type: 'text', text: m.content }
+			]
+		};
+	});
+}
+
 export function createModelClient(config: ModelConfig) {
 	const core = createCore({
 		provider: 'deepseek',
@@ -117,8 +145,7 @@ export function createModelClient(config: ModelConfig) {
 		const thinking = stream && config.thinking === true && req.bucket === 'chat';
 		return {
 			model: config.model,
-			// This host reads text only: a picture is never put on its wire, whatever the caller passed
-			messages: maskMessages(withoutImages(req.messages), masker),
+			messages: withPictureParts(maskMessages(req.messages, masker)),
 			stream,
 			...(stream ? { stream_options: { include_usage: true } } : {}),
 			...(thinking

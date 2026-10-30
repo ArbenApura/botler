@@ -6,10 +6,14 @@
 /** The hosts the assistant can run on. This is what a person picks from. */
 export const SELECTABLE_PROVIDERS = ['anthropic', 'deepseek'] as const;
 
-/** Whether the host reads pictures. DeepSeek's chat API takes text only; flipping one entry is all it takes if that changes. */
+/**
+ * Whether the host reads pictures. DeepSeek does: its chat reference takes image_url parts (a data URL of a JPEG, PNG, GIF or WebP) in a user
+ * message, and a live call with deepseek-flash described a test picture (checked 2026-10-30). A model set in DEEPSEEK_MODEL that is text only
+ * answers 400, and the first call with pictures is then repeated once on the text. One entry flips a host.
+ */
 export const PROVIDER_VISION: Record<SelectableProvider, boolean> = {
 	anthropic: true,
-	deepseek: false
+	deepseek: true
 };
 
 /** Usage rows from before the provider was recorded are 'unknown'. It is never a choice. */
@@ -22,8 +26,11 @@ export type SelectableProvider = (typeof SELECTABLE_PROVIDERS)[number];
 // -- FUNCTIONS -- //
 
 /** True when the host can be sent a picture. */
-export function visionOf(provider: SelectableProvider | null | undefined): boolean {
-	return provider ? PROVIDER_VISION[provider] : false;
+export function visionOf(
+	provider: SelectableProvider | null | undefined,
+	vision: Record<SelectableProvider, boolean> = PROVIDER_VISION
+): boolean {
+	return provider ? vision[provider] : false;
 }
 
 /**
@@ -32,10 +39,11 @@ export function visionOf(provider: SelectableProvider | null | undefined): boole
  */
 export function pictureProviderFor(
 	effective: SelectableProvider | null | undefined,
-	available: readonly SelectableProvider[]
+	available: readonly SelectableProvider[],
+	vision: Record<SelectableProvider, boolean> = PROVIDER_VISION
 ): SelectableProvider | null {
-	if (effective && visionOf(effective)) return effective;
-	return available.find((p) => visionOf(p)) ?? null;
+	if (effective && visionOf(effective, vision)) return effective;
+	return available.find((p) => visionOf(p, vision)) ?? null;
 }
 
 export function isSelectableProvider(value: unknown): value is SelectableProvider {

@@ -23,6 +23,8 @@ export type RouterConfig = {
 	available: () => readonly SelectableProvider[];
 	/** MODEL_PROVIDER. */
 	fallback: SelectableProvider;
+	/** Which hosts read pictures. Left out, PROVIDER_VISION. Tests give their own. */
+	vision?: Record<SelectableProvider, boolean>;
 };
 
 // -- FUNCTIONS -- //
@@ -41,7 +43,9 @@ export function createProviderRouter(config: RouterConfig) {
 		// that has a key. Decided here for every call, from the settings read inside the call, so a failed read stops the call instead of
 		// sending a picture. A host that cannot read them is never handed one
 		const picturesTo =
-			settings.photoMode === 'image' ? pictureProviderFor(effective, config.available()) : null;
+			settings.photoMode === 'image'
+				? pictureProviderFor(effective, config.available(), config.vision)
+				: null;
 		return { provider: effective, picturesTo };
 	}
 
@@ -59,7 +63,7 @@ export function createProviderRouter(config: RouterConfig) {
 	): Promise<{ provider: SelectableProvider; req: CompletionRequest }> {
 		const r = await route(ctx);
 		const host = hasPictures(req) && r.picturesTo ? r.picturesTo : r.provider;
-		const send = r.picturesTo !== null && visionOf(host);
+		const send = r.picturesTo !== null && visionOf(host, config.vision);
 		return { provider: host, req: send ? req : { ...req, messages: withoutImages(req.messages) } };
 	}
 
