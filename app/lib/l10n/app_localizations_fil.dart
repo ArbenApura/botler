@@ -1823,6 +1823,11 @@ class AppLocalizationsFil extends AppLocalizations {
   String get notebookChangesEmpty => 'Wala pang pagbabago.';
 
   @override
+  String notebookChars(String count) {
+    return '$count karakter';
+  }
+
+  @override
   String get notebookConflictBody =>
       'Binago ito ni Botler, o ng ibang telepono, pagkabukas mo. Nandito pa rin ang isinulat mo. Kopyahin ito, o i-save sa ibabaw ng bagong bersyon: mananatili sa Mga pagbabago ang kabilang pagbabago.';
 
@@ -1842,6 +1847,31 @@ class AppLocalizationsFil extends AppLocalizations {
   String notebookCount(String count, String max) {
     return '$count sa $max na character';
   }
+
+  @override
+  String get notebookCreate => 'Gumawa';
+
+  @override
+  String get notebookDelete => 'Burahin ang kuwaderno';
+
+  @override
+  String get notebookDeleteBody =>
+      'Itatago ito at hihinto si Botler sa paggamit nito. Maibabalik mo ito mula sa Mga binurang kuwaderno sa loob ng 30 araw.';
+
+  @override
+  String get notebookDeleteTitle => 'Burahin ang kuwaderno na ito?';
+
+  @override
+  String get notebookDeleted => 'Mga binurang kuwaderno';
+
+  @override
+  String get notebookDeletedDone => 'Nabura na.';
+
+  @override
+  String get notebookDeletedEmpty => 'Walang binurang kuwaderno.';
+
+  @override
+  String get notebookDescribe => 'Pangalan at buod';
 
   @override
   String get notebookDiscardBody => 'Mawawala ang mga pagbabagong tinype mo.';
@@ -1867,6 +1897,16 @@ class AppLocalizationsFil extends AppLocalizations {
       'Wala pa rito. Sabihan si Botler ng dapat tandaan, o i-tap ang Baguhin.';
 
   @override
+  String get notebookFieldSummary => 'Ano ang laman nito?';
+
+  @override
+  String get notebookFieldSummaryHint =>
+      'Isang linya, para alam ni Botler kung kailan ito bubuksan';
+
+  @override
+  String get notebookFieldTitle => 'Pamagat';
+
+  @override
   String get notebookKeepEditing => 'Ituloy ang pag-edit';
 
   @override
@@ -1884,8 +1924,18 @@ class AppLocalizationsFil extends AppLocalizations {
   String get notebookNamesAddButton => 'Idagdag';
 
   @override
+  String get notebookNew => 'Bagong kuwaderno';
+
+  @override
   String get notebookOffline =>
       'Walang koneksyon. Nandito pa rin ang isinulat mo: subukan ulit kapag online ka na.';
+
+  @override
+  String get notebookOthers => 'Iba pang kuwaderno';
+
+  @override
+  String get notebookOthersEmpty =>
+      'Wala pa. Dito sa pangunahin ang mahahalaga; makakagawa si Botler ng kuwaderno para sa biyahe, proyekto o listahan. Hilingin mo, o gumawa ka mismo.';
 
   @override
   String get notebookRestore => 'Ibalik';
@@ -3138,6 +3188,33 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get simSkipPayday => 'I-tap ang sweldong hindi darating:';
+
+  @override
+  String get simSpanHint =>
+      'Nasa panahong ito ang ngayon. Pumili ng mas maaga o mas huli para makita ang kabuuan mula roon hanggang ngayon.';
+
+  @override
+  String get simSpanIncludes => 'Kasama ang panahong pinili mo.';
+
+  @override
+  String get simSpanNet => 'Netong halaga (natanggap bawas nagastos)';
+
+  @override
+  String get simSpanNothing => 'Walang nagastos o natanggap sa saklaw na ito.';
+
+  @override
+  String simSpanRange(String from, String to) {
+    return '$from hanggang $to';
+  }
+
+  @override
+  String get simSpanTitle => 'Kabuuang daloy';
+
+  @override
+  String get simSpanToday => 'ngayon';
+
+  @override
+  String get simSpanTodayCap => 'Ngayon';
 
   @override
   String get simSpent => 'Nagastos';

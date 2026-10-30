@@ -98,7 +98,7 @@ describe('compact tool schemas', () => {
 	it('are smaller than the original and have no oneOf left in a kind union', () => {
 		const json = JSON.stringify(buildTools().map((t) => t.parameters));
 		expect(json).not.toContain('"oneOf"');
-		expect(json.length).toBeLessThan(26_000);
+		expect(json.length).toBeLessThan(27_000);
 	});
 
 	it('turn anyOf with null into a nullable type and drop a type beside a const', () => {

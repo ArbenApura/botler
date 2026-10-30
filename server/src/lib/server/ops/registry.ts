@@ -58,9 +58,13 @@ import {
 	timerCreateInput,
 	memoryEditInput,
 	memoryFactIdInput,
+	notebookCreateInput,
 	notebookEditInput,
+	notebookListInput,
 	notebookRestoreInput,
 	notebookSaveInput,
+	notebookTargetInput,
+	notebookUpdateInput,
 	memoryListInput,
 	memoryRememberInput,
 	memoryResolveInput,
@@ -193,11 +197,16 @@ import {
 } from './schedule';
 import { syncGet } from './sync';
 import {
+	createNotebook,
+	deleteNotebook,
 	editNotebook,
 	getNotebook,
+	listNotebooks,
 	listRevisions,
 	restoreRevision,
-	saveNotebook
+	saveNotebook,
+	undeleteNotebook,
+	updateNotebook
 } from './notebook';
 import {
 	approveRule,
@@ -241,6 +250,8 @@ export type Verb = {
 	agent: boolean;
 	/** The input as the assistant is offered it, when some fields are for the app only. */
 	agentInput?: z.ZodObject;
+	/** True when the assistant is refused a field left out of `agentInput`, instead of the field being accepted (a notebook id on a card). */
+	agentStrict: boolean;
 };
 
 // -- FUNCTIONS -- //
@@ -256,23 +267,33 @@ function verb<S extends z.ZodObject>(v: {
 	agent?: boolean;
 	/** Fields the assistant never sees in its tool schema (they are for the app only, and are ignored if it sends them anyway). */
 	agentOmit?: readonly (keyof z.infer<S> & string)[];
+	/** The assistant is refused the omitted fields when it sends them, instead of the verb accepting them. */
+	agentStrict?: boolean;
 }): Verb {
 	const strict = v.input.strict();
+	const agentInput = v.agentOmit?.length
+		? v.input.omit(Object.fromEntries(v.agentOmit.map((k) => [k, true])) as never).strict()
+		: undefined;
 	return {
 		name: v.name,
 		description: v.description,
 		kind: v.kind,
 		taints: v.taints ?? false,
 		agent: v.agent ?? true,
-		...(v.agentOmit?.length
-			? {
-					agentInput: v.input
-						.omit(Object.fromEntries(v.agentOmit.map((k) => [k, true])) as never)
-						.strict()
-				}
-			: {}),
+		agentStrict: v.agentStrict ?? false,
+		...(agentInput ? { agentInput } : {}),
 		input: strict,
-		run: (ctx, raw) => v.run(ctx, parse(strict, raw) as z.infer<S>),
+		// The assistant is held to the input it is offered: a field left out of its schema (an id) is refused, not ignored
+		run: (ctx, raw) =>
+			v.run(
+				ctx,
+				parse(
+					ctx.actor.kind === 'agent' && agentInput && v.agentStrict
+						? (agentInput ?? strict)
+						: strict,
+					raw
+				) as z.infer<S>
+			),
 		...(v.gatedWhen
 			? {
 					gatedWhen: (ctx: Ctx, args: unknown) =>
@@ -469,18 +490,28 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'notebook_get',
 		kind: 'read',
-		agent: false,
-		description: 'The notebook: the text, its version and who wrote it last.',
-		input: emptyInput,
-		run: (ctx) => getNotebook(ctx)
+		description:
+			'Read a notebook: its text, version and who wrote it last. Name an extra notebook by its title; leave the title out for the main notebook (which is already in your prompt). The other notebooks are listed under your main notebook; read one before you answer from it or change it.',
+		input: notebookTargetInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => getNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_list',
+		kind: 'read',
+		description:
+			'List your notebooks: the main one first, then the others with their title, one-line summary and size. With deleted true, the deleted ones that can still be restored.',
+		input: notebookListInput,
+		run: (ctx, a) => listNotebooks(ctx, a)
 	}),
 	verb({
 		name: 'notebook_revisions',
 		kind: 'read',
 		agent: false,
-		description: 'The changes made to the notebook, newest first.',
-		input: emptyInput,
-		run: (ctx) => listRevisions(ctx)
+		description: 'The changes made to a notebook, newest first.',
+		input: notebookTargetInput,
+		run: (ctx, a) => listRevisions(ctx, a)
 	}),
 	verb({
 		name: 'memory_list',
@@ -628,9 +659,49 @@ export const VERBS: readonly Verb[] = [
 		name: 'notebook_edit',
 		kind: 'free',
 		description:
-			'Change your notebook, the notes you keep about the person that you read before every answer. Write a lasting preference, a rule, a person or an ongoing plan here as soon as the person says it or asks you to remember it. op add: heading and line (one short sentence; the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Never put a balance, an account number or anything one-off in it. It applies from the next message.',
+			'Change a notebook: your main notebook (the notes you keep about the person, read before every answer, for their main topics and essentials: how they like you to talk, lasting preferences and rules, the people in their life, ongoing plans) or another notebook, named by its title (for other information that does not belong in the main one). Leave the notebook out for the main one. Write a lasting fact here as soon as the person says it or asks you to remember it. op add: heading and line (one short sentence; the heading is made if it is missing). op replace: find (exact text that appears once) and replacement. op remove: find. Never put a balance, an account number or anything one-off in it. A change to the main notebook applies from the next message; another notebook is read with notebook_get.',
 		input: notebookEditInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
 		run: (ctx, a) => editNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_create',
+		kind: 'free',
+		description:
+			'Make a new notebook for other information than the main topics and essentials (for example a trip, a project, recipes, a list of gift ideas). Do this only when the person asks for it or agrees to your suggestion; otherwise suggest it in a sentence and wait. Give a short unique title, one line saying what it holds and when to open it (it shows in the list under your main notebook), and optionally its first text in Markdown with # headings. Keep the main notebook for essentials: it should only say that the notebook exists, through the list. At most 40 notebooks.',
+		input: notebookCreateInput,
+		run: (ctx, a) => createNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_update',
+		kind: 'free',
+		description:
+			'Rename another notebook (newTitle) or change its one-line summary. Keep each summary true: it is how you find the notebook later. The main notebook has neither.',
+		input: notebookUpdateInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => updateNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_delete',
+		kind: 'free',
+		description:
+			'Delete another notebook, named by its title, when the person asks or it is empty and no longer needed. It is hidden and can be restored for 30 days with notebook_undelete. The answer holds the removed notebook. The main notebook cannot be deleted.',
+		input: notebookTargetInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => deleteNotebook(ctx, a)
+	}),
+	verb({
+		name: 'notebook_undelete',
+		kind: 'free',
+		description:
+			'Put a deleted notebook back, named by its title (see notebook_list with deleted true).',
+		input: notebookTargetInput,
+		agentOmit: ['notebookId'],
+		agentStrict: true,
+		run: (ctx, a) => undeleteNotebook(ctx, a)
 	}),
 	verb({
 		name: 'memory_remember',

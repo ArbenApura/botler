@@ -40,6 +40,10 @@ class FakeBotler {
   String updatedBy;
   List<Map<String, Object?>> revisions = <Map<String, Object?>>[];
   List<String> people = <String>['Mama'];
+
+  /// The other notebooks, each with an id, title, summary and text; deleted ones wait in [bin].
+  List<Map<String, Object?>> others = <Map<String, Object?>>[];
+  List<Map<String, Object?>> bin = <Map<String, Object?>>[];
   List<Map<String, Object?>> goals = <Map<String, Object?>>[];
   final List<Call> calls = <Call>[];
 
@@ -91,7 +95,64 @@ class FakeBotler {
     calls.add(Call(verb, body, r.headers['idempotency-key']));
     switch (verb) {
       case 'notebook_get':
+        final id = body['notebookId'];
+        if (id != null) {
+          final n = others.firstWhere((x) => x['id'] == id);
+          return _ok(<String, Object?>{
+            ...n,
+            'version': 1,
+            'updatedBy': 'agent',
+            'updatedAt': '2026-10-27T01:00:00.000Z',
+          });
+        }
         return _ok(_view);
+      case 'notebook_list':
+        final listed = body['deleted'] == true ? bin : others;
+        return _ok(<String, Object?>{
+          'notebooks': <Map<String, Object?>>[
+            if (body['deleted'] != true)
+              <String, Object?>{
+                'id': 'main-1',
+                'kind': 'main',
+                'title': '',
+                'summary': '',
+                'chars': text.length,
+              },
+            for (final n in listed)
+              <String, Object?>{
+                'id': n['id'],
+                'kind': 'extra',
+                'title': n['title'],
+                'summary': n['summary'],
+                'chars': (n['text']! as String).length,
+              },
+          ],
+        });
+      case 'notebook_create':
+        final made = <String, Object?>{
+          'id': 'nb-${others.length + 10}',
+          'kind': 'extra',
+          'title': body['title'],
+          'summary': body['summary'] ?? '',
+          'text': '',
+        };
+        others.add(made);
+        return _ok(<String, Object?>{
+          ...made,
+          'version': 1,
+          'updatedBy': 'user',
+          'updatedAt': '2026-10-27T01:00:00.000Z',
+        });
+      case 'notebook_delete':
+        final gone = others.firstWhere((x) => x['id'] == body['notebookId']);
+        others.remove(gone);
+        bin.add(gone);
+        return _ok(<String, Object?>{'removed': gone});
+      case 'notebook_undelete':
+        final back = bin.firstWhere((x) => x['id'] == body['notebookId']);
+        bin.remove(back);
+        others.add(back);
+        return _ok(back);
       case 'notebook_save':
         if (drops > 0) {
           drops--;
@@ -281,6 +342,127 @@ void main() {
         expect(find.text('Try again'), findsOneWidget);
       },
     );
+  });
+
+  group('the other notebooks', () {
+    FakeBotler withTrip() => FakeBotler()
+      ..others = <Map<String, Object?>>[
+        <String, Object?>{
+          'id': 'nb-1',
+          'kind': 'extra',
+          'title': 'Trip to Japan',
+          'summary': 'Flights and hotels',
+          'text': '# Flights\n- Leave on 3 March\n',
+        },
+      ];
+
+    testWidgets('lists them under the main notebook and opens one', (
+      tester,
+    ) async {
+      final fake = withTrip();
+      await pump(tester, fake, const NotebookScreen());
+      expect(find.text('Other notebooks'), findsOneWidget);
+      expect(find.text('Trip to Japan'), findsOneWidget);
+      expect(find.text('Flights and hotels'), findsOneWidget);
+      // The main notebook keeps the one primary action
+      expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+      await tester.tap(find.text('Trip to Japan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Leave on 3 March'), findsOneWidget);
+      expect(find.text('Other notebooks'), findsNothing);
+      expect(fake.of('notebook_get').last.body['notebookId'], 'nb-1');
+    });
+
+    testWidgets('says so when there are none yet', (tester) async {
+      await pump(tester, FakeBotler(), const NotebookScreen());
+      expect(find.textContaining('None yet.'), findsOneWidget);
+      expect(find.text('New notebook'), findsOneWidget);
+    });
+
+    testWidgets(
+      'makes a new notebook with a title and a summary, then opens it',
+      (tester) async {
+        final fake = FakeBotler();
+        await pump(tester, fake, const NotebookScreen());
+        await tester.tap(find.text('New notebook'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Title'),
+          'Recipes',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'What is in it?'),
+          'Dinners I like',
+        );
+        await tester.pump();
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+        await tester.pumpAndSettle();
+        final sent = fake.of('notebook_create').single.body;
+        expect(sent['title'], 'Recipes');
+        expect(sent['summary'], 'Dinners I like');
+        expect(find.text('Recipes'), findsWidgets);
+      },
+    );
+
+    testWidgets('edits one of them by its id', (tester) async {
+      final fake = withTrip();
+      await pump(
+        tester,
+        fake,
+        const NotebookScreen(notebookId: 'nb-1', title: 'Trip to Japan'),
+      );
+      expect(find.text('Flights and hotels'), findsOneWidget);
+      await openEditor(tester);
+      await tester.enterText(
+        find.byType(TextField),
+        '# Flights\n- Leave on 5 March\n',
+      );
+      await tester.pump();
+      await tester.tap(saveButton());
+      await tester.pumpAndSettle();
+      final sent = fake.of('notebook_save').single.body;
+      expect(sent['notebookId'], 'nb-1');
+      expect(sent['expectVersion'], 1);
+    });
+
+    testWidgets('deletes one only after a confirm', (tester) async {
+      final fake = withTrip();
+      await pump(
+        tester,
+        fake,
+        const NotebookScreen(notebookId: 'nb-1', title: 'Trip to Japan'),
+      );
+      await openMenuItem(tester, 'Delete notebook');
+      expect(find.text('Delete this notebook?'), findsOneWidget);
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      expect(fake.of('notebook_delete'), isEmpty);
+      await openMenuItem(tester, 'Delete notebook');
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete notebook'));
+      await tester.pumpAndSettle();
+      expect(fake.of('notebook_delete').single.body['notebookId'], 'nb-1');
+      expect(fake.others, isEmpty);
+    });
+
+    testWidgets('shows the deleted notebooks and restores one', (tester) async {
+      final fake = FakeBotler()
+        ..bin = <Map<String, Object?>>[
+          <String, Object?>{
+            'id': 'nb-2',
+            'kind': 'extra',
+            'title': 'Old plans',
+            'summary': '',
+            'text': 'x',
+          },
+        ];
+      await pump(tester, fake, const NotebookScreen());
+      await openMenuItem(tester, 'Deleted notebooks');
+      expect(find.text('Old plans'), findsOneWidget);
+      await tester.tap(find.text('Restore'));
+      await tester.pumpAndSettle();
+      expect(fake.of('notebook_undelete').single.body['notebookId'], 'nb-2');
+      expect(fake.others.single['title'], 'Old plans');
+    });
   });
 
   group('editing and saving', () {

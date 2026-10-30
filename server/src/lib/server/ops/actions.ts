@@ -189,14 +189,33 @@ export function describeAction(
 			return `Record a refund of ${money(args.amount)} into ${nm(args.accountId)}.`;
 		case 'transfer_record':
 			return `Move ${money(args.amount)} from ${nm(args.fromAccountId)} to ${nm(args.toAccountId)}${typeof args.toCurrency === 'string' && num(args.toAmount) ? `, where ${moneyIn(args.toCurrency, args.toAmount)} arrives` : ''}${num(args.fee) ? ` (fee ${money(args.fee)})` : ''}.`;
-		case 'notebook_edit':
+		case 'notebook_edit': {
 			// All of the text is on the card, up to the most the verb accepts (heading 80, line 400, find and replacement 2000): a note written
 			// into the prompt of every later message is judged by its words, so nothing the person approves is hidden from them
+			const book =
+				typeof args.notebook === 'string' && args.notebook.trim()
+					? `the notebook "${text(args.notebook, 80)}"`
+					: 'your notebook';
 			return args.op === 'add'
-				? `Add this line to your notebook under "${text(args.heading, 80)}": "${text(args.line, 400)}".`
+				? `Add this line to ${book} under "${text(args.heading, 80)}": "${text(args.line, 400)}".`
 				: args.op === 'replace'
-					? `In your notebook, change "${text(args.find, 2000)}" to "${text(args.replacement, 2000)}".`
-					: `Remove this from your notebook: "${text(args.find, 2000)}".`;
+					? `In ${book}, change "${text(args.find, 2000)}" to "${text(args.replacement, 2000)}".`
+					: `Remove this from ${book}: "${text(args.find, 2000)}".`;
+		}
+		case 'notebook_create':
+			// The first text goes into the card too, so the person sees the words that will be kept
+			return `Make a new notebook "${text(args.title, 80)}"${typeof args.summary === 'string' && args.summary ? ` (${text(args.summary, 200)})` : ''}${typeof args.text === 'string' && args.text ? ` with this text: "${text(args.text, 2000)}"` : ''}.`;
+		case 'notebook_update':
+			return `Change the notebook "${text(args.notebook, 80)}": ${[
+				typeof args.newTitle === 'string' ? `call it "${text(args.newTitle, 80)}"` : '',
+				typeof args.summary === 'string' ? `describe it as "${text(args.summary, 200)}"` : ''
+			]
+				.filter(Boolean)
+				.join(', ')}.`;
+		case 'notebook_delete':
+			return `Delete the notebook "${text(args.notebook, 80)}". It can be restored for 30 days.`;
+		case 'notebook_undelete':
+			return `Put the deleted notebook "${text(args.notebook, 80)}" back.`;
 		default:
 			return `Run "${verbName.replaceAll('_', ' ')}".`;
 	}
@@ -213,7 +232,8 @@ export async function createAction(
 	const v = verbByName(opts.verb);
 	if (!v || v.kind === 'person' || v.kind === 'read')
 		throw new OpsError('INVALID', 'That cannot be turned into an approval card.');
-	const parsed = v.input.safeParse(opts.args);
+	const schema = ctx.actor.kind === 'agent' && v.agentStrict ? (v.agentInput ?? v.input) : v.input;
+	const parsed = schema.safeParse(opts.args);
 	if (!parsed.success) {
 		throw new OpsError('INVALID', firstProblem(v.input, parsed.error));
 	}

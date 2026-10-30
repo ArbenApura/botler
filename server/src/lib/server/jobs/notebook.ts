@@ -9,7 +9,7 @@ import type { Ctx } from '../ops/context';
 import type { Completion, CompletionRequest } from '../proxy/deepseek';
 import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { memoryProfile, notebook } from '../db/schema';
 import { lockPerson } from '../db/tenant';
@@ -50,7 +50,10 @@ export function readTidy(answer: string): string | null {
 
 export function createNotebookHandlers(deps: NotebookJobDeps): Record<string, JobHandler> {
 	const seed: JobHandler = async (job, tx, ctx) => {
-		const [draft] = await tx.select().from(notebook).where(eq(notebook.userId, job.userId));
+		const [draft] = await tx
+			.select()
+			.from(notebook)
+			.where(and(eq(notebook.userId, job.userId), eq(notebook.kind, 'main')));
 		// Touched since the draft (a save, an edit, a restore), or gone: nothing to tidy
 		if (!draft || draft.version !== 1 || draft.updatedBy !== 'seed') return;
 		const [p] = await tx
@@ -74,7 +77,10 @@ export function createNotebookHandlers(deps: NotebookJobDeps): Record<string, Jo
 		if (!tidy) return;
 		// The lock only now, for the write; the draft is read again under it, and a person who touched it meanwhile keeps their version
 		await lockPerson(tx, job.userId);
-		const [now] = await tx.select().from(notebook).where(eq(notebook.userId, job.userId));
+		const [now] = await tx
+			.select()
+			.from(notebook)
+			.where(and(eq(notebook.userId, job.userId), eq(notebook.kind, 'main')));
 		if (!now || now.version !== 1 || now.updatedBy !== 'seed' || now.text !== draft.text) return;
 		await applyChange(tx, job.userId, now, tidy, 'seed', 'seed');
 	};

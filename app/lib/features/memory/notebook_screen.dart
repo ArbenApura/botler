@@ -18,30 +18,40 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'notebook_editor.dart';
+import 'notebook_list.dart';
 import 'notebook_text.dart';
 
 // -- CONSTANTS -- //
 
-final FutureProvider<Json> _notebook = FutureProvider.autoDispose<Json>(
-  (ref) => ref.watch(apiProvider).verbJson('notebook_get'),
+/// A notebook by id; no id is the main notebook.
+Json _target(String? id) => <String, Object?>{'notebookId': ?id};
+
+final _notebook = FutureProvider.autoDispose.family<Json, String?>(
+  (ref, id) => ref.watch(apiProvider).verbJson('notebook_get', _target(id)),
 );
 
-final FutureProvider<List<Json>> _revisions =
-    FutureProvider.autoDispose<List<Json>>((ref) async {
-      final answer = await ref
-          .watch(apiProvider)
-          .verbJson('notebook_revisions');
-      return asJsonList(answer['revisions']);
-    });
+final _revisions = FutureProvider.autoDispose.family<List<Json>, String?>((
+  ref,
+  id,
+) async {
+  final answer = await ref
+      .watch(apiProvider)
+      .verbJson('notebook_revisions', _target(id));
+  return asJsonList(answer['revisions']);
+});
 
 final DateFormat _when = DateFormat('d MMM, HH:mm');
 
 // -- TYPES -- //
 
-enum _More { changes, names, copy, wipe }
+enum _More { changes, names, copy, wipe, deleted, describe, delete }
 
+/// The main notebook (no [notebookId]) or one of the other notebooks, opened from the list under the main one.
 class NotebookScreen extends ConsumerStatefulWidget {
-  const NotebookScreen({super.key});
+  const NotebookScreen({this.notebookId, this.title, super.key});
+
+  final String? notebookId;
+  final String? title;
 
   @override
   ConsumerState<NotebookScreen> createState() => _NotebookScreenState();
@@ -50,9 +60,14 @@ class NotebookScreen extends ConsumerStatefulWidget {
 class _NotebookScreenState extends ConsumerState<NotebookScreen> {
   // -- FUNCTIONS -- //
 
+  String? get _id => widget.notebookId;
+
+  bool get _main => _id == null;
+
   void _refresh() => ref
-    ..invalidate(_notebook)
-    ..invalidate(_revisions);
+    ..invalidate(_notebook(_id))
+    ..invalidate(_revisions(_id))
+    ..invalidate(notebookListProvider);
 
   Future<void> _edit(Json book) async {
     final saved = context.t.memorySaved;
@@ -62,6 +77,8 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
         builder: (_) => NotebookEditor(
           initial: str(book['text']),
           version: intOf(book['version'], 1),
+          notebookId: _id,
+          title: _main ? null : str(book['title']),
         ),
       ),
     );
@@ -76,6 +93,7 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
       context,
       title: context.t.notebookChanges,
       builder: (sheet, close) => _Changes(
+        notebookId: _id,
         onRestored: () {
           _refresh();
           close(null);
@@ -167,8 +185,81 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
     }
   }
 
-  void _more(_More what) {
+  Future<void> _openOther(Json n) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            NotebookScreen(notebookId: str(n['id']), title: str(n['title'])),
+      ),
+    );
+    // What was changed in it shows in the list when this page comes back
+    ref.invalidate(notebookListProvider);
+  }
+
+  Future<void> _new() async {
+    final made = await showFormSheet<Json>(
+      context,
+      title: context.t.notebookNew,
+      builder: (sheet, close) => NotebookInfoForm(onDone: close),
+    );
+    if (made != null && mounted) await _openOther(made);
+  }
+
+  Future<void> _describe(Json book) async {
+    final saved = context.t.memorySaved;
+    final done = await showFormSheet<Json>(
+      context,
+      title: context.t.notebookDescribe,
+      builder: (sheet, close) =>
+          NotebookInfoForm(notebook: book, onDone: close),
+    );
+    if (done != null) {
+      _refresh();
+      if (mounted) say(context, saved);
+    }
+  }
+
+  Future<void> _deleted() async {
+    await showFormSheet<void>(
+      context,
+      title: context.t.notebookDeleted,
+      builder: (sheet, close) =>
+          DeletedNotebooks(onRestored: () => close(null)),
+    );
+    ref.invalidate(notebookListProvider);
+  }
+
+  Future<void> _delete(Json book) async {
+    final gone = context.t.notebookDeletedDone;
+    final ok = await confirm(
+      context,
+      title: context.t.notebookDeleteTitle,
+      body: context.t.notebookDeleteBody,
+      yes: context.t.notebookDelete,
+      danger: true,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
+        'notebookId': str(book['id']),
+      });
+      ref.invalidate(notebookListProvider);
+      if (!mounted) return;
+      say(context, gone);
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
+  }
+
+  void _more(_More what, Json? book) {
     switch (what) {
+      case _More.deleted:
+        _deleted();
+      case _More.describe:
+        if (book != null) _describe(book);
+      case _More.delete:
+        if (book != null) _delete(book);
       case _More.changes:
         _changes();
       case _More.names:
@@ -185,34 +276,57 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final book = ref.watch(_notebook);
+    final book = ref.watch(_notebook(_id));
+    final loaded = book.asData?.value;
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t.notebookTitle),
+        title: Text(
+          _main
+              ? context.t.notebookTitle
+              : (loaded == null ? widget.title : str(loaded['title'])) ?? '',
+        ),
         actions: <Widget>[
           PopupMenuButton<_More>(
             tooltip: context.t.memoryMore,
-            onSelected: _more,
+            onSelected: (what) => _more(what, loaded),
             itemBuilder: (_) => <PopupMenuEntry<_More>>[
               PopupMenuItem<_More>(
                 value: _More.changes,
                 child: Text(context.t.notebookChanges),
               ),
-              PopupMenuItem<_More>(
-                value: _More.names,
-                child: Text(context.t.notebookNames),
-              ),
-              PopupMenuItem<_More>(
-                value: _More.copy,
-                child: Text(context.t.memoryCopyAll),
-              ),
-              PopupMenuItem<_More>(
-                value: _More.wipe,
-                child: Text(
-                  context.t.memoryWipeButton,
-                  style: TextStyle(color: c.danger),
+              if (_main) ...<PopupMenuEntry<_More>>[
+                PopupMenuItem<_More>(
+                  value: _More.deleted,
+                  child: Text(context.t.notebookDeleted),
                 ),
-              ),
+                PopupMenuItem<_More>(
+                  value: _More.names,
+                  child: Text(context.t.notebookNames),
+                ),
+                PopupMenuItem<_More>(
+                  value: _More.copy,
+                  child: Text(context.t.memoryCopyAll),
+                ),
+                PopupMenuItem<_More>(
+                  value: _More.wipe,
+                  child: Text(
+                    context.t.memoryWipeButton,
+                    style: TextStyle(color: c.danger),
+                  ),
+                ),
+              ] else ...<PopupMenuEntry<_More>>[
+                PopupMenuItem<_More>(
+                  value: _More.describe,
+                  child: Text(context.t.notebookDescribe),
+                ),
+                PopupMenuItem<_More>(
+                  value: _More.delete,
+                  child: Text(
+                    context.t.notebookDelete,
+                    style: TextStyle(color: c.danger),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -222,8 +336,15 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
         skeleton: const SkeletonPage(
           child: SkeletonRows(count: 4, kind: SkeletonKind.tile),
         ),
-        onRetry: () => ref.invalidate(_notebook),
-        data: (b) => _Page(book: b, onEdit: () => _edit(b)),
+        onRetry: () => ref.invalidate(_notebook(_id)),
+        data: (b) => _Page(
+          book: b,
+          onEdit: () => _edit(b),
+          // Only the main notebook lists the others
+          others: _main
+              ? NotebookOthers(onOpen: _openOther, onNew: _new)
+              : null,
+        ),
       ),
     );
   }
@@ -231,10 +352,13 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
 
 /// The notebook as a page: Edit, a note while it is still the first draft, then the sections.
 class _Page extends StatelessWidget {
-  const _Page({required this.book, required this.onEdit});
+  const _Page({required this.book, required this.onEdit, this.others});
 
   final Json book;
   final VoidCallback onEdit;
+
+  /// The list of the other notebooks, shown under the main notebook only.
+  final Widget? others;
 
   @override
   Widget build(BuildContext context) {
@@ -252,6 +376,11 @@ class _Page extends StatelessWidget {
           icon: const Icon(Icons.edit_outlined),
           label: Text(context.t.notebookEdit),
         ),
+        if (str(book['summary']).isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(str(book['summary']), style: TextStyle(color: c.muted)),
+          ),
         if (draft && !empty)
           Padding(
             padding: const EdgeInsets.only(top: 12),
@@ -296,6 +425,7 @@ class _Page extends StatelessWidget {
                     ),
             ),
           ],
+        ?others,
         Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Align(
@@ -316,9 +446,10 @@ class _Page extends StatelessWidget {
 
 /// The changes made to the notebook, newest first, each with a way back.
 class _Changes extends ConsumerWidget {
-  const _Changes({required this.onRestored});
+  const _Changes({required this.onRestored, this.notebookId});
 
   final VoidCallback onRestored;
+  final String? notebookId;
 
   String _who(BuildContext context, String actor) => switch (actor) {
     'agent' => context.t.notebookByBotler,
@@ -352,9 +483,9 @@ class _Changes extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     return AsyncBody<List<Json>>(
-      value: ref.watch(_revisions),
+      value: ref.watch(_revisions(notebookId)),
       skeleton: const SkeletonRows(count: 3),
-      onRetry: () => ref.invalidate(_revisions),
+      onRetry: () => ref.invalidate(_revisions(notebookId)),
       data: (list) {
         if (list.isEmpty) return Note(context.t.notebookChangesEmpty);
         return Column(

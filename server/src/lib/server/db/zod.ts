@@ -21,6 +21,8 @@ import {
 	incomeSchedule,
 	ledgerTxn,
 	NOTEBOOK_MAX_CHARS,
+	NOTEBOOK_SUMMARY_MAX,
+	NOTEBOOK_TITLE_MAX,
 	userSetting
 } from './schema';
 
@@ -784,14 +786,29 @@ export const calcInput = z.object({
 
 // -- NOTEBOOK -- //
 
-/** The whole text of the notebook, from the version the editor was opened on (0 when there was no notebook yet). */
+/**
+ * Which notebook a verb is about. Left out it is the main notebook. The app names one by id; the assistant names an extra one by its
+ * title (unique among a person's live notebooks, ignoring case). Naming both is refused by the verb.
+ */
+const notebookTarget = {
+	notebookId: idField.optional(),
+	notebook: z.string().trim().min(1).max(NOTEBOOK_TITLE_MAX).optional()
+};
+
+export const notebookTargetInput = z.object(notebookTarget);
+
+/** The whole text of a notebook, from the version the editor was opened on (0 when there was no notebook yet). */
 export const notebookSaveInput = z.object({
+	...notebookTarget,
 	text: z.string().max(NOTEBOOK_MAX_CHARS),
 	expectVersion: z.number().int().min(0)
 });
 
-/** One change to the notebook that the assistant makes: add a line under a heading, or replace or remove exact text. */
+/** One change to a notebook that the assistant makes: add a line under a heading, or replace or remove exact text. */
 export const notebookEditInput = z.object({
+	/** The extra notebook to change, by title. Left out it is the main notebook. */
+	notebook: notebookTarget.notebook,
+	notebookId: notebookTarget.notebookId,
 	op: z.enum(['add', 'replace', 'remove']),
 	/** For add: the heading to add the line under. It is made when it is not there yet. */
 	heading: z.string().trim().min(1).max(80).optional(),
@@ -804,6 +821,23 @@ export const notebookEditInput = z.object({
 });
 
 export const notebookRestoreInput = z.object({ revisionId: idField });
+
+/** A new extra notebook: its title, one line saying what it holds, and optionally its first text. */
+export const notebookCreateInput = z.object({
+	title: z.string().trim().min(1).max(NOTEBOOK_TITLE_MAX),
+	summary: z.string().trim().max(NOTEBOOK_SUMMARY_MAX).optional(),
+	text: z.string().max(NOTEBOOK_MAX_CHARS).optional()
+});
+
+/** Rename an extra notebook or change its one-line summary. */
+export const notebookUpdateInput = z.object({
+	...notebookTarget,
+	newTitle: z.string().trim().min(1).max(NOTEBOOK_TITLE_MAX).optional(),
+	summary: z.string().trim().max(NOTEBOOK_SUMMARY_MAX).optional()
+});
+
+/** The notebook list: with deleted true, the deleted ones that can still be restored. */
+export const notebookListInput = z.object({ deleted: z.boolean().optional() });
 
 export const wipeInput = z.object({ confirm: z.literal(true) });
 

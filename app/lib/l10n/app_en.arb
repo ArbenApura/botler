@@ -1275,6 +1275,14 @@
   "notebookByYou": "You",
   "notebookChanges": "Changes",
   "notebookChangesEmpty": "No changes yet.",
+  "notebookChars": "{count} characters",
+  "@notebookChars": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "notebookConflictBody": "Botler, or another phone, changed it after you opened it. Your text is still here. Copy it, or save it over the new version: the other change stays in Changes.",
   "notebookConflictCopy": "Copy my text",
   "notebookConflictSave": "Save mine",
@@ -1291,6 +1299,14 @@
       }
     }
   },
+  "notebookCreate": "Create",
+  "notebookDelete": "Delete notebook",
+  "notebookDeleteBody": "It is hidden and Botler stops using it. You can put it back from Deleted notebooks for 30 days.",
+  "notebookDeleteTitle": "Delete this notebook?",
+  "notebookDeleted": "Deleted notebooks",
+  "notebookDeletedDone": "Deleted.",
+  "notebookDeletedEmpty": "No deleted notebooks.",
+  "notebookDescribe": "Name and summary",
   "notebookDiscardBody": "The changes you typed will be lost.",
   "notebookDiscardTitle": "Leave without saving?",
   "notebookDiscardYes": "Leave",
@@ -1298,6 +1314,9 @@
   "notebookEditHint": "Write what Botler should keep in mind about you",
   "notebookEditTitle": "Edit your notebook",
   "notebookEmpty": "Nothing here yet. Tell Botler something to remember, or tap Edit.",
+  "notebookFieldSummary": "What is in it?",
+  "notebookFieldSummaryHint": "One line, so Botler knows when to open it",
+  "notebookFieldTitle": "Title",
   "notebookKeepEditing": "Keep editing",
   "notebookNameRemove": "Remove {name}",
   "@notebookNameRemove": {
@@ -1310,7 +1329,10 @@
   "notebookNames": "Private names",
   "notebookNamesAdd": "Add a name",
   "notebookNamesAddButton": "Add",
+  "notebookNew": "New notebook",
   "notebookOffline": "No connection. Your text is still here: try again when you are online.",
+  "notebookOthers": "Other notebooks",
+  "notebookOthersEmpty": "None yet. Botler keeps the essentials here and can start a notebook for a trip, a project or a list. Ask for one, or make it yourself.",
   "notebookRestore": "Restore",
   "notebookRestoreBody": "Your notebook becomes the text below. What it says now stays in Changes, so you can undo this.",
   "notebookRestoreTitle": "Put this text back?",
@@ -2213,6 +2235,24 @@
   },
   "simSimulatedEnd": "Simulated at the end",
   "simSkipPayday": "Tap a payday that would not come:",
+  "simSpanHint": "This period holds today. Pick an earlier or a later one to see the total from it to today.",
+  "simSpanIncludes": "Includes the period you picked.",
+  "simSpanNet": "Net (received minus spent)",
+  "simSpanNothing": "Nothing was spent or received in this span.",
+  "simSpanRange": "{from} to {to}",
+  "@simSpanRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "simSpanTitle": "Overall flow",
+  "simSpanToday": "today",
+  "simSpanTodayCap": "Today",
   "simSpent": "Spent",
   "simSpentSoFar": "Spent so far",
   "simStillToCome": "Still to come (estimate)",

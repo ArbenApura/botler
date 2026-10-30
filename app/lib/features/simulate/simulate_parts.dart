@@ -889,6 +889,82 @@ class SpendCard extends StatelessWidget {
   }
 }
 
+// -- OVERALL FLOW -- //
+
+/// True when a day is the phone's today (the answer may be an older saved copy, so "today" is said only when it is).
+bool _isToday(String day) {
+  final now = DateTime.now();
+  final d = parseDay(day);
+  return d.year == now.year && d.month == now.month && d.day == now.day;
+}
+
+/// The running total across the span between the selected period and today: from the period to today for a past one, from today to the
+/// period for a future one. It is a second card beside the period's own figures (which it includes) and never replaces them. The period
+/// that holds today has no span, so it shows one muted line saying where to look. A period without a span (an older saved answer, or
+/// before the first record) shows nothing. Net is shown only when it can be trusted: money came in and no currency was left out.
+class SpanCard extends StatelessWidget {
+  const SpanCard({required this.period, super.key});
+
+  final SimPeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final c = context.colors;
+    final p = period;
+    if (!p.spanKnown) {
+      if (p.part == SimPart.mixed && p.totalsKnown) {
+        return Text(t.simSpanHint, style: TextStyle(color: c.muted));
+      }
+      return const SizedBox.shrink();
+    }
+    final from = p.spanFrom ?? p.from;
+    final to = p.spanTo ?? p.to;
+    final spent = p.spanSpent ?? 0;
+    final received = p.spanReceived ?? 0;
+    final source = p.spanSimulated ? SimSource.simulated : SimSource.recorded;
+    final fromWords = _isToday(from)
+        ? t.simSpanTodayCap
+        : shortDay(context, from);
+    final toWords = _isToday(to) ? t.simSpanToday : shortDay(context, to);
+    final partial = p.spanLeftOut.isNotEmpty;
+    final nothing = spent == 0 && received == 0 && !partial;
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: gapM,
+        children: <Widget>[
+          Text(t.simSpanTitle, style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            t.simSpanRange(fromWords, toWords),
+            style: TextStyle(color: c.muted),
+          ),
+          if (nothing)
+            Text(t.simSpanNothing, style: TextStyle(color: c.muted))
+          else ...<Widget>[
+            _TotalRow(
+              label: t.simSpent,
+              amount: spent,
+              source: source,
+              large: true,
+            ),
+            if (received != 0)
+              _TotalRow(label: t.simReceived, amount: received, source: source),
+            if (received != 0 && !partial)
+              _TotalRow(
+                label: t.simSpanNet,
+                amount: received - spent,
+                source: source,
+              ),
+          ],
+          if (partial) RateWarning(p.spanLeftOut),
+          Text(t.simSpanIncludes, style: TextStyle(color: c.muted)),
+        ],
+      ),
+    );
+  }
+}
+
 // -- WHERE IT WENT -- //
 
 /// The groups of spending to draw: the recorded ones for a past period, the simulated ones for the future, and both added up by group

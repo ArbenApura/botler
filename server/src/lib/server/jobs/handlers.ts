@@ -6,7 +6,7 @@ import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
 import { lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { requestLog, undoJournal } from '../db/schema';
+import { notebook, NOTEBOOK_TRASH_DAYS, requestLog, undoJournal } from '../db/schema';
 
 // -- CONSTANTS -- //
 
@@ -22,6 +22,10 @@ export const purgeOld: JobHandler = async (_job, tx) => {
 	await tx
 		.delete(undoJournal)
 		.where(lt(undoJournal.createdAt, sql`now() - ${UNDO_DAYS} * interval '1 day'`));
+	// A deleted notebook can be restored for a while; after that it goes, with its changes (they follow it by the composite key)
+	await tx
+		.delete(notebook)
+		.where(lt(notebook.deletedAt, sql`now() - ${NOTEBOOK_TRASH_DAYS} * interval '1 day'`));
 };
 
 /**

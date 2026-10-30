@@ -3,6 +3,7 @@
 // -- TYPES -- //
 import type { PlanData } from '../../src/lib/finance/planFlows';
 import type { RecordedSnapshot, RecordedTxn, SimulateInput } from '../../src/lib/finance/simulate';
+import type { SimulationView } from '../../src/lib/server/ops/simulate';
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
@@ -11,6 +12,7 @@ import { convert } from '../../src/lib/finance/fx';
 import { planFlows } from '../../src/lib/finance/planFlows';
 import { applyScenario } from '../../src/lib/finance/scenario';
 import { MAX_ENTRIES, simulate } from '../../src/lib/finance/simulate';
+import { forAgent } from '../../src/lib/server/ops/simulate';
 import { GOAL_PER_PAY, NET, PAY, plan, RENT } from './planFixture';
 
 // -- CONSTANTS -- //
@@ -713,6 +715,134 @@ describe('spent and received per period', () => {
 			'simulatedReceived'
 		] as const)
 			expect(months.periods.reduce((a, p) => a + (p[f] ?? 0), 0)).toBe(y?.[f]);
+	});
+});
+
+describe('the running total from a period to today', () => {
+	const recordedSum = (out: ReturnType<typeof sim>, f: 'recordedSpent' | 'recordedReceived') =>
+		out.periods.reduce((a, p) => a + (p[f] ?? 0), 0);
+
+	it('gives a past period the total from its start to today, even when the window ends before today', () => {
+		const short = sim({ from: '2026-03-01', to: '2026-03-31' });
+		const long = sim({ from: '2026-03-01', to: '2026-12-31' });
+		const m = month(short, '2026-03');
+		expect(m.spanFrom).toBe('2026-03-01');
+		expect(m.spanTo).toBe(TODAY);
+		expect(m.spanSource).toBe('recorded');
+		// March, April, May and the recorded part of June
+		const upToJune = { periods: long.periods.filter((p) => p.from <= TODAY) } as typeof long;
+		expect(m.spanSpent).toBe(recordedSum(upToJune, 'recordedSpent'));
+		expect(m.spanReceived).toBe(recordedSum(upToJune, 'recordedReceived'));
+		// The same whatever window it was asked in, and the period's own figures are unchanged by the span
+		expect(month(long, '2026-03').spanSpent).toBe(m.spanSpent);
+		expect(m.recordedSpent).toBe(month(long, '2026-03').recordedSpent);
+		expect(m.spanSpent).toBeGreaterThan(m.recordedSpent ?? 0);
+	});
+
+	it('follows the period rule: expenses and fees less refunds, income only, transfers and counts apart', () => {
+		const MARCH = [
+			txn({
+				type: 'expense',
+				accountId: 'gcash',
+				amount: 100_000,
+				occurredAt: manilaNoon('2026-03-04')
+			}),
+			txn({
+				type: 'refund',
+				accountId: 'gcash',
+				amount: 20_000,
+				occurredAt: manilaNoon('2026-03-07')
+			}),
+			txn({
+				type: 'income',
+				accountId: 'rcbc',
+				amount: 500_000,
+				occurredAt: manilaNoon('2026-03-10')
+			}),
+			txn({
+				type: 'transfer',
+				accountId: 'rcbc',
+				toAccountId: 'gcash',
+				amount: 300_000,
+				fee: 5_000,
+				occurredAt: manilaNoon('2026-03-11')
+			}),
+			txn({
+				type: 'adjustment',
+				accountId: 'gcash',
+				amount: -30_000,
+				occurredAt: manilaNoon('2026-03-12')
+			}),
+			txn({
+				type: 'adjustment',
+				accountId: 'gcash',
+				amount: -80_000,
+				occurredAt: manilaNoon('2026-03-20'),
+				category: 'reset'
+			})
+		];
+		const m = month(sim({ from: '2026-03-01', to: '2026-03-31', txns: MARCH }), '2026-03');
+		expect(m.spanSpent).toBe(100_000 - 20_000 + 5_000);
+		expect(m.spanReceived).toBe(500_000);
+		expect(m.spanSpent).toBe(m.recordedSpent);
+		expect(m.spanReceived).toBe(m.recordedReceived);
+	});
+
+	it('gives a future period the simulated total from today to its end', () => {
+		const out = sim({ from: '2026-06-01', to: '2026-07-31' });
+		const june = month(out, '2026-06');
+		const jul = month(out, '2026-07');
+		expect(jul.spanFrom).toBe(TODAY);
+		expect(jul.spanTo).toBe('2026-07-31');
+		expect(jul.spanSource).toBe('simulated');
+		expect(jul.spanSpent).toBe((june.simulatedSpent ?? 0) + (jul.simulatedSpent ?? 0));
+		expect(jul.spanReceived).toBe((june.simulatedReceived ?? 0) + (jul.simulatedReceived ?? 0));
+	});
+
+	it('has none for the period of today, for a period before the first record, or for a day window with nothing past', () => {
+		const june = month(sim({ from: '2026-06-01', to: '2026-06-30' }), '2026-06');
+		expect(june.part).toBe('mixed');
+		expect(june.spanSpent).toBeNull();
+		expect(june.spanFrom).toBeNull();
+		expect(june.spanLeftOut).toEqual([]);
+		const early = month(sim({ from: '2025-11-01', to: '2026-01-31' }), '2025-12');
+		expect(early.beforeFirstRecord).toBe(true);
+		expect(early.spanSpent).toBeNull();
+	});
+
+	it('names a currency with no rate in the span only, and leaves the period as it was', () => {
+		const eur = txn({
+			type: 'expense',
+			accountId: 'gcash',
+			amount: 900,
+			currency: 'EUR',
+			occurredAt: manilaNoon('2026-04-15'),
+			label: 'Coffee'
+		});
+		const out = sim({ from: '2026-03-01', to: '2026-03-31', txns: [...TXNS, eur] });
+		const m = month(out, '2026-03');
+		expect(m.leftOut).toEqual([]);
+		expect(m.spanLeftOut).toEqual(['EUR']);
+	});
+
+	it('keeps the entries to the window when it ends before today', () => {
+		const out = sim({ from: '2026-03-01', to: '2026-03-31', detail: true });
+		for (const e of out.entries ?? []) {
+			expect(e.date >= '2026-03-01' && e.date <= '2026-03-31').toBe(true);
+		}
+	});
+
+	it('is left out of the assistant answer, which would quote it as the period', () => {
+		const out = sim({ from: '2026-03-01', to: '2026-03-31' });
+		const view: SimulationView = {
+			...out,
+			view: 'overview',
+			notes: [],
+			rates: { asOf: null, stale: false }
+		};
+		const cut = forAgent(view);
+		expect(month(out, '2026-03').spanSpent).not.toBeNull();
+		expect(JSON.stringify(cut)).not.toContain('span');
 	});
 });
 

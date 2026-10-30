@@ -402,6 +402,57 @@ void main() {
     },
   );
 
+  test('reads the running total of a period, and none from an older answer or the period of today', () {
+    final p = SimPeriod(<String, Object?>{
+      'from': '2025-01-01',
+      'to': '2025-12-31',
+      'part': 'past',
+      'spanFrom': '2025-01-01',
+      'spanTo': '2026-10-30',
+      'spanSource': 'recorded',
+      'spanSpent': 4500000,
+      'spanReceived': 0,
+      'spanLeftOut': <String>['EUR'],
+      'leftOut': <String>[],
+    });
+    expect(p.spanKnown, isTrue);
+    expect(p.spanSpent, 4500000);
+    expect(p.spanReceived, 0);
+    expect(p.spanSimulated, isFalse);
+    expect(p.spanLeftOut, <String>['EUR']);
+    // The period's own left-out list is not the span's
+    expect(p.leftOut, isEmpty);
+    final future = SimPeriod(<String, Object?>{
+      'from': '2027-01-01',
+      'to': '2027-01-31',
+      'part': 'future',
+      'spanFrom': '2026-10-30',
+      'spanTo': '2027-01-31',
+      'spanSource': 'simulated',
+      'spanSpent': 10,
+      'spanReceived': 20,
+    });
+    expect(future.spanKnown, isTrue);
+    expect(future.spanSimulated, isTrue);
+    // Nothing is read as zero when the server sent none (the period of today) or an older saved answer has no such keys
+    final today = SimPeriod(<String, Object?>{
+      'from': '2026-10-01',
+      'to': '2026-10-31',
+      'part': 'mixed',
+      'spanFrom': null,
+      'spanSpent': null,
+    });
+    expect(today.spanKnown, isFalse);
+    final old = SimPeriod(<String, Object?>{
+      'from': '2026-03-01',
+      'to': '2026-03-31',
+      'part': 'past',
+    });
+    expect(old.spanKnown, isFalse);
+    expect(old.spanSpent, isNull);
+    expect(old.spanLeftOut, isEmpty);
+  });
+
   test('reads the breakdown and the entry fields, and merges both sources for the period of today', () {
     SpendGroup g(String key, int amount, [String label = '']) =>
         SpendGroup(<String, Object?>{

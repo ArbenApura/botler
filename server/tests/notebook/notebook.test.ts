@@ -524,9 +524,9 @@ describe('the seed job', () => {
 describe('what the assistant may touch', () => {
 	it('is offered notebook_edit and none of the other notebook or memory verbs', () => {
 		const names = buildTools().map((x) => x.name);
-		expect(names).toContain('notebook_edit');
+		for (const kept of ['notebook_edit', 'notebook_get', 'notebook_list', 'notebook_create'])
+			expect(names).toContain(kept);
 		for (const gone of [
-			'notebook_get',
 			'notebook_save',
 			'notebook_restore',
 			'notebook_revisions',
@@ -556,7 +556,7 @@ describe('what the assistant may touch', () => {
 
 	it('refuses the assistant a verb that is for the app only, even by name', async () => {
 		const c = await newUser();
-		for (const verb of ['notebook_get', 'memory_remember', 'profile_set'])
+		for (const verb of ['notebook_revisions', 'memory_remember', 'profile_set'])
 			await expect(invokeVerb(agentOf(c), verb, {})).rejects.toMatchObject({ code: 'FORBIDDEN' });
 	});
 
@@ -632,7 +632,13 @@ const EXPECTED_TOOLS = [
 	'ledger_list',
 	'ledger_spending',
 	'ledger_undoable',
+	'notebook_create',
+	'notebook_delete',
 	'notebook_edit',
+	'notebook_get',
+	'notebook_list',
+	'notebook_undelete',
+	'notebook_update',
 	'refund_record',
 	'reminder_cancel',
 	'reminder_create',

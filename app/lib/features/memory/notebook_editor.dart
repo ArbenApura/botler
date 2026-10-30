@@ -25,12 +25,18 @@ class NotebookEditor extends ConsumerStatefulWidget {
   const NotebookEditor({
     required this.initial,
     required this.version,
+    this.notebookId,
+    this.title,
     super.key,
   });
 
   /// The text the editor opens with, and the version it was read at.
   final String initial;
   final int version;
+
+  /// The notebook being edited: none is the main notebook. [title] names an extra one in the app bar.
+  final String? notebookId;
+  final String? title;
 
   @override
   ConsumerState<NotebookEditor> createState() => _NotebookEditorState();
@@ -53,6 +59,11 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
   bool get _changed => _controller.text != widget.initial;
 
   int get _count => _controller.text.length;
+
+  /// Names the notebook to the server; the main notebook needs no name.
+  Map<String, Object?> get _target => <String, Object?>{
+    'notebookId': ?widget.notebookId,
+  };
 
   @override
   void dispose() {
@@ -80,10 +91,11 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
     try {
       if (overwrite) {
         // The newest version is read first, so this save is made from it: what it replaces stays in the changes
-        final latest = await api.verbJson('notebook_get');
+        final latest = await api.verbJson('notebook_get', _target);
         _version = intOf(latest['version']);
       }
       await api.verb('notebook_save', <String, Object?>{
+        ..._target,
         'text': _controller.text,
         'expectVersion': _version,
       }, _requestId());
@@ -164,7 +176,7 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(context.t.notebookEditTitle),
+          title: Text(widget.title ?? context.t.notebookEditTitle),
           actions: <Widget>[
             Padding(
               padding: const EdgeInsets.only(right: 12),

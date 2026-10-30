@@ -170,6 +170,17 @@ export type SimPeriod = {
 	simulatedSpent: number | null;
 	simulatedReceived: number | null;
 	leftOut: string[];
+	/**
+	 * The running total across the span between this period and today, same rule and same conversion as the figures above. A past
+	 * period spans its start to today (recorded), a future one today to its end (simulated). Null for the period that holds today (it
+	 * would repeat spent so far) and for a period before the first record. Its own left-out list keeps `leftOut` true to the period.
+	 */
+	spanFrom?: ManilaDate | null;
+	spanTo?: ManilaDate | null;
+	spanSource?: 'recorded' | 'simulated' | null;
+	spanSpent?: number | null;
+	spanReceived?: number | null;
+	spanLeftOut?: string[];
 	wallets: SimWallet[];
 };
 
@@ -662,7 +673,8 @@ export function simulate(input: SimulateInput): Simulation {
 
 	// Recorded entries once, by their Manila day, up to today: every period then adds its own days
 	const recordedByDate = new Map<ManilaDate, SimEntry[]>();
-	const lastRecordedDay = to < today ? to : today;
+	// Up to today even when the window ends earlier: the span totals of a past period run to today (a period reads its own days only)
+	const lastRecordedDay = today;
 	for (const t of input.txns) {
 		const d = toManilaDate(t.occurredAt);
 		if (d < from || d > lastRecordedDay) continue;
@@ -686,6 +698,52 @@ export function simulate(input: SimulateInput): Simulation {
 		for (let d = a; d <= b; d = addDays(d, 1)) out.push(...(byDate.get(d) ?? []));
 		return out;
 	};
+
+	// -- SPAN TOTALS -- //
+
+	// One pass over the days gives every period its running total across the span to today, so no period rescans entries.
+	// Past periods: recorded, from the period start to today (a backward pass). Future periods: simulated, from today to the period end
+	// (a forward pass). The period of today has none.
+	type SpanSum = { spent: number; received: number; left: string[] };
+	const pastSpan = new Map<ManilaDate, SpanSum>();
+	const futureSpan = new Map<ManilaDate, SpanSum>();
+	{
+		const starts = new Set<ManilaDate>();
+		const ends = new Set<ManilaDate>();
+		for (let s = from; s <= to;) {
+			const e = periodEnd(s, to, group, input.weekStart);
+			if (e < today) starts.add(s);
+			else if (s > today) ends.add(e);
+			s = addDays(e, 1);
+		}
+		const keep = (spent: number, received: number, left: Set<string>): SpanSum => ({
+			spent,
+			received,
+			left: [...left].sort()
+		});
+		if (starts.size > 0) {
+			const left = new Set<string>();
+			let spent = 0;
+			let received = 0;
+			for (let d = today; d >= from; d = addDays(d, -1)) {
+				const sum = sumOf(recordedByDate.get(d) ?? [], left);
+				spent += sum.spent;
+				received += sum.received;
+				if (starts.has(d)) pastSpan.set(d, keep(spent, received, left));
+			}
+		}
+		if (ends.size > 0) {
+			const left = new Set<string>();
+			let spent = 0;
+			let received = 0;
+			for (let d = today; d <= to; d = addDays(d, 1)) {
+				const sum = sumOf(simulatedByDate.get(d) ?? [], left);
+				spent += sum.spent;
+				received += sum.received;
+				if (ends.has(d)) futureSpan.set(d, keep(spent, received, left));
+			}
+		}
+	}
 
 	for (let start = from; start <= to;) {
 		const end = periodEnd(start, to, group, input.weekStart);
@@ -785,6 +843,13 @@ export function simulate(input: SimulateInput): Simulation {
 			simulatedReceived = comingSum.received;
 			if (input.detail) entries.push(...coming);
 		}
+		// The span: past from its start to today (not before the first record), future from today to its end
+		const spanSum =
+			part === 'past' && !beforeFirst
+				? pastSpan.get(start)
+				: part === 'future'
+					? futureSpan.get(end)
+					: undefined;
 		const missedHere = missedEntries.filter((m) => m.date >= start && m.date <= end);
 		if (input.detail) entries.push(...missedHere);
 		periods.push({
@@ -809,6 +874,12 @@ export function simulate(input: SimulateInput): Simulation {
 			simulatedSpent,
 			simulatedReceived,
 			leftOut: [...left].sort(),
+			spanFrom: spanSum ? (part === 'past' ? start : today) : null,
+			spanTo: spanSum ? (part === 'past' ? today : end) : null,
+			spanSource: spanSum ? (part === 'past' ? 'recorded' : 'simulated') : null,
+			spanSpent: spanSum ? spanSum.spent : null,
+			spanReceived: spanSum ? spanSum.received : null,
+			spanLeftOut: spanSum ? spanSum.left : [],
 			wallets: [...lines.values()]
 				.filter((l) => !(l.archived && l.recorded === 0 && l.replay === 0))
 				// The main-currency twin of each balance: a currency with no rate stays null (and is named in `missing`), never zero

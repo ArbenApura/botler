@@ -105,6 +105,12 @@ class SimPeriod {
       simulatedSpent = _intOrNull(j['simulatedSpent']),
       simulatedReceived = _intOrNull(j['simulatedReceived']),
       leftOut = <String>[for (final c in asList(j['leftOut'])) str(c)],
+      spanFrom = j['spanFrom'] is String ? str(j['spanFrom']) : null,
+      spanTo = j['spanTo'] is String ? str(j['spanTo']) : null,
+      spanSimulated = j['spanSource'] == 'simulated',
+      spanSpent = _intOrNull(j['spanSpent']),
+      spanReceived = _intOrNull(j['spanReceived']),
+      spanLeftOut = <String>[for (final c in asList(j['spanLeftOut'])) str(c)],
       wallets = <SimWallet>[
         for (final w in asJsonList(j['wallets'])) SimWallet(w),
       ];
@@ -138,7 +144,26 @@ class SimPeriod {
 
   /// Currencies of this period's money that have no exchange rate: left out of the figures above.
   final List<String> leftOut;
+
+  /// The running total across the span between this period and today, worked out by the server: a past period from its start to
+  /// today (recorded), a future one from today to its end (simulated). Absent or null for the period of today, a period before the
+  /// first record and an older saved answer: then no card is drawn (never zeros).
+  final String? spanFrom;
+  final String? spanTo;
+  final bool spanSimulated;
+  final int? spanSpent;
+  final int? spanReceived;
+
+  /// Currencies with no rate left out of the span figures only; `leftOut` stays the period's own.
+  final List<String> spanLeftOut;
   final List<SimWallet> wallets;
+
+  /// True when the server sent a span for this period.
+  bool get spanKnown =>
+      spanFrom != null &&
+      spanTo != null &&
+      spanSpent != null &&
+      spanReceived != null;
 
   bool holds(String day) => day.compareTo(from) >= 0 && day.compareTo(to) <= 0;
 

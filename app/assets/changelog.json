@@ -178,5 +178,17 @@
       "Ipinapakita ng Saan napunta ang gastos mo ayon sa bill at kategorya kasama ang bahagi nito. I-tap ang isang linya para makita lang ang mga entry nito.",
       "Paunti-unti na ang pag-load ng mga entry, kaya mabilis pa rin ang isang taong may libu-libong entry."
     ]
+  },
+  {
+    "versionCode": 22,
+    "versionName": "1.1.11",
+    "en": [
+      "Time travel now also shows the overall flow: how much you spent and received from the period you pick up to today, or from today up to a later period (an estimate). The figures for the period itself stay as they were.",
+      "Your notebook can now have more notebooks beside it. The main notebook keeps the essentials, and Botler (or you) keeps other things, like a trip or a project, in notebooks of their own. Botler can start, rename, edit and delete them, and a deleted one can be put back for 30 days."
+    ],
+    "fil": [
+      "Ipinapakita na rin ng Time travel ang kabuuang daloy: magkano ang nagastos at natanggap mo mula sa piniling panahon hanggang ngayon, o mula ngayon hanggang sa mas huling panahon (tantiya). Hindi nagbago ang mga numero ng mismong panahon.",
+      "Puwede nang magkaroon ng iba pang kuwaderno ang kuwaderno mo. Nasa pangunahin ang mahahalaga, at si Botler (o ikaw) ang maglalagay ng ibang bagay, tulad ng biyahe o proyekto, sa sarili nilang kuwaderno. Makakagawa, makakapagpalit ng pangalan, makakapag-edit at makakapagbura si Botler ng mga ito, at maibabalik ang binura sa loob ng 30 araw."
+    ]
   }
 ]

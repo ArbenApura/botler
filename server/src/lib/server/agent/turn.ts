@@ -138,7 +138,8 @@ export const DELETE_VERBS: ReadonlySet<string> = new Set([
 	'account_delete',
 	'account_wallet_remove',
 	'goal_delete',
-	'account_archive'
+	'account_archive',
+	'notebook_delete'
 ]);
 
 export class TurnState {

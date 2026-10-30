@@ -239,6 +239,13 @@
       "when": 1793237888613,
       "tag": "0033_rule_funds_bill",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793334724547,
+      "tag": "0034_notebook_many",
+      "breakpoints": true
     }
   ]
 }

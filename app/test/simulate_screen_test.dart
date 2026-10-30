@@ -39,6 +39,10 @@ bool _refuseDetail = false;
 bool _oldAnswer = false;
 List<String> _leftOut = <String>[];
 
+/// The currencies left out of the running total only, and the day a past period's span ends (today unless a test says it is an old copy).
+List<String> _spanLeftOut = <String>[];
+String _spanTo = _today;
+
 /// A period of the answer, its part of time worked out from the real today, as the server would.
 Map<String, Object?> _period(String from, String to) {
   final part = to.compareTo(_today) < 0
@@ -69,6 +73,25 @@ Map<String, Object?> _period(String from, String to) {
       'simulatedSpent': part == 'past' ? null : 150000,
       'simulatedReceived': part == 'past' ? null : 2500000,
       'leftOut': _leftOut,
+      // The running total across the span to today (the period of today has none, as the server sends)
+      'spanFrom': part == 'past'
+          ? from
+          : part == 'future'
+          ? _today
+          : null,
+      'spanTo': part == 'past'
+          ? _spanTo
+          : part == 'future'
+          ? to
+          : null,
+      'spanSource': part == 'past'
+          ? 'recorded'
+          : part == 'future'
+          ? 'simulated'
+          : null,
+      'spanSpent': part == 'mixed' ? null : 30000,
+      'spanReceived': part == 'mixed' ? null : 80000,
+      'spanLeftOut': part == 'mixed' ? <String>[] : _spanLeftOut,
     },
     'wallets':
         _walletsOverride ??
@@ -340,6 +363,8 @@ void main() {
     _refuseDetail = false;
     _oldAnswer = false;
     _leftOut = <String>[];
+    _spanLeftOut = <String>[];
+    _spanTo = _today;
   });
 
   testWidgets(
@@ -378,7 +403,8 @@ void main() {
       await _jump(tester, '1 year back');
       expect(find.text('What really happened'), findsOneWidget);
       expect(find.text('Recorded at the end'), findsOneWidget);
-      expect(find.text('Spent'), findsOneWidget);
+      // The period's own Spent and the one of the overall flow card under it
+      expect(find.text('Spent'), findsNWidgets(2));
       expect(find.textContaining('below the plan'), findsOneWidget);
       expect(find.text('1 payday or bill was not recorded'), findsOneWidget);
       // What the plan expected sits behind Details
@@ -557,6 +583,79 @@ void main() {
       expect(find.text('Spent so far'), findsNothing);
       expect(find.text('Spent'), findsNothing);
       expect(find.text('Nothing was spent in this period.'), findsNothing);
+    },
+  );
+
+  String monthsFromToday(int by) {
+    final now = DateTime.now();
+    return dayOf(DateTime(now.year, now.month + by, 15));
+  }
+
+  testWidgets(
+    'the period of today has no overall flow card, only a line saying where to look',
+    (tester) async {
+      await _open(tester);
+      expect(find.text('Overall flow'), findsNothing);
+      expect(find.textContaining('This period holds today'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a past period shows the running total to today beside its own figures, with its real dates',
+    (tester) async {
+      await _open(tester, initialDate: monthsFromToday(-2));
+      await tester.ensureVisible(find.text('Overall flow'));
+      expect(find.text('Overall flow'), findsOneWidget);
+      expect(find.textContaining('to today'), findsOneWidget);
+      expect(find.text('Includes the period you picked.'), findsOneWidget);
+      // Spent, received and the net of 800 less 300
+      expect(find.textContaining('300.00'), findsWidgets);
+      expect(find.text('Net (received minus spent)'), findsOneWidget);
+      expect(find.textContaining('500.00'), findsWidgets);
+      expect(find.textContaining('This period holds today'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an old saved copy names the day its total ends instead of saying today',
+    (tester) async {
+      final old = DateTime.now().subtract(const Duration(days: 3));
+      _spanTo = dayOf(DateTime(old.year, old.month, old.day));
+      addTearDown(() => _spanTo = _today);
+      await _open(tester, initialDate: monthsFromToday(-2));
+      await tester.ensureVisible(find.text('Overall flow'));
+      expect(find.textContaining('to today'), findsNothing);
+    },
+  );
+
+  testWidgets('a future period shows the estimate from today', (tester) async {
+    await _open(tester, initialDate: monthsFromToday(2));
+    await tester.ensureVisible(find.text('Overall flow'));
+    expect(find.textContaining('Today to'), findsOneWidget);
+    expect(find.text('Includes the period you picked.'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a currency with no rate in the total is named and the net is left out',
+    (tester) async {
+      _spanLeftOut = <String>['EUR'];
+      addTearDown(() => _spanLeftOut = <String>[]);
+      await _open(tester, initialDate: monthsFromToday(-2));
+      await tester.ensureVisible(find.text('Overall flow'));
+      expect(
+        find.text('No exchange rate for EUR: left out of the totals.'),
+        findsOneWidget,
+      );
+      expect(find.text('Net (received minus spent)'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an older answer without the running total draws no overall flow card',
+    (tester) async {
+      _oldAnswer = true;
+      await _open(tester, initialDate: monthsFromToday(-2));
+      expect(find.text('Overall flow'), findsNothing);
     },
   );
 

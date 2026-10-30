@@ -1810,6 +1810,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notebookChangesEmpty => 'No changes yet.';
 
   @override
+  String notebookChars(String count) {
+    return '$count characters';
+  }
+
+  @override
   String get notebookConflictBody =>
       'Botler, or another phone, changed it after you opened it. Your text is still here. Copy it, or save it over the new version: the other change stays in Changes.';
 
@@ -1829,6 +1834,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String notebookCount(String count, String max) {
     return '$count of $max characters';
   }
+
+  @override
+  String get notebookCreate => 'Create';
+
+  @override
+  String get notebookDelete => 'Delete notebook';
+
+  @override
+  String get notebookDeleteBody =>
+      'It is hidden and Botler stops using it. You can put it back from Deleted notebooks for 30 days.';
+
+  @override
+  String get notebookDeleteTitle => 'Delete this notebook?';
+
+  @override
+  String get notebookDeleted => 'Deleted notebooks';
+
+  @override
+  String get notebookDeletedDone => 'Deleted.';
+
+  @override
+  String get notebookDeletedEmpty => 'No deleted notebooks.';
+
+  @override
+  String get notebookDescribe => 'Name and summary';
 
   @override
   String get notebookDiscardBody => 'The changes you typed will be lost.';
@@ -1854,6 +1884,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing here yet. Tell Botler something to remember, or tap Edit.';
 
   @override
+  String get notebookFieldSummary => 'What is in it?';
+
+  @override
+  String get notebookFieldSummaryHint =>
+      'One line, so Botler knows when to open it';
+
+  @override
+  String get notebookFieldTitle => 'Title';
+
+  @override
   String get notebookKeepEditing => 'Keep editing';
 
   @override
@@ -1871,8 +1911,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notebookNamesAddButton => 'Add';
 
   @override
+  String get notebookNew => 'New notebook';
+
+  @override
   String get notebookOffline =>
       'No connection. Your text is still here: try again when you are online.';
+
+  @override
+  String get notebookOthers => 'Other notebooks';
+
+  @override
+  String get notebookOthersEmpty =>
+      'None yet. Botler keeps the essentials here and can start a notebook for a trip, a project or a list. Ask for one, or make it yourself.';
 
   @override
   String get notebookRestore => 'Restore';
@@ -3117,6 +3167,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simSkipPayday => 'Tap a payday that would not come:';
+
+  @override
+  String get simSpanHint =>
+      'This period holds today. Pick an earlier or a later one to see the total from it to today.';
+
+  @override
+  String get simSpanIncludes => 'Includes the period you picked.';
+
+  @override
+  String get simSpanNet => 'Net (received minus spent)';
+
+  @override
+  String get simSpanNothing => 'Nothing was spent or received in this span.';
+
+  @override
+  String simSpanRange(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get simSpanTitle => 'Overall flow';
+
+  @override
+  String get simSpanToday => 'today';
+
+  @override
+  String get simSpanTodayCap => 'Today';
 
   @override
   String get simSpent => 'Spent';

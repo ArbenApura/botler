@@ -171,7 +171,11 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		const [book] = await tx
 			.insert(notebook)
 			.values({ userId, text: 'current' })
-			.onConflictDoUpdate({ target: notebook.userId, set: { updatedAt: new Date() } })
+			.onConflictDoUpdate({
+				target: notebook.userId,
+				targetWhere: sql`kind = 'main'`,
+				set: { updatedAt: new Date() }
+			})
 			.returning({ id: notebook.id });
 		await tx
 			.insert(notebookRevision)

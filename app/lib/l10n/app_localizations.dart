@@ -3097,6 +3097,12 @@ abstract class AppLocalizations {
   /// **'No changes yet.'**
   String get notebookChangesEmpty;
 
+  /// No description provided for @notebookChars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String notebookChars(String count);
+
   /// No description provided for @notebookConflictBody.
   ///
   /// In en, this message translates to:
@@ -3132,6 +3138,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} of {max} characters'**
   String notebookCount(String count, String max);
+
+  /// No description provided for @notebookCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get notebookCreate;
+
+  /// No description provided for @notebookDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete notebook'**
+  String get notebookDelete;
+
+  /// No description provided for @notebookDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It is hidden and Botler stops using it. You can put it back from Deleted notebooks for 30 days.'**
+  String get notebookDeleteBody;
+
+  /// No description provided for @notebookDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this notebook?'**
+  String get notebookDeleteTitle;
+
+  /// No description provided for @notebookDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted notebooks'**
+  String get notebookDeleted;
+
+  /// No description provided for @notebookDeletedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted.'**
+  String get notebookDeletedDone;
+
+  /// No description provided for @notebookDeletedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No deleted notebooks.'**
+  String get notebookDeletedEmpty;
+
+  /// No description provided for @notebookDescribe.
+  ///
+  /// In en, this message translates to:
+  /// **'Name and summary'**
+  String get notebookDescribe;
 
   /// No description provided for @notebookDiscardBody.
   ///
@@ -3175,6 +3229,24 @@ abstract class AppLocalizations {
   /// **'Nothing here yet. Tell Botler something to remember, or tap Edit.'**
   String get notebookEmpty;
 
+  /// No description provided for @notebookFieldSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'What is in it?'**
+  String get notebookFieldSummary;
+
+  /// No description provided for @notebookFieldSummaryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One line, so Botler knows when to open it'**
+  String get notebookFieldSummaryHint;
+
+  /// No description provided for @notebookFieldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get notebookFieldTitle;
+
   /// No description provided for @notebookKeepEditing.
   ///
   /// In en, this message translates to:
@@ -3205,11 +3277,29 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get notebookNamesAddButton;
 
+  /// No description provided for @notebookNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New notebook'**
+  String get notebookNew;
+
   /// No description provided for @notebookOffline.
   ///
   /// In en, this message translates to:
   /// **'No connection. Your text is still here: try again when you are online.'**
   String get notebookOffline;
+
+  /// No description provided for @notebookOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Other notebooks'**
+  String get notebookOthers;
+
+  /// No description provided for @notebookOthersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'None yet. Botler keeps the essentials here and can start a notebook for a trip, a project or a list. Ask for one, or make it yourself.'**
+  String get notebookOthersEmpty;
 
   /// No description provided for @notebookRestore.
   ///
@@ -5297,6 +5387,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a payday that would not come:'**
   String get simSkipPayday;
+
+  /// No description provided for @simSpanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This period holds today. Pick an earlier or a later one to see the total from it to today.'**
+  String get simSpanHint;
+
+  /// No description provided for @simSpanIncludes.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes the period you picked.'**
+  String get simSpanIncludes;
+
+  /// No description provided for @simSpanNet.
+  ///
+  /// In en, this message translates to:
+  /// **'Net (received minus spent)'**
+  String get simSpanNet;
+
+  /// No description provided for @simSpanNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was spent or received in this span.'**
+  String get simSpanNothing;
+
+  /// No description provided for @simSpanRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} to {to}'**
+  String simSpanRange(String from, String to);
+
+  /// No description provided for @simSpanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall flow'**
+  String get simSpanTitle;
+
+  /// No description provided for @simSpanToday.
+  ///
+  /// In en, this message translates to:
+  /// **'today'**
+  String get simSpanToday;
+
+  /// No description provided for @simSpanTodayCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get simSpanTodayCap;
 
   /// No description provided for @simSpent.
   ///

@@ -147,7 +147,11 @@ describe('the verb registry', () => {
 				'memory_forget',
 				'memory_remember',
 				'memory_resolve',
+				'notebook_create',
+				'notebook_delete',
 				'notebook_edit',
+				'notebook_undelete',
+				'notebook_update',
 				'profile_set',
 				'refund_record',
 				'reminder_cancel',
@@ -166,7 +170,7 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(34);
+		expect(by('read')).toHaveLength(35);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {

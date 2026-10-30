@@ -330,7 +330,20 @@ function bySource(recorded: number | null, replay: number | null, simulated: num
 }
 
 /** The assistant's answer, cut in steps until it fits, never in the middle of a list. */
-export function forAgent(answer: SimulationView): SimulationView {
+export function forAgent(full: SimulationView): SimulationView {
+	// The running total across the span is the app's card: the assistant would quote it as the period's own spending
+	const answer: SimulationView = {
+		...full,
+		periods: full.periods.map((p) => ({
+			...p,
+			spanFrom: undefined,
+			spanTo: undefined,
+			spanSource: undefined,
+			spanSpent: undefined,
+			spanReceived: undefined,
+			spanLeftOut: undefined
+		}))
+	};
 	const fits = (v: SimulationView) => JSON.stringify(v).length <= MAX_AGENT_CHARS;
 	if (fits(answer)) return answer;
 	const short =

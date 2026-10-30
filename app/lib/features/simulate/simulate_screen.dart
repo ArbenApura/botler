@@ -599,6 +599,7 @@ class _Loaded extends ConsumerWidget {
           ),
         ),
         SpendCard(sim: sim, period: period),
+        SpanCard(period: period),
         ?breakdown,
         WalletsCard(period: period, mainCurrency: sim.currency),
       ],
