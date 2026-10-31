@@ -11,9 +11,14 @@ flutter pub get
 flutter analyze ; flutter test
 # Against the live server (needs the Google web client id, see below)
 flutter run --release --dart-define=GOOGLE_WEB_CLIENT_ID=<web client id>.apps.googleusercontent.com
-# Against a server on this PC (the emulator reaches the PC at 10.0.2.2). Plain http is refused by the release manifest, so use a debug build
+# Against a server on this PC (yarn dev on port 5280). A DEBUG build may use plain http to exactly three hosts: 10.0.2.2 (the PC as the
+# emulator sees it), localhost and 127.0.0.1 (for a real phone: adb reverse tcp:5280 tcp:5280, then BOTLER_API=http://localhost:5280)
 flutter run --dart-define=BOTLER_API=http://10.0.2.2:5280
 ```
+
+**Cleartext rules.** The main manifest (what every release build ships) has `usesCleartextTraffic="false"` and no network security config, so a release build refuses plain http everywhere. The debug source set (`app/android/app/src/debug/`) adds `res/xml/network_security_config.xml` through its own manifest overlay; it allows cleartext only for `10.0.2.2`, `localhost` and `127.0.0.1` and keeps everything else https only. Because it lives in the debug source set, it is not in a release APK. `powershell deploy/check-android-manifest.ps1` reads both files and fails if the main manifest ever allows cleartext or names a config, or if the debug config allows another host. The `botler://` link filter on `MainActivity` is limited to the host `quickadd` (the only link the app handles, from the home screen widget).
+
+**Permissions** (all in the main manifest, unchanged): `INTERNET`; `POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `VIBRATE`, `WAKE_LOCK` for reminders; `USE_BIOMETRIC` for the app lock; `RECORD_AUDIO` for talking to Botler; `REQUEST_INSTALL_PACKAGES` for the in-app update.
 
 A release build also needs the web client id from `server/.env` (`GOOGLE_CLIENT_ID`) as `--dart-define=GOOGLE_WEB_CLIENT_ID=...` (read it without printing it). R8 shrinking is off on purpose: it removed code `shared_preferences` needs and crashed the release app, so always run a release build on a device or emulator before shipping. Strings live in `app/lib/l10n/parts/*.en.arb` and `*.fil.arb`; after editing run `dart run tool/l10n.dart` then `flutter gen-l10n`.
 

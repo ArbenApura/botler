@@ -5,7 +5,7 @@
 # The signing key is read only by Gradle (app/android/key.properties). This script never opens it, never prints the password.
 param(
 	[switch]$Publish,
-	[string]$Server = 'ubuntu@15.235.241.169',
+	[string]$Server = '',
 	[string]$RemoteDir = '/srv/botler-releases',
 	# Phones running a build older than this must update before they can be used. Keep it at 1 unless an old build must be shut out
 	[int]$MinSupported = 1,
@@ -17,6 +17,8 @@ param(
 	[string]$ChangelogPath = ''
 )
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\host.ps1"
+if (-not $Server) { $Server = $BotlerServer }
 $root = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $root
 

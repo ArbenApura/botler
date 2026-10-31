@@ -82,17 +82,17 @@ services:
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
       # Exchange rates for accounts in several currencies. Empty means the free open.er-api.com feed. It holds no key and nothing about a person is sent
       FX_RATES_URL: ${FX_RATES_URL:-https://open.er-api.com/v6/latest/USD}
+      # The DeepSeek API address and the folder of published Android builds inside the container (the host folder is mounted below). Empty means the defaults in env.ts
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      BOTLER_RELEASES_DIR: ${BOTLER_RELEASES_DIR:-}
       # Push notifications through Firebase. Both empty means push is off (the phone still syncs when opened and every ~15 minutes)
       FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
       FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT:-}
-      BOTLER_EMBED_CACHE: /models
       BOTLER_CHAT_TOKEN_CAP: ${BOTLER_CHAT_TOKEN_CAP:-}
       BOTLER_MEMORY_TOKEN_CAP: ${BOTLER_MEMORY_TOKEN_CAP:-}
       BOTLER_GLOBAL_TOKEN_CAP: ${BOTLER_GLOBAL_TOKEN_CAP:-}
       BOTLER_RATE_PER_MINUTE: ${BOTLER_RATE_PER_MINUTE:-}
     volumes:
-      # The embedding model (about 120 MB) is downloaded once, on first use, and kept here
-      - botler_models:/models
       # The published Android builds. A host folder OUTSIDE ~/botler, so deploy.ps1's rsync --delete never touches it, and so the release
       # script can fill it with scp (a named volume cannot be written that way). The app only reads it. Created by release-app.ps1.
       - ${BOTLER_RELEASES_HOST_DIR:-/srv/botler-releases}:/releases:ro
@@ -100,7 +100,7 @@ services:
       - internal
       - afb_edge
     # No published port: only AFB's Caddy reaches the app, over the shared network, by the name botler-app.
-    # The embedding model needs about 600 MB when it is loaded, so the cap is 1 GB (the host has 3.7 GB shared with AFB)
+    # The host has 3.7 GB shared with AFB, so the app is capped (owner decision; do not change without asking)
     mem_limit: 1024m
 
 networks:
@@ -113,5 +113,5 @@ networks:
 volumes:
   botler_pgdata:
     name: botler_pgdata
-  botler_models:
-    name: botler_models
+  # The old botler_models volume (the retired embedding model cache) is no longer mounted. It stays on the server as an orphan until the owner
+  # removes it by hand after checking it holds nothing needed. No script here removes volumes.

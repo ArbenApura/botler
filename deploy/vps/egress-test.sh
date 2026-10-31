@@ -30,4 +30,20 @@ expect "private 192.168.1.1:80"          blocked "$(try 192.168.1.1 80)"
 expect "botler-db port 80 (not 5432)"    blocked "$(try "$(ipof "$DB")" 80)"
 expect "botler-db 5432"                  open    "$(try "$(ipof "$DB")" 5432)"
 expect "public internet 1.1.1.1:443"     open    "$(try 1.1.1.1 443)"
+
+# -- IPV6 -- #
+# A connect to these can fail only because the host has no IPv6 route, so the connect result alone proves little. The rules themselves are checked
+# inside the app's namespace (the wall must exist and reject each range), and the connects are kept as a second line
+pid="$(docker inspect -f '{{.State.Pid}}' "$APP")"
+rules6="$(sudo nsenter -t "$pid" -n ip6tables -S 2>/dev/null || true)"
+has6() { # name, pattern
+  if printf '%s\n' "$rules6" | grep -q -- "$2"; then echo "ok    ip6tables $1"; else echo "FAIL  ip6tables $1 missing"; fail=1; fi
+}
+has6 "OUTPUT jumps to BOTLER-OUT6" "-A OUTPUT -j BOTLER-OUT6"
+has6 "rejects fc00::/7"            "-A BOTLER-OUT6 -d fc00::/7 .*-j REJECT"
+has6 "rejects fe80::/10"           "-A BOTLER-OUT6 -d fe80::/10 .*-j REJECT"
+has6 "rejects 64:ff9b::/96"        "-A BOTLER-OUT6 -d 64:ff9b::/96 .*-j REJECT"
+expect "IPv6 unique local fc00::1:80"    blocked "$(try fc00::1 80)"
+expect "IPv6 AWS metadata fd00:ec2::254" blocked "$(try fd00:ec2::254 80)"
+expect "IPv6 NAT64 of 10.0.0.1"          blocked "$(try 64:ff9b::a00:1 80)"
 exit $fail
