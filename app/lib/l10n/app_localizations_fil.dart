@@ -2888,6 +2888,50 @@ class AppLocalizationsFil extends AppLocalizations {
   String get paydayYours => 'Mga payday mo';
 
   @override
+  String get photoMarkApprove => 'Gamitin ang larawang ito';
+
+  @override
+  String get photoMarkDown => 'Ilipat pababa';
+
+  @override
+  String get photoMarkFill => 'Punuin';
+
+  @override
+  String get photoMarkGone =>
+      'Wala na ang litratong ito sa phone. Ipadala ulit at hilingin ulit.';
+
+  @override
+  String get photoMarkLeft => 'Ilipat pakaliwa';
+
+  @override
+  String get photoMarkNote =>
+      'Ginupit sa phone mo. Nananatili rito ang orihinal na litrato mo; ang maliit na ginupit na larawan lang ang sine-save.';
+
+  @override
+  String get photoMarkPreview => 'Ganito magiging itsura ng larawan';
+
+  @override
+  String get photoMarkRetry => 'Subukan ulit';
+
+  @override
+  String get photoMarkRight => 'Ilipat pakanan';
+
+  @override
+  String get photoMarkUp => 'Ilipat pataas';
+
+  @override
+  String get photoMarkWhole => 'Buo';
+
+  @override
+  String get photoMarkWorking => 'Ginugupit ang larawan';
+
+  @override
+  String get photoMarkZoomIn => 'Palakihin';
+
+  @override
+  String get photoMarkZoomOut => 'Paliitin';
+
+  @override
   String photoNoticeBody(String server) {
     return 'Mapupunta sa $server ang litrato mo bilang larawan, para makita ng assistant kung ano ang laman nito. Hindi nakatago ang mga pangalan at numero sa larawan gaya sa teksto, at hindi ito iniimbak ng server ng Botler (ang $server ang humahawak nito ayon sa sarili nitong mga tuntunin). Mababago mo ito sa Settings.';
   }

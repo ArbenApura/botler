@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto';
 // -- MODULES -- //
 import { createAction } from '../ops/actions';
 import { OpsError } from '../ops/context';
+import { checkMarkFromPhoto } from '../ops/markPhoto';
 import { invokeVerb } from '../ops/registry';
 import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
@@ -55,7 +56,13 @@ export type TurnEvent =
 			data?: unknown;
 			message?: string;
 	  }
-	| { type: 'card'; actionId: string; summary: string }
+	| {
+			type: 'card';
+			actionId: string;
+			summary: string;
+			/** Left out except for a card the phone must finish itself (a picture cut from a photo), so the app knows to fetch its plan. */
+			verb?: string;
+	  }
 	| { type: 'fallback'; reason: 'down' | 'capped' | 'rate'; form: 'expense' }
 	| {
 			type: 'done';
@@ -110,7 +117,7 @@ type Outcome = {
 	forModel: string;
 	data?: unknown;
 	message?: string;
-	card?: { actionId: string; summary: string };
+	card?: { actionId: string; summary: string; verb?: string };
 };
 
 // -- CONSTANTS -- //
@@ -418,7 +425,7 @@ async function executeTool(
 			});
 			return {
 				status: 'needs_approval',
-				card,
+				card: tool.name === 'mark_from_photo' ? { ...card, verb: tool.name } : card,
 				message: card.summary,
 				forModel: JSON.stringify({
 					status: 'needs_approval',
@@ -431,6 +438,23 @@ async function executeTool(
 			throw e;
 		}
 	};
+	if (tool.name === 'mark_from_photo') {
+		// The photo number must be one the person really attached to this message, and the item must exist, before a card is made
+		try {
+			await checkMarkFromPhoto(
+				agentCtx,
+				args,
+				// The photos as the model counts them: the pictures it was given, else the texts read from them (the phone numbers its copies the same way)
+				p.images?.length ? p.images.length : photoTexts(p.ocrText, p.ocrTexts).length
+			);
+		} catch (e) {
+			if (e instanceof OpsError) return err('invalid_arguments', e.message);
+			throw e;
+		}
+		return asCard(
+			'The picture is made on the phone from the photo and shown on the card, so the person approves it there.'
+		);
+	}
 	if (tool.kind === 'gated')
 		return asCard('This changes the plan, so it needs the person to approve it.');
 	if (tool.kind === 'free' && state.tainted)
@@ -773,7 +797,13 @@ ${note}`
 					? { data: out.data }
 					: {})
 			};
-			if (out.card) yield { type: 'card', actionId: out.card.actionId, summary: out.card.summary };
+			if (out.card)
+				yield {
+					type: 'card',
+					actionId: out.card.actionId,
+					summary: out.card.summary,
+					...(out.card.verb ? { verb: out.card.verb } : {})
+				};
 			// Late in the message every result says how many tool calls are left, so the model plans its last ones
 			const left = limits.maxToolCalls - seq;
 			const note =

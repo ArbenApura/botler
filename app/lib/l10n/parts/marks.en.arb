@@ -72,5 +72,19 @@
   "markIconCoffee": "Coffee",
   "markIconHeart": "Heart",
   "markIconStar": "Star",
-  "markIconFlag": "Flag"
+  "markIconFlag": "Flag",
+  "photoMarkApprove": "Use this picture",
+  "photoMarkZoomIn": "Zoom in",
+  "photoMarkZoomOut": "Zoom out",
+  "photoMarkLeft": "Move left",
+  "photoMarkRight": "Move right",
+  "photoMarkUp": "Move up",
+  "photoMarkDown": "Move down",
+  "photoMarkFill": "Fill",
+  "photoMarkWhole": "Whole",
+  "photoMarkWorking": "Cutting the picture",
+  "photoMarkRetry": "Try again",
+  "photoMarkPreview": "How the picture will look",
+  "photoMarkGone": "This photo is no longer on this phone. Send it again and ask again.",
+  "photoMarkNote": "Cut on your phone. Your original photo stays here; only the small cut picture is saved."
 }

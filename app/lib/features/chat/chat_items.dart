@@ -3,6 +3,8 @@
 
 // -- DEP-MODULES -- //
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -22,6 +24,7 @@ import 'agent_text.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
 import 'message_actions.dart';
+import 'photo_mark_card.dart';
 import 'photo_widgets.dart';
 
 // -- FUNCTIONS -- //
@@ -786,14 +789,18 @@ class _CardViewState extends ConsumerState<_CardView> {
 
   CardItem get item => widget.item;
 
-  Future<void> _decide({required bool approve}) async {
+  Future<void> _decide({required bool approve, Uint8List? picture}) async {
     if (_deciding) return;
     setState(() => _deciding = true);
     final notifier = ref.read(chatProvider.notifier);
     try {
       final r = await ref
           .read(apiProvider)
-          .decideCard(item.actionId, approve: approve);
+          .decideCard(
+            item.actionId,
+            approve: approve,
+            imageData: picture == null ? null : base64Encode(picture),
+          );
       final status = str(asJson(r['action'])['status']);
       final failed = status == 'failed';
       // Only an action that was really applied is "done": an expired or any other answer is never shown as approved
@@ -812,7 +819,8 @@ class _CardViewState extends ConsumerState<_CardView> {
       );
       ref
         ..invalidate(balancesProvider)
-        ..invalidate(syncProvider);
+        ..invalidate(syncProvider)
+        ..invalidate(pendingCardProvider(item.actionId));
     } catch (e) {
       if (mounted) say(context, errorWords(e, context));
     } finally {
@@ -823,6 +831,15 @@ class _CardViewState extends ConsumerState<_CardView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    // A card that uses a photo for a mark is drawn with its preview; every other card keeps the two buttons
+    final photoCard =
+        item.state == CardState.waiting &&
+        !item.readOnly &&
+        item.verb == photoMarkVerb;
+    final pending = photoCard
+        ? ref.watch(pendingCardProvider(item.actionId))
+        : null;
+    final photo = photoMarkOf(pending?.value);
     return PaperCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -835,6 +852,39 @@ class _CardViewState extends ConsumerState<_CardView> {
             CardState.waiting when item.readOnly => Text(
               context.t.chatCardElsewhere,
               style: TextStyle(color: c.muted),
+            ),
+            CardState.waiting when photo != null => PhotoMarkEditor(
+              key: ValueKey<String>('photo.${item.actionId}'),
+              actionId: item.actionId,
+              turnId: item.turnId,
+              photo: photo.photo,
+              name: photo.name,
+              plan: photo.plan,
+              deciding: _deciding,
+              onApprove: (bytes) => _decide(approve: true, picture: bytes),
+              onReject: () => _decide(approve: false),
+            ),
+            // A photo card has no plain Approve: without its plan and its cut there is no picture to approve
+            CardState.waiting when photoCard => Row(
+              children: <Widget>[
+                if (pending != null && pending.isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: () =>
+                        ref.invalidate(pendingCardProvider(item.actionId)),
+                    child: Text(context.t.photoMarkRetry),
+                  ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _deciding ? null : () => _decide(approve: false),
+                  child: Text(context.t.chatNotNow),
+                ),
+              ],
             ),
             CardState.waiting => Row(
               children: <Widget>[

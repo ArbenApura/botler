@@ -344,6 +344,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // The pictures are made ready first, one at a time, with the strip locked: a picture that cannot be made is sent as its text, and a photo
     // that has neither its picture nor any text has nothing to send
     var images = <String>[];
+    final pictured = <String>[];
     var sendable = usable;
     if (usePictures) {
       setState(() => _preparing = true);
@@ -365,6 +366,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         for (final m in made)
           if (m != null) m.data,
       ];
+      pictured.addAll(<String>[
+        for (var i = 0; i < usable.length; i++)
+          if (made[i] != null) usable[i].path,
+      ]);
       if (made.any((m) => m == null)) {
         say(
           context,
@@ -387,6 +392,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ? context.t.chatPhotoOnlyMessage
         : context.t.chatReceiptMessage;
     final sent = <String>[for (final p in sendable) p.path];
+    // The photos as the server will count them: the ones sent as pictures (those that could be made), and the ones whose text was sent
+    final texted = <String>[
+      for (final p in sendable)
+        if (p.text.isNotEmpty) p.path,
+    ];
     final left = <String>[
       for (final p in _photos)
         if (!sendable.contains(p)) p.path,
@@ -408,6 +418,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           photoTexts: photos.texts,
           photoPaths: sent,
           images: images,
+          imagePaths: pictured,
+          textPaths: texted,
         );
     ref
       ..invalidate(syncProvider)

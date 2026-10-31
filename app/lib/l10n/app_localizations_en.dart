@@ -2871,6 +2871,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paydayYours => 'Your paydays';
 
   @override
+  String get photoMarkApprove => 'Use this picture';
+
+  @override
+  String get photoMarkDown => 'Move down';
+
+  @override
+  String get photoMarkFill => 'Fill';
+
+  @override
+  String get photoMarkGone =>
+      'This photo is no longer on this phone. Send it again and ask again.';
+
+  @override
+  String get photoMarkLeft => 'Move left';
+
+  @override
+  String get photoMarkNote =>
+      'Cut on your phone. Your original photo stays here; only the small cut picture is saved.';
+
+  @override
+  String get photoMarkPreview => 'How the picture will look';
+
+  @override
+  String get photoMarkRetry => 'Try again';
+
+  @override
+  String get photoMarkRight => 'Move right';
+
+  @override
+  String get photoMarkUp => 'Move up';
+
+  @override
+  String get photoMarkWhole => 'Whole';
+
+  @override
+  String get photoMarkWorking => 'Cutting the picture';
+
+  @override
+  String get photoMarkZoomIn => 'Zoom in';
+
+  @override
+  String get photoMarkZoomOut => 'Zoom out';
+
+  @override
   String photoNoticeBody(String server) {
     return 'Your photo goes to $server as a picture, so the assistant can see what is in it. Names and numbers in a picture are not hidden the way they are in text, and Botler\'s server does not keep it ($server handles it under its own terms). You can change this in Settings.';
   }

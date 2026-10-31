@@ -141,12 +141,20 @@ final class CardItem extends ChatItem {
     this.state = CardState.waiting,
     this.note,
     this.readOnly = false,
+    this.turnId,
+    this.verb,
   });
 
   final String actionId;
   final String summary;
   final CardState state;
   final String? note;
+
+  /// The chat turn the card came from: the phone keeps the photos of that message under it (a card that uses a photo cuts it from there).
+  final String? turnId;
+
+  /// Set by the server only for a card the phone has to finish itself (a picture cut from a photo); null for every other card.
+  final String? verb;
 
   /// The card was copied into a branch: it can only be answered in the chat it came from.
   final bool readOnly;
@@ -158,6 +166,8 @@ final class CardItem extends ChatItem {
     state: s,
     note: note,
     readOnly: readOnly,
+    turnId: turnId,
+    verb: verb,
   );
 }
 
@@ -334,6 +344,10 @@ class ChatNotifier extends Notifier<ChatState> {
 
   // The staged copies of the photos of the message being sent, until the server accepts it.
   List<String> _staged = const <String>[];
+  // Which of those copies the server counts as its photos: the ones sent as pictures, or the ones whose text was sent. A card that says
+  // "photo 2" means the second of these, so the phone files them with the turn
+  List<String> _numberedImages = const <String>[];
+  List<String> _numberedTexts = const <String>[];
 
   // A branch is made once per action: asking again after a failure reuses the request id, so no second branch appears.
   final Map<String, String> _forkKeys = <String, String>{};
@@ -573,6 +587,8 @@ class ChatNotifier extends Notifier<ChatState> {
               actionId: str(e['actionId']),
               summary: str(e['summary']),
               readOnly: t['copied'] == true,
+              turnId: turn,
+              verb: e['verb'] is String ? str(e['verb']) : null,
               state: switch (str(e['status'])) {
                 'pending' => CardState.waiting,
                 'applied' => CardState.approved,
@@ -616,10 +632,17 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 
   /// Files the staged photos of the message just accepted under its turn and swaps their paths into the message on screen.
-  Future<void> _keepPhotos(int itemId, String turn, List<String> staged) async {
+  Future<void> _keepPhotos(
+    int itemId,
+    String turn,
+    List<String> staged, {
+    List<String>? numbered,
+  }) async {
     final generation = _generation;
     try {
-      final kept = await ref.read(chatPhotoStoreProvider).promote(turn, staged);
+      final kept = await ref
+          .read(chatPhotoStoreProvider)
+          .promote(turn, staged, numbered: numbered);
       if (generation != _generation) return;
       // Nothing filed (a wipe, or the files would not move): the message goes back to words only rather than point at staging
       _replace(
@@ -753,6 +776,8 @@ class ChatNotifier extends Notifier<ChatState> {
     List<String> photoTexts = const <String>[],
     List<String> photoPaths = const <String>[],
     List<String> images = const <String>[],
+    List<String>? imagePaths,
+    List<String>? textPaths,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || state.busy) return false;
@@ -767,6 +792,9 @@ class ChatNotifier extends Notifier<ChatState> {
     _userItemId = userItemId;
     _sentIds.add(messageId);
     _staged = List<String>.of(photoPaths);
+    // Callers that know which copies went as pictures and which as text say so; otherwise every copy counts in order
+    _numberedImages = List<String>.of(imagePaths ?? photoPaths);
+    _numberedTexts = List<String>.of(textPaths ?? photoPaths);
     var pictures = List<String>.of(images);
     _picturesSent = pictures.isNotEmpty;
     _add(
@@ -911,7 +939,16 @@ class ChatNotifier extends Notifier<ChatState> {
           if (_staged.isNotEmpty) {
             final staged = _staged;
             _staged = const <String>[];
-            unawaited(_keepPhotos(_userItemId, turn, staged));
+            // The server numbers the pictures when it used them, otherwise the texts read from them
+            final byPictures = _picturesSent && e['usedImages'] != false;
+            unawaited(
+              _keepPhotos(
+                _userItemId,
+                turn,
+                staged,
+                numbered: byPictures ? _numberedImages : _numberedTexts,
+              ),
+            );
           }
         }
         // The pictures went up but this answer goes by the text read from them (the person or the server's host does not use them)
@@ -975,6 +1012,8 @@ class ChatNotifier extends Notifier<ChatState> {
             _id(),
             actionId: str(e['actionId']),
             summary: str(e['summary']),
+            turnId: _turnId,
+            verb: e['verb'] is String ? str(e['verb']) : null,
           ),
         );
       case 'pictures':

@@ -256,10 +256,22 @@ class ApiClient {
     return get('/api/v1/sync', query: query);
   }
 
-  /// Answers an approval card.
-  Future<Json> decideCard(String id, {required bool approve}) => post(
-    '/api/v1/agent/actions/$id',
-    <String, Object?>{'decision': approve ? 'approve' : 'reject'},
+  /// Answers an approval card. [imageData] is the small picture the phone cut for a photo card (base64): it goes with the approval and nowhere else.
+  Future<Json> decideCard(
+    String id, {
+    required bool approve,
+    String? imageData,
+  }) => post('/api/v1/agent/actions/$id', <String, Object?>{
+    'decision': approve ? 'approve' : 'reject',
+    'imageData': ?imageData,
+  });
+
+  /// The cards still waiting for an answer, newest first, with the plan each carries.
+  Future<List<Json>> pendingCards() async => asJsonList(
+    (await get(
+      '/api/v1/agent/actions',
+      query: <String, String>{'status': 'pending'},
+    ))['actions'],
   );
 
   /// One chat message as a stream of events (start, phase, reasoning, tool_start, delta, tool, card, fallback, done, error).

@@ -192,6 +192,8 @@ export function describeAction(
 			return args.all === true
 				? `Remove every recorded payday split for good, as they are when you approve${args.removeEntries === true ? ', and take the pay and transfers they wrote out of your balances, which changes your account balances' : '. The pay and transfers already in your ledger stay'}. This cannot be undone.`
 				: `Remove one recorded payday split for good${args.removeEntries === true ? ', and take its pay and transfers out of your balances, which changes your account balances' : '. The pay and transfers it wrote to your ledger stay'}. This cannot be undone.`;
+		case 'mark_from_photo':
+			return `Use photo ${num(args.photo) ?? '?'} of your message as the picture of the ${args.target === 'bill' ? 'bill' : 'account'} "${text(args.name, 80)}"${args.fit === 'contain' ? ', keeping the whole part chosen' : ''}. Your phone cuts it and shows the result here; you can zoom or move it before you approve.`;
 		case 'account_delete':
 			return `Remove the account ${nm(args.accountId)}. If it has entries or balance counts it is hidden instead and its history stays; if a bill, payday, goal or rule still uses it, nothing happens.`;
 		case 'account_wallet_remove':
@@ -458,7 +460,12 @@ export async function expireStaleActions(handle: DbHandle): Promise<number> {
  */
 export async function decideAction(
 	ctx: Ctx,
-	opts: { actionId: string; decision: 'approve' | 'reject' }
+	opts: {
+		actionId: string;
+		decision: 'approve' | 'reject';
+		/** The picture the phone made for a mark_from_photo card, as base64. It is used once, in memory, and never stored on the card. */
+		imageData?: string;
+	}
 ): Promise<ActionView> {
 	requirePerson(ctx.actor.kind, 'answer an approval card');
 	// The card's row stays locked from the read to the answer, so an approve and a reject that arrive together take turns: the second finds
@@ -491,6 +498,9 @@ export async function decideAction(
 		};
 		if (card.expiresAt.getTime() < Date.now()) return settle({ status: 'expired' });
 		if (opts.decision === 'reject') return settle({ status: 'rejected' });
+		// A picture comes only with a card that asks for one: it is never carried by another card
+		if (opts.imageData !== undefined && card.verb !== 'mark_from_photo')
+			throw new OpsError('INVALID', 'This card does not take a picture.');
 		let patch: Partial<typeof agentAction.$inferInsert>;
 		try {
 			// Approving is the yes the verb asks for. A balance count ten times off asks again: it needs the second approval
@@ -508,7 +518,9 @@ export async function decideAction(
 							? { acknowledgeLarge: true }
 							: {})
 					}
-				: card.args;
+				: card.verb === 'mark_from_photo' && opts.imageData !== undefined
+					? { ...(card.args as Args), imageData: opts.imageData }
+					: card.args;
 			// The assistant asked, the person approved: the audit trail says both
 			const result = await invokeVerb(
 				{

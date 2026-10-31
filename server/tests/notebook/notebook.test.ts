@@ -632,6 +632,7 @@ const EXPECTED_TOOLS = [
 	'ledger_list',
 	'ledger_spending',
 	'ledger_undoable',
+	'mark_from_photo',
 	'notebook_create',
 	'notebook_delete',
 	'notebook_edit',

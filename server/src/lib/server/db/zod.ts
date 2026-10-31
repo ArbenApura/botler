@@ -183,6 +183,27 @@ const markFields = {
 /** The picture of an account or a bill, fetched once per id by the app. */
 export const pictureGetInput = z.strictObject({ imageId: z.uuid() });
 
+/**
+ * A request to make the mark of an account or bill from a photo sent in this chat message (BTL-20261031-1011). The assistant names the item
+ * and says which part of the photo to keep as fractions of its width and height; the phone cuts the photo and sends the result with the
+ * person's approval (imageData, the person's alone: the assistant's schema leaves it out and the verb refuses it again).
+ */
+export const markFromPhotoInput = z.strictObject({
+	target: z.enum(['account', 'bill']),
+	name: z.string().trim().min(1).max(80),
+	/** Which photo of the message, counted from 1 in the order they were attached. */
+	photo: z.number().int().min(1).max(8),
+	/** The part to keep, as fractions of the photo. That the box stays inside the photo is checked by the verb (a refined object cannot be omitted from). */
+	x: z.number().min(0).max(1),
+	y: z.number().min(0).max(1),
+	width: z.number().min(0.05).max(1),
+	height: z.number().min(0.05).max(1),
+	/** cover fills the badge from the middle of the box; contain keeps the whole box inside it. */
+	fit: z.enum(['cover', 'contain']).optional(),
+	imageData: z.string().max(PICTURE_MAX_BASE64).optional()
+});
+export type MarkFromPhotoInput = z.infer<typeof markFromPhotoInput>;
+
 // -- ACCOUNTS -- //
 
 /** What an account is dedicated to. Short, no run of four or more digits (an account or phone number must not be kept in a label). Null clears it, absent leaves it alone. */

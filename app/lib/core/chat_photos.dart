@@ -27,8 +27,11 @@ const Duration _stagingLife = Duration(hours: 1);
 
 /// Which file names belong to which turn, oldest turn first. Pure data: no files, no platform.
 class PhotoIndex {
-  PhotoIndex([Map<String, List<String>>? turns])
-    : _turns = <String, List<String>>{...?turns};
+  PhotoIndex([
+    Map<String, List<String>>? turns,
+    Map<String, List<String>>? numbered,
+  ]) : _turns = <String, List<String>>{...?turns},
+       _numbered = <String, List<String>>{...?numbered};
 
   /// Reads the saved JSON; anything unreadable is an empty index.
   factory PhotoIndex.decode(String? raw) {
@@ -36,14 +39,24 @@ class PhotoIndex {
     try {
       final data = jsonDecode(raw);
       if (data is! Map<String, dynamic>) return PhotoIndex();
-      return PhotoIndex(<String, List<String>>{
-        for (final e in data.entries)
-          if (e.value is List<dynamic>)
-            e.key: <String>[
-              for (final n in e.value as List<dynamic>)
-                if (n is String) n,
-            ],
-      });
+      List<String> names(Object? v) => <String>[
+        if (v is List<dynamic>)
+          for (final n in v)
+            if (n is String) n,
+      ];
+      final turns = <String, List<String>>{};
+      final numbered = <String, List<String>>{};
+      for (final e in data.entries) {
+        final v = e.value;
+        // Older saves hold the list of files only; a newer one also says how the server numbered the photos of the turn
+        if (v is List<dynamic>) {
+          turns[e.key] = names(v);
+        } else if (v is Map<String, dynamic> && v['f'] is List<dynamic>) {
+          turns[e.key] = names(v['f']);
+          if (v['n'] is List<dynamic>) numbered[e.key] = names(v['n']);
+        }
+      }
+      return PhotoIndex(turns, numbered);
     } on FormatException {
       return PhotoIndex();
     }
@@ -51,7 +64,30 @@ class PhotoIndex {
 
   final Map<String, List<String>> _turns;
 
-  String encode() => jsonEncode(_turns);
+  /// For a turn, the files in the order the server counted its photos (the pictures it received, or the texts read from them), which can be
+  /// fewer than the files kept. Absent for a turn saved before this was recorded: its files in order are used.
+  final Map<String, List<String>> _numbered;
+
+  String encode() => jsonEncode(<String, Object>{
+    for (final e in _turns.entries)
+      e.key: _numbered.containsKey(e.key)
+          ? <String, Object>{'f': e.value, 'n': _numbered[e.key]!}
+          : e.value,
+  });
+
+  /// The file names of [turnId] in the server's numbering of its photos.
+  List<String> numberedOf(String turnId) =>
+      _numbered[turnId] ?? _turns[turnId] ?? const <String>[];
+
+  /// Records how the server numbered the photos of a turn; only files the turn really holds are kept.
+  void putNumbered(String turnId, List<String> files) {
+    final held = _turns[turnId];
+    if (held == null) return;
+    _numbered[turnId] = <String>[
+      for (final n in files)
+        if (held.contains(n)) n,
+    ];
+  }
 
   /// The file names of [turnId], empty when it had none.
   List<String> of(String turnId) => _turns[turnId] ?? const <String>[];
@@ -64,6 +100,7 @@ class PhotoIndex {
   /// Records the files of a turn. A repeat for the same turn (a retried send) replaces the earlier entry instead of adding to it.
   void put(String turnId, List<String> files) {
     _turns.remove(turnId);
+    _numbered.remove(turnId);
     if (files.isNotEmpty) _turns[turnId] = List<String>.of(files);
   }
 
@@ -71,7 +108,9 @@ class PhotoIndex {
   List<String> evict(int limit) {
     final gone = <String>[];
     while (count > limit && _turns.isNotEmpty) {
-      gone.addAll(_turns.remove(_turns.keys.first) ?? const <String>[]);
+      final oldest = _turns.keys.first;
+      _numbered.remove(oldest);
+      gone.addAll(_turns.remove(oldest) ?? const <String>[]);
     }
     return gone;
   }
@@ -88,8 +127,22 @@ class PhotoIndex {
       if (kept.length != entry.value.length) changed = true;
       if (kept.isEmpty) {
         _turns.remove(key);
+        _numbered.remove(key);
       } else {
         _turns[key] = kept;
+        final numbered = _numbered[key];
+        if (numbered != null) {
+          // A numbered photo that is gone leaves a hole in the numbering, so the whole numbering is dropped rather than shifted: the card
+          // then says the photo is gone instead of cutting another one
+          final still = <String>[
+            for (final n in numbered)
+              if (exists(n)) n,
+          ];
+          if (still.length != numbered.length) {
+            _numbered[key] = const <String>[];
+            changed = true;
+          }
+        }
       }
     }
     return changed;
@@ -179,6 +232,18 @@ class ChatPhotoStore {
     ];
   }
 
+  /// The files of a turn as full paths in the order the server counted its photos, which is how a card names "photo 2". Needs [ready] first.
+  /// A hole (a photo that is gone) gives an empty list, so a card never cuts another photo in its place.
+  List<String> numberedPhotosOf(String turnId) {
+    final index = _index;
+    final root = _root;
+    if (index == null || root == null) return const <String>[];
+    return <String>[
+      for (final n in index.numberedOf(turnId))
+        '${root.path}${Platform.pathSeparator}$n',
+    ];
+  }
+
   /// Copies a picked photo into the staging folder (the picker's own copy can be cleared by the phone at any time).
   /// Null when the copy failed: the message then goes without a thumbnail.
   Future<String?> stage(String source) async {
@@ -200,7 +265,11 @@ class ChatPhotoStore {
   }
 
   /// Moves staged copies into the folder and files them under [turnId]. Returns the final paths; the oldest photos beyond the cap are deleted.
-  Future<List<String>> promote(String turnId, List<String> staged) async {
+  Future<List<String>> promote(
+    String turnId,
+    List<String> staged, {
+    List<String>? numbered,
+  }) async {
     if (staged.isEmpty) return const <String>[];
     final wipes = _wipes;
     await ready();
@@ -231,6 +300,14 @@ class ChatPhotoStore {
     // A retried send files the same turn again: its earlier files are replaced
     final before = index.of(turnId);
     index.put(turnId, names);
+    // The photos in the server's order, by file name: those that did not move are not in the numbering, so a number can never point at another file
+    if (numbered != null) {
+      final base = <String>[
+        for (final p in numbered) p.split(Platform.pathSeparator).last,
+      ];
+      final intact = base.every(names.contains);
+      index.putNumbered(turnId, intact ? base : const <String>[]);
+    }
     final stale = before.where((n) => !names.contains(n)).toList();
     for (final gone in <String>[...stale, ...index.evict(maxStoredPhotos)]) {
       await _quietDelete(File('${dir.path}${Platform.pathSeparator}$gone'));

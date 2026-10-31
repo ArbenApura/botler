@@ -24,10 +24,15 @@ export const POST: RequestHandler = async ({ locals, request, params }) => {
 			(body as { decision?: unknown }).decision !== 'reject'
 		)
 			throw new OpsError('INVALID', 'decision must be "approve" or "reject"');
+		// The picture the phone made for a photo card (base64, small); checked by the verb it goes to
+		const imageData = (body as { imageData?: unknown }).imageData;
+		if (imageData !== undefined && typeof imageData !== 'string')
+			throw new OpsError('INVALID', 'imageData must be text');
 		return json({
 			action: await decideAction(c.ctx, {
 				actionId: params.id,
-				decision: (body as { decision: 'approve' | 'reject' }).decision
+				decision: (body as { decision: 'approve' | 'reject' }).decision,
+				...(imageData !== undefined ? { imageData } : {})
 			})
 		});
 	} catch (e) {

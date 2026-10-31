@@ -28,7 +28,7 @@ type ToolOut = {
 	message?: string;
 	data?: unknown;
 };
-type CardRead = { type: 'card'; actionId: string; summary: string };
+type CardRead = { type: 'card'; actionId: string; summary: string; verb?: string };
 type FallbackOut = { type: 'fallback'; reason: string };
 
 export type HistoryEvent = ToolOut | (CardRead & { status: CardNow }) | FallbackOut;
@@ -76,7 +76,8 @@ const toolEvent = z.object({
 const cardEvent = z.object({
 	type: z.literal('card'),
 	actionId: z.string().regex(UUID),
-	summary: z.string().transform((v) => v.slice(0, 2_000))
+	summary: z.string().transform((v) => v.slice(0, 2_000)),
+	verb: z.string().max(60).optional()
 });
 const fallbackEvent = z.object({ type: z.literal('fallback'), reason: z.string().max(40) });
 
@@ -111,7 +112,12 @@ function readEvents(raw: unknown): (ToolOut | CardRead | FallbackOut)[] {
 		}
 		const card = cardEvent.safeParse(e);
 		if (card.success) {
-			out.push({ type: 'card', actionId: card.data.actionId, summary: card.data.summary });
+			out.push({
+				type: 'card',
+				actionId: card.data.actionId,
+				summary: card.data.summary,
+				...(card.data.verb ? { verb: card.data.verb } : {})
+			});
 			continue;
 		}
 		const fb = fallbackEvent.safeParse(e);

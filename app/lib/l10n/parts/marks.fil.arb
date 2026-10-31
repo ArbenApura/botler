@@ -51,5 +51,19 @@
   "markIconCoffee": "Kape",
   "markIconHeart": "Puso",
   "markIconStar": "Bituin",
-  "markIconFlag": "Bandila"
+  "markIconFlag": "Bandila",
+  "photoMarkApprove": "Gamitin ang larawang ito",
+  "photoMarkZoomIn": "Palakihin",
+  "photoMarkZoomOut": "Paliitin",
+  "photoMarkLeft": "Ilipat pakaliwa",
+  "photoMarkRight": "Ilipat pakanan",
+  "photoMarkUp": "Ilipat pataas",
+  "photoMarkDown": "Ilipat pababa",
+  "photoMarkFill": "Punuin",
+  "photoMarkWhole": "Buo",
+  "photoMarkWorking": "Ginugupit ang larawan",
+  "photoMarkRetry": "Subukan ulit",
+  "photoMarkPreview": "Ganito magiging itsura ng larawan",
+  "photoMarkGone": "Wala na ang litratong ito sa phone. Ipadala ulit at hilingin ulit.",
+  "photoMarkNote": "Ginupit sa phone mo. Nananatili rito ang orihinal na litrato mo; ang maliit na ginupit na larawan lang ang sine-save."
 }

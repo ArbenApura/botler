@@ -350,5 +350,17 @@
       "Puwede nang lagyan ng sariling icon o larawan ang mga account at bill. Buksan ang account o bill at piliin ang Baguhin ang icon o larawan; makikita ito sa mga listahan, kalendaryo, Time Travel, payday split at kasaysayan.",
       "Maaaring magtakda o mag-alis ng icon si Botler para sa iyo sa chat. Ang larawang pipiliin mo ay para sa iyo lang: hindi ito nakikita ng assistant."
     ]
+  },
+  {
+    "versionCode": 35,
+    "versionName": "1.2.3",
+    "en": [
+      "Send Botler a photo and ask it to use it as the picture of an account or a bill. Botler picks the best part of the photo, and your phone cuts it and shows you the result on a card.",
+      "You can zoom in or out, move it, and choose between filling the badge or keeping the whole picture, then tap Use this picture. The photo is cut on your phone: your original photo stays there, and only the small cut picture is saved."
+    ],
+    "fil": [
+      "Magpadala kay Botler ng litrato at hilingin na gamitin ito bilang larawan ng account o bill. Pipiliin ni Botler ang pinakamagandang bahagi ng litrato, at gugupitin ito ng phone mo at ipapakita ang resulta sa isang card.",
+      "Puwede mong palakihin o paliitin, ilipat, at piliin kung pupunuin ang badge o ipapakita ang buong larawan, saka pindutin ang Gamitin ang larawang ito. Sa phone mo ginugupit ang litrato: nananatili roon ang orihinal na litrato mo, at ang maliit na ginupit na larawan lang ang sine-save."
+    ]
   }
 ]

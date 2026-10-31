@@ -97,6 +97,7 @@ import {
 	chatRenameInput,
 	calendarRangeInput,
 	pictureGetInput,
+	markFromPhotoInput,
 	dataResetInput,
 	dataResetPreviewInput,
 	profileSetInput,
@@ -132,6 +133,7 @@ import {
 } from './chats';
 import { calendarRange } from './calendarRange';
 import { getPicture } from './picture';
+import { markFromPhoto } from './markPhoto';
 import { previewDataReset, resetData } from './dataReset';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
@@ -1208,6 +1210,16 @@ export const VERBS: readonly Verb[] = [
 			'Record what an account really holds right now. To reset an account (for example to 0) use mode reset with a short reason: it makes a card for the person to approve and keeps the history. Amounts are in the smallest unit of the currency.',
 		input: snapshotRecordInput,
 		run: (ctx, a) => recordSnapshot(ctx, a)
+	}),
+	verb({
+		name: 'mark_from_photo',
+		kind: 'gated',
+		description:
+			'Make the picture of an account or a bill from a photo the person sent in THIS message, when they ask to use a photo as its icon or picture. It always becomes a card the person approves in the app: the phone cuts the photo, shows the result and the person can zoom or move it before approving; you never get the picture. Look at the photo first (photo 1 is the first attached picture, and so on; if no picture reaches you, photo n is the n-th photo text; if you cannot see them, use the whole photo: x 0, y 0, width 1, height 1, fit cover, and say you could not see it). Choose the box with x, y, width and height as fractions of the photo (0 to 1, x + width and y + height at most 1): crop tightly on the logo or subject and leave out background, edges and other things; a little breathing room is better than cutting the subject. fit cover (the default) fills the round or square badge from the middle of your box, best for a logo on a plain background, a face or a card; fit contain keeps the whole box inside the badge, best for a wide logo or text that must not be cut. name is the exact name of the account or bill. If the person asks to zoom in, zoom out or shift it, call this again with a new box. Say in one short line what you cropped and why. Only works on a photo from this message; for a built-in icon use account_update or bill_update.',
+		input: markFromPhotoInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
+		run: (ctx, a) => markFromPhoto(ctx, a)
 	}),
 
 	// -- PERSON ONLY -- //

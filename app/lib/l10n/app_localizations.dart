@@ -4879,6 +4879,90 @@ abstract class AppLocalizations {
   /// **'Your paydays'**
   String get paydayYours;
 
+  /// No description provided for @photoMarkApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this picture'**
+  String get photoMarkApprove;
+
+  /// No description provided for @photoMarkDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get photoMarkDown;
+
+  /// No description provided for @photoMarkFill.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill'**
+  String get photoMarkFill;
+
+  /// No description provided for @photoMarkGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This photo is no longer on this phone. Send it again and ask again.'**
+  String get photoMarkGone;
+
+  /// No description provided for @photoMarkLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move left'**
+  String get photoMarkLeft;
+
+  /// No description provided for @photoMarkNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Cut on your phone. Your original photo stays here; only the small cut picture is saved.'**
+  String get photoMarkNote;
+
+  /// No description provided for @photoMarkPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'How the picture will look'**
+  String get photoMarkPreview;
+
+  /// No description provided for @photoMarkRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get photoMarkRetry;
+
+  /// No description provided for @photoMarkRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move right'**
+  String get photoMarkRight;
+
+  /// No description provided for @photoMarkUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get photoMarkUp;
+
+  /// No description provided for @photoMarkWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole'**
+  String get photoMarkWhole;
+
+  /// No description provided for @photoMarkWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Cutting the picture'**
+  String get photoMarkWorking;
+
+  /// No description provided for @photoMarkZoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get photoMarkZoomIn;
+
+  /// No description provided for @photoMarkZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get photoMarkZoomOut;
+
   /// No description provided for @photoNoticeBody.
   ///
   /// In en, this message translates to:

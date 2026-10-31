@@ -214,15 +214,20 @@ Uint8List? encodeMarkPicture(Uint8List bytes) {
             height: edge,
             interpolation: img.Interpolation.average,
           );
-    for (final quality in _markQualities) {
-      final out = img.encodeJpg(small, quality: quality);
-      if (out.length <= markMaxBytes) return out;
-    }
-    return null;
+    return encodeMarkImage(small);
   } on Object {
     // A file that is cut short is not a picture it can use
     return null;
   }
+}
+
+/// The JPEG of an already small picture, at the best quality that keeps it under [markMaxBytes]; null when even the lowest is too large.
+Uint8List? encodeMarkImage(img.Image small) {
+  for (final quality in _markQualities) {
+    final out = img.encodeJpg(small, quality: quality);
+    if (out.length <= markMaxBytes) return out;
+  }
+  return null;
 }
 
 Uint8List? _fromFile(String path) =>

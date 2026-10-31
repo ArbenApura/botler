@@ -119,7 +119,8 @@ describe('the verb registry', () => {
 			'split_approve'
 		]);
 		// Only a balance count or reset is gated since the owner decision of 2026-10-28
-		expect(by('gated')).toEqual(['snapshot_record']);
+		// mark_from_photo (owner decision of 2026-10-31) is always a card as well: the phone makes the picture
+		expect(by('gated')).toEqual(['mark_from_photo', 'snapshot_record']);
 		expect(by('free')).toEqual(
 			[
 				'account_archive',
