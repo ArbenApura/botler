@@ -281,6 +281,18 @@ CropSource? cropSourceOf(Uint8List bytes) {
   );
 }
 
+/// A [CropSource] for raw RGBA pixels (a picture already decoded and made ready off the main isolate).
+CropSource cropSourceFromRaw(int width, int height, Uint8List rgba) =>
+    CropSource._(
+      img.Image.fromBytes(
+        width: width,
+        height: height,
+        bytes: rgba.buffer,
+        numChannels: 4,
+        order: img.ChannelOrder.rgba,
+      ),
+    );
+
 /// Reads the photo at [path] once, off the main isolate, and keeps a working copy to cut from. Null when the file is gone or is not a picture.
 Future<CropSource?> openCropSource(String path) async {
   try {

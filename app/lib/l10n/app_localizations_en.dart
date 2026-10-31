@@ -1380,6 +1380,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatPleaseCheck => 'Please check';
 
   @override
+  String chatRanScript(String output) {
+    return 'Ran a script: $output';
+  }
+
+  @override
+  String get chatRanScriptQuiet => 'Ran a script on your phone';
+
+  @override
   String get chatReceiptMessage => 'Here is a receipt.';
 
   @override
@@ -1389,6 +1397,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatRestoreFailed => 'Could not load your earlier chat.';
+
+  @override
+  String get chatRunningScript => 'Running a script on your phone';
 
   @override
   String get chatSend => 'Send';
@@ -1445,6 +1456,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatUndoneSnack => 'Undone.';
+
+  @override
+  String get chatUsedToolbox => 'Used your toolbox';
+
+  @override
+  String get chatUsingToolbox => 'Opening your toolbox';
 
   @override
   String get chatWaiting => 'Working on it';
@@ -3624,6 +3641,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get settingsToolbox => 'Toolbox';
+
+  @override
+  String get settingsToolboxBody => 'Scripts Botler saved on this phone';
+
+  @override
   String get settingsVoice => 'Voice';
 
   @override
@@ -4358,6 +4381,43 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String toolboxChars(int count) {
+    return '$count characters';
+  }
+
+  @override
+  String toolboxCount(int count, int limit) {
+    return '$count of $limit saved';
+  }
+
+  @override
+  String get toolboxDelete => 'Delete';
+
+  @override
+  String toolboxDeleteBody(String name) {
+    return '\"$name\" will be removed from this phone.';
+  }
+
+  @override
+  String get toolboxDeleteTitle => 'Delete this script?';
+
+  @override
+  String get toolboxDeleted => 'Script deleted.';
+
+  @override
+  String get toolboxEmpty => 'Nothing saved yet.';
+
+  @override
+  String get toolboxFailed => 'The toolbox could not be read.';
+
+  @override
+  String get toolboxNote =>
+      'Botler can run small scripts on this phone to calculate or work on pictures. They have no internet, only reach a scratch folder for each chat, and can never change your money or your data. Botler saves one here only when you ask or agree.';
+
+  @override
+  String get toolboxTitle => 'Toolbox';
+
+  @override
   String transferArrivedLabel(String currency) {
     return 'Amount that arrived ($currency)';
   }
@@ -4524,6 +4584,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updVerifying => 'Checking the download…';
+
+  @override
+  String get webMarkLooking => 'Looking for logos on the web';
+
+  @override
+  String get webMarkNone =>
+      'I could not load a usable logo from the web. Ask me to try another site, or send a photo.';
+
+  @override
+  String get webMarkNote =>
+      'Found on the web and cut on your phone. Pick the one you want; only the small cut picture is saved.';
+
+  @override
+  String webMarkOption(int n) {
+    return 'Logo option $n';
+  }
 
   @override
   String get yes => 'Yes';

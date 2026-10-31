@@ -2305,6 +2305,18 @@ abstract class AppLocalizations {
   /// **'Please check'**
   String get chatPleaseCheck;
 
+  /// No description provided for @chatRanScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran a script: {output}'**
+  String chatRanScript(String output);
+
+  /// No description provided for @chatRanScriptQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran a script on your phone'**
+  String get chatRanScriptQuiet;
+
   /// No description provided for @chatReceiptMessage.
   ///
   /// In en, this message translates to:
@@ -2322,6 +2334,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not load your earlier chat.'**
   String get chatRestoreFailed;
+
+  /// No description provided for @chatRunningScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Running a script on your phone'**
+  String get chatRunningScript;
 
   /// No description provided for @chatSend.
   ///
@@ -2430,6 +2448,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Undone.'**
   String get chatUndoneSnack;
+
+  /// No description provided for @chatUsedToolbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Used your toolbox'**
+  String get chatUsedToolbox;
+
+  /// No description provided for @chatUsingToolbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening your toolbox'**
+  String get chatUsingToolbox;
 
   /// No description provided for @chatWaiting.
   ///
@@ -6168,6 +6198,18 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @settingsToolbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Toolbox'**
+  String get settingsToolbox;
+
+  /// No description provided for @settingsToolboxBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Scripts Botler saved on this phone'**
+  String get settingsToolboxBody;
+
   /// No description provided for @settingsVoice.
   ///
   /// In en, this message translates to:
@@ -7331,6 +7373,66 @@ abstract class AppLocalizations {
   /// **'{count} currencies are not in this total: no exchange rate yet.'**
   String summaryMissingRates(int count);
 
+  /// No description provided for @toolboxChars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String toolboxChars(int count);
+
+  /// No description provided for @toolboxCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {limit} saved'**
+  String toolboxCount(int count, int limit);
+
+  /// No description provided for @toolboxDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get toolboxDelete;
+
+  /// No description provided for @toolboxDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" will be removed from this phone.'**
+  String toolboxDeleteBody(String name);
+
+  /// No description provided for @toolboxDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this script?'**
+  String get toolboxDeleteTitle;
+
+  /// No description provided for @toolboxDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Script deleted.'**
+  String get toolboxDeleted;
+
+  /// No description provided for @toolboxEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing saved yet.'**
+  String get toolboxEmpty;
+
+  /// No description provided for @toolboxFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The toolbox could not be read.'**
+  String get toolboxFailed;
+
+  /// No description provided for @toolboxNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler can run small scripts on this phone to calculate or work on pictures. They have no internet, only reach a scratch folder for each chat, and can never change your money or your data. Botler saves one here only when you ask or agree.'**
+  String get toolboxNote;
+
+  /// No description provided for @toolboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toolbox'**
+  String get toolboxTitle;
+
   /// No description provided for @transferArrivedLabel.
   ///
   /// In en, this message translates to:
@@ -7600,6 +7702,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking the download…'**
   String get updVerifying;
+
+  /// No description provided for @webMarkLooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for logos on the web'**
+  String get webMarkLooking;
+
+  /// No description provided for @webMarkNone.
+  ///
+  /// In en, this message translates to:
+  /// **'I could not load a usable logo from the web. Ask me to try another site, or send a photo.'**
+  String get webMarkNone;
+
+  /// No description provided for @webMarkNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Found on the web and cut on your phone. Pick the one you want; only the small cut picture is saved.'**
+  String get webMarkNote;
+
+  /// No description provided for @webMarkOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo option {n}'**
+  String webMarkOption(int n);
 
   /// No description provided for @yes.
   ///

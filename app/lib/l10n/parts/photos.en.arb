@@ -17,5 +17,20 @@
   "chatPhotoOnlyMessage": "Here are the photos.",
   "chatPicturesNoted": "This answer goes by the text read from the picture, not the picture itself.",
   "chatPictureSkipped": "A picture could not be sent, so only its text goes.",
-  "chatPicturePreparing": "Getting the pictures ready…"
+  "chatPicturePreparing": "Getting the pictures ready…",
+  "settingsToolbox": "Toolbox",
+  "settingsToolboxBody": "Scripts Botler saved on this phone",
+  "toolboxTitle": "Toolbox",
+  "toolboxNote": "Botler can run small scripts on this phone to calculate or work on pictures. They have no internet, only reach a scratch folder for each chat, and can never change your money or your data. Botler saves one here only when you ask or agree.",
+  "toolboxEmpty": "Nothing saved yet.",
+  "toolboxCount": "{count} of {limit} saved",
+  "@toolboxCount": {"placeholders": {"count": {"type": "int"}, "limit": {"type": "int"}}},
+  "toolboxChars": "{count} characters",
+  "@toolboxChars": {"placeholders": {"count": {"type": "int"}}},
+  "toolboxDelete": "Delete",
+  "toolboxDeleteTitle": "Delete this script?",
+  "toolboxDeleteBody": "\"{name}\" will be removed from this phone.",
+  "@toolboxDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "toolboxDeleted": "Script deleted.",
+  "toolboxFailed": "The toolbox could not be read."
 }

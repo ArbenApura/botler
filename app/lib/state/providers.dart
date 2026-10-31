@@ -3,9 +3,11 @@
 
 // -- DEP-MODULES -- //
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // -- MODULES -- //
@@ -18,6 +20,10 @@ import '../core/outbox.dart';
 import '../core/page_cache.dart';
 import '../core/person_data.dart';
 import '../core/push.dart';
+import '../core/script/device_tools.dart';
+import '../core/script/storage.dart';
+import '../core/script/toolbox.dart';
+import '../core/web_logo.dart';
 
 // -- TYPES -- //
 
@@ -163,6 +169,19 @@ final Provider<ApiClient> apiProvider = Provider<ApiClient>((ref) {
   return api;
 });
 
+/// The plain web client the logo finder downloads with (its own, apart from the Botler API client: it carries no sign-in), and the lookup it uses
+/// to check where a name leads. A test replaces both.
+final Provider<http.Client> webClientProvider = Provider<http.Client>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return client;
+});
+
+final Provider<HostResolver> webResolverProvider = Provider<HostResolver>(
+  (ref) =>
+      (host) => InternetAddress.lookup(host),
+);
+
 /// The waiting writes of the signed-in person: they are tagged with the session's e-mail, and only that person's session sends them.
 final Provider<Outbox> outboxProvider = Provider<Outbox>(
   (ref) => Outbox(
@@ -197,6 +216,30 @@ final Provider<ChatPhotoStore> chatPhotoStoreProvider =
         owner: ref.watch(sessionProvider).value?.email ?? 'local',
       ),
     );
+
+/// The files scripts work on, kept on this phone for the signed-in person only. Tests override it with a temporary folder.
+final Provider<ScriptStorage> scriptStorageProvider = Provider<ScriptStorage>(
+  (ref) =>
+      ScriptStorage(owner: ref.watch(sessionProvider).value?.email ?? 'local'),
+);
+
+/// The person's saved scripts.
+final Provider<Toolbox> toolboxProvider = Provider<Toolbox>(
+  (ref) => Toolbox(ref.watch(scriptStorageProvider)),
+);
+
+/// Runs the calls the assistant makes to the phone (scripts, the toolbox) and posts the answers.
+final Provider<DeviceToolRunner> deviceToolRunnerProvider =
+    Provider<DeviceToolRunner>((ref) {
+      final api = ref.watch(apiProvider);
+      final runner = DeviceToolRunner(
+        storage: ref.watch(scriptStorageProvider),
+        toolbox: ref.watch(toolboxProvider),
+        send: api.postDeviceResult,
+      );
+      ref.onDispose(runner.stopAll);
+      return runner;
+    });
 
 /// The seam to Firebase. Tests override it.
 final Provider<PushHost> pushHostProvider = Provider<PushHost>(
@@ -250,6 +293,12 @@ class SessionNotifier extends AsyncNotifier<Session?> {
       await ref.read(chatPhotoStoreProvider).wipe();
     } on Object {
       // Signing out never waits on the photo folder
+    }
+    // Nor the scripts, their files and the toolbox
+    try {
+      await ref.read(scriptStorageProvider).wipe();
+    } on Object {
+      // Signing out never waits on the scripts' folder
     }
     // Nor the notebook pages kept for reading offline
     try {

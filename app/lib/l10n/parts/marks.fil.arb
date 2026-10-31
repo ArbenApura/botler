@@ -65,5 +65,9 @@
   "photoMarkRetry": "Subukan ulit",
   "photoMarkPreview": "Ganito magiging itsura ng larawan",
   "photoMarkGone": "Wala na ang litratong ito sa phone. Ipadala ulit at hilingin ulit.",
-  "photoMarkNote": "Ginupit sa phone mo. Nananatili rito ang orihinal na litrato mo; ang maliit na ginupit na larawan lang ang sine-save."
+  "photoMarkNote": "Ginupit sa phone mo. Nananatili rito ang orihinal na litrato mo; ang maliit na ginupit na larawan lang ang sine-save.",
+  "webMarkLooking": "Naghahanap ng logo sa web",
+  "webMarkNone": "Walang nagamit na logo mula sa web. Hilingin mong subukan ang ibang site, o magpadala ng litrato.",
+  "webMarkNote": "Nakita sa web at ginupit sa phone mo. Piliin ang gusto mo; ang maliit na ginupit na larawan lang ang sine-save.",
+  "webMarkOption": "Pagpipiliang logo {n}"
 }

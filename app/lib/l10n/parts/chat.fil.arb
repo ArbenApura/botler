@@ -127,5 +127,10 @@
   "chatMsgCopied": "Nakopya na.",
   "chatEditing": "Ine-edit ang mensahe mo",
   "chatEditCancel": "Ihinto ang pag-edit",
-  "chatCardElsewhere": "Naghihintay ng sagot mo sa chat na pinagmulan nito."
+  "chatCardElsewhere": "Naghihintay ng sagot mo sa chat na pinagmulan nito.",
+  "chatRunningScript": "Nagpapatakbo ng script sa phone mo",
+  "chatUsingToolbox": "Binubuksan ang toolbox mo",
+  "chatRanScript": "Nagpatakbo ng script: {output}",
+  "chatRanScriptQuiet": "Nagpatakbo ng script sa phone mo",
+  "chatUsedToolbox": "Ginamit ang toolbox mo"
 }

@@ -402,10 +402,52 @@ class ChatNotifier extends Notifier<ChatState> {
   void setCard(int id, CardState s, {String? note}) =>
       _replace(id, (old) => old is CardItem ? old.with_(s, note: note) : old);
 
+  /// Runs a call the assistant made to the phone and posts its answer. The photos of this message are handed in by their number.
+  Future<void> _runOnPhone(String tool, Json device) async {
+    final callId = str(device['callId']);
+    if (callId.isEmpty) return;
+    try {
+      await _runOnPhoneChecked(tool, device, callId);
+    } on Object {
+      // The chat was closed or signed out while the call was starting: the server's wait ends on its own
+    }
+  }
+
+  Future<void> _runOnPhoneChecked(
+    String tool,
+    Json device,
+    String callId,
+  ) async {
+    var photos = const <String>[];
+    final turn = _turnId;
+    // The person chose "text only" for photos: a script gets none of them either, so no picture can leave through what it prints
+    final textOnly = ref.read(settingsProvider).photoMode == 'text';
+    if (turn != null && !textOnly) {
+      try {
+        final store = ref.read(chatPhotoStoreProvider);
+        await store.ready();
+        photos = store.numberedPhotosOf(turn);
+      } on Object {
+        // A script that wants a photo is told there is none
+      }
+    }
+    await ref
+        .read(deviceToolRunnerProvider)
+        .handle(
+          callId: callId,
+          tool: tool,
+          args: asJson(device['args']),
+          chatId: state.chatId,
+          photos: photos,
+          tainted: device['tainted'] == true,
+        );
+  }
+
   /// Stops the message being answered. What has arrived stays on screen, and nothing is sent again.
   void stop() {
     // Nothing left to stop once the answer is complete
     if (!state.busy || _sawDone) return;
+    ref.read(deviceToolRunnerProvider).stopAll();
     _stopped = true;
     final abort = _abort;
     if (abort != null && !abort.isCompleted) abort.complete();
@@ -865,6 +907,7 @@ class ChatNotifier extends Notifier<ChatState> {
                     images: pictures,
                     chatId: state.chatId,
                     abort: abort.future,
+                    scripts: true,
                   )) {
             if (generation != _generation) return false;
             _handle(e);
@@ -1028,6 +1071,11 @@ class ChatNotifier extends Notifier<ChatState> {
         _flush();
         _agentId = -1;
         _closeStreamingText();
+        // A call the assistant makes to this phone (a script, the toolbox): run it now and post the answer under the id the server sent
+        final device = e['device'];
+        if (device is Map<String, Object?>) {
+          unawaited(_runOnPhone(str(e['name']), asJson(device)));
+        }
         _add(
           ToolItem(
             _id(),

@@ -167,6 +167,29 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
+          PaperCard(
+            onTap: () => context.push('/settings/toolbox'),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        t.settingsToolbox,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        t.settingsToolboxBody,
+                        style: TextStyle(color: c.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: c.muted),
+              ],
+            ),
+          ),
           const RatesRow(),
           const FailedWritesRow(),
           const SizedBox(height: 12),

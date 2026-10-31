@@ -152,5 +152,11 @@
   "chatMsgCopied": "Copied.",
   "chatEditing": "Editing your message",
   "chatEditCancel": "Stop editing",
-  "chatCardElsewhere": "Waiting for your answer in the chat it came from."
+  "chatCardElsewhere": "Waiting for your answer in the chat it came from.",
+  "chatRunningScript": "Running a script on your phone",
+  "chatUsingToolbox": "Opening your toolbox",
+  "chatRanScript": "Ran a script: {output}",
+  "@chatRanScript": {"placeholders": {"output": {"type": "String"}}},
+  "chatRanScriptQuiet": "Ran a script on your phone",
+  "chatUsedToolbox": "Used your toolbox"
 }

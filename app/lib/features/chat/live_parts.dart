@@ -26,7 +26,11 @@ String phaseWords(BuildContext context, TurnPhase phase, String? tool) =>
       TurnPhase.waiting || TurnPhase.idle => context.t.chatWaiting,
       TurnPhase.thinking => context.t.chatThinking,
       TurnPhase.writing => context.t.chatWriting,
-      TurnPhase.tool => context.t.chatChecking(toolWords(tool ?? '')),
+      TurnPhase.tool => switch (tool) {
+        'script_run' => context.t.chatRunningScript,
+        'toolbox' => context.t.chatUsingToolbox,
+        _ => context.t.chatChecking(toolWords(tool ?? '')),
+      },
     };
 
 // -- TYPES -- //
@@ -262,7 +266,11 @@ class RunningToolRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final label = context.t.chatChecking(toolWords(name));
+    final label = switch (name) {
+      'script_run' => context.t.chatRunningScript,
+      'toolbox' => context.t.chatUsingToolbox,
+      _ => context.t.chatChecking(toolWords(name)),
+    };
     return Semantics(
       liveRegion: true,
       label: label,

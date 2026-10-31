@@ -86,5 +86,16 @@
   "photoMarkRetry": "Try again",
   "photoMarkPreview": "How the picture will look",
   "photoMarkGone": "This photo is no longer on this phone. Send it again and ask again.",
-  "photoMarkNote": "Cut on your phone. Your original photo stays here; only the small cut picture is saved."
+  "photoMarkNote": "Cut on your phone. Your original photo stays here; only the small cut picture is saved.",
+  "webMarkLooking": "Looking for logos on the web",
+  "webMarkNone": "I could not load a usable logo from the web. Ask me to try another site, or send a photo.",
+  "webMarkNote": "Found on the web and cut on your phone. Pick the one you want; only the small cut picture is saved.",
+  "webMarkOption": "Logo option {n}",
+  "@webMarkOption": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

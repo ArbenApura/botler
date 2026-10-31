@@ -13,5 +13,17 @@
   "chatPhotoOnlyMessage": "Heto ang mga litrato.",
   "chatPicturesNoted": "Ang sagot na ito ay batay sa tekstong nabasa mula sa larawan, hindi sa mismong larawan.",
   "chatPictureSkipped": "Hindi maipadala ang isang larawan, kaya teksto lang nito ang ipapadala.",
-  "chatPicturePreparing": "Inihahanda ang mga larawan…"
+  "chatPicturePreparing": "Inihahanda ang mga larawan…",
+  "settingsToolbox": "Toolbox",
+  "settingsToolboxBody": "Mga script na sine-save ni Botler sa phone na ito",
+  "toolboxTitle": "Toolbox",
+  "toolboxNote": "Puwedeng magpatakbo si Botler ng maliliit na script sa phone na ito para magkuwenta o gumawa sa mga larawan. Walang internet ang mga ito, sa scratch folder lang ng bawat chat sila nakakaabot, at hindi nila mababago ang pera o data mo. Magse-save lang si Botler dito kapag hiniling o sinang-ayunan mo.",
+  "toolboxEmpty": "Wala pang naka-save.",
+  "toolboxCount": "{count} sa {limit} ang naka-save",
+  "toolboxChars": "{count} na character",
+  "toolboxDelete": "Burahin",
+  "toolboxDeleteTitle": "Burahin ang script na ito?",
+  "toolboxDeleteBody": "Aalisin ang \"{name}\" sa phone na ito.",
+  "toolboxDeleted": "Nabura ang script.",
+  "toolboxFailed": "Hindi mabasa ang toolbox."
 }

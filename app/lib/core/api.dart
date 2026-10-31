@@ -266,6 +266,12 @@ class ApiClient {
     'imageData': ?imageData,
   });
 
+  /// The phone's answer to a call the assistant made to it (a script run, the toolbox), under the call id the chat stream announced.
+  Future<Json> postDeviceResult(String callId, bool ok, Json result) => post(
+    '/api/v1/agent/device-result',
+    <String, Object?>{'callId': callId, 'ok': ok, 'result': result},
+  );
+
   /// The cards still waiting for an answer, newest first, with the plan each carries.
   Future<List<Json>> pendingCards() async => asJsonList(
     (await get(
@@ -285,6 +291,7 @@ class ApiClient {
     String? chatId,
     Future<void>? abort,
     Duration idle = _idle,
+    bool scripts = false,
   }) async* {
     // Stopped by the person (abort) or when the first answer takes too long: either way the socket is closed
     final stop = Completer<void>();
@@ -304,6 +311,8 @@ class ApiClient {
             'clientMessageId': id,
             'text': text,
             'chatId': ?chatId,
+            // This app can run the assistant's script and toolbox calls and answer them (the server offers those tools only to such an app)
+            if (scripts) 'scripts': true,
             if (ocrTexts.isNotEmpty) 'ocrTexts': ocrTexts,
             // The pictures themselves, as JPEG base64. Sent only when the server has said it will use them (an older server refuses the key)
             if (images.isNotEmpty)

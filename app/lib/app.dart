@@ -28,6 +28,7 @@ import 'features/money/goals_screen.dart';
 import 'features/payday/payday_screen.dart';
 import 'features/settings/reset_screen.dart';
 import 'features/settings/settings_screen.dart';
+import 'features/settings/toolbox_screen.dart';
 import 'features/simulate/simulate_screen.dart';
 import 'features/update/update_gate.dart';
 import 'state/providers.dart';
@@ -134,6 +135,10 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/settings/reset',
         pageBuilder: (_, state) => botlerPage(state, const ResetScreen()),
+      ),
+      GoRoute(
+        path: '/settings/toolbox',
+        pageBuilder: (_, state) => botlerPage(state, const ToolboxScreen()),
       ),
       GoRoute(
         path: '/settings',

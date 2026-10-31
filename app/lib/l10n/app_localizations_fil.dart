@@ -1390,6 +1390,14 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatPleaseCheck => 'Pakisuri';
 
   @override
+  String chatRanScript(String output) {
+    return 'Nagpatakbo ng script: $output';
+  }
+
+  @override
+  String get chatRanScriptQuiet => 'Nagpatakbo ng script sa phone mo';
+
+  @override
   String get chatReceiptMessage => 'Heto ang resibo.';
 
   @override
@@ -1399,6 +1407,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatRestoreFailed => 'Hindi ma-load ang dati mong chat.';
+
+  @override
+  String get chatRunningScript => 'Nagpapatakbo ng script sa phone mo';
 
   @override
   String get chatSend => 'Ipadala';
@@ -1455,6 +1466,12 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatUndoneSnack => 'Naibalik.';
+
+  @override
+  String get chatUsedToolbox => 'Ginamit ang toolbox mo';
+
+  @override
+  String get chatUsingToolbox => 'Binubuksan ang toolbox mo';
 
   @override
   String get chatWaiting => 'Inaasikaso na';
@@ -3648,6 +3665,13 @@ class AppLocalizationsFil extends AppLocalizations {
   String get settingsTitle => 'Mga setting';
 
   @override
+  String get settingsToolbox => 'Toolbox';
+
+  @override
+  String get settingsToolboxBody =>
+      'Mga script na sine-save ni Botler sa phone na ito';
+
+  @override
   String get settingsVoice => 'Boses';
 
   @override
@@ -4384,6 +4408,43 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String toolboxChars(int count) {
+    return '$count na character';
+  }
+
+  @override
+  String toolboxCount(int count, int limit) {
+    return '$count sa $limit ang naka-save';
+  }
+
+  @override
+  String get toolboxDelete => 'Burahin';
+
+  @override
+  String toolboxDeleteBody(String name) {
+    return 'Aalisin ang \"$name\" sa phone na ito.';
+  }
+
+  @override
+  String get toolboxDeleteTitle => 'Burahin ang script na ito?';
+
+  @override
+  String get toolboxDeleted => 'Nabura ang script.';
+
+  @override
+  String get toolboxEmpty => 'Wala pang naka-save.';
+
+  @override
+  String get toolboxFailed => 'Hindi mabasa ang toolbox.';
+
+  @override
+  String get toolboxNote =>
+      'Puwedeng magpatakbo si Botler ng maliliit na script sa phone na ito para magkuwenta o gumawa sa mga larawan. Walang internet ang mga ito, sa scratch folder lang ng bawat chat sila nakakaabot, at hindi nila mababago ang pera o data mo. Magse-save lang si Botler dito kapag hiniling o sinang-ayunan mo.';
+
+  @override
+  String get toolboxTitle => 'Toolbox';
+
+  @override
   String transferArrivedLabel(String currency) {
     return 'Halagang dumating ($currency)';
   }
@@ -4550,6 +4611,22 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get updVerifying => 'Sinisiyasat ang download…';
+
+  @override
+  String get webMarkLooking => 'Naghahanap ng logo sa web';
+
+  @override
+  String get webMarkNone =>
+      'Walang nagamit na logo mula sa web. Hilingin mong subukan ang ibang site, o magpadala ng litrato.';
+
+  @override
+  String get webMarkNote =>
+      'Nakita sa web at ginupit sa phone mo. Piliin ang gusto mo; ang maliit na ginupit na larawan lang ang sine-save.';
+
+  @override
+  String webMarkOption(int n) {
+    return 'Pagpipiliang logo $n';
+  }
 
   @override
   String get yes => 'Oo';

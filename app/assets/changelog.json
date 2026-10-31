@@ -384,5 +384,17 @@
     "fil": [
       "Puwede mo nang i-paste ang larawan sa chat: kopyahin ang screenshot o larawan, pindutan nang matagal ang message box at i-tap ang I-paste ang litrato, o i-tap ang photo button at piliin ang I-paste ang litrato. Gumagana rin ang mga larawan mula sa keyboard."
     ]
+  },
+  {
+    "versionCode": 38,
+    "versionName": "1.3.0",
+    "en": [
+      "Ask Botler to find a logo for an account or a bill (for example \"find an icon for my RCBC account\"). It looks on the web, tidies the picture, and shows you the choices on a card: pick one, adjust it if you like, and approve.",
+      "Botler can now run small scripts on your phone to calculate, read a list of numbers, or resize and crop your photos. They have no internet and cannot touch your money or data. You can see and delete anything Botler saves in Settings, under Toolbox."
+    ],
+    "fil": [
+      "Hilingin kay Botler na maghanap ng logo para sa isang account o bill (halimbawa, \"hanapan mo ako ng icon para sa RCBC account ko\"). Maghahanap ito sa web, aayusin ang larawan, at ipapakita ang mga pagpipilian sa isang card: pumili, i-adjust kung gusto mo, at aprubahan.",
+      "Puwede nang magpatakbo si Botler ng maliliit na script sa phone mo para magkuwenta, magbasa ng listahan ng mga numero, o mag-resize at mag-crop ng mga litrato mo. Walang internet ang mga ito at hindi nila mahahawakan ang pera o data mo. Makikita at mabubura mo ang anumang sine-save ni Botler sa Settings, sa Toolbox."
+    ]
   }
 ]

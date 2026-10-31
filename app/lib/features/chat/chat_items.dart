@@ -23,6 +23,7 @@ import '../payday/split_card.dart';
 import 'agent_text.dart';
 import 'chat_state.dart';
 import 'live_parts.dart';
+import 'web_mark_card.dart';
 import 'message_actions.dart';
 import 'photo_mark_card.dart';
 import 'photo_widgets.dart';
@@ -329,6 +330,30 @@ class _ToolView extends ConsumerWidget {
           ),
           style: TextStyle(color: c.muted),
         );
+      case 'script_run' || 'toolbox':
+        // A script the phone ran for the assistant (or the toolbox it opened): one quiet line, with the first line of what it printed
+        final quiet =
+            Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted) ??
+            TextStyle(color: c.muted);
+        if (item.name == 'toolbox') {
+          return _QuietRow(
+            icon: Icons.build_outlined,
+            text: context.t.chatUsedToolbox,
+            style: quiet,
+            more: more,
+          );
+        }
+        final first = str(data['output']).trim().split('\n').first;
+        return _QuietRow(
+          icon: Icons.code,
+          text: first.isEmpty
+              ? context.t.chatRanScriptQuiet
+              : context.t.chatRanScript(
+                  first.length > 80 ? '${first.substring(0, 80)}…' : first,
+                ),
+          style: quiet,
+          more: more,
+        );
       default:
         // A read the assistant did: one small quiet line, never a block
         return _QuietRow(
@@ -470,6 +495,17 @@ class _RestoredToolLine extends ConsumerWidget {
             ),
           );
         }
+    }
+    if (item.name == 'script_run' || item.name == 'toolbox') {
+      return _QuietRow(
+        icon: item.name == 'toolbox' ? Icons.build_outlined : Icons.code,
+        text: item.name == 'toolbox'
+            ? context.t.chatUsedToolbox
+            : context.t.chatRanScriptQuiet,
+        style: muted,
+        more: more,
+        maxLines: 2,
+      );
     }
     return _QuietRow(
       icon: line == null ? Icons.search : Icons.check_circle_outline,
@@ -820,7 +856,8 @@ class _CardViewState extends ConsumerState<_CardView> {
       ref
         ..invalidate(balancesProvider)
         ..invalidate(syncProvider)
-        ..invalidate(pendingCardProvider(item.actionId));
+        ..invalidate(pendingCardProvider(item.actionId))
+        ..invalidate(webCandidatesProvider(item.actionId));
     } catch (e) {
       if (mounted) say(context, errorWords(e, context));
     } finally {
@@ -835,11 +872,12 @@ class _CardViewState extends ConsumerState<_CardView> {
     final photoCard =
         item.state == CardState.waiting &&
         !item.readOnly &&
-        item.verb == photoMarkVerb;
+        (item.verb == photoMarkVerb || item.verb == webMarkVerb);
     final pending = photoCard
         ? ref.watch(pendingCardProvider(item.actionId))
         : null;
     final photo = photoMarkOf(pending?.value);
+    final web = webMarkOf(pending?.value);
     return PaperCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -860,6 +898,15 @@ class _CardViewState extends ConsumerState<_CardView> {
               photo: photo.photo,
               name: photo.name,
               plan: photo.plan,
+              deciding: _deciding,
+              onApprove: (bytes) => _decide(approve: true, picture: bytes),
+              onReject: () => _decide(approve: false),
+            ),
+            CardState.waiting when web != null => WebMarkEditor(
+              key: ValueKey<String>('web.${item.actionId}'),
+              actionId: item.actionId,
+              name: web.name,
+              fit: web.fit,
               deciding: _deciding,
               onApprove: (bytes) => _decide(approve: true, picture: bytes),
               onReject: () => _decide(approve: false),

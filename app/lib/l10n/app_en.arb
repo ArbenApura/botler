@@ -1049,6 +1049,15 @@
   "chatPictureSkipped": "A picture could not be sent, so only its text goes.",
   "chatPicturesNoted": "This answer goes by the text read from the picture, not the picture itself.",
   "chatPleaseCheck": "Please check",
+  "chatRanScript": "Ran a script: {output}",
+  "@chatRanScript": {
+    "placeholders": {
+      "output": {
+        "type": "String"
+      }
+    }
+  },
+  "chatRanScriptQuiet": "Ran a script on your phone",
   "chatReceiptMessage": "Here is a receipt.",
   "chatRecorded": "Recorded {amount}",
   "@chatRecorded": {
@@ -1059,6 +1068,7 @@
     }
   },
   "chatRestoreFailed": "Could not load your earlier chat.",
+  "chatRunningScript": "Running a script on your phone",
   "chatSend": "Send",
   "chatSpeak": "Speak",
   "chatStop": "Stop",
@@ -1084,6 +1094,8 @@
   "chatUndoGone": "That entry can no longer be undone.",
   "chatUndoneLine": "Undone",
   "chatUndoneSnack": "Undone.",
+  "chatUsedToolbox": "Used your toolbox",
+  "chatUsingToolbox": "Opening your toolbox",
   "chatWaiting": "Working on it",
   "chatWhichAccount": "Which account was {amount} from?",
   "@chatWhichAccount": {
@@ -2533,6 +2545,8 @@
   "settingsSignedIn": "Signed in",
   "settingsSunday": "Sunday",
   "settingsTitle": "Settings",
+  "settingsToolbox": "Toolbox",
+  "settingsToolboxBody": "Scripts Botler saved on this phone",
   "settingsVoice": "Voice",
   "settingsWeekStarts": "Week starts on",
   "signInAgainBody": "What you wrote offline is kept on this phone. Sign in again to send it.",
@@ -3077,6 +3091,40 @@
       }
     }
   },
+  "toolboxChars": "{count} characters",
+  "@toolboxChars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolboxCount": "{count} of {limit} saved",
+  "@toolboxCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "toolboxDelete": "Delete",
+  "toolboxDeleteBody": "\"{name}\" will be removed from this phone.",
+  "@toolboxDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "toolboxDeleteTitle": "Delete this script?",
+  "toolboxDeleted": "Script deleted.",
+  "toolboxEmpty": "Nothing saved yet.",
+  "toolboxFailed": "The toolbox could not be read.",
+  "toolboxNote": "Botler can run small scripts on this phone to calculate or work on pictures. They have no internet, only reach a scratch folder for each chat, and can never change your money or your data. Botler saves one here only when you ask or agree.",
+  "toolboxTitle": "Toolbox",
   "transferArrivedLabel": "Amount that arrived ({currency})",
   "@transferArrivedLabel": {
     "placeholders": {
@@ -3219,5 +3267,16 @@
   "updRowUpToDate": "You have the latest version.",
   "updUseForNow": "Use the app for now",
   "updVerifying": "Checking the download…",
+  "webMarkLooking": "Looking for logos on the web",
+  "webMarkNone": "I could not load a usable logo from the web. Ask me to try another site, or send a photo.",
+  "webMarkNote": "Found on the web and cut on your phone. Pick the one you want; only the small cut picture is saved.",
+  "webMarkOption": "Logo option {n}",
+  "@webMarkOption": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "yes": "Yes"
 }
