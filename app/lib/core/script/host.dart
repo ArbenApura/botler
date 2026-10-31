@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 // -- MODULES -- //
+import 'documents.dart' as doc;
 import 'image_ops.dart' as pic;
 import 'scratch.dart';
 
@@ -60,7 +61,15 @@ class ScriptHost {
     'image.grayscale',
     'base64.encode',
     'base64.decode',
+    'show',
+    'xlsx.write',
+    'pdf.write',
   };
+
+  /// The files the script asked to show to the person, in order, without repeats and at most [maxShown].
+  final List<String> _shown = <String>[];
+  List<String> get shown => List<String>.unmodifiable(_shown);
+  static const int maxShown = 8;
 
   String _text(Args a, String key) {
     final v = a[key];
@@ -161,6 +170,45 @@ class ScriptHost {
         return _make(a, (image) => pic.rotate(image, a['degrees']));
       case 'image.grayscale':
         return _make(a, pic.grayscale);
+      case 'show':
+        {
+          final name = _text(a, 'name');
+          if (!scratch.exists(name)) {
+            throw ScratchException('There is no file "$name" to show.');
+          }
+          if (!_shown.contains(name)) {
+            if (_shown.length >= maxShown) {
+              throw const ScratchException(
+                'At most 8 files can be shown at once.',
+              );
+            }
+            _shown.add(name);
+          }
+          return null;
+        }
+      case 'xlsx.write':
+        {
+          final name = _text(a, 'name');
+          scratch.check(name);
+          final bytes = doc.xlsxBytes(
+            a['rows'],
+            sheet: a['sheet'] is String ? a['sheet']! as String : 'Sheet1',
+            header: a['header'] != false,
+          );
+          scratch.write(name, bytes);
+          return <String, Object?>{'size': bytes.length};
+        }
+      case 'pdf.write':
+        {
+          final name = _text(a, 'name');
+          scratch.check(name);
+          final bytes = doc.pdfBytes(
+            _text(a, 'text'),
+            title: a['title'] is String ? a['title']! as String : null,
+          );
+          scratch.write(name, bytes);
+          return <String, Object?>{'size': bytes.length};
+        }
       case 'base64.encode':
         return base64Encode(utf8.encode(_text(a, 't')));
       case 'base64.decode':

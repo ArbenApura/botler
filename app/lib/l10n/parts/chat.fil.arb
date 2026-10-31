@@ -132,5 +132,12 @@
   "chatUsingToolbox": "Binubuksan ang toolbox mo",
   "chatRanScript": "Nagpatakbo ng script: {output}",
   "chatRanScriptQuiet": "Nagpatakbo ng script sa phone mo",
-  "chatUsedToolbox": "Ginamit ang toolbox mo"
+  "chatUsedToolbox": "Ginamit ang toolbox mo",
+  "fileSave": "I-save sa phone",
+  "fileShare": "I-share o buksan gamit ang…",
+  "fileSaved": "Na-save sa phone mo.",
+  "fileSaveFailed": "Hindi mabuksan ang share sheet.",
+  "fileGone": "Wala na ang file na ito sa phone.",
+  "filePicture": "Larawan {name}",
+  "fileOpen": "{name}, {size}. I-tap para i-save o i-share."
 }

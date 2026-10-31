@@ -26,6 +26,7 @@ import 'live_parts.dart';
 import 'web_mark_card.dart';
 import 'message_actions.dart';
 import 'photo_mark_card.dart';
+import 'shown_files.dart';
 import 'photo_widgets.dart';
 
 // -- FUNCTIONS -- //
@@ -344,7 +345,7 @@ class _ToolView extends ConsumerWidget {
           );
         }
         final first = str(data['output']).trim().split('\n').first;
-        return _QuietRow(
+        final row = _QuietRow(
           icon: Icons.code,
           text: first.isEmpty
               ? context.t.chatRanScriptQuiet
@@ -353,6 +354,16 @@ class _ToolView extends ConsumerWidget {
                 ),
           style: quiet,
           more: more,
+        );
+        final shown = shownOf(data);
+        if (shown.isEmpty) return row;
+        // What the script showed: pictures in place, other files as lines that save or share
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            row,
+            ShownFiles(files: shown, chatId: ref.read(chatProvider).chatId),
+          ],
         );
       default:
         // A read the assistant did: one small quiet line, never a block
@@ -497,7 +508,7 @@ class _RestoredToolLine extends ConsumerWidget {
         }
     }
     if (item.name == 'script_run' || item.name == 'toolbox') {
-      return _QuietRow(
+      final row = _QuietRow(
         icon: item.name == 'toolbox' ? Icons.build_outlined : Icons.code,
         text: item.name == 'toolbox'
             ? context.t.chatUsedToolbox
@@ -505,6 +516,15 @@ class _RestoredToolLine extends ConsumerWidget {
         style: muted,
         more: more,
         maxLines: 2,
+      );
+      final shown = shownOf(item.data);
+      if (shown.isEmpty) return row;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          row,
+          ShownFiles(files: shown, chatId: ref.read(chatProvider).chatId),
+        ],
       );
     }
     return _QuietRow(
@@ -859,7 +879,13 @@ class _CardViewState extends ConsumerState<_CardView> {
         ..invalidate(pendingCardProvider(item.actionId))
         ..invalidate(webCandidatesProvider(item.actionId));
     } catch (e) {
-      if (mounted) say(context, errorWords(e, context));
+      // "Already answered" (or gone) means this card is out of date: show how it really stands instead of an error on a live button
+      if (e is ApiException &&
+          (e.code == 'CONFLICT' || e.code == 'NOT_FOUND')) {
+        await notifier.syncCards();
+      } else if (mounted) {
+        say(context, errorWords(e, context));
+      }
     } finally {
       if (mounted) setState(() => _deciding = false);
     }

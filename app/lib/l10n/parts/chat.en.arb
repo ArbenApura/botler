@@ -158,5 +158,14 @@
   "chatRanScript": "Ran a script: {output}",
   "@chatRanScript": {"placeholders": {"output": {"type": "String"}}},
   "chatRanScriptQuiet": "Ran a script on your phone",
-  "chatUsedToolbox": "Used your toolbox"
+  "chatUsedToolbox": "Used your toolbox",
+  "fileSave": "Save to phone",
+  "fileShare": "Share or open with…",
+  "fileSaved": "Saved to your phone.",
+  "fileSaveFailed": "Could not open the share sheet.",
+  "fileGone": "This file is no longer on this phone.",
+  "filePicture": "Picture {name}",
+  "@filePicture": {"placeholders": {"name": {"type": "String"}}},
+  "fileOpen": "{name}, {size}. Tap to save or share.",
+  "@fileOpen": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}}
 }

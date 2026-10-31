@@ -2821,6 +2821,48 @@ abstract class AppLocalizations {
   /// **'Add an expense'**
   String get expenseTitle;
 
+  /// No description provided for @fileGone.
+  ///
+  /// In en, this message translates to:
+  /// **'This file is no longer on this phone.'**
+  String get fileGone;
+
+  /// No description provided for @fileOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {size}. Tap to save or share.'**
+  String fileOpen(String name, String size);
+
+  /// No description provided for @filePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture {name}'**
+  String filePicture(String name);
+
+  /// No description provided for @fileSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to phone'**
+  String get fileSave;
+
+  /// No description provided for @fileSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the share sheet.'**
+  String get fileSaveFailed;
+
+  /// No description provided for @fileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your phone.'**
+  String get fileSaved;
+
+  /// No description provided for @fileShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share or open with…'**
+  String get fileShare;
+
   /// No description provided for @fixQueued.
   ///
   /// In en, this message translates to:

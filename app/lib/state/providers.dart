@@ -15,6 +15,7 @@ import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/chat_photos.dart';
 import '../core/config.dart';
+import '../core/file_actions.dart';
 import '../core/json.dart';
 import '../core/outbox.dart';
 import '../core/page_cache.dart';
@@ -240,6 +241,11 @@ final Provider<DeviceToolRunner> deviceToolRunnerProvider =
       ref.onDispose(runner.stopAll);
       return runner;
     });
+
+/// What the person can do with a file a script made: save it to the phone, share it. Tests replace it.
+final Provider<FileActions> fileActionsProvider = Provider<FileActions>(
+  (ref) => const PlatformFileActions(),
+);
 
 /// The seam to Firebase. Tests override it.
 final Provider<PushHost> pushHostProvider = Provider<PushHost>(

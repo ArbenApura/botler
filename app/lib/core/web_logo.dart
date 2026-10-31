@@ -24,13 +24,17 @@ const int logoMaxRedirects = 3;
 const int logoMaxCandidates = 6;
 
 /// A picture with a side shorter than this is too small to be a usable mark.
-const int logoMinEdge = 32;
+const int logoMinEdge = 16;
 
 /// A picture this large (its shorter side) is preferred over a smaller one.
 const int logoGoodEdge = 96;
 
+/// What the pictures are asked with: many sites turn away an unknown agent.
+const String _agent =
+    'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36 Botler';
+
 /// The most pictures tried for one request, and how many are downloaded at the same time.
-const int _maxTried = 10;
+const int _maxTried = 14;
 const int _parallel = 2;
 
 /// A logo with more pixels than this is not opened (decoded it is four bytes a pixel, and several are open at once).
@@ -98,8 +102,16 @@ bool isBlockedAddress(InternetAddress address) {
         ? true
         : _blockedV4(b.sublist(12));
   }
-  if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b) return true;
-  if (b[0] == 0x20 && b[1] == 0x02) return true;
+  // NAT64 (64:ff9b::/96, what a phone network that has no IPv4 gives for an IPv4-only site) carries the real address in its last four bytes
+  if (b[0] == 0x00 &&
+      b[1] == 0x64 &&
+      b[2] == 0xff &&
+      b[3] == 0x9b &&
+      b.sublist(4, 12).every((x) => x == 0)) {
+    return _blockedV4(b.sublist(12));
+  }
+  // 6to4 (2002::/16) carries it in bytes 2 to 5
+  if (b[0] == 0x20 && b[1] == 0x02) return _blockedV4(b.sublist(2, 6));
   if (b.every((x) => x == 0)) return true;
   if (b.sublist(0, 15).every((x) => x == 0) && b[15] == 1) return true;
   if ((b[0] & 0xfe) == 0xfc) return true;
@@ -175,7 +187,7 @@ Future<Uint8List?> _fetch(
     final request = http.Request('GET', url)
       ..followRedirects = false
       ..headers['accept'] = accept
-      ..headers['user-agent'] = 'Botler';
+      ..headers['user-agent'] = _agent;
     final response = await client.send(request);
     if (<int>{301, 302, 303, 307, 308}.contains(response.statusCode)) {
       final where = response.headers['location'];
@@ -239,6 +251,14 @@ List<Uri> iconLinksIn(String html, Uri base) {
   return <Uri>[...touch, ...icons, ...shared];
 }
 
+/// The names a site answers to: the domain as given and the same with www (or without it).
+List<String> siteHosts(String domain) {
+  final d = domain.trim().toLowerCase();
+  return d.startsWith('www.')
+      ? <String>[d, d.substring(4)]
+      : <String>[d, 'www.$d'];
+}
+
 /// The addresses to try for a request, best guess first and without repeats: the addresses the assistant found, the pictures the home page
 /// names, then fixed places (the site's own touch icon and favicon, two public favicon services).
 List<Uri> logoSources({
@@ -257,15 +277,23 @@ List<Uri> logoSources({
   fromPage.forEach(add);
   final d = domain?.trim().toLowerCase();
   if (d != null && d.isNotEmpty) {
-    add(Uri.tryParse('https://$d/apple-touch-icon.png'));
-    add(
-      Uri.https('www.google.com', '/s2/favicons', <String, String>{
-        'domain': d,
-        'sz': '256',
-      }),
-    );
+    // Some organisations have no address without www (and some only without it), so both are tried
+    final hosts = siteHosts(d);
+    for (final h in hosts) {
+      add(Uri.tryParse('https://$h/apple-touch-icon.png'));
+    }
+    for (final h in hosts) {
+      add(
+        Uri.https('www.google.com', '/s2/favicons', <String, String>{
+          'domain': h,
+          'sz': '256',
+        }),
+      );
+    }
     add(Uri.tryParse('https://icons.duckduckgo.com/ip3/$d.ico'));
-    add(Uri.tryParse('https://$d/favicon.ico'));
+    for (final h in hosts) {
+      add(Uri.tryParse('https://$h/favicon.ico'));
+    }
   }
   return out.take(_maxTried).toList();
 }
@@ -381,6 +409,11 @@ CropPlan? trimPlan(img.Image image) {
   );
 }
 
+/// Prepares a picture in another isolate. A top-level function, so the closure it sends holds the bytes only: a closure made inside
+/// [findLogoCandidates] would carry the HTTP client with it, which holds open sockets and cannot be sent (the card then showed "no logo").
+Future<PreparedLogo?> _prepareOffThread(Uint8List bytes) =>
+    Isolate.run(() => prepareLogo(bytes));
+
 /// Every usable logo for the request, best first (large before small, then in the order the sources were tried). Never throws: a source that
 /// is refused, slow or not a picture is left out. An empty list means nothing was found.
 Future<List<WebLogoCandidate>> findLogoCandidates({
@@ -394,18 +427,27 @@ Future<List<WebLogoCandidate>> findLogoCandidates({
   var fromPage = const <Uri>[];
   final d = domain?.trim().toLowerCase();
   if (d != null && d.isNotEmpty) {
-    final home = Uri.https(d, '/');
-    final page = await fetchGuarded(
-      home,
-      client: client,
-      maxBytes: logoMaxPageBytes,
-      accept: 'text/html,*/*;q=0.5',
-      resolver: resolver,
-      timeout: timeout,
+    // Both names at once; the first page that answers names the icons (its own address is the base for relative links)
+    final homes = siteHosts(d).map((h) => Uri.https(h, '/')).toList();
+    final pages = await Future.wait(
+      homes.map(
+        (home) => fetchGuarded(
+          home,
+          client: client,
+          maxBytes: logoMaxPageBytes,
+          accept: 'text/html,*/*;q=0.5',
+          resolver: resolver,
+          timeout: timeout,
+        ),
+      ),
     );
-    if (page != null) {
-      fromPage = iconLinksIn(String.fromCharCodes(page), home);
+    final links = <Uri>[];
+    for (final (i, page) in pages.indexed) {
+      if (page != null) {
+        links.addAll(iconLinksIn(String.fromCharCodes(page), homes[i]));
+      }
     }
+    fromPage = links;
   }
   final sources = logoSources(domain: d, urls: urls, fromPage: fromPage);
   final found = <({int order, Uri url, PreparedLogo logo})>[];
@@ -422,7 +464,7 @@ Future<List<WebLogoCandidate>> findLogoCandidates({
           timeout: timeout,
         );
         if (bytes == null) return null;
-        final logo = await Isolate.run(() => prepareLogo(bytes));
+        final logo = await _prepareOffThread(bytes);
         return logo == null ? null : (url: url, logo: logo);
       }),
     );

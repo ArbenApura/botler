@@ -2,6 +2,7 @@
 
 // -- DEP-MODULES -- //
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:botler/core/photo_crop.dart';
@@ -83,6 +84,10 @@ void main() {
         expect(urlRefusal(Uri.parse(u)), isNotNull, reason: u);
       }
       expect(urlRefusal(Uri.parse('https://93.184.216.34/a.png')), isNull);
+      // A public address behind NAT64 (what a phone network with no IPv4 gives for an IPv4-only site) is allowed; a private one behind it is not
+      expect(isBlockedAddress(InternetAddress('64:ff9b::5db8:d822')), isFalse);
+      expect(isBlockedAddress(InternetAddress('64:ff9b::a00:1')), isTrue);
+      expect(isBlockedAddress(InternetAddress('2002:5db8:d822::1')), isFalse);
     });
 
     test('a name that resolves to a private address is refused', () async {
@@ -253,7 +258,9 @@ void main() {
         hasLength(1),
       );
       expect(list.any((u) => u.contains('google.com/s2/favicons')), isTrue);
-      expect(list.last, 'https://rcbc.com/favicon.ico');
+      expect(list.last, 'https://www.rcbc.com/favicon.ico');
+      expect(list, contains('https://rcbc.com/favicon.ico'));
+      expect(list.any((u) => u.contains('domain=www.rcbc.com')), isTrue);
     });
   });
 
@@ -282,7 +289,8 @@ void main() {
       final blank = img.Image(width: 100, height: 100);
       img.fill(blank, color: img.ColorRgb8(10, 10, 10));
       expect(prepareLogo(Uint8List.fromList(img.encodePng(blank))), isNull);
-      expect(prepareLogo(logoPng(size: 16)), isNull);
+      expect(prepareLogo(logoPng(size: 12)), isNull);
+      expect(prepareLogo(logoPng(size: 16)), isNotNull);
       expect(prepareLogo(Uint8List.fromList(<int>[1, 2, 3, 4])), isNull);
     });
   });
@@ -314,6 +322,44 @@ void main() {
       expect(found.first.source.width, 256);
       expect(found.first.source.cut(found.first.plan), isNotNull);
     });
+
+    test(
+      'works with a client that holds things an isolate cannot receive',
+      () async {
+        // The real HTTP client holds open sockets (futures, ports). Anything the picture work captures from this function would fail to send
+        final client = _HeavyClient(logoPng(size: 128));
+        final found = await findLogoCandidates(
+          domain: 'rcbc.com',
+          client: client,
+          resolver: publicHost,
+        );
+        expect(found, isNotEmpty);
+        client.close();
+      },
+    );
+
+    test(
+      'tries the www name too, for a site that has no address without it',
+      () async {
+        final asked = <String>[];
+        final client = MockClient((r) async {
+          asked.add(r.url.host);
+          // Only the www name exists
+          if (r.url.host == 'www.gotyme.com' && r.url.path == '/favicon.ico') {
+            return png(logoPng(size: 64));
+          }
+          return http.Response('no', 404);
+        });
+        final found = await findLogoCandidates(
+          domain: 'gotyme.com',
+          client: client,
+          resolver: publicHost,
+        );
+        expect(found, hasLength(1));
+        expect(found.single.url.host, 'www.gotyme.com');
+        expect(asked, contains('www.gotyme.com'));
+      },
+    );
 
     test(
       'returns an empty list when nothing is found or the host is private',
@@ -350,4 +396,26 @@ void main() {
       expect(found, hasLength(1));
     });
   });
+}
+
+/// A client that answers every picture request with the same picture and keeps a pending future and a port, like a real one keeps sockets.
+class _HeavyClient extends http.BaseClient {
+  _HeavyClient(this._png);
+
+  final Uint8List _png;
+  final ReceivePort _port = ReceivePort();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.url.path == '/') {
+      return http.StreamedResponse(Stream<List<int>>.value(<int>[]), 404);
+    }
+    return http.StreamedResponse(Stream<List<int>>.value(_png), 200);
+  }
+
+  @override
+  void close() {
+    _port.close();
+    super.close();
+  }
 }

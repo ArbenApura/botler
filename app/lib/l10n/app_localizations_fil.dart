@@ -1680,6 +1680,31 @@ class AppLocalizationsFil extends AppLocalizations {
   String get expenseTitle => 'Magdagdag ng gastos';
 
   @override
+  String get fileGone => 'Wala na ang file na ito sa phone.';
+
+  @override
+  String fileOpen(String name, String size) {
+    return '$name, $size. I-tap para i-save o i-share.';
+  }
+
+  @override
+  String filePicture(String name) {
+    return 'Larawan $name';
+  }
+
+  @override
+  String get fileSave => 'I-save sa phone';
+
+  @override
+  String get fileSaveFailed => 'Hindi mabuksan ang share sheet.';
+
+  @override
+  String get fileSaved => 'Na-save sa phone mo.';
+
+  @override
+  String get fileShare => 'I-share o buksan gamit ang…';
+
+  @override
   String get fixQueued =>
       'Nakasave sa phone na ito ang bagong entry at ipapadala kapag may koneksyon ka na. Mananatili ang lumang entry hangga\'t hindi mo ito ina-undo.';
 

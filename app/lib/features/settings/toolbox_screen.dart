@@ -47,7 +47,11 @@ class ToolboxScreen extends ConsumerWidget {
                   style: TextStyle(color: c.muted),
                 ),
                 const SizedBox(height: 8),
-                for (final e in value) _Script(entry: e),
+                for (final e in value)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _Script(entry: e),
+                  ),
               ],
             ),
             AsyncError() => Text(
@@ -99,17 +103,29 @@ class _Script extends ConsumerWidget {
           style: TextStyle(color: c.muted),
         ),
         children: <Widget>[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SelectableText(
-              entry.code,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                color: c.ink,
-                fontSize: 12,
+          // The code in a quiet block of its own, so it reads as code and not as the card's text
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: c.chip,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                child: SelectableText(
+                  entry.code,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    color: c.ink,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
               ),
             ),
           ),
+          const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(

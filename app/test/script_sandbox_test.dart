@@ -437,6 +437,27 @@ void main() {
         expect(r.output, '100 50');
       });
 
+      test('makes a sheet and a pdf and shows them', () async {
+        scratch.write('p.png', png(80, 40));
+        final r = await run('''
+          xlsx.write("bills.xlsx", [["name", "amount"], ["rent", 500000]], {sheet: "Bills"});
+          pdf.write("report.pdf", "Total: 500000", {title: "Report"});
+          image.resize("p.png", "small.png", {width: 20});
+          show("small.png"); show("bills.xlsx"); show("report.pdf");
+          print(fs.list().length);
+        ''');
+        expect(r.ok, isTrue, reason: r.error);
+        expect(r.shown, <String>['small.png', 'bills.xlsx', 'report.pdf']);
+        expect((r.toJson()['shown']! as List<Object?>).length, 3);
+        expect(scratch.read('bills.xlsx').sublist(0, 2), <int>[0x50, 0x4b]);
+        // Keep a copy for a check with a real PDF reader outside the test
+        final keep = Platform.environment['BOTLER_KEEP_DOCS'];
+        if (keep != null && keep.isNotEmpty) {
+          File('$keep/report.pdf').writeAsBytesSync(scratch.read('report.pdf'));
+          File('$keep/bills.xlsx').writeAsBytesSync(scratch.read('bills.xlsx'));
+        }
+      });
+
       test(
         'has no way out: no network, no bridge, no escape from the folder',
         () async {

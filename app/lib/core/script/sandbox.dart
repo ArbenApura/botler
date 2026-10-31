@@ -72,6 +72,13 @@ const String _prelude = r'''
     rotate: function (src, dst, degrees) { return call('image.rotate', { src: src, dst: dst, degrees: degrees }); },
     grayscale: function (src, dst) { return call('image.grayscale', { src: src, dst: dst }); }
   });
+  g.show = function (name) { return call('show', { name: name }); };
+  g.xlsx = Object.freeze({
+    write: function (name, rows, o) { return call('xlsx.write', merge({ name: name, rows: rows }, o)); }
+  });
+  g.pdf = Object.freeze({
+    write: function (name, text, o) { return call('pdf.write', merge({ name: name, text: String(text) }, o)); }
+  });
   g.base64 = Object.freeze({
     encode: function (t) { return call('base64.encode', { t: String(t) }); },
     decode: function (b) { return call('base64.decode', { b: String(b) }); }
@@ -120,7 +127,11 @@ class ScriptResult {
     this.files = const <({String name, int size})>[],
     this.ms = 0,
     this.leaked = false,
+    this.shown = const <String>[],
   });
+
+  /// The files the script asked to show to the person (they exist in the folder, with their sizes in [files]).
+  final List<String> shown;
 
   /// The engine could not be freed (see [_run]); counted so a phone is not filled with them.
   final bool leaked;
@@ -132,6 +143,7 @@ class ScriptResult {
     files: files,
     ms: ms,
     leaked: true,
+    shown: shown,
   );
 
   final bool ok;
@@ -150,6 +162,19 @@ class ScriptResult {
       for (final f in files) <String, Object?>{'name': f.name, 'size': f.size},
     ],
     'ms': ms,
+    if (shown.isNotEmpty)
+      'shown': <Object?>[
+        for (final n in shown)
+          <String, Object?>{
+            'name': n,
+            'size':
+                files
+                    .where((f) => f.name == n)
+                    .map((f) => f.size)
+                    .firstOrNull ??
+                0,
+          },
+      ],
   };
 }
 
@@ -368,6 +393,7 @@ ScriptResult _run(_Job job, _Left left) {
           : null,
       files: scratch.list(),
       ms: clock.elapsedMilliseconds,
+      shown: host.shown,
     );
   } on Object catch (e) {
     return ScriptResult(
@@ -376,6 +402,7 @@ ScriptResult _run(_Job job, _Left left) {
       error: friendlyError('$e', timeoutMs: job.timeoutMs),
       files: scratch.list(),
       ms: clock.elapsedMilliseconds,
+      shown: host.shown,
     );
   } finally {
     // Freeing an engine runs every promise job still queued, with no limit: a script that keeps queueing them would hang here for good.

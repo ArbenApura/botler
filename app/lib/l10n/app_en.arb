@@ -1218,6 +1218,30 @@
   "expenseOffline": "No connection. Saved on your phone, it will be sent once.",
   "expensePickAccount": "Pick the account it came from.",
   "expenseTitle": "Add an expense",
+  "fileGone": "This file is no longer on this phone.",
+  "fileOpen": "{name}, {size}. Tap to save or share.",
+  "@fileOpen": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "filePicture": "Picture {name}",
+  "@filePicture": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "fileSave": "Save to phone",
+  "fileSaveFailed": "Could not open the share sheet.",
+  "fileSaved": "Saved to your phone.",
+  "fileShare": "Share or open with…",
   "fixQueued": "The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it.",
   "goalsAdd": "Add a goal",
   "goalsAddButton": "Add the goal",

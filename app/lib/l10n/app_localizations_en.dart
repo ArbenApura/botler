@@ -1669,6 +1669,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expenseTitle => 'Add an expense';
 
   @override
+  String get fileGone => 'This file is no longer on this phone.';
+
+  @override
+  String fileOpen(String name, String size) {
+    return '$name, $size. Tap to save or share.';
+  }
+
+  @override
+  String filePicture(String name) {
+    return 'Picture $name';
+  }
+
+  @override
+  String get fileSave => 'Save to phone';
+
+  @override
+  String get fileSaveFailed => 'Could not open the share sheet.';
+
+  @override
+  String get fileSaved => 'Saved to your phone.';
+
+  @override
+  String get fileShare => 'Share or open with…';
+
+  @override
   String get fixQueued =>
       'The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it.';
 

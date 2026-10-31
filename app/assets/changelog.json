@@ -396,5 +396,21 @@
       "Hilingin kay Botler na maghanap ng logo para sa isang account o bill (halimbawa, \"hanapan mo ako ng icon para sa RCBC account ko\"). Maghahanap ito sa web, aayusin ang larawan, at ipapakita ang mga pagpipilian sa isang card: pumili, i-adjust kung gusto mo, at aprubahan.",
       "Puwede nang magpatakbo si Botler ng maliliit na script sa phone mo para magkuwenta, magbasa ng listahan ng mga numero, o mag-resize at mag-crop ng mga litrato mo. Walang internet ang mga ito at hindi nila mahahawakan ang pera o data mo. Makikita at mabubura mo ang anumang sine-save ni Botler sa Settings, sa Toolbox."
     ]
+  },
+  {
+    "versionCode": 39,
+    "versionName": "1.3.1",
+    "en": [
+      "Pictures and files that Botler makes with a script now show up in the chat. Pictures appear right in the chat (tap to enlarge); sheets, PDFs and other files appear as a line you can tap to save to your phone or share.",
+      "Botler can make Excel sheets and PDFs for you.",
+      "Fixed finding a logo on the web: the card now loads the choices, and also tries the website with and without www.",
+      "The Settings list is tidier: Toolbox now sits in line with the other rows with space around it, and saved scripts show their code in a clear block."
+    ],
+    "fil": [
+      "Lumalabas na sa chat ang mga larawan at file na ginagawa ni Botler gamit ang script. Ang mga larawan ay nasa mismong chat (i-tap para palakihin); ang mga sheet, PDF at iba pang file ay lumalabas bilang linyang puwede mong i-tap para i-save sa phone o i-share.",
+      "Puwede nang gumawa si Botler ng Excel sheet at PDF para sa iyo.",
+      "Naayos ang paghahanap ng logo sa web: nailo-load na ng card ang mga pagpipilian, at sinusubukan din ang website na may at walang www.",
+      "Mas maayos na ang listahan sa Settings: ang Toolbox ay kasabay na ng ibang mga row na may espasyo sa paligid, at ang mga naka-save na script ay nasa malinaw na block ang code."
+    ]
   }
 ]
