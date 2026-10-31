@@ -3,11 +3,11 @@
 // -- TYPES -- //
 import type { WebDeps } from './tools';
 // -- ENVS -- //
-import { TAVILY_API_KEY } from '$app/env/private';
+import { DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL } from '$app/env/private';
 
 // -- FUNCTIONS -- //
 
-/** The search key of this server. Blank means search is off and its tool says so. */
+/** The DeepSeek key and address of this server, the same ones the model uses. A blank key means search and read are off and their tools say so. */
 export function webDeps(): WebDeps {
-	return { tavilyKey: TAVILY_API_KEY };
+	return { deepseekKey: DEEPSEEK_API_KEY, baseUrl: DEEPSEEK_BASE_URL };
 }

@@ -362,5 +362,17 @@
       "Magpadala kay Botler ng litrato at hilingin na gamitin ito bilang larawan ng account o bill. Pipiliin ni Botler ang pinakamagandang bahagi ng litrato, at gugupitin ito ng phone mo at ipapakita ang resulta sa isang card.",
       "Puwede mong palakihin o paliitin, ilipat, at piliin kung pupunuin ang badge o ipapakita ang buong larawan, saka pindutin ang Gamitin ang larawang ito. Sa phone mo ginugupit ang litrato: nananatili roon ang orihinal na litrato mo, at ang maliit na ginupit na larawan lang ang sine-save."
     ]
+  },
+  {
+    "versionCode": 36,
+    "versionName": "1.2.4",
+    "en": [
+      "Edit and resend now happens in the same chat: the message you edit and the ones after it are removed, and your new words take their place.",
+      "Botler reads web pages and searches the web through its own AI provider, so nothing more is needed for it to look things up."
+    ],
+    "fil": [
+      "Sa parehong chat na ngayon ang edit at ipadala ulit: natatanggal ang mensaheng ini-edit mo at ang mga kasunod nito, at ang bago mong mga salita ang papalit.",
+      "Binabasa na ng Botler ang mga web page at naghahanap sa web gamit ang sarili nitong AI provider, kaya wala nang kailangan pang ayusin para makapaghanap ito."
+    ]
   }
 ]

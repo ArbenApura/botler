@@ -315,18 +315,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (editing != null) {
       // Only new words can be sent as an edit
       if (text.isEmpty) return;
-      // The words stay in the box until the server has made the branch; a failure leaves them there to try again
+      // The words stay in the box until the server has taken the old messages out of this chat; a failure leaves them there to try again
       final bool opened;
       try {
         opened = await ref
             .read(chatProvider.notifier)
-            .branchBefore(editing.turnId);
+            .rewindFrom(editing.turnId);
       } catch (e) {
         if (mounted) say(context, errorWords(e, context));
         return;
       }
       if (!opened) return;
-      // The branch exists: the edit is over (this also empties the box), and the new words go to it like any message
+      // The old messages are gone from this chat: the edit is over (this also empties the box), and the new words go to it like any message
       ref.read(editProvider.notifier).stop();
       _opened();
       // The photos stay on their chips for the next message: an edit sends only the new words

@@ -423,17 +423,17 @@ void main() {
 
   group('messages', () {
     testWidgets(
-      'a double tap on send while editing makes one branch and sends once',
+      'a double tap on send while editing rewinds once and sends once',
       (tester) async {
         final s = twoChats();
         await open(tester, s);
-        s.answers['chat_fork'] = <String, Object?>{
-          'chatId': 'c-fork',
-          'turns': 0,
+        s.answers['chat_rewind'] = <String, Object?>{
+          'chatId': 'c1',
+          'removed': 1,
         };
         s.forkGate = Completer<void>();
         s.history = <String, Object?>{
-          'chat': head('c-fork', 'Weekly plan'),
+          'chat': head('c1', 'Weekly plan'),
           'turns': <Object?>[],
         };
         await tester.longPress(find.text('and friday?'));
@@ -448,9 +448,10 @@ void main() {
         s.forkGate!.complete();
         await settle(tester);
         await settle(tester);
-        expect(s.count('chat_fork'), 1);
+        expect(s.count('chat_rewind'), 1);
+        expect(s.count('chat_fork'), 0);
         expect(s.sentBodies, hasLength(1));
-        expect(s.sentBodies.single['chatId'], 'c-fork');
+        expect(s.sentBodies.single['chatId'], 'c1');
         s.emit(<String, Object?>{
           'type': 'done',
           'reply': 'ok',
@@ -623,21 +624,19 @@ void main() {
     );
 
     testWidgets(
-      'edit and resend: the words come back to the box, the branch is cut before the message, then it is sent there',
+      'edit and resend: the messages are taken out of the same chat, no chat is made, then the new words are sent there',
       (tester) async {
         final s = twoChats();
         await open(tester, s);
-        s.answers['chat_fork'] = <String, Object?>{
-          'chatId': 'c-fork',
-          'turns': 0,
+        s.answers['chat_rewind'] = <String, Object?>{
+          'chatId': 'c1',
+          'removed': 1,
         };
         s.history = <String, Object?>{
-          'chat': head(
-            'c-fork',
-            'Weekly plan',
-            from: <String, Object?>{'id': 'c1', 'title': 'Weekly plan'},
-          ),
-          'turns': <Object?>[],
+          'chat': head('c1', 'Weekly plan'),
+          'turns': <Object?>[
+            turn('plan the week', reply: 'Here is a plan.', id: 'm0'),
+          ],
         };
         await tester.longPress(find.text('and friday?'));
         await settle(tester);
@@ -650,12 +649,13 @@ void main() {
         await tester.tap(find.byTooltip('Send'));
         await settle(tester);
         await settle(tester);
-        expect(s.lastArgs('chat_fork'), <String, Object?>{
+        expect(s.lastArgs('chat_rewind'), <String, Object?>{
           'chatId': 'c1',
-          'upToTurnId': 'row-m1',
-          'includeTurn': false,
+          'fromTurnId': 'row-m1',
         });
-        expect(s.sentBodies.last['chatId'], 'c-fork');
+        // Nothing was copied, and the words go to the very same chat
+        expect(s.count('chat_fork'), 0);
+        expect(s.sentBodies.last['chatId'], 'c1');
         expect(s.sentBodies.last['text'], 'and sunday?');
         expect(find.text('Editing your message'), findsNothing);
         s.emit(<String, Object?>{
@@ -668,10 +668,10 @@ void main() {
       },
     );
 
-    testWidgets('a failed branch keeps the edited words and sends nothing', (
+    testWidgets('a failed rewind keeps the edited words and sends nothing', (
       tester,
     ) async {
-      final s = twoChats()..failVerbs.add('chat_fork');
+      final s = twoChats()..failVerbs.add('chat_rewind');
       await open(tester, s);
       await tester.longPress(find.text('and friday?'));
       await settle(tester);
@@ -682,6 +682,7 @@ void main() {
       await settle(tester);
       await settle(tester);
       expect(s.sentBodies, isEmpty);
+      expect(s.count('chat_fork'), 0);
       expect(find.text('Editing your message'), findsOneWidget);
       expect(
         tester.widget<TextField>(find.byType(TextField).first).controller?.text,
@@ -705,7 +706,7 @@ void main() {
         tester.widget<TextField>(find.byType(TextField).first).controller?.text,
         '',
       );
-      expect(s.count('chat_fork'), 0);
+      expect(s.count('chat_rewind'), 0);
     });
   });
 }

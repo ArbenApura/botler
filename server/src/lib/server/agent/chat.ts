@@ -13,10 +13,16 @@ import type { TranscriptProvider } from './transcript';
 import { and, asc, eq, gt, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
-import { chatTurn } from '../db/schema';
+import { chat, chatTurn } from '../db/schema';
 import { lockPerson } from '../db/tenant';
 import { recentCardLines } from '../ops/actions';
-import { forkSource, resolveChat, touchChat } from '../ops/chats';
+import {
+	forkSource,
+	readVerbCounts,
+	resolveChat,
+	touchChat,
+	writingVerbCounts
+} from '../ops/chats';
 import { getSettings } from '../ops/settings';
 import { loadNotebookContext } from '../ops/notebook';
 import { OpsError, run } from '../ops/context';
@@ -211,12 +217,18 @@ const summaryMessage = (summary: string) =>
 ${summary}`;
 
 /**
- * When the chat is a branch, one line for the assistant: what the messages that were cut off had already done. Those changes stay in force,
- * so it must not do them again unless asked. Only the names of the writing verbs of the registry are listed, with counts: no message text
- * and nothing the model wrote, so nothing here can carry an instruction.
+ * When messages were cut off from this chat (a branch, or an edit and resend), one line for the assistant: what they had already done.
+ * Those changes stay in force, so it must not do them again unless asked. Only the names of the writing verbs of the registry are listed,
+ * with counts: no message text and nothing the model wrote, so nothing here can carry an instruction. The counts are stored on the chat;
+ * a branch made before they were stored reads the original live, but only while the message it was cut at still exists.
  */
 async function rewindNote(ctx: Ctx, chatId: string): Promise<string | undefined> {
-	const rows = await run(ctx, async (tx, userId) => {
+	const stored = await run(ctx, async (tx, userId) => {
+		const [row] = await tx
+			.select({ verbs: chat.rewoundVerbs })
+			.from(chat)
+			.where(and(eq(chat.userId, userId), eq(chat.id, chatId)));
+		if (row?.verbs) return { counts: readVerbCounts(row.verbs) };
 		const source = await forkSource(tx, userId, chatId);
 		if (!source) return null;
 		const [cut] = source.atTurnId
@@ -225,7 +237,9 @@ async function rewindNote(ctx: Ctx, chatId: string): Promise<string | undefined>
 					.from(chatTurn)
 					.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, source.atTurnId)))
 			: [];
-		return tx
+		// The message it was cut at is gone (the original was edited): what was cut off cannot be told any more
+		if (source.atTurnId && !cut) return null;
+		const rows = await tx
 			.select({ events: chatTurn.events })
 			.from(chatTurn)
 			.where(
@@ -240,20 +254,20 @@ async function rewindNote(ctx: Ctx, chatId: string): Promise<string | undefined>
 			)
 			.orderBy(asc(chatTurn.createdAt))
 			.limit(200);
+		return { counts: await writingVerbCounts(rows) };
 	});
-	if (!rows) return undefined;
-	const made = new Map<string, number>();
-	for (const r of rows) {
-		if (!Array.isArray(r.events)) continue;
-		for (const e of r.events as { type?: unknown; name?: unknown; status?: unknown }[]) {
-			if (e?.type !== 'tool' || e.status !== 'ok' || typeof e.name !== 'string') continue;
-			const kind = verbByName(e.name)?.kind;
-			if (kind === 'free' || kind === 'gated') made.set(e.name, (made.get(e.name) ?? 0) + 1);
-		}
-	}
-	const list = [...made].slice(0, NOTE_TOOLS).map(([name, n]) => `${name} x${n}`);
+	if (!stored) return undefined;
+	// Names are checked against the registry again here, whatever was stored
+	const made = Object.entries(stored.counts)
+		.filter(([name]) => {
+			const kind = verbByName(name)?.kind;
+			return kind === 'free' || kind === 'gated';
+		})
+		.sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+	const list = made.slice(0, NOTE_TOOLS).map(([name, n]) => `${name} x${n}`);
+	if (made.length > NOTE_TOOLS) list.push('and more');
 	return list.length
-		? `This chat was branched from an earlier one. The messages that were cut off had already done these, and they stay done, so do not do them again unless asked: ${list.join(', ')}.`
+		? `Some messages of this chat were cut off (a branch, or the person edited a message and sent it again). The messages that were cut off had already done these, and they stay done, so do not do them again unless asked: ${list.join(', ')}.`
 		: undefined;
 }
 

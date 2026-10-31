@@ -162,7 +162,9 @@ export function createChatHandlers(deps: ChatJobDeps): Record<string, JobHandler
 				and(
 					eq(chat.userId, job.userId),
 					eq(chat.id, chatId),
-					sql`${chat.summaryThroughTurnId} is not distinct from ${state.through}`
+					sql`${chat.summaryThroughTurnId} is not distinct from ${state.through}`,
+					// A rewind may have removed the messages this summary was made from while the model was working
+					sql`exists (select 1 from ${chatTurn} where ${chatTurn.userId} = ${chat.userId} and ${chatTurn.id} = ${last.id})`
 				)
 			);
 	};

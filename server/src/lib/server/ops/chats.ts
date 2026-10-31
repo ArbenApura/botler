@@ -1,5 +1,6 @@
-// CONVERSATIONS: MANY CHATS PER PERSON, OPENED, RENAMED, PINNED, ARCHIVED, SEARCHED AND FORKED. ALL OF THESE ARE FOR THE PERSON ONLY (never offered to the assistant).
-// Nothing is deleted here. A fork copies finished turns into a new chat and leaves the original alone; archiving only hides a chat from the main list.
+// CONVERSATIONS: MANY CHATS PER PERSON, OPENED, RENAMED, PINNED, ARCHIVED, SEARCHED, FORKED AND REWOUND. ALL OF THESE ARE FOR THE PERSON ONLY (never offered to the assistant).
+// A fork copies finished turns into a new chat and leaves the original alone; archiving only hides a chat from the main list. The one deletion is
+// a rewind (edit and resend): the edited message and the ones after it leave the same chat. Chat turns are message text outside the audit trail.
 // No model call is made by any verb in this file, so it costs no tokens. Search text is never logged.
 
 // -- TYPES -- //
@@ -11,21 +12,23 @@ import type {
 	ChatIdInput,
 	ChatListInput,
 	ChatPinInput,
-	ChatRenameInput
+	ChatRenameInput,
+	ChatRewindInput
 } from '../db/zod';
 // -- DEP-MODULES -- //
 import { randomUUID } from 'node:crypto';
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
-import { chat, chatTurn } from '../db/schema';
+import { agentAction, chat, chatTurn } from '../db/schema';
 import {
 	chatArchiveInput,
 	chatForkInput,
 	chatIdInput,
 	chatListInput,
 	chatPinInput,
-	chatRenameInput
+	chatRenameInput,
+	chatRewindInput
 } from '../db/zod';
 import { OpsError, run, runWrite } from './context';
 import { parse, requirePerson } from './shared';
@@ -51,8 +54,59 @@ const PREVIEW_CHARS = 120;
 const DEFAULT_LIST = 50;
 const SEARCH_LIMIT = 30;
 const COPY_BATCH = 200;
+/** A turn left running for longer than this is a crashed one (the same limit the chat loop uses to take it over). */
+const RUNNING_STALE_MS = 120_000;
+/** The most distinct verb names one chat remembers as already done. */
+const MAX_REWOUND_VERBS = 100;
 
 // -- FUNCTIONS -- //
+
+export type VerbCounts = Record<string, number>;
+
+/** The counts a chat stored, read back safely: only plain names with whole positive counts survive. */
+export function readVerbCounts(value: unknown): VerbCounts {
+	const out: VerbCounts = {};
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+	for (const [name, n] of Object.entries(value as Record<string, unknown>)) {
+		if (
+			/^[a-z][a-z0-9_]{0,59}$/.test(name) &&
+			typeof n === 'number' &&
+			Number.isInteger(n) &&
+			n > 0
+		)
+			out[name] = n;
+	}
+	return out;
+}
+
+/**
+ * How many times each writing verb (free or gated) ran fine in these turns. Only verb names of the registry are counted, so no message
+ * text and nothing the model wrote can get in. The registry is loaded here, not at the top, because it imports this file.
+ */
+export async function writingVerbCounts(turns: { events: unknown }[]): Promise<VerbCounts> {
+	const { verbByName } = await import('./registry');
+	const out: VerbCounts = {};
+	for (const t of turns) {
+		if (!Array.isArray(t.events)) continue;
+		for (const e of t.events as { type?: unknown; name?: unknown; status?: unknown }[]) {
+			if (e?.type !== 'tool' || e.status !== 'ok' || typeof e.name !== 'string') continue;
+			const kind = verbByName(e.name)?.kind;
+			if (kind === 'free' || kind === 'gated') out[e.name] = (out[e.name] ?? 0) + 1;
+		}
+	}
+	return out;
+}
+
+/** Adds counts together, keeping the busiest verbs when there are too many names. */
+export function mergeVerbCounts(a: VerbCounts, b: VerbCounts): VerbCounts {
+	const sum: VerbCounts = { ...a };
+	for (const [name, n] of Object.entries(b)) sum[name] = (sum[name] ?? 0) + n;
+	return Object.fromEntries(
+		Object.entries(sum)
+			.sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))
+			.slice(0, MAX_REWOUND_VERBS)
+	);
+}
 
 /** The name a chat gets from its first message: one line, cut short. */
 export function titleFrom(text: string): string | null {
@@ -227,11 +281,12 @@ export async function startNewChat(tx: Tx, userId: string) {
 			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.chatId, current)));
 		previousTurns = r?.n ?? 0;
 		const [open] = await tx
-			.select({ from: chat.forkedFromChatId })
+			.select({ from: chat.forkedFromChatId, rewound: chat.rewoundVerbs })
 			.from(chat)
 			.where(and(eq(chat.userId, userId), eq(chat.id, current)));
-		// An empty branch is not reused: it would bring its parent and its rewind note into a chat the person meant to start fresh
-		if (previousTurns === 0 && !open?.from) {
+		// An empty branch (or a chat rewound to nothing) is not reused: it would bring its parent and its rewind note into a chat the person
+		// meant to start fresh
+		if (previousTurns === 0 && !open?.from && !open?.rewound) {
 			await tx
 				.update(chat)
 				.set({ lastActiveAt: sql`now()`, updatedAt: sql`now()` })
@@ -342,13 +397,18 @@ export async function chatFork(ctx: Ctx, raw: ChatForkInput) {
 		}
 		// Only turns that have ended are copied, and an empty message is not a turn
 		const copied = all.slice(0, upTo).filter((t) => t.status !== 'running' && t.userText !== '');
+		// What the messages left behind had already done is stored now, so a later rewind of the original cannot change what this chat is told
+		const leftBehind = await writingVerbCounts(
+			all.slice(upTo).filter((t) => t.status === 'done' && t.userText !== '')
+		);
 		const [fresh] = await tx
 			.insert(chat)
 			.values({
 				userId,
 				title: source.title,
 				forkedFromChatId: source.id,
-				forkedAtTurnId: copied.at(-1)?.id ?? null
+				forkedAtTurnId: copied.at(-1)?.id ?? null,
+				rewoundVerbs: leftBehind
 			})
 			.returning({ id: chat.id });
 		if (!fresh) throw new OpsError('CONFLICT', 'The branch could not be made.');
@@ -373,6 +433,69 @@ export async function chatFork(ctx: Ctx, raw: ChatForkInput) {
 			);
 		}
 		return { chatId: fresh.id, turns: copied.length };
+	});
+}
+
+/**
+ * Edit and resend, in the same chat: the message and every message after it are removed, and the app then sends the new words as a normal
+ * message. Nothing is copied and no chat is made. What the removed messages had already done (expenses, tasks...) stays done, so their writing
+ * verb names are remembered on the chat for the assistant. Approval cards that those messages raised and that nobody answered are rejected,
+ * since the messages are withdrawn. A message still being answered cannot be removed.
+ */
+export async function chatRewind(ctx: Ctx, raw: ChatRewindInput) {
+	requirePerson(ctx.actor.kind, 'edit a message');
+	const input = parse(chatRewindInput, raw);
+	return runWrite(ctx, 'chat.rewind', input, async (tx, userId) => {
+		const source = await requireChat(tx, userId, input.chatId);
+		const all = await tx
+			.select()
+			.from(chatTurn)
+			.where(and(eq(chatTurn.userId, userId), eq(chatTurn.chatId, source.id)))
+			.orderBy(asc(chatTurn.createdAt), asc(chatTurn.id));
+		const at = all.findIndex((t) => t.id === input.fromTurnId);
+		if (at < 0) throw new OpsError('NOT_FOUND', 'That message is not in this chat.');
+		const gone = all.slice(at);
+		// A turn that crashed while running stays "running" for ever: it does not stop the person from editing an earlier message
+		const busy = gone.some(
+			(t) => t.status === 'running' && Date.now() - t.updatedAt.getTime() < RUNNING_STALE_MS
+		);
+		if (busy)
+			throw new OpsError('CONFLICT', 'A message is still being answered. Edit it in a moment.');
+		const goneIds = gone.map((t) => t.id);
+		const written = await writingVerbCounts(
+			gone.filter((t) => t.status === 'done' && t.userText !== '')
+		);
+		await tx
+			.delete(chatTurn)
+			.where(and(eq(chatTurn.userId, userId), inArray(chatTurn.id, goneIds)));
+		// The cards of the removed messages can no longer be seen in the chat, so they must not stay answerable
+		await tx
+			.update(agentAction)
+			.set({ status: 'rejected', decidedAt: sql`now()`, updatedAt: sql`now()` })
+			.where(
+				and(
+					eq(agentAction.userId, userId),
+					eq(agentAction.status, 'pending'),
+					inArray(
+						agentAction.turnId,
+						gone.map((t) => t.clientMessageId)
+					)
+				)
+			);
+		// A summary that reaches into the removed messages would keep their words
+		const summaryGone =
+			source.summaryThroughTurnId && goneIds.includes(source.summaryThroughTurnId);
+		await tx
+			.update(chat)
+			.set({
+				rewoundVerbs: mergeVerbCounts(readVerbCounts(source.rewoundVerbs), written),
+				// The name came from the first message: when that one is removed the next message names the chat again
+				...(at === 0 ? { title: null } : {}),
+				...(summaryGone ? { summary: null, summaryThroughTurnId: null, summaryAt: null } : {}),
+				updatedAt: sql`now()`
+			})
+			.where(and(eq(chat.userId, userId), eq(chat.id, source.id)));
+		return { chatId: source.id, removed: gone.length };
 	});
 }
 

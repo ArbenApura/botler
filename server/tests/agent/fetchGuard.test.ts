@@ -1,55 +1,15 @@
-// THE FETCH GUARD (P3.9): PRIVATE, LOOPBACK, LINK-LOCAL AND METADATA ADDRESSES, REDIRECT HOPS, DNS REBINDING, TEXT ONLY, SIZE AND TIME LIMITS
+// THE ADDRESS CHECK BEFORE A PAGE IS SENT TO DEEPSEEK: PRIVATE, LOOPBACK, LINK-LOCAL AND METADATA ADDRESSES, LOCAL NAMES, PORTS, LOGINS AND SCHEMES
+// The old in-process reader (DNS pinning, redirect hops, content types, size and time limits, a real local server) is gone: DeepSeek reads
+// the page now, so those cases have nothing left to test here.
 
-// -- TYPES -- //
-import type { GuardDeps, Resolved, TransportResponse } from '../../src/lib/server/agent/fetchGuard';
 // -- DEP-MODULES -- //
-import { createServer } from 'node:http';
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
-	fetchPublicText,
-	htmlToText,
+	checkPublicUrl,
+	FetchRefused,
 	isBlockedAddress
 } from '../../src/lib/server/agent/fetchGuard';
-
-// -- CONSTANTS -- //
-
-const PUBLIC: Resolved = { address: '93.184.216.34', family: 4 };
-
-const page = (
-	body: string,
-	headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' },
-	status = 200
-): TransportResponse => ({
-	status,
-	headers,
-	body: (async function* () {
-		yield new TextEncoder().encode(body);
-	})(),
-	destroy: () => undefined
-});
-
-/** A fake network: names resolve as listed, pages answer as listed. Records every connection. */
-function net(opts: {
-	names?: Record<string, Resolved[]>;
-	pages: Record<string, () => TransportResponse>;
-}) {
-	const connections: string[] = [];
-	const deps: GuardDeps = {
-		lookup: async (host) => {
-			const found = opts.names?.[host];
-			if (!found) throw new Error('no such host');
-			return found;
-		},
-		transport: async ({ url, address }) => {
-			connections.push(`${address.address} ${url.host}${url.pathname}`);
-			const make = opts.pages[`${url.host}${url.pathname}`];
-			if (!make) return page('not found', { 'content-type': 'text/plain' }, 404);
-			return make();
-		}
-	};
-	return { deps, connections };
-}
 
 // -- TESTS -- //
 
@@ -102,176 +62,48 @@ describe('addresses that are never fetched', () => {
 	});
 });
 
-describe('fetching a page', () => {
-	it('reads a public page as text and connects to the address it checked', async () => {
-		const n = net({
-			names: { 'example.com': [PUBLIC] },
-			pages: {
-				'example.com/': () =>
-					page(
-						'<html><style>x{}</style><body><h1>Hello &amp; welcome</h1><p>Two</p><script>evil()</script></body></html>'
-					)
-			}
-		});
-		const r = await fetchPublicText('https://example.com/', n.deps);
-		expect(r.text).toBe('Hello & welcome\nTwo');
-		expect(r.contentType).toBe('text/html');
-		expect(n.connections).toEqual(['93.184.216.34 example.com/']);
+describe('checking a page address before it is sent', () => {
+	it('returns the parsed address that is also the one sent', () => {
+		expect(checkPublicUrl(' https://Example.com/a?b=1#c ')).toBe('https://example.com/a?b=1#c');
+		expect(checkPublicUrl('http://example.com:80/x')).toBe('http://example.com/x');
+		expect(checkPublicUrl('https://example.com:443/')).toBe('https://example.com/');
+		expect(checkPublicUrl('https://93.184.216.34/')).toBe('https://93.184.216.34/');
 	});
 
-	it('refuses private addresses typed in, on any port, with a login, or with a strange scheme', async () => {
-		const n = net({ pages: {} });
-		for (const u of [
-			'http://localhost/',
-			'http://127.0.0.1/',
-			'http://[::1]/',
-			'http://169.254.169.254/latest/meta-data/',
-			'http://10.0.0.1/',
-			'http://2130706433/',
-			'http://0x7f.0.0.1/',
-			'https://example.com:8443/',
-			'https://user:pw@example.com/',
-			'file:///etc/passwd',
-			'ftp://example.com/'
-		])
-			await expect(fetchPublicText(u, n.deps), u).rejects.toThrow();
-		expect(n.connections).toEqual([]);
+	it.each([
+		'http://localhost/',
+		'http://localhost./',
+		'http://LOCALHOST/',
+		'http://printer.local/',
+		'http://db.internal/',
+		'http://nas.lan/',
+		'http://127.0.0.1/',
+		'http://127.0.0.1./',
+		'http://[::1]/',
+		'http://[::ffff:127.0.0.1]/',
+		'http://169.254.169.254/latest/meta-data/',
+		'http://10.0.0.1/',
+		'http://192.168.1.1/',
+		'http://2130706433/',
+		'http://0x7f.0.0.1/',
+		'http://017700000001/',
+		'https://example.com:8443/',
+		'http://example.com:8080/',
+		'https://user:pw@example.com/',
+		'file:///etc/passwd',
+		'ftp://example.com/',
+		'javascript:alert(1)',
+		'not an address',
+		''
+	])('refuses %s', (u) => {
+		expect(() => checkPublicUrl(u), u).toThrow(FetchRefused);
 	});
 
-	it('refuses a name when any answer is private, so a mixed answer cannot slip through', async () => {
-		const n = net({
-			names: {
-				'mixed.example': [PUBLIC, { address: '10.1.2.3', family: 4 }],
-				'internal.example': [{ address: '192.168.0.9', family: 4 }]
-			},
-			pages: {}
-		});
-		await expect(fetchPublicText('https://mixed.example/', n.deps)).rejects.toThrow(/private/);
-		await expect(fetchPublicText('https://internal.example/', n.deps)).rejects.toThrow(/private/);
-		expect(n.connections).toEqual([]);
-	});
-
-	it('does not re-resolve after checking: a name that changes its answer is connected to the checked address', async () => {
-		let calls = 0;
-		const connections: string[] = [];
-		const deps: GuardDeps = {
-			// The first answer is public, any later one would be the metadata address (DNS rebinding)
-			lookup: async () => (++calls === 1 ? [PUBLIC] : [{ address: '169.254.169.254', family: 4 }]),
-			transport: async ({ address }) => {
-				connections.push(address.address);
-				return page('ok', { 'content-type': 'text/plain' });
-			}
-		};
-		await fetchPublicText('https://rebind.example/', deps);
-		expect(connections).toEqual(['93.184.216.34']);
-		expect(calls).toBe(1);
-	});
-
-	it('re-checks every redirect hop', async () => {
-		const redirect = (to: string) => () => page('', { location: to }, 302);
-		const n = net({
-			names: { 'a.example': [PUBLIC], 'b.example': [PUBLIC] },
-			pages: {
-				'a.example/start': redirect('https://b.example/next'),
-				'b.example/next': redirect('http://169.254.169.254/latest/meta-data/'),
-				'a.example/local': redirect('http://localhost/admin'),
-				'a.example/relative': redirect('/end'),
-				'a.example/end': () => page('arrived', { 'content-type': 'text/plain' })
-			}
-		});
-		await expect(fetchPublicText('https://a.example/start', n.deps)).rejects.toThrow(/private/);
-		await expect(fetchPublicText('https://a.example/local', n.deps)).rejects.toThrow(/private/);
-		expect((await fetchPublicText('https://a.example/relative', n.deps)).text).toBe('arrived');
-		expect(n.connections.some((c) => c.startsWith('169.') || c.startsWith('127.'))).toBe(false);
-	});
-
-	it('stops after five redirects', async () => {
-		const n = net({
-			names: { 'loop.example': [PUBLIC] },
-			pages: { 'loop.example/': () => page('', { location: '/' }, 301) }
-		});
-		await expect(fetchPublicText('https://loop.example/', n.deps)).rejects.toThrow(/too many/);
-		expect(n.connections).toHaveLength(6);
-	});
-
-	it('reads text types only', async () => {
-		const n = net({
-			names: { 'files.example': [PUBLIC] },
-			pages: {
-				'files.example/a.pdf': () => page('%PDF', { 'content-type': 'application/pdf' }),
-				'files.example/a.png': () => page('x', { 'content-type': 'image/png' }),
-				'files.example/a.json': () => page('{"ok":true}', { 'content-type': 'application/json' })
-			}
-		});
-		await expect(fetchPublicText('https://files.example/a.pdf', n.deps)).rejects.toThrow(
-			/text pages/
-		);
-		await expect(fetchPublicText('https://files.example/a.png', n.deps)).rejects.toThrow(
-			/text pages/
-		);
-		expect((await fetchPublicText('https://files.example/a.json', n.deps)).text).toBe(
-			'{"ok":true}'
-		);
-	});
-
-	it('cuts a huge page and says so', async () => {
-		const big = 'x'.repeat(2_000_000);
-		const n = net({
-			names: { 'big.example': [PUBLIC] },
-			pages: { 'big.example/': () => page(big, { 'content-type': 'text/plain' }) }
-		});
-		const r = await fetchPublicText('https://big.example/', n.deps);
-		expect(r.truncated).toBe(true);
-		expect(r.text.length).toBeLessThanOrEqual(30_000);
-	});
-
-	it('gives up on a page that never answers', async () => {
-		const deps: GuardDeps = {
-			lookup: async () => [PUBLIC],
-			transport: ({ signal }) =>
-				new Promise((_, reject) =>
-					signal.addEventListener('abort', () => reject(new Error('aborted')))
-				)
-		};
-		const controller = new AbortController();
-		const pending = fetchPublicText('https://slow.example/', deps, controller.signal);
-		setTimeout(() => controller.abort(), 20);
-		await expect(pending).rejects.toThrow(/too long/);
-	});
-
-	it('refuses a name that does not exist', async () => {
-		const n = net({ pages: {} });
-		await expect(fetchPublicText('https://nope.example/', n.deps)).rejects.toThrow(
-			/could not be found/
-		);
-	});
-});
-
-describe('the real network path', () => {
-	it('does not connect to a server on this machine, by name or by number', async () => {
-		let hits = 0;
-		const server = createServer((_req, res) => {
-			hits++;
-			res.end('secret');
-		});
-		await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
-		const port = (server.address() as { port: number }).port;
+	it('gives a reason that never repeats the address', () => {
 		try {
-			// The real lookup and transport: nothing is stubbed. Port 80 is the only one allowed, so also try the allowed port path
-			await expect(fetchPublicText(`http://127.0.0.1:${port}/`)).rejects.toThrow();
-			await expect(fetchPublicText(`http://localhost:${port}/`)).rejects.toThrow();
-			await expect(fetchPublicText('http://localhost/')).rejects.toThrow(/private/);
-			expect(hits).toBe(0);
-		} finally {
-			await new Promise((r) => server.close(r));
+			checkPublicUrl('http://10.9.8.7:1234/secret-path');
+		} catch (e) {
+			expect((e as Error).message).not.toMatch(/10\.9\.8\.7|secret-path/);
 		}
-	});
-});
-
-describe('html to text', () => {
-	it('drops scripts, styles and comments and keeps the words', () => {
-		expect(
-			htmlToText('<p>Pay <b>now</b></p><!-- hidden --><script>alert(1)</script><style>a{}</style>')
-		).toBe('Pay now');
 	});
 });

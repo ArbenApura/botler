@@ -93,10 +93,12 @@ describe('secrets and tokens', () => {
 		// The cross-variable requirement is plain code (proxy/provider.ts), so the matrix is tested there itself
 	});
 
-	it('treats the web search key as optional: blank means off, spaces are trimmed', () => {
-		expect(check('TAVILY_API_KEY', undefined)).toBe('');
-		expect(check('TAVILY_API_KEY', '   ')).toBe('');
-		expect(check('TAVILY_API_KEY', ' tvly-test ')).toBe('tvly-test');
+	it('has no separate web search key: search and page reading use the DeepSeek key and address', () => {
+		expect(Object.keys(variables)).not.toContain('TAVILY_API_KEY');
+		expect(check('DEEPSEEK_BASE_URL', undefined)).toBe('https://api.deepseek.com');
+		expect(check('DEEPSEEK_BASE_URL', ' https://api.deepseek.com/ ')).toBe(
+			'https://api.deepseek.com'
+		);
 	});
 
 	it('requires the key of the chosen provider and refuses a name outside the list', () => {

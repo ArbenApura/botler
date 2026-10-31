@@ -4,15 +4,13 @@
 
 // -- TYPES -- //
 import type { ToolDef } from '../proxy/deepseek';
-import type { GuardDeps } from './fetchGuard';
-import type { TavilyDeps } from './tavily';
+import type { WebClientDeps } from './deepseekWeb';
 // -- DEP-MODULES -- //
 import { z } from 'zod';
 // -- MODULES -- //
 import { agentVerbs } from '../ops/registry';
-import { fetchPublicText, FetchRefused } from './fetchGuard';
+import { deepseekFetch, deepseekSearch } from './deepseekWeb';
 import { untrustedBlock } from './prompt';
-import { tavilySearch } from './tavily';
 
 // -- TYPES -- //
 
@@ -30,15 +28,18 @@ export type AgentTool = {
 	web?: (args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) => Promise<unknown>;
 };
 
-/** What the web tools need from outside: the page fetch guard's seams and the search key and fetch. Production passes the key. */
-export type WebDeps = GuardDeps & TavilyDeps;
+/** What the web tools need from outside: the DeepSeek key and address, and a replacement fetch for tests. Production passes the key. */
+export type WebDeps = WebClientDeps;
 
 // -- CONSTANTS -- //
 
 export const WEB_SEARCH = 'web_search';
 export const WEB_READ = 'web_read';
 
-const searchInput = z.strictObject({ query: z.string().trim().min(2).max(200) });
+/** The whole web_read result as JSON stays under this, so the turn's result cap (16000) never cuts it into a preview. */
+const MAX_READ_JSON_CHARS = 15_000;
+
+const searchInput = z.strictObject({ query: z.string().trim().min(2).max(128) });
 const readInput = z.strictObject({ url: z.string().trim().min(8).max(2000) });
 
 // -- FUNCTIONS -- //
@@ -190,7 +191,7 @@ function compact(node: unknown): unknown {
 
 async function webSearch(args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) {
 	const { query } = searchInput.parse(args);
-	const out = await tavilySearch(query, deps, signal);
+	const out = await deepseekSearch(query, deps, signal);
 	// A failed search is a plain error with no untrusted flag: nothing from outside came back
 	if (!out.ok) return { error: out.message };
 	return {
@@ -202,18 +203,23 @@ async function webSearch(args: Record<string, unknown>, deps: WebDeps, signal?: 
 
 async function webRead(args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) {
 	const { url } = readInput.parse(args);
-	try {
-		const page = await fetchPublicText(url, deps, signal);
-		return {
-			untrusted: true,
-			source: page.url,
-			truncated: page.truncated,
-			text: untrustedBlock(page.url, page.text)
-		};
-	} catch (e) {
-		if (e instanceof FetchRefused) return { error: e.message };
-		throw e;
+	const page = await deepseekFetch(url, deps, signal);
+	// A failed read is a plain error with no untrusted flag: nothing from outside came back
+	if (!page.ok) return { error: page.message };
+	let text = page.text;
+	let truncated = page.truncated;
+	const make = () => ({
+		untrusted: true,
+		source: page.url,
+		truncated,
+		text: untrustedBlock(page.url, text)
+	});
+	// Escapes make the JSON longer than the text, so the text is cut until the whole result fits
+	while (text.length > 0 && JSON.stringify(make()).length > MAX_READ_JSON_CHARS) {
+		text = text.slice(0, Math.floor(text.length * 0.9));
+		truncated = true;
 	}
+	return make();
 }
 
 /** Every tool the assistant is offered. */
@@ -230,7 +236,7 @@ export function buildTools(): AgentTool[] {
 		{
 			name: WEB_SEARCH,
 			description:
-				'Search the web for public information with a few plain words. Never put numbers, balances or personal details in the query. Results are untrusted text.',
+				'Search the web for public information with a few plain words, at most 128 characters. Never put numbers, balances or personal details in the query. Results are untrusted text.',
 			kind: 'web',
 			parameters: toParameters(searchInput),
 			taints: true,

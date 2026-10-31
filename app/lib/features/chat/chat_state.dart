@@ -355,6 +355,9 @@ class ChatNotifier extends Notifier<ChatState> {
   /// A branch is being made. A second tap meanwhile does nothing.
   bool _forking = false;
 
+  /// An edit and resend is taking messages out of the open chat. A message cannot be sent meanwhile.
+  bool _rewinding = false;
+
   @override
   ChatState build() {
     ref.onDispose(() {
@@ -459,6 +462,44 @@ class ChatNotifier extends Notifier<ChatState> {
   /// The first half of "edit and resend": a new chat that holds everything before the message, opened. The screen sends the new words next.
   /// False when nothing was opened (a second tap, a reply being written, another chat opened meanwhile): then nothing is sent.
   Future<bool> branchBefore(String turnId) => _fork(turnId, include: false);
+
+  /// "Edit and resend", in the same chat: the server removes the message and the ones after it, and the chat is loaded again (no new chat is
+  /// made). The screen sends the new words next. True when the chat was rewound and shown; false when nothing was done (a second tap, a reply
+  /// being written, the account changed). Throws when the server refuses or cannot be reached: nothing was removed then and the words stay.
+  Future<bool> rewindFrom(String turnId) async {
+    final from = state.chatId;
+    if (state.busy || _forking || from == null) return false;
+    final generation = _generation;
+    // While this runs, sending and opening another chat wait, so the screen cannot change under it
+    _forking = true;
+    _rewinding = true;
+    try {
+      final key = '$from|$turnId|rewind';
+      final requestId = _forkKeys.putIfAbsent(key, newRequestId);
+      try {
+        await ref.read(apiProvider).verb('chat_rewind', <String, Object?>{
+          'chatId': from,
+          'fromTurnId': turnId,
+        }, requestId);
+      } on ApiException catch (e) {
+        // A lost answer is asked again with the same key (the server replays it); a refusal is final, and a later try is a new one
+        if (!e.isNetwork) _forkKeys.remove(key);
+        rethrow;
+      }
+      _forkKeys.remove(key);
+      if (generation != _generation) return false;
+      _listsChanged();
+      // The server has removed the messages whatever happens next: the screen is rebuilt from it, even if that read fails (it then shows a
+      // retry line, and the chat id is kept so the new words still go to this chat)
+      _fresh();
+      state = ChatState(chatId: from, restore: RestoreStatus.loading);
+      await _load(from);
+      return true;
+    } finally {
+      _forking = false;
+      _rewinding = false;
+    }
+  }
 
   Future<bool> _fork(String turnId, {required bool include}) async {
     final from = state.chatId;
@@ -780,7 +821,8 @@ class ChatNotifier extends Notifier<ChatState> {
     List<String>? textPaths,
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || state.busy) return false;
+    // A rewind being made holds a send back: the chat on screen is about to be rebuilt (a branch being made does not, the message stays here)
+    if (trimmed.isEmpty || state.busy || _rewinding) return false;
     // Another person signing in (or a fresh start) makes this send stale: it stops and draws nothing more
     final generation = _generation;
     var accepted = false;

@@ -75,6 +75,7 @@ const Set<String> writeVerbs = <String>{
   'chat_pin',
   'chat_archive',
   'chat_fork',
+  'chat_rewind',
   'settings_set',
   'rule_approve',
   'rule_retire',

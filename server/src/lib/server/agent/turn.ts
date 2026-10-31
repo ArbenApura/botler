@@ -133,6 +133,8 @@ export const LIMITS = {
 	toolsLeftNoteShare: 0.75,
 	/** Web searches in one message, so a poor result can be tried again with other words but quota and what a search can carry out stay small. */
 	maxWebSearches: 3,
+	/** Pages opened in one message. Each one is a paid call to DeepSeek, so a loop of reads cannot run up the balance. */
+	maxWebReads: 5,
 	/** Deletes the assistant may make in one message before the rest become cards, so one misread message cannot empty the money plan. */
 	maxDeletes: 3,
 	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
@@ -165,6 +167,8 @@ export class TurnState {
 	tainted = false;
 	/** Web searches started in this message, counted before each runs so a failed or slow one still counts. */
 	searches = 0;
+	/** Pages opened in this message, counted before each runs for the same reason. */
+	reads = 0;
 	/** Deletes started in this message: past the limit they wait for the person. */
 	deletes = 0;
 	readonly reasons = new Set<string>();
@@ -376,14 +380,24 @@ async function executeTool(
 					'Untrusted text was already read in this message, so only a short search with plain words is allowed now. Do not put numbers or personal details in it.',
 					'blocked'
 				);
-		} else if (state.tainted) {
-			const typed = tool.name === WEB_READ && state.userUrls.has(normalizeUrl(args.url) ?? '');
-			if (!typed)
+		} else {
+			// Each page read is a paid call, so it is counted before it runs, blocked or failed ones included
+			state.reads += 1;
+			if (state.reads > limits.maxWebReads)
 				return err(
 					'blocked',
-					'Untrusted text was already read in this message, so opening addresses is turned off. Only an address the person typed can be opened.',
+					`At most ${limits.maxWebReads} pages can be opened in one message. Answer with what you have.`,
 					'blocked'
 				);
+			if (state.tainted) {
+				const typed = tool.name === WEB_READ && state.userUrls.has(normalizeUrl(args.url) ?? '');
+				if (!typed)
+					return err(
+						'blocked',
+						'Untrusted text was already read in this message, so opening addresses is turned off. Only an address the person typed can be opened.',
+						'blocked'
+					);
+			}
 		}
 		try {
 			const web = tool.web;

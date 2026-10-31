@@ -75,7 +75,7 @@ After each finished change run, from the repo root:
 - Every background job carries its user id and sets the tenant context before its first query. Jobs are rows with a unique key, retry with backoff, and count against the model-call budget.
 - Money is integer centavos everywhere (PHP); never floats. Time zone is Asia/Manila; "a day" is a Manila calendar date.
 - DeepSeek gets amounts and labels, never account numbers; family names are masked; the filter runs on the final assembled prompt.
-- Text from the web, other people's calendars, OCR or anything fetched is untrusted: write verbs in that turn are disabled or forced through approval. The fetch tool blocks private, loopback, link-local and metadata addresses and re-checks every redirect.
+- Text from the web, other people's calendars, OCR or anything fetched is untrusted: write verbs in that turn are disabled or forced through approval. Pages are read by DeepSeek's Fetch API; the server first refuses private, loopback, link-local and metadata addresses, local names and non-standard ports, and never connects to an address the model picked.
 - Secrets are never returned by an API, a tool or an export, and never logged. Logs never hold message text.
 - Missing configuration fails loudly. No silent fail-open paths. Registration is closed to an allow-list.
 - Schema changes go through Drizzle migrations (generated, never hand-edited once applied).

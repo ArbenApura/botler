@@ -100,6 +100,7 @@ describe('the verb registry', () => {
 			'chat_open',
 			'chat_pin',
 			'chat_rename',
+			'chat_rewind',
 			'data_reset',
 			'data_reset_preview',
 			'fx_rates',

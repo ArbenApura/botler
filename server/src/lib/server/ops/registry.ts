@@ -91,6 +91,7 @@ import {
 	auditExportInput,
 	chatArchiveInput,
 	chatForkInput,
+	chatRewindInput,
 	chatHistoryInput,
 	chatIdInput,
 	chatPinInput,
@@ -124,6 +125,7 @@ import {
 	chatArchive,
 	chatClear,
 	chatFork,
+	chatRewind,
 	chatList,
 	chatListPageInput,
 	chatNew,
@@ -1320,6 +1322,14 @@ export const VERBS: readonly Verb[] = [
 			'Branch a conversation from a message into a new one. The original stays as it was.',
 		input: chatForkInput,
 		run: (ctx, a) => chatFork(ctx, a)
+	}),
+	verb({
+		name: 'chat_rewind',
+		kind: 'person',
+		description:
+			'Edit and resend: remove a message and everything after it from the same conversation, so the new words can be sent in its place.',
+		input: chatRewindInput,
+		run: (ctx, a) => chatRewind(ctx, a)
 	}),
 	verb({
 		name: 'audit_export',

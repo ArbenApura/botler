@@ -80,11 +80,6 @@ export const variables = defineEnvVars({
 			'The Firebase service account JSON file, encoded in base64. Never returned or logged. Set together with FCM_PROJECT_ID.',
 		schema: (value) => (value && value.trim() ? value.trim() : '')
 	},
-	TAVILY_API_KEY: {
-		description:
-			'The Tavily Search API key for the assistant web search. Left out, the search tool answers that it is not set up. Never returned or logged.',
-		schema: (value) => (value && value.trim() ? value.trim() : '')
-	},
 	FX_RATES_URL: {
 		description:
 			'The https address of the exchange rate feed: JSON with result "success", base_code "USD" and a rates table of units per dollar, for example https://open.er-api.com/v6/latest/USD. Required in production (the server stops at start without it); in development a missing value means no feed. It holds no key and no person data is ever sent to it. A value that is not https stops the server.',
@@ -115,7 +110,8 @@ export const variables = defineEnvVars({
 		schema: (value) => (value && value.trim() ? value.trim() : '')
 	},
 	DEEPSEEK_BASE_URL: {
-		description: 'The DeepSeek API address.',
+		description:
+			'The DeepSeek API address, https and without /v1. The assistant web search and page reading use it too, with the same key.',
 		schema: (value) =>
 			value && value.trim() ? value.trim().replace(/\/$/, '') : 'https://api.deepseek.com'
 	},

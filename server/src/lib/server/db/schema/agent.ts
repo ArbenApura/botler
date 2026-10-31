@@ -55,7 +55,8 @@ export const agentAction = userTable(
 /**
  * One conversation. A person has many; the newest by last_active_at is the one that opens. A fork is a new chat that starts as a copy
  * of another one up to a message, and the original is never touched. The title is the person's own, or empty (the first message
- * names it on the screen). Nothing here is deleted by the app: archiving only hides a chat from the main list. The table is not audited
+ * names it on the screen). A chat is never deleted by the app (archiving only hides it from the main list); its messages are removed only by a
+ * rewind, which is edit and resend: the edited message and the ones after it leave the same chat. The table is not audited
  * because a title can be message text, like the turns themselves; it is erased with them.
  */
 export const chat = userTable(
@@ -74,6 +75,12 @@ export const chat = userTable(
 		/** The last message the summary covers: history carries every done message after it. A plain id, so erasing a turn never blocks. */
 		summaryThroughTurnId: uuid('summary_through_turn_id'),
 		summaryAt: timestamp('summary_at', { withTimezone: true }),
+		/**
+		 * What the messages cut off from this chat had already done: writing verb names with counts, e.g. {"expense_log": 2}. Set by a fork (the
+		 * messages it left behind) and added to by every rewind (edit and resend). Names only, never message text. Null on a chat that was
+		 * never cut, and on a fork made before this column (those read the source chat live).
+		 */
+		rewoundVerbs: jsonb('rewound_verbs'),
 		/** Bumped only by opening, creating, forking and a message. Never by rename, pin or archive. */
 		lastActiveAt: timestamp('last_active_at', { withTimezone: true }).notNull().defaultNow(),
 		...stamps()

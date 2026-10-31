@@ -22,7 +22,7 @@ class RestoreServer {
   bool historyFails = false;
   Completer<void>? historyGate;
 
-  /// Holds the answer to chat_fork until the test lets it go.
+  /// Holds the answer to chat_fork and chat_rewind until the test lets it go.
   Completer<void>? forkGate;
   int historyCalls = 0;
   int newCalls = 0;
@@ -82,7 +82,7 @@ class RestoreServer {
       if (historyFails) throw http.ClientException('offline');
       return reply(history);
     }
-    if (verb == 'chat_fork') await forkGate?.future;
+    if (verb == 'chat_fork' || verb == 'chat_rewind') await forkGate?.future;
     if (verb == 'chat_new') {
       newCalls++;
       return reply(<String, Object?>{'chatId': 'chat-new', 'created': true});

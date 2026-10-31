@@ -1,0 +1,1 @@
+ALTER TABLE "chat" ADD COLUMN "rewound_verbs" jsonb;

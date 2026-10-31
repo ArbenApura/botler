@@ -309,6 +309,9 @@ export const chatForkInput = chatIdInput.extend({
 	includeTurn: z.boolean().optional()
 });
 
+/** Edit and resend: the message and everything after it are removed from the same chat. */
+export const chatRewindInput = chatIdInput.extend({ fromTurnId: idField });
+
 // -- AUDIT -- //
 
 /** The history of one account: filters are all optional, and the page is cut by the sequence number of the last row seen. */
@@ -1120,6 +1123,7 @@ export type ChatRenameInput = z.infer<typeof chatRenameInput>;
 export type ChatPinInput = z.infer<typeof chatPinInput>;
 export type ChatArchiveInput = z.infer<typeof chatArchiveInput>;
 export type ChatForkInput = z.infer<typeof chatForkInput>;
+export type ChatRewindInput = z.infer<typeof chatRewindInput>;
 export type AuditExportInput = z.infer<typeof auditExportInput>;
 export type CalendarRangeInput = z.infer<typeof calendarRangeInput>;
 export type DataResetInput = z.infer<typeof dataResetInput>;
