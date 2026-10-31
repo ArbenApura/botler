@@ -71,11 +71,13 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'sort_order',
 			'archived_at',
 			'purpose',
-			'currency'
+			'currency',
+			'icon',
+			'image_id'
 		],
 		account: 'id',
 		amount: '',
-		// The label is typed by the person (24 characters, no long digit runs), so it is safe to copy
+		// The label is typed by the person (24 characters, no long digit runs), so it is safe to copy. The icon is a catalogue key and image_id an id: the picture bytes are never copied
 		firstColumns: ['id', 'name', 'kind', 'min_balance', 'sort_order', 'archived_at'],
 		redefinitions: [
 			{
@@ -93,6 +95,21 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 					'archived_at',
 					'purpose',
 					'currency'
+				]
+			},
+			{
+				migration: '0041',
+				columns: [
+					'id',
+					'name',
+					'kind',
+					'min_balance',
+					'sort_order',
+					'archived_at',
+					'purpose',
+					'currency',
+					'icon',
+					'image_id'
 				]
 			}
 		]
@@ -193,7 +210,9 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 			'deferrable',
 			'active',
 			'starts_on',
-			'currency'
+			'currency',
+			'icon',
+			'image_id'
 		],
 		account: 'account_id',
 		amount: '',
@@ -242,6 +261,25 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 					'active',
 					'starts_on',
 					'currency'
+				]
+			},
+			{
+				migration: '0041',
+				columns: [
+					'id',
+					'name',
+					'category',
+					'account_id',
+					'kind',
+					'amount',
+					'schedule',
+					'weekend_rule',
+					'deferrable',
+					'active',
+					'starts_on',
+					'currency',
+					'icon',
+					'image_id'
 				]
 			}
 		]
@@ -499,7 +537,9 @@ export const EXEMPT_FROM_AUDIT: Record<string, string> = {
 	notebook_revision: 'the revisions of the notebook: the notebook is the history, not the trail',
 	notebook_page:
 		'personal text with its own revisions (who changed it, and the text it replaced) and its own wipe, kept out of the trail like the notebook it belongs to',
-	notebook_page_revision: 'the revisions of a page: the page is the history, not the trail'
+	notebook_page_revision: 'the revisions of a page: the page is the history, not the trail',
+	picture:
+		'image bytes that mark an account or a bill; the owning row is audited with its icon and image id, the bytes are never copied into the trail'
 };
 
 // -- AUDIT -- //

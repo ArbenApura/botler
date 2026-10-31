@@ -136,6 +136,12 @@ class _SplitCardState extends ConsumerState<SplitCard> {
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: <Widget>[
+                    AccountBadge(
+                      accountId: str(l['accountId']),
+                      name: str(names[str(l['accountId'])], str(l['label'])),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '${str(l['label'])}  ·  ${str(names[str(l['accountId'])], context.t.splitAccountFallback)}',

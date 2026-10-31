@@ -3229,6 +3229,324 @@ abstract class AppLocalizations {
   /// **'Unlock'**
   String get lockUnlock;
 
+  /// No description provided for @markChangePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another picture'**
+  String get markChangePicture;
+
+  /// No description provided for @markChoosePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a picture'**
+  String get markChoosePicture;
+
+  /// No description provided for @markEditTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon for {name}'**
+  String markEditTitle(String name);
+
+  /// No description provided for @markIconBaby.
+  ///
+  /// In en, this message translates to:
+  /// **'Baby'**
+  String get markIconBaby;
+
+  /// No description provided for @markIconBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank'**
+  String get markIconBank;
+
+  /// No description provided for @markIconBolt.
+  ///
+  /// In en, this message translates to:
+  /// **'Electricity'**
+  String get markIconBolt;
+
+  /// No description provided for @markIconBus.
+  ///
+  /// In en, this message translates to:
+  /// **'Transport'**
+  String get markIconBus;
+
+  /// No description provided for @markIconCar.
+  ///
+  /// In en, this message translates to:
+  /// **'Car'**
+  String get markIconCar;
+
+  /// No description provided for @markIconCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get markIconCard;
+
+  /// No description provided for @markIconCart.
+  ///
+  /// In en, this message translates to:
+  /// **'Groceries'**
+  String get markIconCart;
+
+  /// No description provided for @markIconCash.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get markIconCash;
+
+  /// No description provided for @markIconCoffee.
+  ///
+  /// In en, this message translates to:
+  /// **'Coffee'**
+  String get markIconCoffee;
+
+  /// No description provided for @markIconCrypto.
+  ///
+  /// In en, this message translates to:
+  /// **'Crypto'**
+  String get markIconCrypto;
+
+  /// No description provided for @markIconFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Family'**
+  String get markIconFamily;
+
+  /// No description provided for @markIconFlag.
+  ///
+  /// In en, this message translates to:
+  /// **'Flag'**
+  String get markIconFlag;
+
+  /// No description provided for @markIconFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food'**
+  String get markIconFood;
+
+  /// No description provided for @markIconFuel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fuel'**
+  String get markIconFuel;
+
+  /// No description provided for @markIconGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get markIconGame;
+
+  /// No description provided for @markIconGift.
+  ///
+  /// In en, this message translates to:
+  /// **'Gift'**
+  String get markIconGift;
+
+  /// No description provided for @markIconGym.
+  ///
+  /// In en, this message translates to:
+  /// **'Gym'**
+  String get markIconGym;
+
+  /// No description provided for @markIconHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get markIconHealth;
+
+  /// No description provided for @markIconHeart.
+  ///
+  /// In en, this message translates to:
+  /// **'Heart'**
+  String get markIconHeart;
+
+  /// No description provided for @markIconHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get markIconHome;
+
+  /// No description provided for @markIconInsurance.
+  ///
+  /// In en, this message translates to:
+  /// **'Insurance'**
+  String get markIconInsurance;
+
+  /// No description provided for @markIconInvest.
+  ///
+  /// In en, this message translates to:
+  /// **'Investments'**
+  String get markIconInvest;
+
+  /// No description provided for @markIconLoan.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get markIconLoan;
+
+  /// No description provided for @markIconPet.
+  ///
+  /// In en, this message translates to:
+  /// **'Pet'**
+  String get markIconPet;
+
+  /// No description provided for @markIconPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get markIconPhone;
+
+  /// No description provided for @markIconPiggy.
+  ///
+  /// In en, this message translates to:
+  /// **'Piggy bank'**
+  String get markIconPiggy;
+
+  /// No description provided for @markIconRent.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent'**
+  String get markIconRent;
+
+  /// No description provided for @markIconSavings.
+  ///
+  /// In en, this message translates to:
+  /// **'Savings'**
+  String get markIconSavings;
+
+  /// No description provided for @markIconSchool.
+  ///
+  /// In en, this message translates to:
+  /// **'School'**
+  String get markIconSchool;
+
+  /// No description provided for @markIconSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon: {name}'**
+  String markIconSemantic(String name);
+
+  /// No description provided for @markIconShopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shopping'**
+  String get markIconShopping;
+
+  /// No description provided for @markIconStar.
+  ///
+  /// In en, this message translates to:
+  /// **'Star'**
+  String get markIconStar;
+
+  /// No description provided for @markIconSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription'**
+  String get markIconSubscription;
+
+  /// No description provided for @markIconTax.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax'**
+  String get markIconTax;
+
+  /// No description provided for @markIconTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Repairs'**
+  String get markIconTools;
+
+  /// No description provided for @markIconTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get markIconTravel;
+
+  /// No description provided for @markIconTv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get markIconTv;
+
+  /// No description provided for @markIconWallet.
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get markIconWallet;
+
+  /// No description provided for @markIconWater.
+  ///
+  /// In en, this message translates to:
+  /// **'Water'**
+  String get markIconWater;
+
+  /// No description provided for @markIconWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet'**
+  String get markIconWifi;
+
+  /// No description provided for @markIconWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get markIconWork;
+
+  /// No description provided for @markMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Change icon or picture'**
+  String get markMenu;
+
+  /// No description provided for @markNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No icon'**
+  String get markNone;
+
+  /// No description provided for @markPictureChosen.
+  ///
+  /// In en, this message translates to:
+  /// **'Your picture'**
+  String get markPictureChosen;
+
+  /// No description provided for @markPictureFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'That picture could not be used. Try another one.'**
+  String get markPictureFailed;
+
+  /// No description provided for @markPictureNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A picture you pick is for you only. Botler\'s assistant never sees it.'**
+  String get markPictureNote;
+
+  /// No description provided for @markRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove icon or picture'**
+  String get markRemove;
+
+  /// No description provided for @markSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved.'**
+  String get markSaved;
+
+  /// No description provided for @markSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon of {name}'**
+  String markSemantic(String name);
+
+  /// No description provided for @markTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon or picture'**
+  String get markTitle;
+
   /// No description provided for @mdBold.
   ///
   /// In en, this message translates to:

@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import '../../core/marks.dart';
 import '../../core/money.dart';
 import '../../core/money_scope.dart';
 import '../../core/json.dart';
@@ -21,6 +22,7 @@ import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'currency_picker.dart';
+import 'mark_picker.dart';
 import 'net_parts.dart';
 import 'purpose.dart';
 import 'rates.dart';
@@ -69,6 +71,8 @@ class AccountsScreen extends ConsumerWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
+                          MarkBadge(name: str(a['name']), mark: markOf(a)),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,6 +138,7 @@ class AccountsScreen extends ConsumerWidget {
     var kind = 'bank';
     var currency = context.currencyCode;
     String? purpose;
+    var mark = const MarkChoice.unchanged();
     final done = await showFormSheet<bool>(
       context,
       title: context.t.accountsAdd,
@@ -200,6 +205,18 @@ class AccountsScreen extends ConsumerWidget {
                 keyboard: TextInputType.number,
               ),
               PurposeField(value: null, onChanged: (v) => purpose = v),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  sheet.t.markTitle,
+                  style: Theme.of(sheet).textTheme.titleSmall,
+                ),
+              ),
+              MarkField(
+                name: s.c[0].text,
+                current: const Mark(),
+                onChanged: (c) => mark = c,
+              ),
               FilledButton(
                 onPressed: s.once.running()
                     ? null
@@ -224,6 +241,7 @@ class AccountsScreen extends ConsumerWidget {
                                 'minBalance': minimum,
                                 'currency': currency,
                                 'purpose': ?purpose,
+                                ...markArgs(mark, const Mark()),
                               },
                               key,
                             );

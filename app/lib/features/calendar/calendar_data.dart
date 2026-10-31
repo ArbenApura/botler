@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/marks.dart';
 import '../../state/providers.dart';
 
 // -- TYPES -- //
@@ -32,6 +33,7 @@ class CalItem {
       allDay = boolOf(j['allDay']),
       source = str(j['source']),
       accountId = str(j['accountId']),
+      mark = markOf(j),
       at = str(j['startsAt'], str(j['at'], str(j['dueAt'])));
 
   /// bill, payday, event, routine, task or reminder.
@@ -52,6 +54,9 @@ class CalItem {
   final bool allDay;
   final String source;
   final String accountId;
+
+  /// The icon or picture of the bill (or of the account a payday lands in). Empty for the rest and from an older server.
+  final Mark mark;
 
   /// The moment as an ISO text, when the thing has a time of day.
   final String at;

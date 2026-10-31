@@ -96,6 +96,7 @@ import {
 	chatPinInput,
 	chatRenameInput,
 	calendarRangeInput,
+	pictureGetInput,
 	dataResetInput,
 	dataResetPreviewInput,
 	profileSetInput,
@@ -130,6 +131,7 @@ import {
 	chatRename
 } from './chats';
 import { calendarRange } from './calendarRange';
+import { getPicture } from './picture';
 import { previewDataReset, resetData } from './dataReset';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
@@ -343,6 +345,15 @@ function verb<S extends z.ZodObject>(v: {
 
 export const VERBS: readonly Verb[] = [
 	// -- READ -- //
+	verb({
+		name: 'picture_get',
+		kind: 'read',
+		description:
+			'One picture that marks an account or a bill, by its imageId: the kind and the image as base64 text. For the app only.',
+		input: pictureGetInput,
+		agent: false,
+		run: (ctx, a) => getPicture(ctx, a)
+	}),
 	verb({
 		name: 'accounts_list',
 		kind: 'read',
@@ -1012,8 +1023,10 @@ export const VERBS: readonly Verb[] = [
 		name: 'account_update',
 		kind: 'free',
 		description:
-			'Change an account: its name, kind, minimum balance, order or purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel; send purpose null to clear it). Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
+			'Change an account: its name, kind, minimum balance, order or purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel; send purpose null to clear it). Mark it with icon (a built-in key: bank, wallet, cash, card, piggy, savings, home, rent, bolt, water, wifi, phone, cart, food, fuel, car, bus, health, school, family, gift, travel, shopping, subscription, tv, game, insurance, tax, loan, invest, crypto, work, pet, baby, tools, gym, coffee, heart, star, flag); icon null clears it and clearImage true removes the picture the person added. A picture can only be added by the person in the app. An icon replaces a picture. Done at once, no card. Never changes what the account holds: for that use snapshot_record.',
 		input: accountUpdateInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
 		run: (ctx, a) => updateAccount(ctx, a)
 	}),
 	verb({
@@ -1028,8 +1041,10 @@ export const VERBS: readonly Verb[] = [
 		name: 'bill_update',
 		kind: 'free',
 		description:
-			'Change a bill for ALL its dates: name, category, amount, the account it is paid from (accountId), the repeat rule, the weekend rule, or switch it off with active false. Only send the fields that change. Done at once, no card. The schedule is a whole rule, see schedule_preview for its fields. A new schedule, weekend rule, amount or account also drops the changes made to single dates from today on (clearedOverrides says how many). To change just ONE date, use bill_occurrence_update.',
+			'Change a bill for ALL its dates: name, category, amount, the account it is paid from (accountId), the repeat rule, the weekend rule, or switch it off with active false. Only send the fields that change. Done at once, no card. The schedule is a whole rule, see schedule_preview for its fields. A new schedule, weekend rule, amount or account also drops the changes made to single dates from today on (clearedOverrides says how many). To change just ONE date, use bill_occurrence_update. Mark the bill with icon (a built-in key: bank, wallet, cash, card, piggy, savings, home, rent, bolt, water, wifi, phone, cart, food, fuel, car, bus, health, school, family, gift, travel, shopping, subscription, tv, game, insurance, tax, loan, invest, crypto, work, pet, baby, tools, gym, coffee, heart, star, flag); icon null clears it and clearImage true removes the picture the person added. A picture can only be added by the person in the app. An icon replaces a picture.',
 		input: billUpdateInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
 		run: (ctx, a) => updateBill(ctx, a)
 	}),
 	verb({
@@ -1073,8 +1088,10 @@ export const VERBS: readonly Verb[] = [
 		name: 'account_create',
 		kind: 'free',
 		description:
-			'Add an account. It may carry a purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel).',
+			'Add an account. It may carry a purpose label (what it is for, up to 24 characters, for example Emergency, Savings, Daily spending, Bills, Travel). It may carry an icon (a built-in key, see account_update); a picture can only be added by the person in the app.',
 		input: accountCreateInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
 		run: (ctx, a) => createAccount(ctx, a)
 	}),
 	verb({
@@ -1105,8 +1122,10 @@ export const VERBS: readonly Verb[] = [
 		name: 'bill_create',
 		kind: 'free',
 		description:
-			'Add a bill. A bill that happens one time only uses schedule kind once with its date. A new bill counts from today; set startsOn (YYYY-MM-DD) only when it began earlier and the earlier dates are really unpaid.',
+			'Add a bill. A bill that happens one time only uses schedule kind once with its date. A new bill counts from today; set startsOn (YYYY-MM-DD) only when it began earlier and the earlier dates are really unpaid. It may carry an icon (a built-in key, see bill_update); a picture can only be added by the person in the app.',
 		input: billCreateInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
 		run: (ctx, a) => createBill(ctx, a)
 	}),
 	verb({

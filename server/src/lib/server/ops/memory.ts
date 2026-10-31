@@ -21,6 +21,7 @@ import {
 	balanceSnapshot,
 	bill,
 	billOverride,
+	picture,
 	billPayment,
 	calendarEvent,
 	chat,
@@ -487,7 +488,9 @@ export async function exportAll(ctx: Ctx) {
 				splits: await tx.select().from(splitPlan).where(mine(splitPlan)),
 				// Added fields only: an older reader of the export simply does not look at them
 				accountWallets: await tx.select().from(accountWallet).where(mine(accountWallet)),
-				billOverrides: await tx.select().from(billOverride).where(mine(billOverride))
+				billOverrides: await tx.select().from(billOverride).where(mine(billOverride)),
+				// The pictures that mark accounts and bills (base64), so the imageId of an account in the export points at something
+				pictures: await tx.select().from(picture).where(mine(picture))
 			},
 			settings: await tx.select().from(userSetting).where(mine(userSetting)),
 			schedule: {

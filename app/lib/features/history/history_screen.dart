@@ -263,6 +263,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             format: format,
             account:
                 names[str(e['accountId'])] ?? context.t.historyAccountFallback,
+            accountId: str(e['accountId']),
             to: names[str(e['toAccountId'])],
             onUndo: () => _undo(e),
             onFix: () => _fix(e),
@@ -346,6 +347,7 @@ class _Row extends StatelessWidget {
     required this.entry,
     required this.format,
     required this.account,
+    required this.accountId,
     required this.to,
     required this.onUndo,
     required this.onFix,
@@ -356,6 +358,7 @@ class _Row extends StatelessWidget {
   /// The date format of the whole list, made once by the screen.
   final DateFormat format;
   final String account;
+  final String accountId;
   final String? to;
   final VoidCallback onUndo;
   final VoidCallback onFix;
@@ -382,6 +385,7 @@ class _Row extends StatelessWidget {
     );
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      leading: AccountBadge(accountId: accountId, name: account, size: 36),
       title: Text(
         type == 'transfer'
             ? context.t.historyMoved(

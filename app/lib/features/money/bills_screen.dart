@@ -10,9 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../core/json.dart';
 import '../../core/manila.dart';
+import '../../core/marks.dart';
 import '../../core/money.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
+import '../../state/marks.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
@@ -65,6 +67,12 @@ class BillsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bills = ref.watch(_billsProvider);
     final due = ref.watch(_dueProvider);
+    // A bill with no mark of its own shows the mark of the account it is paid from
+    final accountMarks = ref.watch(accountMarksProvider);
+    final byBill = <String, Mark>{
+      for (final b in bills.value ?? const <Json>[])
+        str(b['id']): billMarkOf(b, accountMarks),
+    };
     return Scaffold(
       appBar: AppBar(title: Text(context.t.billsTitle)),
       body: ListView(
@@ -86,6 +94,7 @@ class BillsScreen extends ConsumerWidget {
                     for (final d in g.rows)
                       DueRow(
                         due: d,
+                        mark: byBill[str(d['billId'])] ?? const Mark(),
                         onEdit: () => _editDate(context, ref, d),
                         onPay: () => _pay(context, ref, d),
                       ),
@@ -105,6 +114,7 @@ class BillsScreen extends ConsumerWidget {
                 for (final b in list)
                   BillTile(
                     bill: b,
+                    mark: billMarkOf(b, accountMarks),
                     onEdit: () => _editBill(context, ref, b),
                     onActive: (on) => _setActive(context, ref, b, on),
                   ),

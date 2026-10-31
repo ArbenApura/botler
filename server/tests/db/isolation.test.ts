@@ -13,6 +13,7 @@ import {
 	USER_TABLES,
 	account,
 	accountWallet,
+	picture,
 	agentAction,
 	allocationRule,
 	balanceSnapshot,
@@ -72,6 +73,8 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 		tx.insert(undoJournal).values({ userId, verb: 'v', entity: 'device', entityId: '1' }),
 	account: (tx, userId) =>
 		tx.insert(account).values({ id: ACCOUNT_ID, userId, name: 'RCBC', kind: 'bank' }),
+	picture: (tx, userId) =>
+		tx.insert(picture).values({ userId, mime: 'image/png', data: 'AAAA', bytes: 3 }),
 	account_wallet: (tx, userId) =>
 		tx.insert(accountWallet).values({ userId, accountId: ACCOUNT_ID, currency: 'PHP' }),
 	income_schedule: (tx, userId) =>

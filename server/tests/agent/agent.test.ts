@@ -183,7 +183,8 @@ describe('the verb registry', () => {
 				'undo'
 			].sort()
 		);
-		expect(by('read')).toHaveLength(42);
+		// 43 since picture_get, a read verb for the app only (it is not offered to the assistant)
+		expect(by('read')).toHaveLength(43);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {
@@ -328,6 +329,38 @@ describe('approval cards', () => {
 				new Map([[f.gcash, 'GCash']])
 			)
 		).toBe('Change the account GCash, purpose cleared.');
+	});
+
+	it('says the icon on the card of a new or changed account or bill', () => {
+		expect(describeAction('account_create', { name: 'Pocket', icon: 'piggy' }, new Map())).toBe(
+			'Add the account "Pocket", with the piggy icon.'
+		);
+		expect(
+			describeAction(
+				'account_update',
+				{ accountId: f.gcash, icon: null, clearImage: true },
+				new Map([[f.gcash, 'GCash']])
+			)
+		).toBe('Change the account GCash, icon cleared, picture removed.');
+		expect(
+			describeAction('bill_update', { billId: 'b1', icon: 'bolt' }, new Map([['b1', 'Meralco']]))
+		).toBe('Change the bill Meralco, bolt icon.');
+	});
+
+	it('offers the assistant icons and clearing a picture, but never a picture or a picture id', () => {
+		const tools = buildTools();
+		for (const name of ['account_create', 'account_update', 'bill_create', 'bill_update']) {
+			const json = JSON.stringify(tools.find((t) => t.name === name)?.parameters);
+			expect(json, name).toContain('"icon"');
+			expect(json, name).not.toContain('imageData');
+			expect(json, name).not.toContain('imageId');
+		}
+		for (const name of ['account_update', 'bill_update'])
+			expect(JSON.stringify(tools.find((t) => t.name === name)?.parameters), name).toContain(
+				'clearImage'
+			);
+		expect(tools.map((t) => t.name)).not.toContain('picture_get');
+		expect(JSON.stringify(tools.map((t) => t.parameters))).not.toContain('imageData');
 	});
 
 	it("does not accept a card whose arguments fail the verb's own checks", async () => {

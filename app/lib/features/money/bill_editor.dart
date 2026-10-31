@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
 import '../../core/manila.dart';
+import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -20,6 +21,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'bills_parts.dart';
 import 'currency_picker.dart';
+import 'mark_picker.dart';
 import 'schedule_picker.dart';
 
 // -- CONSTANTS -- //
@@ -70,6 +72,9 @@ class _BillEditorState extends ConsumerState<BillEditor> {
   String? _currency;
   List<Json> _accounts = const <Json>[];
   bool _saving = false;
+
+  /// The icon or picture chosen in the sheet; left alone unless the person picks.
+  MarkChoice _mark = const MarkChoice.unchanged();
   final Map<String, String> _keys = <String, String>{};
 
   // What the form held when it opened, to send only what changed
@@ -292,6 +297,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
               ? _weekend
               : 'none',
           'deferrable': false,
+          ...markArgs(_mark, const Mark()),
         }),
       ], t.billsSaved);
       return;
@@ -305,6 +311,7 @@ class _BillEditorState extends ConsumerState<BillEditor> {
     }
     if (_varies != _origVaries) series['kind'] = _varies ? 'variable' : 'fixed';
     if (currencyChanged) series['currency'] = _code;
+    series.addAll(markArgs(_mark, markOf(_bill)));
     if (_scheduleChanged && schedule != null) {
       series['schedule'] = schedule.toJson();
       series['weekendRule'] = schedule.isSingleDay ? _weekend : 'none';
@@ -390,6 +397,21 @@ class _BillEditorState extends ConsumerState<BillEditor> {
           hint: _adding ? t.billsNameHint : null,
           capitalization: TextCapitalization.words,
         ),
+        // The mark belongs to the whole bill, so it is offered when adding or changing the bill, not one date
+        if (_adding || !_onADate) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              t.markTitle,
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+          ),
+          MarkField(
+            name: _name.text,
+            current: markOf(_bill),
+            onChanged: (c) => _mark = c,
+          ),
+        ],
         if (showDate) ...<Widget>[
           Semantics(
             button: true,

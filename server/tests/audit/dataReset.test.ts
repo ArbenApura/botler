@@ -15,6 +15,7 @@ import {
 	dataResetLatestSql,
 	dataResetMigrationSql,
 	dataResetNotebookSql,
+	dataResetPagesSql,
 	dataResetWalletsSql,
 	EVERYTHING_TABLES,
 	KEPT_ON_RESET,
@@ -192,13 +193,29 @@ describe('the notebook pages copy of the function', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0037_notebook_pages.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		// 0037 holds the function as it was then, before the pictures of accounts and bills were added to the money scope
+		expect(file).toContain(dataResetPagesSql());
+		expect(dataResetPagesSql()).not.toContain("'picture'");
 		const memory = SCOPE_TABLES.memory_and_chat;
 		expect(memory.indexOf('notebook_page_revision')).toBeGreaterThanOrEqual(0);
 		expect(memory.indexOf('notebook_page_revision')).toBeLessThan(memory.indexOf('notebook_page'));
 		expect(memory.indexOf('notebook_page')).toBeLessThan(memory.indexOf('notebook'));
 		expect(EVERYTHING_TABLES).toContain('notebook_page');
 		expect(EVERYTHING_TABLES).toContain('notebook_page_revision');
+	});
+});
+
+describe('the pictures copy of the function', () => {
+	it('is installed by migration 0041 and erases the pictures after the accounts and bills that point at them', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0041_marks.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		const money = SCOPE_TABLES.money;
+		expect(money.indexOf('picture')).toBeGreaterThan(money.indexOf('account'));
+		expect(money.indexOf('picture')).toBeGreaterThan(money.indexOf('bill'));
+		expect(EVERYTHING_TABLES).toContain('picture');
 	});
 });
 

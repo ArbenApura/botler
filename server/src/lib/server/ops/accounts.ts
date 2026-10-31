@@ -33,6 +33,7 @@ import {
 } from '../db/zod';
 import { OpsError, run, runWrite } from './context';
 import { ensureWallet, walletCurrencies } from './ledger';
+import { dropPicture, planMark, splitMark } from './picture';
 import { readSettings } from './settings';
 import { checkVersion, mapped, parse, plain, requireAccount, requireActiveAccount } from './shared';
 
@@ -58,9 +59,11 @@ export async function createAccount(ctx: Ctx, raw: AccountCreateInput): Promise<
 		runWrite(ctx, 'account.create', input, async (tx, userId) => {
 			// A new account is in the person's main currency unless it says another
 			const currency = input.currency ?? (await readSettings(tx, userId)).currency;
+			const { rest, mark } = splitMark(input);
+			const plan = await planMark(ctx, tx, userId, null, mark);
 			const [row] = await tx
 				.insert(account)
-				.values({ ...input, currency, userId })
+				.values({ ...rest, ...plan.set, currency, userId })
 				.returning();
 			if (!row) throw new OpsError('CONFLICT', 'The account could not be saved.');
 			await ensureWallet(tx, userId, row.id, row.currency);
@@ -70,67 +73,68 @@ export async function createAccount(ctx: Ctx, raw: AccountCreateInput): Promise<
 }
 
 export async function updateAccount(ctx: Ctx, raw: AccountUpdateInput): Promise<AccountView> {
-	const { accountId, expectVersion, ...changes } = parse(accountUpdateInput, raw);
+	const { accountId, expectVersion, ...parsed } = parse(accountUpdateInput, raw);
+	const { rest: changes, mark } = splitMark(parsed);
 	return mapped(() =>
-		runWrite(
-			ctx,
-			'account.update',
-			{ accountId, expectVersion, ...changes },
-			async (tx, userId) => {
-				const current = await requireAccount(tx, userId, accountId);
-				checkVersion(current.version, expectVersion, 'account');
-				const retag = changes.currency !== undefined && changes.currency !== current.currency;
-				if (retag) {
-					// The account is locked first, so an entry cannot land between the check below and the change
-					await tx
-						.select({ id: account.id })
-						.from(account)
-						.where(and(eq(account.userId, userId), eq(account.id, accountId)))
-						.for('update');
-					// The currency of an account with history cannot change under its entries: it holds a wallet in the other currency instead
-					const [entries] = await tx
-						.select({ n: sql<number>`count(*)::int` })
-						.from(ledgerTxn)
-						.where(
-							and(
-								eq(ledgerTxn.userId, userId),
-								or(eq(ledgerTxn.accountId, accountId), eq(ledgerTxn.toAccountId, accountId))
-							)
-						);
-					const [counts] = await tx
-						.select({ n: sql<number>`count(*)::int` })
-						.from(balanceSnapshot)
-						.where(
-							and(eq(balanceSnapshot.userId, userId), eq(balanceSnapshot.accountId, accountId))
-						);
-					if ((entries?.n ?? 0) + (counts?.n ?? 0) > 0)
-						throw new OpsError(
-							'INVALID',
-							`This account already has entries in ${current.currency}. Add a ${changes.currency} wallet to it instead.`
-						);
-				}
-				const [row] = await tx
-					.update(account)
-					.set({ ...changes, version: sql`${account.version} + 1`, updatedAt: sql`now()` })
+		runWrite(ctx, 'account.update', { accountId, expectVersion, ...parsed }, async (tx, userId) => {
+			const current = await requireAccount(tx, userId, accountId);
+			checkVersion(current.version, expectVersion, 'account');
+			const plan = await planMark(ctx, tx, userId, current.imageId, mark);
+			const retag = changes.currency !== undefined && changes.currency !== current.currency;
+			if (retag) {
+				// The account is locked first, so an entry cannot land between the check below and the change
+				await tx
+					.select({ id: account.id })
+					.from(account)
 					.where(and(eq(account.userId, userId), eq(account.id, accountId)))
-					.returning();
-				if (!row) throw new OpsError('NOT_FOUND', 'That account does not exist.');
-				if (retag) {
-					// Nothing was entered in the old currency, so its empty wallet goes and the new one opens
-					await tx
-						.delete(accountWallet)
-						.where(
-							and(
-								eq(accountWallet.userId, userId),
-								eq(accountWallet.accountId, accountId),
-								eq(accountWallet.currency, current.currency)
-							)
-						);
-					await ensureWallet(tx, userId, accountId, row.currency);
-				}
-				return plain(row);
+					.for('update');
+				// The currency of an account with history cannot change under its entries: it holds a wallet in the other currency instead
+				const [entries] = await tx
+					.select({ n: sql<number>`count(*)::int` })
+					.from(ledgerTxn)
+					.where(
+						and(
+							eq(ledgerTxn.userId, userId),
+							or(eq(ledgerTxn.accountId, accountId), eq(ledgerTxn.toAccountId, accountId))
+						)
+					);
+				const [counts] = await tx
+					.select({ n: sql<number>`count(*)::int` })
+					.from(balanceSnapshot)
+					.where(and(eq(balanceSnapshot.userId, userId), eq(balanceSnapshot.accountId, accountId)));
+				if ((entries?.n ?? 0) + (counts?.n ?? 0) > 0)
+					throw new OpsError(
+						'INVALID',
+						`This account already has entries in ${current.currency}. Add a ${changes.currency} wallet to it instead.`
+					);
 			}
-		)
+			const [row] = await tx
+				.update(account)
+				.set({
+					...changes,
+					...plan.set,
+					version: sql`${account.version} + 1`,
+					updatedAt: sql`now()`
+				})
+				.where(and(eq(account.userId, userId), eq(account.id, accountId)))
+				.returning();
+			if (!row) throw new OpsError('NOT_FOUND', 'That account does not exist.');
+			await dropPicture(tx, userId, plan.dropId);
+			if (retag) {
+				// Nothing was entered in the old currency, so its empty wallet goes and the new one opens
+				await tx
+					.delete(accountWallet)
+					.where(
+						and(
+							eq(accountWallet.userId, userId),
+							eq(accountWallet.accountId, accountId),
+							eq(accountWallet.currency, current.currency)
+						)
+					);
+				await ensureWallet(tx, userId, accountId, row.currency);
+			}
+			return plain(row);
+		})
 	);
 }
 
@@ -302,7 +306,13 @@ export async function deleteAccount(ctx: Ctx, raw: unknown) {
 				.delete(accountWallet)
 				.where(and(eq(accountWallet.userId, userId), eq(accountWallet.accountId, accountId)));
 			await tx.delete(account).where(and(eq(account.userId, userId), eq(account.id, accountId)));
-			return { deleted: true as const, archived: false as const, account: plain(current) };
+			// The picture goes with the account; the removed account is returned without it, so adding it again starts with an icon or a new picture
+			await dropPicture(tx, userId, current.imageId);
+			return {
+				deleted: true as const,
+				archived: false as const,
+				account: plain({ ...current, imageId: null })
+			};
 		})
 	);
 }

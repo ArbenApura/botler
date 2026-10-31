@@ -98,8 +98,8 @@ describe('compact tool schemas', () => {
 	it('are smaller than the original and have no oneOf left in a kind union', () => {
 		const json = JSON.stringify(buildTools().map((t) => t.parameters));
 		expect(json).not.toContain('"oneOf"');
-		// 32_750 since the ten page and library tools: they measure 31_747 with the top-level parent field, and the cap keeps about 1_000 of margin (29_000 before)
-		expect(json.length).toBeLessThan(32_750);
+		// 33_750 since the icon on four account and bill tools (the enum of 40 keys): they measure 33_164, and the cap keeps about 600 of margin (32_750 before, since the ten page and library tools)
+		expect(json.length).toBeLessThan(33_750);
 	});
 
 	it('turn anyOf with null into a nullable type and drop a type beside a const', () => {

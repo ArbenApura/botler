@@ -8,11 +8,13 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../../core/json.dart';
 import '../../core/manila.dart';
+import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../core/schedule_text.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/mark_badge.dart';
 
 // -- CONSTANTS -- //
 
@@ -135,10 +137,14 @@ class DueRow extends StatelessWidget {
     required this.due,
     required this.onEdit,
     required this.onPay,
+    this.mark = const Mark(),
     super.key,
   });
 
   final Json due;
+
+  /// The mark of the bill (its own, or its account's), drawn before the name.
+  final Mark mark;
   final VoidCallback onEdit;
   final VoidCallback onPay;
 
@@ -171,6 +177,8 @@ class DueRow extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
                       child: Row(
                         children: <Widget>[
+                          MarkBadge(name: name, mark: mark, size: 36),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,10 +244,14 @@ class BillTile extends StatelessWidget {
     required this.bill,
     required this.onEdit,
     required this.onActive,
+    this.mark = const Mark(),
     super.key,
   });
 
   final Json bill;
+
+  /// The mark of the bill (its own, or its account's), drawn before the name.
+  final Mark mark;
   final VoidCallback onEdit;
   final ValueChanged<bool> onActive;
 
@@ -249,6 +261,7 @@ class BillTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       minTileHeight: _tap.height,
+      leading: MarkBadge(name: str(bill['name']), mark: mark),
       title: Text(str(bill['name'])),
       subtitle: Text(
         describeBill(context, bill),

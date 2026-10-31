@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/manila.dart' show manilaToday;
+import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
@@ -1027,9 +1028,12 @@ class BreakdownCard extends StatefulWidget {
     required this.selected,
     required this.onPick,
     this.estimate = false,
+    this.billMarks = const <String, Mark>{},
     super.key,
   });
 
+  /// The mark of each bill by id: a bill group (key bill:ID) shows its own.
+  final Map<String, Mark> billMarks;
   final List<SpendGroup> groups;
   final int moreAmount;
   final int moreGroups;
@@ -1082,6 +1086,9 @@ class _BreakdownCardState extends State<BreakdownCard> {
           for (final g in shown)
             _GroupLine(
               name: _name(context, g),
+              mark: g.kind == 'bill'
+                  ? widget.billMarks[g.key.replaceFirst('bill:', '')]
+                  : null,
               amount: g.amount,
               total: total,
               selected: widget.selected == g.key,
@@ -1121,6 +1128,7 @@ class _BreakdownCardState extends State<BreakdownCard> {
 class _GroupLine extends StatelessWidget {
   const _GroupLine({
     required this.name,
+    required this.mark,
     required this.amount,
     required this.total,
     required this.selected,
@@ -1128,6 +1136,9 @@ class _GroupLine extends StatelessWidget {
   });
 
   final String name;
+
+  /// The bill's icon or picture, when this group is a bill that has one.
+  final Mark? mark;
   final int amount;
   final int total;
   final bool selected;
@@ -1172,6 +1183,10 @@ class _GroupLine extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
+                      if (mark != null && !mark!.isEmpty) ...<Widget>[
+                        MarkBadge(name: name, mark: mark!, size: 28),
+                        const SizedBox(width: gapM),
+                      ],
                       Expanded(
                         flex: 3,
                         child: Text(
@@ -1319,6 +1334,12 @@ class _AccountBlock extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        AccountBadge(
+          accountId: first.accountId,
+          name: first.accountName,
+          size: 32,
+        ),
+        const SizedBox(width: gapM),
         Expanded(
           child: Text(
             first.archived
@@ -1413,6 +1434,8 @@ class EntryRow extends StatelessWidget {
             padding: const EdgeInsets.only(top: gapS),
             child: Icon(icon, size: 18, color: tone),
           ),
+          const SizedBox(width: gapM),
+          AccountBadge(accountId: e.accountId, name: e.accountName, size: 28),
           const SizedBox(width: gapM),
           Expanded(
             child: Column(

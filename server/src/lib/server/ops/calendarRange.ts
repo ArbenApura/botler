@@ -26,6 +26,7 @@ import { OpsError, run } from './context';
 import { dueBills } from './bills';
 import { walletBalances } from './ledger';
 import { loadPlan } from './planData';
+import { marksOf } from './picture';
 import { parse } from './shared';
 
 // -- TYPES -- //
@@ -49,8 +50,18 @@ export type CalendarItem =
 			paid: boolean;
 			overdue: boolean;
 			accountId: string;
+			/** The mark of the bill, else the one of the account it is paid from; null when neither has one. */
+			icon: string | null;
+			imageId: string | null;
 	  })
-	| (Base & { type: 'payday'; amount: number | null; done: boolean })
+	| (Base & {
+			type: 'payday';
+			amount: number | null;
+			done: boolean;
+			/** The mark of the account the pay lands in. */
+			icon: string | null;
+			imageId: string | null;
+	  })
 	| (Base & {
 			type: 'event';
 			startsAt: string;
@@ -113,6 +124,8 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 		const items: CalendarItem[] = [];
 		const startInstant = manilaStart(from);
 		const endInstant = manilaStart(addDays(to, 1));
+		const marks = await marksOf(tx, userId);
+		const none = { icon: null, imageId: null };
 
 		// -- BILLS: PAYMENT WINDOWS -- //
 		const bills = await dueBills(tx, userId, from, to);
@@ -129,7 +142,8 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					unknownAmount: b.unknownAmount,
 					paid: b.paid,
 					overdue: !b.paid && b.windowEnd < today,
-					accountId: b.accountId
+					accountId: b.accountId,
+					...(marks.bills.get(b.billId) ?? marks.accounts.get(b.accountId) ?? none)
 				});
 
 		// -- PAYDAYS -- //
@@ -172,7 +186,8 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					date: p.date,
 					endDate: p.date,
 					amount: p.amount,
-					done: approved.has(`${p.id}|${p.date}`)
+					done: approved.has(`${p.id}|${p.date}`),
+					...(marks.accounts.get(p.accountId) ?? none)
 				});
 
 		// -- EVENTS -- //

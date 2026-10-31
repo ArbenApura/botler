@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/marks.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
@@ -76,6 +77,11 @@ Future<bool> pickSavesFor(
                   ),
                 for (final b in bills)
                   ChoiceChip(
+                    avatar: MarkBadge(
+                      name: str(b['name']),
+                      mark: markOf(b),
+                      size: 24,
+                    ),
                     label: Text(str(b['name'])),
                     selected: chosen == str(b['id']),
                     onSelected: (_) => setState(() => chosen = str(b['id'])),

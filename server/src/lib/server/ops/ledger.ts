@@ -701,6 +701,8 @@ export async function balancesIn(tx: Tx, userId: string) {
 			kind: a.kind,
 			minBalance: a.minBalance,
 			purpose: a.purpose,
+			icon: a.icon,
+			imageId: a.imageId,
 			currency: a.currency,
 			balance: own.balance,
 			countedAt: own.countedAt,

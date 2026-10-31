@@ -10,6 +10,7 @@ import { isDate } from '../../finance/dates';
 import { validateRecurrence } from '../../schedule/recurrence';
 import { MAX_CENTAVOS } from '../../finance/money';
 import { MAX_SKIP_DATES, validateSchedule, type Schedule } from '../../finance/schedule';
+import { ICON_KEYS, PICTURE_MAX_BASE64 } from '../../finance/visual';
 import {
 	account,
 	allocationRule,
@@ -166,6 +167,22 @@ export const paydayScheduleInput = scheduleLimitedInput.superRefine((s, ctx) => 
 		ctx.addIssue({ code: 'custom', message: 'A payday repeats. Pick a repeating schedule.' });
 });
 
+// -- MARKS -- //
+
+/**
+ * How an account or a bill is marked: a built-in icon key or the person's own picture. Left out, the mark stays; icon null or clearImage
+ * removes it. imageId is never an input (a picture is owned by its row and made from imageData), and imageData is the person's alone
+ * (the assistant's schemas leave it out and the verb refuses it again).
+ */
+const markFields = {
+	icon: z.enum(ICON_KEYS).nullable().optional(),
+	/** A JPEG, PNG or WebP of at most 24 KB, as base64 text. */
+	imageData: z.string().max(PICTURE_MAX_BASE64).optional()
+};
+
+/** The picture of an account or a bill, fetched once per id by the app. */
+export const pictureGetInput = z.strictObject({ imageId: z.uuid() });
+
 // -- ACCOUNTS -- //
 
 /** What an account is dedicated to. Short, no run of four or more digits (an account or phone number must not be kept in a label). Null clears it, absent leaves it alone. */
@@ -189,20 +206,23 @@ export const accountCreateInput = createInsertSchema(account, {
 	purpose: purposeField,
 	// Left out, a new account is in the person's main currency
 	currency: currencyField.optional()
-}).pick({
-	name: true,
-	kind: true,
-	minBalance: true,
-	purpose: true,
-	sortOrder: true,
-	currency: true
-});
+})
+	.pick({
+		name: true,
+		kind: true,
+		minBalance: true,
+		purpose: true,
+		sortOrder: true,
+		currency: true
+	})
+	.extend(markFields);
 
 /** Adds a currency to an account (a Wise or PayPal account holds several). */
 export const walletAddInput = z.object({ accountId: idField, currency: currencyField });
 
 export const accountUpdateInput = accountCreateInput.partial().extend({
 	accountId: idField,
+	clearImage: z.boolean().optional(),
 	expectVersion: versionField.optional()
 });
 
@@ -363,22 +383,25 @@ export const billCreateInput = createInsertSchema(bill, {
 	startsOn: dayField.nullable().optional(),
 	// Left out, a new bill is in the person's main currency
 	currency: currencyField.optional()
-}).pick({
-	name: true,
-	category: true,
-	accountId: true,
-	kind: true,
-	amount: true,
-	schedule: true,
-	weekendRule: true,
-	deferrable: true,
-	startsOn: true,
-	currency: true
-});
+})
+	.pick({
+		name: true,
+		category: true,
+		accountId: true,
+		kind: true,
+		amount: true,
+		schedule: true,
+		weekendRule: true,
+		deferrable: true,
+		startsOn: true,
+		currency: true
+	})
+	.extend(markFields);
 
 export const billUpdateInput = billCreateInput.partial().extend({
 	billId: idField,
 	active: z.boolean().optional(),
+	clearImage: z.boolean().optional(),
 	expectVersion: versionField.optional()
 });
 

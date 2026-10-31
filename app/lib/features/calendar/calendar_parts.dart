@@ -516,6 +516,11 @@ class _ItemRowState extends ConsumerState<ItemRow> {
           children: <Widget>[
             SizedBox(width: 24, child: Center(child: MarkIcon(item, size: 14))),
             const SizedBox(width: 12),
+            // The bill's (or the payday account's) own icon or picture, when it has one
+            if (!item.mark.isEmpty) ...<Widget>[
+              MarkBadge(name: item.title, mark: item.mark, size: 32),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

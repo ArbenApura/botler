@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
 import '../../core/manila.dart';
+import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -23,6 +24,7 @@ import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'accounts_screen.dart';
 import 'audit_words.dart';
+import 'mark_picker.dart';
 import 'net_parts.dart';
 import 'purpose.dart';
 import 'transfer_sheet.dart';
@@ -362,7 +364,24 @@ class _State extends ConsumerState<AccountDetailScreen> {
       length: 5,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(str(account?['name'], t.accountsTitle)),
+          title: Row(
+            children: <Widget>[
+              if (account != null) ...<Widget>[
+                MarkBadge(
+                  name: str(account['name']),
+                  mark: markOf(account),
+                  size: 32,
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(
+                  str(account?['name'], t.accountsTitle),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
           actions: <Widget>[
             PopupMenuButton<String>(
               onSelected: (v) {
@@ -395,6 +414,8 @@ class _State extends ConsumerState<AccountDetailScreen> {
                     }
                   case 'purpose':
                     if (account != null) editPurpose(context, ref, account);
+                  case 'mark':
+                    if (account != null) editAccountMark(context, ref, account);
                   case 'set':
                     _askBalance(zero: false);
                   case 'zero':
@@ -425,6 +446,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
                   value: 'purpose',
                   height: 48,
                   child: Text(t.acctMenuPurpose),
+                ),
+                PopupMenuItem<String>(
+                  value: 'mark',
+                  height: 48,
+                  child: Text(t.markMenu),
                 ),
                 PopupMenuItem<String>(
                   value: 'set',

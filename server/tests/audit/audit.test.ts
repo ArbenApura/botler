@@ -203,6 +203,21 @@ describe('the registry of audited tables', () => {
 			if (a.redefinitions) expect(a.redefinitions.at(-1)?.columns, a.table).toEqual(a.columns);
 	});
 
+	it('replaces the triggers of account and bill when they gained an icon and a picture id (0041), never copying picture bytes', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0041_marks.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(auditRedefinedSql('0041'));
+		for (const table of ['account', 'bill'])
+			expect(auditRedefinedSql('0041'), table).toContain(`"audit_${table}"`);
+		expect(auditRedefinedSql('0041')).toContain('currency,icon,image_id');
+		// The older migrations keep the lists they ran with
+		expect(auditRedefinedSql('0025')).not.toContain('icon');
+		expect(auditRedefinedSql('0041')).not.toContain('"audit_picture"');
+		expect(AUDITED_TABLES.map((a) => a.table)).not.toContain('picture');
+	});
+
 	it('replaces the three integer typed audit functions with bigint ones in 0024 and leaves 0016 as it ran', () => {
 		const file = readFileSync(
 			join(__dirname, '../../src/lib/server/db/migrations/0024_currencies_bigint.sql'),

@@ -254,6 +254,11 @@ class _MoveFormState extends ConsumerState<_MoveForm> {
           children: <Widget>[
             for (final (a, currency) in _targets)
               ChoiceChip(
+                avatar: AccountBadge(
+                  accountId: str(a['id']),
+                  name: str(a['name']),
+                  size: 24,
+                ),
                 label: Text('${str(a['name'])} · $currency'),
                 selected: str(a['id']) == _toAccount && currency == _toCurrency,
                 onSelected: _busy

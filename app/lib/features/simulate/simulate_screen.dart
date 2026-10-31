@@ -433,6 +433,7 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
       mainCurrency: currency,
       selected: groupKey,
       estimate: p.part == SimPart.mixed,
+      billMarks: data.sim.billMarks,
       onPick: (k) => ref.read(simGroupProvider.notifier).pick(k),
     );
   }

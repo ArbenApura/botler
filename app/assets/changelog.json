@@ -338,5 +338,17 @@
       "Mas matatag na si Botler sa mahahabang sagot at mga tool: hindi na sinisimulan nang dalawang beses ang mahabang sagot, nagkakasundo na ang mga halaga sa kalendaryo, forecast at payday split, at hihingi na ng fingerprint o screen lock bago burahin ang kuwaderno.",
       "Sa likod ng eksena: hindi na nalalampasan ang papaalalang papasok sa susunod na dalawang linggo, tinatakpan na ang mga pangalan sa mga push message, at mas mahigpit na ang pagsusuri ng update, mga backup at health check ng app."
     ]
+  },
+  {
+    "versionCode": 34,
+    "versionName": "1.2.2",
+    "en": [
+      "Accounts and bills can now have their own icon or a picture of your own. Open an account or a bill and choose Change icon or picture; it shows in your lists, the calendar, Time Travel, the payday split and the history.",
+      "Botler can set or remove an icon for you in the chat. A picture you choose stays between you and your account: the assistant never sees it."
+    ],
+    "fil": [
+      "Puwede nang lagyan ng sariling icon o larawan ang mga account at bill. Buksan ang account o bill at piliin ang Baguhin ang icon o larawan; makikita ito sa mga listahan, kalendaryo, Time Travel, payday split at kasaysayan.",
+      "Maaaring magtakda o mag-alis ng icon si Botler para sa iyo sa chat. Ang larawang pipiliin mo ay para sa iyo lang: hindi ito nakikita ng assistant."
+    ]
   }
 ]

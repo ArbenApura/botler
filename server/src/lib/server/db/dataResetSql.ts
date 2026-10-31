@@ -38,6 +38,8 @@ export const SCOPE_TABLES: Record<
 		// A wallet points at its account, so it goes first
 		'account_wallet',
 		'account',
+		// A picture is pointed at by its account or bill, so it goes after both
+		'picture',
 		'undo_journal',
 		'agent_action'
 	],
@@ -62,16 +64,22 @@ const NOTEBOOK_TABLES: readonly string[] = ['notebook_revision', 'notebook'];
 /** The pages of the extra notebooks and their revisions: erased by a memory and chat reset since migration 0037. */
 const PAGE_TABLES: readonly string[] = ['notebook_page_revision', 'notebook_page'];
 
+/** The pictures that mark accounts and bills: erased by a money reset since migration 0041. */
+const PICTURE_TABLES: readonly string[] = ['picture'];
+
+/** The money scope as migrations 0025 to 0037 shipped it, before the pictures of accounts and bills (0041 adds the picture table). */
+const MONEY_0037: readonly string[] = SCOPE_TABLES.money.filter((t) => !PICTURE_TABLES.includes(t));
+
 /**
  * The money scope as migration 0017 shipped it, kept as it was so the 0017 file stays checkable. Later tables are added to SCOPE_TABLES
  * and reach the database through a newer copy of the function (0018 and on), never by editing an applied migration.
  */
-const MONEY_0017: readonly string[] = SCOPE_TABLES.money.filter(
+const MONEY_0017: readonly string[] = MONEY_0037.filter(
 	(t) => t !== 'bill_override' && t !== 'account_wallet'
 );
 
 /** The money scope as migrations 0018 and 0021 shipped it, before account wallets existed (0025 adds the wallet table). */
-const MONEY_0021: readonly string[] = SCOPE_TABLES.money.filter((t) => t !== 'account_wallet');
+const MONEY_0021: readonly string[] = MONEY_0037.filter((t) => t !== 'account_wallet');
 
 /** The memory and chat scope as migrations 0017 and 0018 shipped it, before conversations existed (0021 adds the chat table). */
 const MEMORY_0017: readonly string[] = SCOPE_TABLES.memory_and_chat.filter(
@@ -224,8 +232,8 @@ export function dataResetChatsSql(): string {
 
 /** The function migration 0025 installed (account wallets, before the notebook). */
 export function dataResetWalletsSql(): string {
-	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0025, [
-		...SCOPE_TABLES.money,
+	return resetFunctionSql(MONEY_0037, MEMORY_0025, [
+		...MONEY_0037,
 		...SCOPE_TABLES.schedule,
 		...MEMORY_0025,
 		...EVERYTHING_EXTRA
@@ -234,15 +242,25 @@ export function dataResetWalletsSql(): string {
 
 /** The function migration 0031 installed (the notebook and its revisions, before the pages of the extra notebooks). */
 export function dataResetNotebookSql(): string {
-	return resetFunctionSql(SCOPE_TABLES.money, MEMORY_0031, [
-		...SCOPE_TABLES.money,
+	return resetFunctionSql(MONEY_0037, MEMORY_0031, [
+		...MONEY_0037,
 		...SCOPE_TABLES.schedule,
 		...MEMORY_0031,
 		...EVERYTHING_EXTRA
 	]);
 }
 
-/** The function as it is now: what the newest migration (0037, the notebook pages) installs over the one of 0031. */
+/** The function migration 0037 installed (the pages of the extra notebooks, before the pictures of accounts and bills). */
+export function dataResetPagesSql(): string {
+	return resetFunctionSql(MONEY_0037, SCOPE_TABLES.memory_and_chat, [
+		...MONEY_0037,
+		...SCOPE_TABLES.schedule,
+		...SCOPE_TABLES.memory_and_chat,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0041, the pictures of accounts and bills) installs over the one of 0037. */
 export function dataResetLatestSql(): string {
 	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
 }

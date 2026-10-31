@@ -42,6 +42,7 @@ import {
 import { OpsError, recordUndo, run, runWrite } from './context';
 import { insertTxn } from './ledger';
 import { valueInMain } from './assets';
+import { dropPicture, planMark, splitMark } from './picture';
 import { loadRates, refreshInBackground } from '../fx/store';
 import { readSettings } from './settings';
 import { unlinkRulesOf } from './rules';
@@ -96,11 +97,14 @@ export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillVi
 			await requireActiveAccount(tx, userId, input.accountId, 'account the bill is paid from');
 			// A bill is in the person's main currency unless it says another (a dollar subscription)
 			const currency = input.currency ?? (await readSettings(tx, userId)).currency;
+			const { rest, mark } = splitMark(input);
+			const plan = await planMark(ctx, tx, userId, null, mark);
 			// A new bill counts from today, so the dates its schedule gives before today are not overdue
 			const [row] = await tx
 				.insert(bill)
 				.values({
-					...input,
+					...rest,
+					...plan.set,
 					currency,
 					startsOn: input.startsOn ?? toManilaDate(new Date()),
 					userId
@@ -154,10 +158,12 @@ export async function deleteBill(ctx: Ctx, raw: unknown) {
 				};
 			}
 			await tx.delete(bill).where(and(eq(bill.userId, userId), eq(bill.id, billId)));
+			// The picture goes with the bill; the removed bill is returned without it, so adding it again starts with an icon or a new picture
+			await dropPicture(tx, userId, current.imageId);
 			return {
 				deleted: true as const,
 				switchedOff: false as const,
-				bill: plain(current),
+				bill: plain({ ...current, imageId: null }),
 				unlinkedRules
 			};
 		})
@@ -230,11 +236,13 @@ export async function updateBill(
 	ctx: Ctx,
 	raw: BillUpdateInput
 ): Promise<BillView & { clearedOverrides: number; unlinkedRules: UnlinkedRule[] }> {
-	const { billId, expectVersion, ...changes } = parse(billUpdateInput, raw);
+	const { billId, expectVersion, ...parsed } = parse(billUpdateInput, raw);
+	const { rest: changes, mark } = splitMark(parsed);
 	return mapped(() =>
-		runWrite(ctx, 'bill.update', { billId, expectVersion, ...changes }, async (tx, userId) => {
+		runWrite(ctx, 'bill.update', { billId, expectVersion, ...parsed }, async (tx, userId) => {
 			const current = await requireBill(tx, userId, billId);
 			checkVersion(current.version, expectVersion, 'bill');
+			const plan = await planMark(ctx, tx, userId, current.imageId, mark);
 			if (changes.accountId) await requireActiveAccount(tx, userId, changes.accountId);
 			// The amounts of a bill, its changed dates and its payments are all in its currency, so it cannot change under them
 			if (changes.currency !== undefined && changes.currency !== current.currency) {
@@ -254,10 +262,11 @@ export async function updateBill(
 			}
 			const [row] = await tx
 				.update(bill)
-				.set({ ...changes, version: sql`${bill.version} + 1`, updatedAt: sql`now()` })
+				.set({ ...changes, ...plan.set, version: sql`${bill.version} + 1`, updatedAt: sql`now()` })
 				.where(and(eq(bill.userId, userId), eq(bill.id, billId)))
 				.returning();
 			if (!row) throw new OpsError('NOT_FOUND', 'That bill does not exist.');
+			await dropPicture(tx, userId, plan.dropId);
 			// An edit of the whole series wins over the changes made to single dates from today on
 			const clearedOverrides = await clearFutureOverrides(tx, userId, billId, changes);
 			// A rule that saves for this bill stops when the bill no longer fits it (switched off, another account or currency)

@@ -1,0 +1,76 @@
+{
+  "markTitle": "Icon or picture",
+  "markNone": "No icon",
+  "markChoosePicture": "Choose a picture",
+  "markChangePicture": "Choose another picture",
+  "markRemove": "Remove icon or picture",
+  "markMenu": "Change icon or picture",
+  "markPictureFailed": "That picture could not be used. Try another one.",
+  "markSaved": "Saved.",
+  "markPictureNote": "A picture you pick is for you only. Botler's assistant never sees it.",
+  "markEditTitle": "Icon for {name}",
+  "@markEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markSemantic": "Icon of {name}",
+  "@markSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markIconSemantic": "Icon: {name}",
+  "@markIconSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markPictureChosen": "Your picture",
+  "markIconBank": "Bank",
+  "markIconWallet": "Wallet",
+  "markIconCash": "Cash",
+  "markIconCard": "Card",
+  "markIconPiggy": "Piggy bank",
+  "markIconSavings": "Savings",
+  "markIconHome": "Home",
+  "markIconRent": "Rent",
+  "markIconBolt": "Electricity",
+  "markIconWater": "Water",
+  "markIconWifi": "Internet",
+  "markIconPhone": "Phone",
+  "markIconCart": "Groceries",
+  "markIconFood": "Food",
+  "markIconFuel": "Fuel",
+  "markIconCar": "Car",
+  "markIconBus": "Transport",
+  "markIconHealth": "Health",
+  "markIconSchool": "School",
+  "markIconFamily": "Family",
+  "markIconGift": "Gift",
+  "markIconTravel": "Travel",
+  "markIconShopping": "Shopping",
+  "markIconSubscription": "Subscription",
+  "markIconTv": "TV",
+  "markIconGame": "Games",
+  "markIconInsurance": "Insurance",
+  "markIconTax": "Tax",
+  "markIconLoan": "Loan",
+  "markIconInvest": "Investments",
+  "markIconCrypto": "Crypto",
+  "markIconWork": "Work",
+  "markIconPet": "Pet",
+  "markIconBaby": "Baby",
+  "markIconTools": "Repairs",
+  "markIconGym": "Gym",
+  "markIconCoffee": "Coffee",
+  "markIconHeart": "Heart",
+  "markIconStar": "Star",
+  "markIconFlag": "Flag"
+}

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/marks.dart';
 import '../../state/providers.dart';
 import '../../ui/manila_clock.dart';
 import '../calendar/calendar_data.dart';
@@ -38,6 +39,11 @@ SimPart _part(Object? v) => switch (str(v)) {
 };
 
 int? _intOrNull(Object? v) => v is num ? v.toInt() : null;
+
+/// The marks of a map of id to {icon, imageId}; an older server sends none.
+Map<String, Mark> _marksOf(Object? v) => <String, Mark>{
+  for (final e in asJson(v).entries) e.key: markOf(asJson(e.value)),
+};
 
 /// One wallet at the end of a period, by source. A null is a source that has nothing for it (not open yet, or not that part of time).
 class SimWallet {
@@ -183,6 +189,7 @@ class SimEntry {
       kind = str(j['kind']),
       date = str(j['date']),
       label = str(j['label']),
+      accountId = str(j['accountId']),
       accountName = str(j['accountName']),
       toAccountName = str(j['toAccountName']),
       currency = str(j['currency']),
@@ -200,6 +207,7 @@ class SimEntry {
   final String kind;
   final String date;
   final String label;
+  final String accountId;
   final String accountName;
   final String toAccountName;
   final String currency;
@@ -323,7 +331,8 @@ class SimResult {
       ],
       notes = <String>[for (final n in asList(j['notes'])) str(n)],
       missing = <String>[for (final m in asList(j['missing'])) str(m)],
-      ratesStale = boolOf(asJson(j['rates'])['stale']);
+      ratesStale = boolOf(asJson(j['rates'])['stale']),
+      billMarks = _marksOf(asJson(j['marks'])['bills']);
 
   final String from;
   final String to;
@@ -344,6 +353,9 @@ class SimResult {
   final List<String> notes;
   final List<String> missing;
   final bool ratesStale;
+
+  /// The icon or picture of each bill by id, to draw beside a bill in the spending breakdown. Empty from an older server.
+  final Map<String, Mark> billMarks;
 
   /// The period that holds a day, or the nearest one.
   SimPeriod? periodOf(String day) {

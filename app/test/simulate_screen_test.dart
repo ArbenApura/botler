@@ -281,6 +281,8 @@ Future<ProviderContainer> _open(
     overrides: [
       prefsProvider.overrideWithValue(prefs),
       apiProvider.overrideWithValue(api),
+      // The account marks come from the accounts list, which this screen test does not serve
+      balancesProvider.overrideWith((ref) async => <Map<String, Object?>>[]),
     ],
   );
   addTearDown(container.dispose);

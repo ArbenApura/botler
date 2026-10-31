@@ -171,6 +171,11 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
                 children: <Widget>[
                   for (final a in list)
                     ChoiceChip(
+                      avatar: AccountBadge(
+                        accountId: str(a['id']),
+                        name: str(a['name']),
+                        size: 24,
+                      ),
                       label: Text(str(a['name'])),
                       selected: str(a['id']) == selected,
                       onSelected: (_) => setState(() {

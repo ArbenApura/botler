@@ -25,6 +25,7 @@ import { balanceSimulateInput } from '../db/zod';
 import { refreshInBackground } from '../fx/store';
 import { OpsError, run } from './context';
 import { loadPlan } from './planData';
+import { marksOf, type Mark } from './picture';
 import { parse } from './shared';
 
 // -- TYPES -- //
@@ -34,6 +35,8 @@ export type SimulationView = Omit<Simulation, 'notes'> & {
 	/** Plain sentences: what is real, what is simulated, what was left out. Read them before quoting a number. */
 	notes: string[];
 	rates: { asOf: string | null; stale: boolean };
+	/** The icon or picture id of the accounts and bills that have one, by id, for the entries and periods that name them. The app's only; the assistant's answer leaves it out. */
+	marks?: { accounts: Record<string, Mark>; bills: Record<string, Mark> };
 	/** The what-if, when one was sent: how many changes it made and the ids that were not the person's. */
 	scenario?: { changes: number; ignored: string[] };
 	/** The assistant's answer was cut to stay short: entries, then per-period wallets, then period details were left out. */
@@ -305,12 +308,21 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 			wallets
 		});
 		// The names of every bill, active or not, so the spending of a bill that is gone still has its name
-		const billNames = new Map(
-			(
-				await tx.select({ id: bill.id, name: bill.name }).from(bill).where(eq(bill.userId, userId))
-			).map((b) => [b.id, b.name] as const)
-		);
-		return { ...loaded, wallets, snapshots, txns, billNames, firstRecordAt };
+		const billRows = await tx
+			.select({ id: bill.id, name: bill.name, accountId: bill.accountId })
+			.from(bill)
+			.where(eq(bill.userId, userId));
+		const billNames = new Map(billRows.map((b) => [b.id, b.name] as const));
+		const found = await marksOf(tx, userId);
+		// A bill with no mark of its own shows the mark of the account it is paid from, as the calendar does
+		const billMarks = new Map(found.bills);
+		for (const b of billRows) {
+			const own = billMarks.get(b.id);
+			const fromAccount = found.accounts.get(b.accountId);
+			if (!own && fromAccount) billMarks.set(b.id, fromAccount);
+		}
+		const marks = { accounts: found.accounts, bills: billMarks };
+		return { ...loaded, wallets, snapshots, txns, billNames, firstRecordAt, marks };
 	});
 	refreshInBackground(ctx.handle, gathered.status);
 
@@ -379,6 +391,14 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 		view,
 		notes,
 		rates: { asOf: gathered.status.asOf, stale: gathered.status.stale },
+		...(ctx.actor.kind === 'agent'
+			? {}
+			: {
+					marks: {
+						accounts: Object.fromEntries(gathered.marks.accounts),
+						bills: Object.fromEntries(gathered.marks.bills)
+					}
+				}),
 		...(input.scenario ? { scenario: { changes: applied.changes, ignored: applied.ignored } } : {})
 	};
 	return ctx.actor.kind === 'agent' ? forAgent(answer) : answer;

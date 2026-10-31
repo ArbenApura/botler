@@ -185,6 +185,11 @@ class GoalsScreen extends ConsumerWidget {
                   children: <Widget>[
                     for (final a in accounts)
                       ChoiceChip(
+                        avatar: AccountBadge(
+                          accountId: str(a['id']),
+                          name: str(a['name']),
+                          size: 24,
+                        ),
                         label: Text(str(a['name'])),
                         selected: str(a['id']) == accountId,
                         onSelected: (_) =>

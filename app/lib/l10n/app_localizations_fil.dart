@@ -1956,6 +1956,173 @@ class AppLocalizationsFil extends AppLocalizations {
   String get lockUnlock => 'I-unlock';
 
   @override
+  String get markChangePicture => 'Pumili ng ibang larawan';
+
+  @override
+  String get markChoosePicture => 'Pumili ng larawan';
+
+  @override
+  String markEditTitle(String name) {
+    return 'Icon ng $name';
+  }
+
+  @override
+  String get markIconBaby => 'Sanggol';
+
+  @override
+  String get markIconBank => 'Bangko';
+
+  @override
+  String get markIconBolt => 'Kuryente';
+
+  @override
+  String get markIconBus => 'Sakay';
+
+  @override
+  String get markIconCar => 'Kotse';
+
+  @override
+  String get markIconCard => 'Card';
+
+  @override
+  String get markIconCart => 'Grocery';
+
+  @override
+  String get markIconCash => 'Pera';
+
+  @override
+  String get markIconCoffee => 'Kape';
+
+  @override
+  String get markIconCrypto => 'Crypto';
+
+  @override
+  String get markIconFamily => 'Pamilya';
+
+  @override
+  String get markIconFlag => 'Bandila';
+
+  @override
+  String get markIconFood => 'Pagkain';
+
+  @override
+  String get markIconFuel => 'Gasolina';
+
+  @override
+  String get markIconGame => 'Laro';
+
+  @override
+  String get markIconGift => 'Regalo';
+
+  @override
+  String get markIconGym => 'Gym';
+
+  @override
+  String get markIconHealth => 'Kalusugan';
+
+  @override
+  String get markIconHeart => 'Puso';
+
+  @override
+  String get markIconHome => 'Bahay';
+
+  @override
+  String get markIconInsurance => 'Insurance';
+
+  @override
+  String get markIconInvest => 'Puhunan';
+
+  @override
+  String get markIconLoan => 'Utang';
+
+  @override
+  String get markIconPet => 'Alaga';
+
+  @override
+  String get markIconPhone => 'Telepono';
+
+  @override
+  String get markIconPiggy => 'Alkansya';
+
+  @override
+  String get markIconRent => 'Upa';
+
+  @override
+  String get markIconSavings => 'Ipon';
+
+  @override
+  String get markIconSchool => 'Paaralan';
+
+  @override
+  String markIconSemantic(String name) {
+    return 'Icon: $name';
+  }
+
+  @override
+  String get markIconShopping => 'Pamimili';
+
+  @override
+  String get markIconStar => 'Bituin';
+
+  @override
+  String get markIconSubscription => 'Subscription';
+
+  @override
+  String get markIconTax => 'Buwis';
+
+  @override
+  String get markIconTools => 'Pagkukumpuni';
+
+  @override
+  String get markIconTravel => 'Biyahe';
+
+  @override
+  String get markIconTv => 'TV';
+
+  @override
+  String get markIconWallet => 'Pitaka';
+
+  @override
+  String get markIconWater => 'Tubig';
+
+  @override
+  String get markIconWifi => 'Internet';
+
+  @override
+  String get markIconWork => 'Trabaho';
+
+  @override
+  String get markMenu => 'Baguhin ang icon o larawan';
+
+  @override
+  String get markNone => 'Walang icon';
+
+  @override
+  String get markPictureChosen => 'Ang larawan mo';
+
+  @override
+  String get markPictureFailed =>
+      'Hindi magamit ang larawang iyon. Subukan ang iba.';
+
+  @override
+  String get markPictureNote =>
+      'Ang larawang pipiliin mo ay para sa iyo lang. Hindi ito nakikita ng assistant ng Botler.';
+
+  @override
+  String get markRemove => 'Alisin ang icon o larawan';
+
+  @override
+  String get markSaved => 'Na-save.';
+
+  @override
+  String markSemantic(String name) {
+    return 'Icon ng $name';
+  }
+
+  @override
+  String get markTitle => 'Icon o larawan';
+
+  @override
   String get mdBold => 'Makapal';
 
   @override

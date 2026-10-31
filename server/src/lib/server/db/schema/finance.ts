@@ -22,6 +22,7 @@ import {
 // -- MODULES -- //
 import { user } from './auth';
 import { DEFAULT_CURRENCY } from '../../../finance/currency';
+import { PICTURE_MAX_BYTES, PICTURE_MIMES } from '../../../finance/visual';
 import {
 	centavos,
 	currencyCode,
@@ -53,6 +54,32 @@ export const TXN_SOURCES = [
 ] as const;
 export const SPLIT_STATUSES = ['proposed', 'approved', 'shortfall', 'superseded'] as const;
 
+// -- PICTURES -- //
+
+/**
+ * A small picture that marks one account or one bill (a logo, a photo of a card). Owned by exactly one row: the row's image_id points here
+ * and is unique, so a picture is dropped with the row or when it is replaced. Stored as base64 text; the bytes are never audited, never
+ * sent to the model and never part of a list (a list carries only the id, the app fetches the picture once per id).
+ */
+export const picture = userTable(
+	'picture',
+	() => user.id,
+	{
+		id: id(),
+		mime: text('mime', { enum: PICTURE_MIMES }).notNull(),
+		/** The picture as base64 text. */
+		data: text('data').notNull(),
+		/** The size in bytes after decoding. */
+		bytes: integer('bytes').notNull(),
+		...stamps()
+	},
+	(t) => [
+		unique('picture_user_id_uq').on(t.userId, t.id),
+		oneOf('picture_mime_chk', t.mime, PICTURE_MIMES),
+		check('picture_bytes_chk', sql`${t.bytes} between 1 and ${sql.raw(String(PICTURE_MAX_BYTES))}`)
+	]
+);
+
 // -- ACCOUNTS -- //
 
 export const account = userTable(
@@ -66,6 +93,10 @@ export const account = userTable(
 		minBalance: centavos('min_balance').notNull().default(0),
 		/** What the account is dedicated to (Emergency, Savings, Bills...). A short label, cosmetic only; null when none. */
 		purpose: text('purpose'),
+		/** A built-in icon key (see finance/visual.ts) that marks the account; null when it has none or carries a picture. */
+		icon: text('icon'),
+		/** The picture that marks the account (see picture); at most one of icon and imageId is set. */
+		imageId: uuid('image_id'),
 		/** The currency the account is in unless an entry says another (a Wise or PayPal account holds more, see account_wallet). */
 		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
 		sortOrder: integer('sort_order').notNull().default(0),
@@ -83,7 +114,15 @@ export const account = userTable(
 		check(
 			'account_purpose_chk',
 			sql`${t.purpose} is null or (char_length(${t.purpose}) between 1 and 24 and ${t.purpose} = btrim(${t.purpose}))`
-		)
+		),
+		check('account_icon_chk', sql`${t.icon} is null or ${t.icon} ~ '^[a-z0-9_]{1,24}$'`),
+		check('account_mark_chk', sql`${t.icon} is null or ${t.imageId} is null`),
+		uniqueIndex('account_image_uq').on(t.userId, t.imageId),
+		foreignKey({
+			name: 'account_image_fk',
+			columns: [t.userId, t.imageId],
+			foreignColumns: [picture.userId, picture.id]
+		})
 	]
 );
 
@@ -169,11 +208,23 @@ export const bill = userTable(
 		startsOn: date('starts_on', { mode: 'string' }),
 		/** The currency of amount, and of every override of a date. The main currency unless the person says another. */
 		currency: currencyCode('currency').notNull().default(DEFAULT_CURRENCY),
+		/** A built-in icon key that marks the bill; null when it has none or carries a picture. */
+		icon: text('icon'),
+		/** The picture that marks the bill; at most one of icon and imageId is set. */
+		imageId: uuid('image_id'),
 		version: version(),
 		...stamps()
 	},
 	(t) => [
 		unique('bill_user_id_uq').on(t.userId, t.id),
+		check('bill_icon_chk', sql`${t.icon} is null or ${t.icon} ~ '^[a-z0-9_]{1,24}$'`),
+		check('bill_mark_chk', sql`${t.icon} is null or ${t.imageId} is null`),
+		uniqueIndex('bill_image_uq').on(t.userId, t.imageId),
+		foreignKey({
+			name: 'bill_image_fk',
+			columns: [t.userId, t.imageId],
+			foreignColumns: [picture.userId, picture.id]
+		}),
 		foreignKey({
 			name: 'bill_account_fk',
 			columns: [t.userId, t.accountId],

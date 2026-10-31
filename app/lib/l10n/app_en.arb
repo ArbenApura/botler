@@ -1428,6 +1428,80 @@
   "lockReason": "Open Botler",
   "lockTitle": "Botler is locked",
   "lockUnlock": "Unlock",
+  "markChangePicture": "Choose another picture",
+  "markChoosePicture": "Choose a picture",
+  "markEditTitle": "Icon for {name}",
+  "@markEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markIconBaby": "Baby",
+  "markIconBank": "Bank",
+  "markIconBolt": "Electricity",
+  "markIconBus": "Transport",
+  "markIconCar": "Car",
+  "markIconCard": "Card",
+  "markIconCart": "Groceries",
+  "markIconCash": "Cash",
+  "markIconCoffee": "Coffee",
+  "markIconCrypto": "Crypto",
+  "markIconFamily": "Family",
+  "markIconFlag": "Flag",
+  "markIconFood": "Food",
+  "markIconFuel": "Fuel",
+  "markIconGame": "Games",
+  "markIconGift": "Gift",
+  "markIconGym": "Gym",
+  "markIconHealth": "Health",
+  "markIconHeart": "Heart",
+  "markIconHome": "Home",
+  "markIconInsurance": "Insurance",
+  "markIconInvest": "Investments",
+  "markIconLoan": "Loan",
+  "markIconPet": "Pet",
+  "markIconPhone": "Phone",
+  "markIconPiggy": "Piggy bank",
+  "markIconRent": "Rent",
+  "markIconSavings": "Savings",
+  "markIconSchool": "School",
+  "markIconSemantic": "Icon: {name}",
+  "@markIconSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markIconShopping": "Shopping",
+  "markIconStar": "Star",
+  "markIconSubscription": "Subscription",
+  "markIconTax": "Tax",
+  "markIconTools": "Repairs",
+  "markIconTravel": "Travel",
+  "markIconTv": "TV",
+  "markIconWallet": "Wallet",
+  "markIconWater": "Water",
+  "markIconWifi": "Internet",
+  "markIconWork": "Work",
+  "markMenu": "Change icon or picture",
+  "markNone": "No icon",
+  "markPictureChosen": "Your picture",
+  "markPictureFailed": "That picture could not be used. Try another one.",
+  "markPictureNote": "A picture you pick is for you only. Botler's assistant never sees it.",
+  "markRemove": "Remove icon or picture",
+  "markSaved": "Saved.",
+  "markSemantic": "Icon of {name}",
+  "@markSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markTitle": "Icon or picture",
   "mdBold": "Bold",
   "mdCheckbox": "Checkbox",
   "mdHeading": "Heading",

@@ -141,9 +141,9 @@ export function describeAction(
 	const money = (v: unknown) => moneyIn(currency, v);
 	switch (verbName) {
 		case 'account_create':
-			return `Add the account "${text(args.name)}"${args.purpose ? `, for "${text(args.purpose)}"` : ''}.`;
+			return `Add the account "${text(args.name)}"${args.purpose ? `, for "${text(args.purpose)}"` : ''}${args.icon ? `, with the ${text(args.icon, 24)} icon` : ''}.`;
 		case 'account_update':
-			return `Change the account ${nm(args.accountId)}${args.name ? ` to "${text(args.name)}"` : ''}${num(args.minBalance) !== null ? `, minimum balance ${money(args.minBalance)}` : ''}${args.purpose ? `, purpose "${text(args.purpose)}"` : args.purpose === null ? ', purpose cleared' : ''}.`;
+			return `Change the account ${nm(args.accountId)}${args.name ? ` to "${text(args.name)}"` : ''}${num(args.minBalance) !== null ? `, minimum balance ${money(args.minBalance)}` : ''}${args.purpose ? `, purpose "${text(args.purpose)}"` : args.purpose === null ? ', purpose cleared' : ''}${args.icon ? `, ${text(args.icon, 24)} icon` : args.icon === null ? ', icon cleared' : ''}${args.clearImage === true ? ', picture removed' : ''}.`;
 		case 'account_wallet_add':
 			return `Add a ${text(args.currency, 3)} wallet to the account ${nm(args.accountId)}.`;
 		case 'account_archive':
@@ -155,7 +155,7 @@ export function describeAction(
 		case 'bill_create':
 			return `Add the bill "${text(args.name)}", ${args.amount ? money(args.amount) : 'amount varies'}, paid from ${nm(args.accountId)}, ${when(args.schedule)}.`;
 		case 'bill_update':
-			return `Change the bill ${names.get(typeof args.billId === 'string' ? args.billId : '') ?? ''}${args.name ? ` ("${text(args.name)}")` : ''}${args.amount ? ` to ${money(args.amount)}` : ''}.`.replace(
+			return `Change the bill ${names.get(typeof args.billId === 'string' ? args.billId : '') ?? ''}${args.name ? ` ("${text(args.name)}")` : ''}${args.amount ? ` to ${money(args.amount)}` : ''}${args.icon ? `, ${text(args.icon, 24)} icon` : args.icon === null ? ', icon cleared' : ''}${args.clearImage === true ? ', picture removed' : ''}.`.replace(
 				' .',
 				'.'
 			);

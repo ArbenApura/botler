@@ -1944,6 +1944,173 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lockUnlock => 'Unlock';
 
   @override
+  String get markChangePicture => 'Choose another picture';
+
+  @override
+  String get markChoosePicture => 'Choose a picture';
+
+  @override
+  String markEditTitle(String name) {
+    return 'Icon for $name';
+  }
+
+  @override
+  String get markIconBaby => 'Baby';
+
+  @override
+  String get markIconBank => 'Bank';
+
+  @override
+  String get markIconBolt => 'Electricity';
+
+  @override
+  String get markIconBus => 'Transport';
+
+  @override
+  String get markIconCar => 'Car';
+
+  @override
+  String get markIconCard => 'Card';
+
+  @override
+  String get markIconCart => 'Groceries';
+
+  @override
+  String get markIconCash => 'Cash';
+
+  @override
+  String get markIconCoffee => 'Coffee';
+
+  @override
+  String get markIconCrypto => 'Crypto';
+
+  @override
+  String get markIconFamily => 'Family';
+
+  @override
+  String get markIconFlag => 'Flag';
+
+  @override
+  String get markIconFood => 'Food';
+
+  @override
+  String get markIconFuel => 'Fuel';
+
+  @override
+  String get markIconGame => 'Games';
+
+  @override
+  String get markIconGift => 'Gift';
+
+  @override
+  String get markIconGym => 'Gym';
+
+  @override
+  String get markIconHealth => 'Health';
+
+  @override
+  String get markIconHeart => 'Heart';
+
+  @override
+  String get markIconHome => 'Home';
+
+  @override
+  String get markIconInsurance => 'Insurance';
+
+  @override
+  String get markIconInvest => 'Investments';
+
+  @override
+  String get markIconLoan => 'Loan';
+
+  @override
+  String get markIconPet => 'Pet';
+
+  @override
+  String get markIconPhone => 'Phone';
+
+  @override
+  String get markIconPiggy => 'Piggy bank';
+
+  @override
+  String get markIconRent => 'Rent';
+
+  @override
+  String get markIconSavings => 'Savings';
+
+  @override
+  String get markIconSchool => 'School';
+
+  @override
+  String markIconSemantic(String name) {
+    return 'Icon: $name';
+  }
+
+  @override
+  String get markIconShopping => 'Shopping';
+
+  @override
+  String get markIconStar => 'Star';
+
+  @override
+  String get markIconSubscription => 'Subscription';
+
+  @override
+  String get markIconTax => 'Tax';
+
+  @override
+  String get markIconTools => 'Repairs';
+
+  @override
+  String get markIconTravel => 'Travel';
+
+  @override
+  String get markIconTv => 'TV';
+
+  @override
+  String get markIconWallet => 'Wallet';
+
+  @override
+  String get markIconWater => 'Water';
+
+  @override
+  String get markIconWifi => 'Internet';
+
+  @override
+  String get markIconWork => 'Work';
+
+  @override
+  String get markMenu => 'Change icon or picture';
+
+  @override
+  String get markNone => 'No icon';
+
+  @override
+  String get markPictureChosen => 'Your picture';
+
+  @override
+  String get markPictureFailed =>
+      'That picture could not be used. Try another one.';
+
+  @override
+  String get markPictureNote =>
+      'A picture you pick is for you only. Botler\'s assistant never sees it.';
+
+  @override
+  String get markRemove => 'Remove icon or picture';
+
+  @override
+  String get markSaved => 'Saved.';
+
+  @override
+  String markSemantic(String name) {
+    return 'Icon of $name';
+  }
+
+  @override
+  String get markTitle => 'Icon or picture';
+
+  @override
   String get mdBold => 'Bold';
 
   @override
