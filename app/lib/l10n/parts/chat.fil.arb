@@ -24,6 +24,8 @@
   "chatPhotosTrimmed": "Mahaba ang teksto ng mga litrato, kaya unang bahagi lang ng bawat isa ang ipapadala.",
   "chatTakePhoto": "Kumuha ng litrato",
   "chatChooseScreenshot": "Pumili ng screenshot",
+  "chatPastePhoto": "I-paste ang litrato",
+  "chatPasteNothing": "Walang larawan sa clipboard.",
   "chatPhotoTooltip": "Litrato ng resibo",
   "chatHintMessage": "Mag-message kay Botler",
   "chatStopListening": "Ihinto ang pakikinig",

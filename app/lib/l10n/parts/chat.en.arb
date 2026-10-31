@@ -34,6 +34,8 @@
   "chatPhotosTrimmed": "The photos hold a lot of text, so only the first part of each is sent.",
   "chatTakePhoto": "Take a photo",
   "chatChooseScreenshot": "Choose a screenshot",
+  "chatPastePhoto": "Paste photo",
+  "chatPasteNothing": "There is no picture on the clipboard.",
   "chatPhotoTooltip": "Photo of a receipt",
   "chatHintMessage": "Message Botler",
   "chatStopListening": "Stop listening",

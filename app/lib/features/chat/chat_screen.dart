@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
 import '../../core/chat_photos.dart';
+import '../../core/clipboard_image.dart';
 import '../../core/device.dart';
 import '../../core/photo_budget.dart';
 import '../../core/photo_upload.dart';
@@ -114,6 +115,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(ref.read(chatProvider.notifier).restore());
+      // A picture pasted and never added (the app was closed meanwhile) does not stay in the cache
+      unawaited(sweepPastedFiles());
       // What is new after an update: once per run, never over the lock or the required-update screen (this screen is below both)
       unawaited(showPendingChangelog(context, ref));
     });
@@ -457,7 +460,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// Adds photos to the next message: one from the camera or several from the gallery. They are read one after another on the phone,
   /// the ones that hold no text are left out and counted, and a picture chosen twice is added once.
-  Future<void> _photo(PhotoSource source) async {
+  /// With [ready], those files (a picture pasted from the clipboard or the keyboard) are used instead of opening the picker; the rest is the same.
+  Future<void> _photo(PhotoSource source, {List<String>? ready}) async {
     if (_reading || _preparing) return;
     // The photos wait while a message is edited: an edit sends only new words
     if (ref.read(editProvider) != null) {
@@ -484,7 +488,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // The copies this pick made that are not yet read or dropped
     final staged = <String>[];
     try {
-      final paths = await pickPhotos(source, room: room);
+      final paths = ready ?? await pickPhotos(source, room: room);
       if (paths.isEmpty || !mounted) return;
       picked = paths.length;
       setState(() => _reading = true);
@@ -577,6 +581,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             : context.t.chatPhotosSkipped(unread),
       );
     }
+  }
+
+  /// Adds a picture from the clipboard ([file] is one the keyboard inserted already). It goes through the same steps as a picked photo, and its
+  /// temporary file is deleted as soon as the chat holds its own copy.
+  Future<void> _paste({String? file}) async {
+    final path = file ?? await clipboardImageFile();
+    if (!mounted) {
+      if (path != null) unawaited(dropPastedFile(path));
+      return;
+    }
+    if (path == null) {
+      say(context, context.t.chatPasteNothing);
+      return;
+    }
+    try {
+      await _photo(PhotoSource.gallery, ready: <String>[path]);
+    } finally {
+      unawaited(dropPastedFile(path));
+    }
+  }
+
+  /// A picture the keyboard offered (a screenshot suggestion, an image from its clipboard strip).
+  Future<void> _keyboardImage(KeyboardInsertedContent content) async {
+    final bytes = content.data;
+    if (bytes == null) return;
+    final file = await imageBytesToFile(bytes);
+    if (file == null) {
+      if (mounted) say(context, context.t.chatPasteNothing);
+      return;
+    }
+    await _paste(file: file);
   }
 
   Future<void> _speak() async {
@@ -901,7 +936,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               onSend: _send,
               onStop: ref.read(chatProvider.notifier).stop,
               onSpeak: _speak,
+              onPaste: _paste,
+              onKeyboardImage: _keyboardImage,
               onPhoto: () async {
+                // Asked before the sheet opens: the paste row shows only when a picture is on the clipboard
+                final canPaste = await clipboardHasImage();
+                if (!context.mounted) return;
                 final source = await showModalBottomSheet<PhotoSource>(
                   context: context,
                   showDragHandle: true,
@@ -920,6 +960,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           title: Text(s.t.chatChooseScreenshot),
                           onTap: () => Navigator.of(s).pop(PhotoSource.gallery),
                         ),
+                        if (canPaste)
+                          ListTile(
+                            leading: const Icon(Icons.content_paste_outlined),
+                            title: Text(s.t.chatPastePhoto),
+                            onTap: () {
+                              Navigator.of(s).pop();
+                              unawaited(_paste());
+                            },
+                          ),
                       ],
                     ),
                   ),
@@ -1038,8 +1087,12 @@ class _Composer extends StatelessWidget {
     required this.onStop,
     required this.onSpeak,
     required this.onPhoto,
+    required this.onPaste,
+    required this.onKeyboardImage,
   });
 
+  final VoidCallback onPaste;
+  final ValueChanged<KeyboardInsertedContent> onKeyboardImage;
   final TextEditingController controller;
   final FocusNode focus;
   final bool busy;
@@ -1079,6 +1132,14 @@ class _Composer extends StatelessWidget {
                   textCapitalization: TextCapitalization.sentences,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => onSend(),
+                  // A picture offered by the keyboard goes the same way as a pasted one
+                  contentInsertionConfiguration: ContentInsertionConfiguration(
+                    allowedMimeTypes: pastableMimeTypes,
+                    onContentInserted: onKeyboardImage,
+                  ),
+                  // The text menu gets a Paste photo item while a picture is on the clipboard
+                  contextMenuBuilder: (menuContext, editable) =>
+                      _PasteMenu(editable: editable, onPaste: onPaste),
                   decoration: InputDecoration(
                     hintText: context.t.chatHintMessage,
                     filled: false,
@@ -1114,6 +1175,38 @@ class _Composer extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The composer's text menu (cut, copy, paste, select all) with a Paste photo item added while a picture is on the clipboard.
+class _PasteMenu extends StatelessWidget {
+  const _PasteMenu({required this.editable, required this.onPaste});
+
+  final EditableTextState editable;
+  final VoidCallback onPaste;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: clipboardHasImage(),
+      builder: (context, snapshot) {
+        final items = <ContextMenuButtonItem>[
+          ...editable.contextMenuButtonItems,
+          if (snapshot.data ?? false)
+            ContextMenuButtonItem(
+              label: context.t.chatPastePhoto,
+              onPressed: () {
+                editable.hideToolbar();
+                onPaste();
+              },
+            ),
+        ];
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: editable.contextMenuAnchors,
+          buttonItems: items,
+        );
+      },
     );
   }
 }

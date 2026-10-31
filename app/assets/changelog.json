@@ -374,5 +374,15 @@
       "Sa parehong chat na ngayon ang edit at ipadala ulit: natatanggal ang mensaheng ini-edit mo at ang mga kasunod nito, at ang bago mong mga salita ang papalit.",
       "Binabasa na ng Botler ang mga web page at naghahanap sa web gamit ang sarili nitong AI provider, kaya wala nang kailangan pang ayusin para makapaghanap ito."
     ]
+  },
+  {
+    "versionCode": 37,
+    "versionName": "1.2.5",
+    "en": [
+      "You can now paste a picture into the chat: copy a screenshot or image, then long-press the message box and tap Paste photo, or tap the photo button and choose Paste photo. Pictures from the keyboard work too."
+    ],
+    "fil": [
+      "Puwede mo nang i-paste ang larawan sa chat: kopyahin ang screenshot o larawan, pindutan nang matagal ang message box at i-tap ang I-paste ang litrato, o i-tap ang photo button at piliin ang I-paste ang litrato. Gumagana rin ang mga larawan mula sa keyboard."
+    ]
   }
 ]

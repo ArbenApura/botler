@@ -2137,6 +2137,18 @@ abstract class AppLocalizations {
   /// **'offline'**
   String get chatOffline;
 
+  /// No description provided for @chatPasteNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no picture on the clipboard.'**
+  String get chatPasteNothing;
+
+  /// No description provided for @chatPastePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste photo'**
+  String get chatPastePhoto;
+
   /// No description provided for @chatPendingSnack.
   ///
   /// In en, this message translates to:

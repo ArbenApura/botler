@@ -1255,6 +1255,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOffline => 'offline';
 
   @override
+  String get chatPasteNothing => 'There is no picture on the clipboard.';
+
+  @override
+  String get chatPastePhoto => 'Paste photo';
+
+  @override
   String chatPendingSnack(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -1,5 +1,6 @@
 package com.arbenger.botler
 
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -21,6 +22,7 @@ class MainActivity : FlutterFragmentActivity() {
     // outside the update folder, and the installer is only opened from a tap.
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        clipboardChannel(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.arbenger.botler/update")
             .setMethodCallHandler { call, result ->
                 try {
@@ -64,6 +66,91 @@ class MainActivity : FlutterFragmentActivity() {
                     result.error("update", e.javaClass.simpleName, null)
                 }
             }
+    }
+
+    // -- CLIPBOARD PICTURE CHANNEL -- //
+    // A picture on the clipboard (a copied screenshot or image) is copied into the cache "paste" folder by this side, so the bytes never
+    // cross the channel and Dart gets only a path. Nothing is read until the person taps Paste.
+    private fun clipboardChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.arbenger.botler/clipboard")
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "hasImage" -> result.success(clipboardImageUri() != null)
+                        "saveImage" -> {
+                            val uri = clipboardImageUri()
+                            val max = (call.argument<Number>("maxBytes") ?: 0).toLong()
+                            if (uri == null) {
+                                result.success(null)
+                                return@setMethodCallHandler
+                            }
+                            // Copying a large picture off the main thread
+                            Thread {
+                                val path = try {
+                                    copyClipboardImage(uri, max)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                runOnUiThread { result.success(path) }
+                            }.start()
+                        }
+                        "sweep" -> {
+                            File(cacheDir, "paste").listFiles()?.forEach { it.delete() }
+                            result.success(true)
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (e: Exception) {
+                    // The class name only: a message could hold a path
+                    result.error("clipboard", e.javaClass.simpleName, null)
+                }
+            }
+    }
+
+    // The first image item on the clipboard, or null. Only the description and the item are read, not the picture itself.
+    private fun clipboardImageUri(): Uri? {
+        val manager = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+        if (!manager.hasPrimaryClip()) return null
+        val description = manager.primaryClipDescription ?: return null
+        if (!description.hasMimeType("image/*")) return null
+        val clip = manager.primaryClip ?: return null
+        for (i in 0 until clip.itemCount) {
+            val uri = clip.getItemAt(i).uri ?: continue
+            val type = contentResolver.getType(uri) ?: continue
+            if (type.startsWith("image/")) return uri
+        }
+        return null
+    }
+
+    // Copies the picture to the cache "paste" folder; null when it is past maxBytes or cannot be read
+    private fun copyClipboardImage(uri: Uri, maxBytes: Long): String? {
+        val type = contentResolver.getType(uri) ?: return null
+        val ext = when (type) {
+            "image/png" -> ".png"
+            "image/gif" -> ".gif"
+            "image/webp" -> ".webp"
+            else -> ".jpg"
+        }
+        val dir = File(cacheDir, "paste").also { it.mkdirs() }
+        val out = File(dir, "paste_${System.currentTimeMillis()}$ext")
+        var total = 0L
+        val input = contentResolver.openInputStream(uri) ?: return null
+        input.use { source ->
+            out.outputStream().use { sink ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val n = source.read(buffer)
+                    if (n < 0) break
+                    total += n
+                    if (maxBytes > 0 && total > maxBytes) {
+                        out.delete()
+                        return null
+                    }
+                    sink.write(buffer, 0, n)
+                }
+            }
+        }
+        return if (total > 0) out.absolutePath else { out.delete(); null }
     }
 
     // Android 7 (API 24 and 25) has no per-app install switch: its installer shows its own unknown sources prompt

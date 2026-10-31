@@ -942,6 +942,8 @@
   "chatNoticeFailed": "The assistant could not finish that. Try again.",
   "chatNoticeOffline": "No connection. Saved on your phone. It will be sent once, when you are back online.",
   "chatOffline": "offline",
+  "chatPasteNothing": "There is no picture on the clipboard.",
+  "chatPastePhoto": "Paste photo",
   "chatPendingSnack": "{count, plural, =1{{count} entry is waiting for a connection.} other{{count} entries are waiting for a connection.}}",
   "@chatPendingSnack": {
     "placeholders": {

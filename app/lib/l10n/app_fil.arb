@@ -339,6 +339,8 @@
   "chatNoticeFailed": "Hindi natapos ng assistant iyon. Subukan ulit.",
   "chatNoticeOffline": "Walang koneksyon. Nakatabi sa iyong phone. Ipapadala ito nang isang beses kapag online ka na ulit.",
   "chatOffline": "offline",
+  "chatPasteNothing": "Walang larawan sa clipboard.",
+  "chatPastePhoto": "I-paste ang litrato",
   "chatPendingSnack": "{count, plural, =1{{count} entry ang naghihintay ng koneksyon.} other{{count} entry ang naghihintay ng koneksyon.}}",
   "chatPendingTooltip": "{count} naghihintay na maipadala",
   "chatPhotoChars": "{count} karakter ang nabasa",
