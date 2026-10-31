@@ -99,14 +99,18 @@ Future<bool> backgroundSyncOnce() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     const store = SecureSessionStore();
-    if (await store.read() == null) return true;
+    final session = await store.read();
+    if (session == null) return true;
     await _initNotifications();
     final api = ApiClient(
       base: apiBase,
       token: () async => (await store.read())?.token,
     );
     try {
-      await Outbox(prefs).flush(api);
+      // The same person's id the app tags its writes with, so this isolate sends only that person's items
+      final report = await Outbox(prefs, userId: session.email).flush(api);
+      // A session that no longer works cannot sync either; the app shows the notice when it is opened
+      if (report.needsSignIn) return true;
       await syncReminders(api, prefs);
     } finally {
       api.close();
@@ -124,6 +128,11 @@ Future<void> flushAndSync(ProviderContainer container) async {
   final prefs = container.read(prefsProvider);
   try {
     final report = await container.read(outboxProvider).flush(api);
+    // The session was refused: the writes are kept, the app says to sign in again, and nothing else is asked of the server
+    if (report.needsSignIn) {
+      container.read(needsSignInProvider.notifier).set(true);
+      return;
+    }
     if (report.sent > 0 || report.dropped.isNotEmpty) {
       container.read(outboxCountProvider.notifier).refresh();
       // A pin, rename or move may have gone out (or been refused): the notebooks are read again
@@ -132,8 +141,11 @@ Future<void> flushAndSync(ProviderContainer container) async {
         ..invalidate(pageProvider);
     }
     await syncReminders(api, prefs);
-  } on ApiException {
-    // Offline: what is already scheduled keeps ringing
+  } on ApiException catch (e) {
+    // A refused session on the sync itself says the same; anything else is offline, and what is already scheduled keeps ringing
+    if (e.isUnauthenticated) {
+      container.read(needsSignInProvider.notifier).set(true);
+    }
   }
 }
 
@@ -151,10 +163,15 @@ Future<void> syncReminders(ApiClient api, SharedPreferences prefs) async {
       await prefs.remove(_cursorKey);
       await prefs.setBool(_cursorFixKey, true);
     }
+    // The cursor is the server's opaque text (it may carry a suffix for the edge of its window): kept and sent back exactly as it came
     final answer = await api.sync(cursor: prefs.getString(_cursorKey));
-    await prefs.setString(reminderSyncedKey, DateTime.now().toIso8601String());
     if (!boolOf(answer['changed'], true) ||
         answer['reminders'] is! List<Object?>) {
+      // Nothing to set, and the server was reached: the phone is in line
+      await prefs.setString(
+        reminderSyncedKey,
+        DateTime.now().toIso8601String(),
+      );
       return;
     }
     final ok = await applyReminders(
@@ -162,8 +179,14 @@ Future<void> syncReminders(ApiClient api, SharedPreferences prefs) async {
       readSettings(prefs),
       prefs,
     );
-    // A cursor kept only after everything was scheduled: a failed round is asked for again
-    if (ok) await prefs.setString(_cursorKey, str(answer['cursor']));
+    // The time and the cursor are kept only after everything was scheduled: a failed round is asked for again, and is not shown as in line
+    if (ok) {
+      await prefs.setString(_cursorKey, str(answer['cursor']));
+      await prefs.setString(
+        reminderSyncedKey,
+        DateTime.now().toIso8601String(),
+      );
+    }
   } finally {
     done.complete();
   }

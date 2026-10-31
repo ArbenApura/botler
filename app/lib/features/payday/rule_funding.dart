@@ -45,60 +45,69 @@ Future<bool> pickSavesFor(
   final done = await showFormSheet<bool>(
     context,
     title: context.t.ruleSavesForTitle,
-    builder: (sheet, close) => StatefulBuilder(
-      builder: (_, setState) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            sheet.t.ruleSavesForHelp,
-            style: TextStyle(color: sheet.colors.muted),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: <Widget>[
-              ChoiceChip(
-                label: Text(sheet.t.ruleSavesForNothing),
-                selected: chosen.isEmpty,
-                onSelected: (_) => setState(() => chosen = ''),
-              ),
-              // The bill it saves for now, when it is not one it could pick again (switched off, moved, or the list did not load)
-              if (str(rule['fundsBillId']).isNotEmpty &&
-                  !bills.any((b) => str(b['id']) == str(rule['fundsBillId'])))
+    builder: (sheet, close) => SheetScope(
+      texts: const <String>[],
+      builder: (_, s) => StatefulBuilder(
+        builder: (_, setState) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              sheet.t.ruleSavesForHelp,
+              style: TextStyle(color: sheet.colors.muted),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: <Widget>[
                 ChoiceChip(
-                  label: Text(str(rule['fundsBillName'])),
-                  selected: chosen == str(rule['fundsBillId']),
-                  onSelected: (_) =>
-                      setState(() => chosen = str(rule['fundsBillId'])),
+                  label: Text(sheet.t.ruleSavesForNothing),
+                  selected: chosen.isEmpty,
+                  onSelected: (_) => setState(() => chosen = ''),
                 ),
-              for (final b in bills)
-                ChoiceChip(
-                  label: Text(str(b['name'])),
-                  selected: chosen == str(b['id']),
-                  onSelected: (_) => setState(() => chosen = str(b['id'])),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await ref.read(apiProvider).verb(
-                  'rule_update',
-                  <String, Object?>{
-                    'ruleId': str(rule['id']),
-                    'fundsBillId': chosen.isEmpty ? null : chosen,
-                  },
-                );
-                close(true);
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.save),
-          ),
-        ],
+                // The bill it saves for now, when it is not one it could pick again (switched off, moved, or the list did not load)
+                if (str(rule['fundsBillId']).isNotEmpty &&
+                    !bills.any((b) => str(b['id']) == str(rule['fundsBillId'])))
+                  ChoiceChip(
+                    label: Text(str(rule['fundsBillName'])),
+                    selected: chosen == str(rule['fundsBillId']),
+                    onSelected: (_) =>
+                        setState(() => chosen = str(rule['fundsBillId'])),
+                  ),
+                for (final b in bills)
+                  ChoiceChip(
+                    label: Text(str(b['name'])),
+                    selected: chosen == str(b['id']),
+                    onSelected: (_) => setState(() => chosen = str(b['id'])),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: s.once.running()
+                  ? null
+                  : () async {
+                      try {
+                        final ran = await s.once.ok((key) async {
+                          await ref.read(apiProvider).verb(
+                            'rule_update',
+                            <String, Object?>{
+                              'ruleId': str(rule['id']),
+                              'fundsBillId': chosen.isEmpty ? null : chosen,
+                            },
+                            key,
+                          );
+                        }, intent: 'saves:$chosen');
+                        if (!ran) return;
+                        close(true);
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, context));
+                      }
+                    },
+              child: Text(sheet.t.save),
+            ),
+          ],
+        ),
       ),
     ),
   );

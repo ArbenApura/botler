@@ -1204,6 +1204,7 @@
   "expenseOffline": "No connection. Saved on your phone, it will be sent once.",
   "expensePickAccount": "Pick the account it came from.",
   "expenseTitle": "Add an expense",
+  "fixQueued": "The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it.",
   "goalsAdd": "Add a goal",
   "goalsAddButton": "Add the goal",
   "goalsAddInvalid": "Give it a name, a place, and amounts as numbers.",
@@ -1258,9 +1259,12 @@
   },
   "goalsTitle": "Savings goals",
   "goalsWhere": "Where does it sit?",
-  "goalsYear": "In a year (24 paydays) that is {amount}.",
+  "goalsYear": "In a year ({count} paydays) that is {amount}.",
   "@goalsYear": {
     "placeholders": {
+      "count": {
+        "type": "int"
+      },
       "amount": {
         "type": "String"
       }
@@ -1419,6 +1423,8 @@
   },
   "libraryUpdateServer": "The server is older than this app and cannot show pages yet. Update the server.",
   "libraryUpdated": "Botler updated",
+  "lockContinueWithout": "Continue without a lock",
+  "lockNoScreenLock": "This phone has no screen lock set up, so Botler cannot ask for a fingerprint, face or PIN.",
   "lockReason": "Open Botler",
   "lockTitle": "Botler is locked",
   "lockUnlock": "Unlock",
@@ -1570,6 +1576,15 @@
   "notebookEditTitle": "Edit your notebook",
   "notebookEmpty": "Nothing here yet. Tell Botler something to remember, or tap Edit.",
   "notebookExport": "Copy as Markdown",
+  "notebookExportBig": "This notebook is about {size} MB of text. Copying it may be slow.",
+  "@notebookExportBig": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "notebookExportClipFail": "Could not copy to the clipboard. Try again.",
   "notebookExported": "Copied {count} pages as Markdown.",
   "@notebookExported": {
     "placeholders": {
@@ -1994,11 +2009,27 @@
   "schedEveryWeeks3": "Every 3 weeks",
   "schedEveryWeeks4": "Every 4 weeks",
   "schedFirstDay": "First day",
+  "schedFromDate": "from {date}",
+  "@schedFromDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "schedFromDay": "From day",
   "schedHow": "How often?",
   "schedLast": "last",
   "schedLastDay": "Last day",
   "schedMonth": "Month",
+  "schedNotOnDates": "not on {dates}",
+  "@schedNotOnDates": {
+    "placeholders": {
+      "dates": {
+        "type": "String"
+      }
+    }
+  },
   "schedNth1": "1st",
   "schedNth2": "2nd",
   "schedNth3": "3rd",
@@ -2225,6 +2256,14 @@
   "schedStartingOn": "Starting on",
   "schedToDay": "To day",
   "schedUnknown": "A schedule this version of the app cannot edit",
+  "schedUntilDate": "until {date}",
+  "@schedUntilDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "schedWeekday": "Weekday",
   "schedWeekendAfter": "Use the working day after",
   "schedWeekendBefore": "Use the working day before",
@@ -2406,8 +2445,19 @@
   "settingsTitle": "Settings",
   "settingsVoice": "Voice",
   "settingsWeekStarts": "Week starts on",
+  "signInAgainBody": "What you wrote offline is kept on this phone. Sign in again to send it.",
+  "signInAgainButton": "Sign in again",
+  "signInAgainTitle": "Your sign in has ended",
   "signInButton": "Sign in with Google",
   "signInTagline": "Your money and your time, in one quiet chat.",
+  "signOutWaiting": "{count, plural, =1{1 change is} other{{count} changes are}} still waiting to be sent. They stay on this phone and go out when you sign in again.",
+  "@signOutWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simAbout": "about {amount}",
   "@simAbout": {
     "placeholders": {
@@ -2664,6 +2714,25 @@
     }
   },
   "simPretendOut": "Money out",
+  "simPretendRange": "Use an amount from {min} to {max}.",
+  "@simPretendRange": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "simPretendTooMany": "You can pretend up to {count} entries at once. Remove one first.",
+  "@simPretendTooMany": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "simRatesStale": "Exchange rates are older than a day.",
   "simReachEdge": "Time travel reaches 5 years each way.",
   "simReceived": "Received",

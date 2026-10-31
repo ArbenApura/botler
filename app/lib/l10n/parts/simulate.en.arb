@@ -180,5 +180,9 @@
   "simRemove": "Remove {name}",
   "@simRemove": { "placeholders": { "name": { "type": "String" } } },
   "simSkipPayday": "Tap a payday that would not come:",
-  "simDone": "Done"
+  "simDone": "Done",
+  "simPretendTooMany": "You can pretend up to {count} entries at once. Remove one first.",
+  "@simPretendTooMany": { "placeholders": { "count": { "type": "int" } } },
+  "simPretendRange": "Use an amount from {min} to {max}.",
+  "@simPretendRange": { "placeholders": { "min": { "type": "String" }, "max": { "type": "String" } } }
 }

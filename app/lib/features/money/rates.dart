@@ -12,22 +12,27 @@ import '../../core/api.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 
 // -- FUNCTIONS -- //
 
 /// A moment from the server as a short date in the app's language ("Oct 23"). Text that is not a date is empty.
 String ratesDate(BuildContext context, String? iso) {
-  final d = dateOf(iso)?.toLocal();
-  if (d == null) return '';
-  return DateFormat.MMMd(Localizations.localeOf(context).toString()).format(d);
+  final at = dateOf(iso);
+  if (at == null) return '';
+  return DateFormat.MMMd(Localizations.localeOf(context).toString())
+      .format(manilaWall(at));
 }
 
 /// How old the rates are, in whole days, or null when there are none.
 int? ratesAgeDays(String? iso) {
   final d = dateOf(iso);
-  return d == null ? null : DateTime.now().difference(d).inDays;
+  return d == null ? null : calendarDaysBetween(manilaWall(d), manilaNow());
 }
+
+/// The guard and key of the rates refresh.
+final Once _refreshOnce = Once();
 
 /// Rates older than this many days are said to be old out loud.
 const int staleDays = 3;
@@ -36,7 +41,15 @@ const int staleDays = 3;
 Future<void> refreshRates(BuildContext context, WidgetRef ref) async {
   final t = context.t;
   try {
-    final answer = await ref.read(apiProvider).verbJson('fx_rates_refresh');
+    // One refresh at a time: a second tap while it runs does nothing
+    final raw = await _refreshOnce.run(
+      (key) => ref
+          .read(apiProvider)
+          .verb('fx_rates_refresh', const <String, Object?>{}, key),
+      intent: 'refresh',
+    );
+    if (raw == null) return;
+    final answer = asJson(raw);
     final status = str(asJson(answer['outcome'])['status']);
     final reason = str(asJson(answer['outcome'])['reason']);
     if (context.mounted) {

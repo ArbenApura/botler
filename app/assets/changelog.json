@@ -320,5 +320,23 @@
       "Kapag may binago si Botler na pahinang hindi mo pa nababasa, may lalabas na tuldok dito at mamarkahan ang mga bagong linya pagbukas mo. Nakalista sa library ang mga kamakailang pagbabago ni Botler, at puwede mong i-undo ang pinakabago.",
       "Ilipat ang mga pahina at sub-pahina sa ibang kuwaderno o ibang lugar, ibalik ang binurang pahina sa loob ng 30 araw, at kopyahin ang buong kuwaderno bilang Markdown. May maliit na hanay ng mga button sa editor ng pahina para sa pamagat, listahan, checkbox at link."
     ]
+  },
+  {
+    "versionCode": 33,
+    "versionName": "1.2.1",
+    "en": [
+      "Writes you make without a connection are kept safely on the phone and sent in order when you are back online. Nothing is lost when you open the app, sign out or lose the signal, and a write the server refuses stays in a list with the reason.",
+      "Typing an amount with a comma as the decimal mark, like 12,50, now means 12.50 pesos, not 1,250. An amount that could be read two ways is asked again.",
+      "A double tap on Save, Yes log it or Approve no longer records anything twice. Today, this month and your calendar follow Manila time wherever your phone is.",
+      "Botler is steadier with long answers and tools: a long reply is never started twice, the figures in the calendar, the forecast and the payday split now agree, and the notebook wipe asks for your fingerprint or screen lock first.",
+      "Behind the scenes: reminders no longer miss one that comes into the next two weeks, push messages mask names, and the update check, backups and the app's health check are stricter."
+    ],
+    "fil": [
+      "Ang mga isinulat mo nang walang koneksyon ay ligtas na nakatago sa phone at ipapadala nang magkakasunod kapag may koneksyon ka na ulit. Walang nawawala kapag binuksan mo ang app, nag-sign out ka o nawala ang signal, at ang isinulat na tinanggihan ng server ay mananatili sa listahan kasama ang dahilan.",
+      "Ang halagang may kuwit bilang decimal, gaya ng 12,50, ay 12.50 piso na ngayon at hindi 1,250. Kapag puwedeng basahin sa dalawang paraan ang halaga, itatanong ito ulit.",
+      "Hindi na dalawang beses na maitatala ang anumang bagay kapag dalawang beses mong pinindot ang Save, Yes log it o Approve. Ang ngayon, buwang ito at ang kalendaryo mo ay sumusunod sa oras ng Manila saan man naroon ang phone mo.",
+      "Mas matatag na si Botler sa mahahabang sagot at mga tool: hindi na sinisimulan nang dalawang beses ang mahabang sagot, nagkakasundo na ang mga halaga sa kalendaryo, forecast at payday split, at hihingi na ng fingerprint o screen lock bago burahin ang kuwaderno.",
+      "Sa likod ng eksena: hindi na nalalampasan ang papaalalang papasok sa susunod na dalawang linggo, tinatakpan na ang mga pangalan sa mga push message, at mas mahigpit na ang pagsusuri ng update, mga backup at health check ng app."
+    ]
   }
 ]

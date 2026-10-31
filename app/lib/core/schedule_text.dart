@@ -51,8 +51,25 @@ String _every(AppLocalizations t, Json s) {
   return n > 1 ? t.schedSayEveryMonths(n) : '';
 }
 
-/// The sentence for a schedule, or null for a kind this version does not know.
+/// The sentence for a schedule, or null for a kind this version does not know. A first date, a last date and the dates left out follow in
+/// brackets, as the server's describeSchedule writes them ("... (from 2026-01-01, until 2026-12-31, not on 2026-03-05)").
 String? describeSchedule(AppLocalizations t, String locale, Json s) {
+  final base = _describeRule(t, locale, s);
+  if (base == null) return null;
+  final extra = <String>[];
+  final start = str(s['startsOn']);
+  final end = str(s['endsOn']);
+  final skips = <String>[
+    for (final d in asList(s['skipDates']))
+      if (d is String && d.isNotEmpty) d,
+  ]..sort();
+  if (start.isNotEmpty) extra.add(t.schedFromDate(start));
+  if (end.isNotEmpty) extra.add(t.schedUntilDate(end));
+  if (skips.isNotEmpty) extra.add(t.schedNotOnDates(skips.join(', ')));
+  return extra.isEmpty ? base : '$base (${extra.join(', ')})';
+}
+
+String? _describeRule(AppLocalizations t, String locale, Json s) {
   final kind = str(s['kind']);
   final names = weekdayNames(locale);
   String ord(int n) => ordinalWord(t, locale, n);

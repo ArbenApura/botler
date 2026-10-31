@@ -20,6 +20,9 @@ import 'move_sheet.dart';
 
 // -- CONSTANTS -- //
 
+/// One key per notebook delete, until it works, and no second call of the same one while it runs.
+final Once _deleteOnce = Once();
+
 /// The longest page title the server accepts.
 const int pageTitleMax = 80;
 
@@ -394,9 +397,12 @@ Future<void> runNotebookAction(
       );
       if (!ok || !context.mounted) return;
       try {
-        await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
-          'notebookId': notebook.id,
-        });
+        final ran = await _deleteOnce.ok((key) async {
+          await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
+            'notebookId': notebook.id,
+          }, key);
+        }, intent: notebook.id);
+        if (!ran) return;
         ref.read(libraryActionsProvider).refresh();
         if (!context.mounted) return;
         say(context, gone);

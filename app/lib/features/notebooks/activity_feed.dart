@@ -78,10 +78,13 @@ class _ActivityFeedState extends ConsumerState<ActivityFeed> {
     } catch (e) {
       if (mounted) say(context, needsNetworkWords(context, e));
     } finally {
-      if (mounted) setState(() => _busy = false);
-      ref
-        ..invalidate(activityProvider)
-        ..invalidate(libraryProvider);
+      // The screen may be gone by now: using ref then would throw, and its providers are gone with it
+      if (mounted) {
+        setState(() => _busy = false);
+        ref
+          ..invalidate(activityProvider)
+          ..invalidate(libraryProvider);
+      }
     }
   }
 

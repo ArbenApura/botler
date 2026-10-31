@@ -5,6 +5,7 @@
 
 // -- DEP-MODULES -- //
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +92,7 @@ class _MoveFormState extends ConsumerState<_MoveForm> {
   String _toCurrency = '';
   bool _arrivedEdited = false;
   bool _busy = false;
+  final Once _once = Once();
   String _suggest = '';
   int _ticket = 0;
 
@@ -202,10 +204,13 @@ class _MoveFormState extends ConsumerState<_MoveForm> {
       'toAmount': ?arrived,
       if (fee > 0) 'fee': fee,
     };
-    final key = newRequestId();
+    // One key per request (the intent is the whole body): a retry after a timeout is the same transfer, a changed amount is a new one
+    final intent = jsonEncode(args);
+    final key = _once.key(intent);
     setState(() => _busy = true);
     try {
       await ref.read(apiProvider).verb('transfer_record', args, key);
+      _once.done(intent);
       if (!mounted) return;
       say(context, t.transferDone);
       widget.close(true);
@@ -214,6 +219,7 @@ class _MoveFormState extends ConsumerState<_MoveForm> {
         // Kept on the phone under the same id: if the first try did arrive, the server knows the id and does not double it
         await ref.read(outboxProvider).add('transfer_record', args, key: key);
         ref.read(outboxCountProvider.notifier).refresh();
+        _once.done(intent);
         if (!mounted) return;
         say(context, t.transferQueued);
         widget.close(true);

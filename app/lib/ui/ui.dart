@@ -17,6 +17,7 @@ import 'skeleton.dart';
 
 // -- EXPORTS -- //
 // Screens get the skeleton pieces with the rest of the kit
+export 'once.dart';
 export 'skeleton.dart';
 
 // -- FUNCTIONS -- //
@@ -116,9 +117,10 @@ class Amount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = style ?? Theme.of(context).textTheme.headlineMedium;
-    final text = currency == null
+    final code = currency;
+    final text = code == null
         ? context.moneyMain(centavos)
-        : context.moneyIn(centavos, currency!);
+        : context.moneyIn(centavos, code);
     return Semantics(
       label: text,
       child: Text(text, style: base?.copyWith(fontFeatures: tabular)),

@@ -121,5 +121,8 @@
   "mdList": "List",
   "mdCheckbox": "Checkbox",
   "mdLink": "Link",
-  "mdPageLink": "Link to a page"
+  "mdPageLink": "Link to a page",
+  "notebookExportBig": "This notebook is about {size} MB of text. Copying it may be slow.",
+  "@notebookExportBig": { "placeholders": { "size": { "type": "String" } } },
+  "notebookExportClipFail": "Could not copy to the clipboard. Try again."
 }

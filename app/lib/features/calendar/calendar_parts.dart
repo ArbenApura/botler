@@ -4,6 +4,7 @@
 
 // -- DEP-MODULES -- //
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,8 +19,15 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'calendar_data.dart';
+
+// -- CONSTANTS -- //
+
+/// The due dates marked paid while offline and not yet sent ("billId:dueDate"). The row shows them as paid at once and, living here, keeps doing
+/// so when the day sheet is rebuilt before the outbox has sent the payment.
+final Set<String> _paidWhileOffline = <String>{};
 
 // -- FUNCTIONS -- //
 
@@ -375,7 +383,7 @@ class _Line extends CustomPainter {
 // -- DAY SHEET -- //
 
 /// One row for an item: its mark, its title, its detail line and, for an unpaid bill, the one button.
-class ItemRow extends ConsumerWidget {
+class ItemRow extends ConsumerStatefulWidget {
   const ItemRow(
     this.item, {
     required this.day,
@@ -387,13 +395,30 @@ class ItemRow extends ConsumerWidget {
   final String day;
   final VoidCallback onChanged;
 
+  @override
+  ConsumerState<ItemRow> createState() => _ItemRowState();
+}
+
+class _ItemRowState extends ConsumerState<ItemRow> {
+  // -- STATES -- //
+  // One key per mark-paid until it works (also the key of the outbox entry), and no second tap while one runs
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  CalItem get item => widget.item;
+  VoidCallback get onChanged => widget.onChanged;
+
+  String get _paidKey => '${item.id}:${item.endDate}';
+  bool get _paid => item.paid || _paidWhileOffline.contains(_paidKey);
+
   String _detail(BuildContext context) {
     final t = context.t;
     final locale = _locale(context);
     final time = item.at.isEmpty || item.allDay
         ? null
         : DateFormat.jm(locale)
-              .format((dateOf(item.at) ?? DateTime.now()).toLocal());
+              .format(manilaWall(dateOf(item.at) ?? DateTime.now().toUtc()));
     switch (item.kind) {
       case 'bill':
         final due = DateFormat.MMMd(locale).format(parseDay(item.endDate));
@@ -402,7 +427,7 @@ class ItemRow extends ConsumerWidget {
             : item.currency.isEmpty
             ? context.moneyMain(item.amount ?? 0)
             : context.moneyIn(item.amount ?? 0, item.currency);
-        final state = item.paid
+        final state = _paid
             ? t.calBillPaid
             : item.overdue
             ? t.calBillOverdue
@@ -429,7 +454,7 @@ class ItemRow extends ConsumerWidget {
     }
   }
 
-  Future<void> _pay(BuildContext context, WidgetRef ref) async {
+  Future<void> _pay() async {
     final t = context.t;
     final amount = item.amount;
     // A bill with no amount yet, or in another currency, is paid from the bills screen: there the amount is typed, or the wallet and
@@ -456,28 +481,33 @@ class ItemRow extends ConsumerWidget {
       'dueDate': item.endDate,
       'amount': amount,
     };
-    final key = newRequestId();
     try {
-      await ref.read(apiProvider).verb('bill_mark_paid', args, key);
-    } on ApiException catch (e) {
-      if (e.code != 'NETWORK') {
-        if (context.mounted) say(context, errorWords(e, context));
-        return;
-      }
-      // No connection: the same request id goes into the outbox, so a replay returns the first result
-      await ref.read(outboxProvider).add('bill_mark_paid', args, key: key);
-      ref.read(outboxCountProvider.notifier).refresh();
+      final ran = await _once.ok((key) async {
+        try {
+          await ref.read(apiProvider).verb('bill_mark_paid', args, key);
+        } on ApiException catch (e) {
+          if (e.code != 'NETWORK') rethrow;
+          // No connection: the same request id goes into the outbox, so a replay returns the first result, and the row shows it as paid
+          await ref.read(outboxProvider).add('bill_mark_paid', args, key: key);
+          ref.read(outboxCountProvider.notifier).refresh();
+          _paidWhileOffline.add(_paidKey);
+        }
+      }, intent: _paidKey);
+      if (!ran) return;
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+      return;
     }
-    if (!context.mounted) return;
+    if (!mounted) return;
     say(context, t.calPaidDone);
     onChanged();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.colors;
     final detail = _detail(context);
-    final payable = item.kind == 'bill' && !item.paid;
+    final payable = item.kind == 'bill' && !_paid;
     return Semantics(
       label: '${item.title}, $detail',
       child: ConstrainedBox(
@@ -507,7 +537,7 @@ class ItemRow extends ConsumerWidget {
             ),
             if (payable)
               TextButton(
-                onPressed: () => _pay(context, ref),
+                onPressed: _once.running() ? null : _pay,
                 child: Text(context.t.calMarkPaid),
               ),
           ],
@@ -630,7 +660,6 @@ Future<void> showQuickAdd(
     onChanged();
     return;
   }
-  final title = TextEditingController();
   var allDay = kind == 'event';
   var time = const TimeOfDay(hour: 9, minute: 0);
   final saved = await showFormSheet<bool>(
@@ -640,89 +669,102 @@ Future<void> showQuickAdd(
       'task' => t.calAddTask,
       _ => t.calAddReminder,
     },
-    builder: (sheet, close) => StatefulBuilder(
-      builder: (_, set) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          TextField(
-            controller: title,
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(labelText: t.calWhatIsIt),
-          ),
-          const SizedBox(height: 8),
-          if (kind == 'event')
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t.calAllDayToggle),
-              value: allDay,
-              onChanged: (v) => set(() => allDay = v),
+    builder: (sheet, close) => SheetScope(
+      builder: (_, sc) => StatefulBuilder(
+        builder: (_, set) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            TextField(
+              controller: sc.c[0],
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(labelText: t.calWhatIsIt),
             ),
-          if (!allDay)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              minTileHeight: 48,
-              title: Text(t.calTimeLabel),
-              trailing: Text(time.format(sheet)),
-              onTap: () async {
-                final picked = await showTimePicker(
-                  context: sheet,
-                  initialTime: time,
-                );
-                if (picked != null) set(() => time = picked);
-              },
+            const SizedBox(height: 8),
+            if (kind == 'event')
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(t.calAllDayToggle),
+                value: allDay,
+                onChanged: (v) => set(() => allDay = v),
+              ),
+            if (!allDay)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                minTileHeight: 48,
+                title: Text(t.calTimeLabel),
+                trailing: Text(time.format(sheet)),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: sheet,
+                    initialTime: time,
+                  );
+                  if (picked != null) set(() => time = picked);
+                },
+              ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: sc.once.running()
+                  ? null
+                  : () async {
+                      final name = sc.c[0].text.trim();
+                      if (name.isEmpty) {
+                        say(sheet, t.calNeedTitle);
+                        return;
+                      }
+                      // The picked day is a Manila calendar date and the time is Manila's clock, whatever zone the phone is in
+                      final start = manilaInstant(
+                        allDay
+                            ? DateTime(day.year, day.month, day.day)
+                            : DateTime(
+                                day.year,
+                                day.month,
+                                day.day,
+                                time.hour,
+                                time.minute,
+                              ),
+                      );
+                      final iso = start.toIso8601String();
+                      final args = switch (kind) {
+                        'event' => <String, Object?>{
+                          'title': name,
+                          'startsAt': iso,
+                          'allDay': allDay,
+                        },
+                        'task' => <String, Object?>{
+                          'title': name,
+                          if (!allDay) 'dueAt': iso,
+                        },
+                        _ => <String, Object?>{'title': name, 'at': iso},
+                      };
+                      final verb = '${kind}_create';
+                      try {
+                        // The intent is the whole request: the same one again is the same key, a changed one is new
+                        final ran = await sc.once.ok((key) async {
+                          try {
+                            await ref.read(apiProvider).verb(verb, args, key);
+                          } on ApiException catch (e) {
+                            if (e.code != 'NETWORK') rethrow;
+                            await ref
+                                .read(outboxProvider)
+                                .add(verb, args, key: key);
+                            ref.read(outboxCountProvider.notifier).refresh();
+                          }
+                        }, intent: '$verb:${jsonEncode(args)}');
+                        if (!ran) return;
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, sheet));
+                        return;
+                      }
+                      close(true);
+                    },
+              child: Text(t.save),
             ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () async {
-              final name = title.text.trim();
-              if (name.isEmpty) {
-                say(sheet, t.calNeedTitle);
-                return;
-              }
-              final start = allDay
-                  ? DateTime(day.year, day.month, day.day)
-                  : DateTime(
-                      day.year,
-                      day.month,
-                      day.day,
-                      time.hour,
-                      time.minute,
-                    );
-              final iso = start.toUtc().toIso8601String();
-              final args = switch (kind) {
-                'event' => <String, Object?>{
-                  'title': name,
-                  'startsAt': iso,
-                  'allDay': allDay,
-                },
-                'task' => <String, Object?>{
-                  'title': name,
-                  if (!allDay) 'dueAt': iso,
-                },
-                _ => <String, Object?>{'title': name, 'at': iso},
-              };
-              final verb = '${kind}_create';
-              final key = newRequestId();
-              try {
-                await ref.read(apiProvider).verb(verb, args, key);
-              } on ApiException catch (e) {
-                if (e.code != 'NETWORK') {
-                  if (sheet.mounted) say(sheet, errorWords(e, sheet));
-                  return;
-                }
-                await ref.read(outboxProvider).add(verb, args, key: key);
-                ref.read(outboxCountProvider.notifier).refresh();
-              }
-              close(true);
-            },
-            child: Text(t.save),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
-  title.dispose();
   if (saved == true) {
     if (context.mounted) say(context, t.calSaved);
     onChanged();

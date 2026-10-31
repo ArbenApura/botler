@@ -63,6 +63,8 @@ class PhotoReader {
 class VoiceListener {
   final SpeechToText _speech = SpeechToText();
   bool _ready = false;
+  // The screen is gone: a start that was waiting on the phone must not begin listening for nobody
+  bool _disposed = false;
   // Told when the phone stops listening by itself (a pause, the time limit, an error), so the screen never keeps showing a live mic
   void Function()? _onEnded;
 
@@ -74,6 +76,7 @@ class VoiceListener {
     HeardCallback onText, {
     required void Function() onEnded,
   }) async {
+    if (_disposed) return false;
     _onEnded = onEnded;
     _ready =
         _ready ||
@@ -87,6 +90,8 @@ class VoiceListener {
           },
           onError: (_) => _onEnded?.call(),
         );
+    // The screen went away while the phone was getting ready: nothing is started
+    if (_disposed) return false;
     if (!_ready) return false;
     await _speech.listen(
       onResult: (r) => onText(r.recognizedWords, finished: r.finalResult),
@@ -107,5 +112,11 @@ class VoiceListener {
     _onEnded = null;
     await _speech.stop();
     await _speech.cancel();
+  }
+
+  /// The screen is going away: stops, and any start still waiting on the phone ends without listening.
+  Future<void> dispose() {
+    _disposed = true;
+    return stop();
   }
 }

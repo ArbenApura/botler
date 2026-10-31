@@ -286,7 +286,8 @@ class RunningToolRow extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: c.muted, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: c.muted),
               ),
             ),
           ],

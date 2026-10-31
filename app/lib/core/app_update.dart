@@ -305,6 +305,8 @@ class AppUpdater {
       final res = await _open(offer);
       final declared = res.contentLength;
       if (declared != null && declared != offer.size) {
+        // The body is never read: listening and cancelling it closes the connection instead of leaving it open
+        unawaited(res.stream.listen(null).cancel());
         throw const UpdateException(UpdateFailure.damaged);
       }
       final sink = part.openWrite();

@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
+import '../../core/manila.dart' show addDaysTo, manilaToday;
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'calendar_data.dart';
 import 'calendar_parts.dart';
@@ -35,10 +37,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   DateTime _focus = _today();
   int _agendaDays = 30;
 
-  static DateTime _today() {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
-  }
+  /// Today's Manila date as a calendar date.
+  static DateTime _today() => manilaTodayPicker();
 
   // -- FUNCTIONS -- //
 
@@ -47,13 +47,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       weekStart(DateTime(_focus.year, _focus.month), startsOn);
 
   String _key(DateTime from, int days) =>
-      '${dayOf(from)}|${dayOf(from.add(Duration(days: days - 1)))}';
+      '${dayOf(from)}|${dayOf(addCalendarDays(from, days - 1))}';
 
   void _shiftMonth(int by) =>
       setState(() => _focus = DateTime(_focus.year, _focus.month + by));
 
   void _shiftWeek(int by) =>
-      setState(() => _focus = _focus.add(Duration(days: 7 * by)));
+      setState(() => _focus = addCalendarDays(_focus, 7 * by));
 
   void _refresh(String key) => ref.invalidate(calRangeProvider(key));
 
@@ -256,7 +256,7 @@ class _MonthView extends ConsumerWidget {
     final c = context.colors;
     final locale = Localizations.localeOf(context).toString();
     final on = ref.watch(calLayersProvider);
-    final today = dayOf(DateTime.now());
+    final today = manilaToday();
     final names = DateFormat.E(locale).dateSymbols.SHORTWEEKDAYS;
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
@@ -460,7 +460,7 @@ class _DayCell extends StatelessWidget {
                       Text(
                         context.t.calMore(extra),
                         style: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(color: c.muted, fontSize: 9),
+                            ?.copyWith(color: c.muted),
                       ),
                   ],
                 ),
@@ -498,7 +498,7 @@ class _WeekView extends ConsumerWidget {
     final c = context.colors;
     final locale = Localizations.localeOf(context).toString();
     final on = ref.watch(calLayersProvider);
-    final today = dayOf(DateTime.now());
+    final today = manilaToday();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
       children: <Widget>[
@@ -626,8 +626,8 @@ class _AgendaView extends ConsumerWidget {
     final on = ref.watch(calLayersProvider);
     final start = parseDay(range.from);
     final end = parseDay(range.to);
-    final days = end.difference(start).inDays + 1;
-    final weekEnd = dayOf(DateTime.now().add(const Duration(days: 7)));
+    final days = calendarDaysBetween(start, end) + 1;
+    final weekEnd = addDaysTo(manilaToday(), 7);
     final due = <CalItem>[
       for (final i in range.items)
         if (on.contains(i.layer) &&

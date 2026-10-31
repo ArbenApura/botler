@@ -18,6 +18,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'currency_picker.dart';
 import 'net_parts.dart';
@@ -130,106 +131,114 @@ class AccountsScreen extends ConsumerWidget {
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final name = TextEditingController();
-    final min = TextEditingController();
     var kind = 'bank';
     var currency = context.currencyCode;
     String? purpose;
     final done = await showFormSheet<bool>(
       context,
       title: context.t.accountsAdd,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(
-              controller: name,
-              label: context.t.accountsNameLabel,
-              hint: sheet.t.accountsNameHint,
-              capitalization: TextCapitalization.words,
-            ),
-            Wrap(
-              spacing: 8,
-              children: <Widget>[
-                for (final (k, label) in <(String, String)>[
-                  ('bank', sheet.t.accountsKindBank),
-                  ('ewallet', sheet.t.accountsKindEwallet),
-                  ('cash', sheet.t.accountsKindCash),
-                  ('other', sheet.t.accountsKindOther),
-                ])
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: kind == k,
-                    onSelected: (_) => setState(() => kind = k),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              sheet.t.accountsCurrencyLabel,
-              style: TextStyle(color: sheet.colors.muted),
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: CurrencyButton(
-                code: currency,
-                label: sheet.t.accountsCurrencyLabel,
-                onPressed: () async {
-                  final picked = await pickCurrency(
-                    sheet,
-                    current: currency,
-                    first: <String>{sheet.currencyCode},
-                  );
-                  if (picked != null) setState(() => currency = picked);
-                },
+      builder: (sheet, close) => SheetScope(
+        texts: const <String>['', ''],
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(
+                controller: s.c[0],
+                label: context.t.accountsNameLabel,
+                hint: sheet.t.accountsNameHint,
+                capitalization: TextCapitalization.words,
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 12),
-              child: Text(
-                sheet.t.accountsCurrencyNote,
+              Wrap(
+                spacing: 8,
+                children: <Widget>[
+                  for (final (k, label) in <(String, String)>[
+                    ('bank', sheet.t.accountsKindBank),
+                    ('ewallet', sheet.t.accountsKindEwallet),
+                    ('cash', sheet.t.accountsKindCash),
+                    ('other', sheet.t.accountsKindOther),
+                  ])
+                    ChoiceChip(
+                      label: Text(label),
+                      selected: kind == k,
+                      onSelected: (_) => setState(() => kind = k),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                sheet.t.accountsCurrencyLabel,
                 style: TextStyle(color: sheet.colors.muted),
               ),
-            ),
-            Field(
-              controller: min,
-              label: sheet.t.accountsMinimumLabel(sheet.currencyCode),
-              hint: '500',
-              keyboard: TextInputType.number,
-            ),
-            PurposeField(value: null, onChanged: (v) => purpose = v),
-            FilledButton(
-              onPressed: () async {
-                // The minimum is a money plan rule, so it is typed in the main currency
-                final minimum = min.text.trim().isEmpty
-                    ? 0
-                    : context.parseAmountMain(min.text);
-                if (name.text.trim().isEmpty ||
-                    minimum == null ||
-                    !purposeValid(purpose)) {
-                  say(sheet, sheet.t.accountsAddInvalid);
-                  return;
-                }
-                try {
-                  await ref.read(apiProvider).verb(
-                    'account_create',
-                    <String, Object?>{
-                      'name': name.text.trim(),
-                      'kind': kind,
-                      'minBalance': minimum,
-                      'currency': currency,
-                      'purpose': ?purpose,
-                    },
-                  );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.add),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CurrencyButton(
+                  code: currency,
+                  label: sheet.t.accountsCurrencyLabel,
+                  onPressed: () async {
+                    final picked = await pickCurrency(
+                      sheet,
+                      current: currency,
+                      first: <String>{sheet.currencyCode},
+                    );
+                    if (picked != null) setState(() => currency = picked);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 12),
+                child: Text(
+                  sheet.t.accountsCurrencyNote,
+                  style: TextStyle(color: sheet.colors.muted),
+                ),
+              ),
+              Field(
+                controller: s.c[1],
+                label: sheet.t.accountsMinimumLabel(sheet.currencyCode),
+                hint: '500',
+                keyboard: TextInputType.number,
+              ),
+              PurposeField(value: null, onChanged: (v) => purpose = v),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        // The minimum is a money plan rule, so it is typed in the main currency
+                        final minimum = s.c[1].text.trim().isEmpty
+                            ? 0
+                            : context.parseAmountMain(s.c[1].text);
+                        if (s.c[0].text.trim().isEmpty ||
+                            minimum == null ||
+                            !purposeValid(purpose)) {
+                          say(sheet, sheet.t.accountsAddInvalid);
+                          return;
+                        }
+                        try {
+                          if (!await s.once.ok((key) async {
+                            await ref.read(apiProvider).verb(
+                              'account_create',
+                              <String, Object?>{
+                                'name': s.c[0].text.trim(),
+                                'kind': kind,
+                                'minBalance': minimum,
+                                'currency': currency,
+                                'purpose': ?purpose,
+                              },
+                              key,
+                            );
+                          })) {
+                            return;
+                          }
+                          close(true);
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.add),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -259,10 +268,17 @@ class AccountsScreen extends ConsumerWidget {
     );
     if (picked == null) return;
     try {
-      await ref.read(apiProvider).verb('account_wallet_add', <String, Object?>{
-        'accountId': str(account['id']),
-        'currency': picked,
-      });
+      // One key for this account and currency until it works, and no second call while one runs
+      await _walletOnce.run((key) async {
+        await ref.read(apiProvider).verb(
+          'account_wallet_add',
+          <String, Object?>{
+            'accountId': str(account['id']),
+            'currency': picked,
+          },
+          key,
+        );
+      }, intent: '${str(account['id'])}:$picked');
       if (context.mounted) say(context, t.accountsWalletAdded(picked));
     } catch (e) {
       if (context.mounted) say(context, errorWords(e, context));
@@ -279,7 +295,6 @@ class AccountsScreen extends ConsumerWidget {
     Json account, {
     String? currency,
   }) async {
-    final amount = TextEditingController();
     final wallet = currency ?? str(account['currency'], context.currencyCode);
     final shown = walletsOf(account).firstWhere(
       (w) => str(w['currency']) == wallet,
@@ -288,33 +303,42 @@ class AccountsScreen extends ConsumerWidget {
     final result = await showFormSheet<String>(
       context,
       title: context.t.accountsCountTitle(str(account['name'])),
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            sheet.t.accountsBotlerThinks(
-              sheet.moneyIn(intOf(shown['balance']), wallet),
+      builder: (sheet, close) => SheetScope(
+        builder: (_, s) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              sheet.t.accountsBotlerThinks(
+                sheet.moneyIn(intOf(shown['balance']), wallet),
+              ),
+              style: TextStyle(color: sheet.colors.muted),
             ),
-            style: TextStyle(color: sheet.colors.muted),
-          ),
-          const SizedBox(height: 12),
-          Field(
-            controller: amount,
-            label: sheet.t.accountsCountLabel(wallet),
-            keyboard: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final cents = context.parseAmountIn(amount.text, wallet);
-              if (cents == null) {
-                say(sheet, sheet.t.accountsCountInvalid(wallet));
-                return;
-              }
-              close(await _record(sheet, ref, account, cents, wallet));
-            },
-            child: Text(sheet.t.accountsSaveCount),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Field(
+              controller: s.c[0],
+              label: sheet.t.accountsCountLabel(wallet),
+              keyboard: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            FilledButton(
+              onPressed: s.once.running()
+                  ? null
+                  : () async {
+                      final cents = context.parseAmountIn(s.c[0].text, wallet);
+                      if (cents == null) {
+                        say(sheet, sheet.t.accountsCountInvalid(wallet));
+                        return;
+                      }
+                      // The key lives with the sheet: a second tap, or a retry, is the same count
+                      final text = await s.once.run(
+                        (key) =>
+                            _record(sheet, ref, account, cents, wallet, key),
+                      );
+                      if (text != null) close(text);
+                    },
+              child: Text(sheet.t.accountsSaveCount),
+            ),
+          ],
+        ),
       ),
     );
     if (result != null && context.mounted) say(context, result);
@@ -331,6 +355,7 @@ class AccountsScreen extends ConsumerWidget {
     Json account,
     int cents,
     String code,
+    String key,
   ) async {
     final api = ref.read(apiProvider);
     // The context is read before any await, so none is used after one
@@ -342,7 +367,7 @@ class AccountsScreen extends ConsumerWidget {
       'amount': cents,
     };
     try {
-      var answer = asJson(await api.verb('snapshot_record', base));
+      var answer = asJson(await api.verb('snapshot_record', base, key));
       if (str(answer['status']) == 'needs_confirmation') {
         final chip = asJson(answer['chip']);
         final large = str(chip['severity']) == 'large';
@@ -363,7 +388,7 @@ class AccountsScreen extends ConsumerWidget {
             ...base,
             'confirmed': true,
             'acknowledgeLarge': large,
-          }),
+          }, '$key-ok'),
         );
       }
       final untracked = intOf(answer['untracked']);
@@ -377,6 +402,9 @@ class AccountsScreen extends ConsumerWidget {
 }
 
 // -- HELPERS -- //
+
+/// One key per account and currency for adding a wallet, until it works.
+final Once _walletOnce = Once();
 
 /// The wallets of an account row of `accounts_balances`. An older server has none: the account itself is the one wallet.
 List<Json> walletsOf(Json account) {
@@ -622,7 +650,7 @@ class _Wallets extends StatelessWidget {
 String _ago(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return '';
-  final days = DateTime.now().difference(d).inDays;
+  final days = calendarDaysBetween(manilaWall(d), manilaNow());
   return days <= 0
       ? context.t.accountsToday
       : days == 1

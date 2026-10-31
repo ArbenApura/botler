@@ -98,5 +98,7 @@
   "mdList": "Listahan",
   "mdCheckbox": "Checkbox",
   "mdLink": "Link",
-  "mdPageLink": "Link sa pahina"
+  "mdPageLink": "Link sa pahina",
+  "notebookExportBig": "Humigit-kumulang {size} MB ng teksto ang notebook na ito. Maaaring matagalan ang pag-copy.",
+  "notebookExportClipFail": "Hindi makopya sa clipboard. Subukan ulit."
 }

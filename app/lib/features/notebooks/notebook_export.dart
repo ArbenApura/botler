@@ -3,6 +3,8 @@
 // outline holds none), so it needs a connection and reports plainly when it does not have one.
 
 // -- DEP-MODULES -- //
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,14 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../ui/ui.dart';
 import 'library_actions.dart';
+
+// -- CONSTANTS -- //
+
+/// How many page texts are read at the same time.
+const int _batch = 20;
+
+/// Above this many bytes the person is warned before the copy.
+const int exportWarnBytes = 1000000;
 
 // -- TYPES -- //
 
@@ -49,22 +59,43 @@ Future<void> exportNotebook(
 ) async {
   final words = context.t;
   say(context, words.notebookExporting);
+  final List<ExportPage> pages;
   try {
     final api = ref.read(apiProvider);
-    final pages = <ExportPage>[];
-    for (final p in book.pages) {
-      final got = await api.verbJson('page_get', <String, Object?>{
-        'pageId': p.id,
-      });
-      pages.add(
-        ExportPage(p.title, p.parentPageId == null ? 0 : 1, str(got['text'])),
-      );
+    pages = <ExportPage>[];
+    // Twenty pages at a time: all at once would open hundreds of connections, one by one would take minutes
+    for (var from = 0; from < book.pages.length; from += _batch) {
+      final batch = book.pages.skip(from).take(_batch).toList();
+      final got = await Future.wait(<Future<Json>>[
+        for (final p in batch)
+          api.verbJson('page_get', <String, Object?>{'pageId': p.id}),
+      ]);
+      for (var i = 0; i < batch.length; i++) {
+        pages.add(
+          ExportPage(
+            batch[i].title,
+            batch[i].parentPageId == null ? 0 : 1,
+            str(got[i]['text']),
+          ),
+        );
+      }
     }
-    await Clipboard.setData(
-      ClipboardData(text: notebookMarkdown(book.title, pages)),
-    );
-    if (context.mounted) say(context, words.notebookExported(pages.length));
   } catch (e) {
     if (context.mounted) say(context, needsNetworkWords(context, e));
+    return;
   }
+  final markdown = notebookMarkdown(book.title, pages);
+  // A very large text on the clipboard can be slow or refused, so the person is told first
+  final bytes = utf8.encode(markdown).length;
+  if (bytes > exportWarnBytes && context.mounted) {
+    say(context, words.notebookExportBig((bytes / 1000000).toStringAsFixed(1)));
+  }
+  try {
+    await Clipboard.setData(ClipboardData(text: markdown));
+  } catch (_) {
+    // The pages were read; only the copy failed
+    if (context.mounted) say(context, words.notebookExportClipFail);
+    return;
+  }
+  if (context.mounted) say(context, words.notebookExported(pages.length));
 }

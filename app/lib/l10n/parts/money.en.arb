@@ -196,9 +196,12 @@
       }
     }
   },
-  "goalsYear": "In a year (24 paydays) that is {amount}.",
+  "goalsYear": "In a year ({count} paydays) that is {amount}.",
   "@goalsYear": {
     "placeholders": {
+      "count": {
+        "type": "int"
+      },
       "amount": {
         "type": "String"
       }

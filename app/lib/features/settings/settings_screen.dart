@@ -17,6 +17,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import '../money/account_detail_screen.dart';
@@ -55,8 +56,8 @@ class SettingsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        session?.name.isNotEmpty ?? false
-                            ? session!.name
+                        session != null && session.name.isNotEmpty
+                            ? session.name
                             : t.settingsSignedIn,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
@@ -382,7 +383,9 @@ class _AuditRow extends ConsumerWidget {
     final String detail = verify.when(
       data: (v) {
         if (boolOf(v['ok'], true)) {
-          final at = dateOf(v['verifiedAt'])?.toLocal() ?? DateTime.now();
+          final at = manilaWall(
+            dateOf(v['verifiedAt']) ?? DateTime.now().toUtc(),
+          );
           return t.auditSettingsOk(
             intOf(v['checked']),
             DateFormat.MMMd(Localizations.localeOf(context).toString())

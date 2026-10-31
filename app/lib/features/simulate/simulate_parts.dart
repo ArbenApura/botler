@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 // -- MODULES -- //
+import '../../core/manila.dart' show manilaToday;
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
@@ -891,12 +892,8 @@ class SpendCard extends StatelessWidget {
 
 // -- OVERALL FLOW -- //
 
-/// True when a day is the phone's today (the answer may be an older saved copy, so "today" is said only when it is).
-bool _isToday(String day) {
-  final now = DateTime.now();
-  final d = parseDay(day);
-  return d.year == now.year && d.month == now.month && d.day == now.day;
-}
+/// True when a day is today in Manila (the answer may be an older saved copy, so "today" is said only when it is). [now] is for tests.
+bool _isToday(String day, [DateTime? now]) => day == manilaToday(now);
 
 /// The running total across the span between the selected period and today: from the period to today for a past one, from today to the
 /// period for a future one. It is a second card beside the period's own figures (which it includes) and never replaces them. The period

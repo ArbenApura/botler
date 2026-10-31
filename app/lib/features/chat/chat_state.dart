@@ -265,8 +265,43 @@ String? _titleFrom(String text) {
   return one.length > 60 ? one.substring(0, 60) : one;
 }
 
-/// True when the text has a number in it, so it may be an expense that can be kept for later without the assistant.
-bool looksLikeExpense(String text) => RegExp(r'\d').hasMatch(text);
+// A number that is an amount: digits in groups of three with commas, or plain digits, with at most three decimals. Not part of a time (3:30), a
+// date (12/05, 2026-10-01) or a longer number (a phone number or an order id).
+final RegExp _amountShape = RegExp(
+  r'(?<![\d:/.,\-])(\d{1,3}(?:,\d{3})+|\d{1,9})(?:[.,]\d{1,3})?(?![\d:/\-]|[.,]\d)',
+);
+
+// What follows a number that makes it something else than money: a clock time, an ordinal, a percent, a size, a count of days or people.
+final RegExp _notMoneyAfter = RegExp(
+  r'^\s?(am|pm|a\.m|p\.m|st|nd|rd|th|%|x|kg|km|g|mg|ml|l|cm|mm|m|min|mins|minutes?|hrs?|hours?|days?|weeks?|months?|years?|yrs?|pcs|pieces|people|persons?|items?)\b',
+  caseSensitive: false,
+);
+
+// A currency written before the number (₱90, php 90, usd 5) or after it (90 pesos, 90 php).
+final RegExp _currencyBefore = RegExp(
+  r'(₱|\$|€|£|¥|\b(php|peso|pesos|piso|usd|eur|gbp|jpy|krw|sgd|aud|cad|cny|hkd|p))\s?$',
+  caseSensitive: false,
+);
+final RegExp _currencyAfter = RegExp(
+  r'^\s?(₱|\$|€|£|¥|php\b|pesos?\b|piso\b|usd\b|eur\b|gbp\b|jpy\b|krw\b|sgd\b|aud\b|cad\b|cny\b|hkd\b)',
+  caseSensitive: false,
+);
+
+/// True when the text has an amount in it: a number shaped like money that is not a time, a date or a count, with either a currency beside it
+/// or a word to say what it was for ("lunch 180", "grab 250 pesos", "₱90 coffee"). A bare number, "meeting at 3pm" or "call mom 12/05" is not.
+/// Only then may it be kept for later and sent as an expense without the assistant.
+bool looksLikeExpense(String text) {
+  final hasWord = RegExp(r'[A-Za-zÀ-ÿ]{2,}').hasMatch(text);
+  for (final m in _amountShape.allMatches(text)) {
+    final after = text.substring(m.end);
+    final before = text.substring(0, m.start);
+    final currencyBeside =
+        _currencyBefore.hasMatch(before) || _currencyAfter.hasMatch(after);
+    if (!currencyBeside && _notMoneyAfter.hasMatch(after)) continue;
+    if (currencyBeside || hasWord) return true;
+  }
+  return false;
+}
 
 class ChatNotifier extends Notifier<ChatState> {
   int _next = 0;
@@ -308,7 +343,12 @@ class ChatNotifier extends Notifier<ChatState> {
 
   @override
   ChatState build() {
-    ref.onDispose(() => _flushTimer?.cancel());
+    ref.onDispose(() {
+      _flushTimer?.cancel();
+      // A message still on its way for the old start is stopped: its socket closes and its answer is never drawn
+      final abort = _abort;
+      if (abort != null && !abort.isCompleted) abort.complete();
+    });
     // A fresh start (the app opening, or another person signing in): nothing from before carries over, whether or not Riverpod
     // keeps this same object
     _restoreStarted = false;
@@ -705,14 +745,22 @@ class ChatNotifier extends Notifier<ChatState> {
   ///
   /// [photoPaths] are the staged copies of those photos (see ChatPhotoStore.stage), in the same order. They are filed under the turn once the
   /// server has accepted the message, and deleted if it never does.
-  Future<void> send(
+  ///
+  /// True when the message went through: the server accepted it, or it was kept in the outbox to go later. False when it failed, was stopped,
+  /// or the account changed meanwhile, so a caller that took the words out of the box can put them back.
+  Future<bool> send(
     String text, {
     List<String> photoTexts = const <String>[],
     List<String> photoPaths = const <String>[],
     List<String> images = const <String>[],
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty || state.busy) return;
+    if (trimmed.isEmpty || state.busy) return false;
+    // Another person signing in (or a fresh start) makes this send stale: it stops and draws nothing more
+    final generation = _generation;
+    var accepted = false;
+    // The pictures were taken away and the text read from them went instead; said to the person only once that is true
+    var picturesSwapped = false;
     final messageId = newRequestId();
     // The retry below cuts the screen back to this message by its id, not by a position, so nothing arriving meanwhile can move it
     final userItemId = _id();
@@ -748,8 +796,11 @@ class ChatNotifier extends Notifier<ChatState> {
                     chatId: state.chatId,
                     abort: abort.future,
                   )) {
+            if (generation != _generation) return false;
             _handle(e);
+            if (_turnId != null || _sawDone) accepted = true;
           }
+          if (generation != _generation) return false;
           // A stream that ends with no "done" was cut: ask again under the same id, as for any dropped connection
           // (a stream that ended with an "error" event is a server failure, not a dropped connection: asking again would run the turn again)
           if (!_sawDone && !_sawError && !_stopped) {
@@ -757,13 +808,14 @@ class ChatNotifier extends Notifier<ChatState> {
           }
           break;
         } on ApiException catch (e) {
+          if (generation != _generation) return false;
           if (_stopped) break;
           // The server refused the message with its pictures in it (an older server that knows no pictures, or one it will not take): once more
           // on the text read from them. Nothing was claimed, so the same id is used, and this is not one of the dropped-connection retries
           if (pictures.isNotEmpty && e.code == 'INVALID') {
             pictures = const <String>[];
             _picturesSent = false;
-            _add(NoticeItem(_id(), _words.chatPicturesNoted));
+            picturesSwapped = true;
             attempt--;
             continue;
           }
@@ -786,10 +838,13 @@ class ChatNotifier extends Notifier<ChatState> {
           if (e.isNetwork && looksLikeExpense(trimmed)) {
             try {
               final box = ref.read(outboxProvider);
+              // Under the id of the first try: if that try did reach the server, its answer is the one a repeat gets
               await box.add('expense_from_text', <String, Object?>{
                 'text': trimmed,
-              });
+              }, key: messageId);
               ref.read(outboxCountProvider.notifier).refresh();
+              if (generation != _generation) return false;
+              accepted = true;
               _add(NoticeItem(_id(), _words.chatNoticeOffline));
             } on Object {
               // Kept nowhere: say so instead of leaving the person thinking it was saved
@@ -801,6 +856,7 @@ class ChatNotifier extends Notifier<ChatState> {
           break;
         } on Object {
           // Anything else that goes wrong while reading the stream is not shown in words: the screen is just left in a clean state
+          if (generation != _generation) return false;
           if (_stopped) break;
           _closeTurn(keepBusy: true);
           _add(NoticeItem(_id(), _words.chatNoticeFailed));
@@ -808,26 +864,39 @@ class ChatNotifier extends Notifier<ChatState> {
         }
       }
     } finally {
-      _picturesSent = false;
+      final stale = generation != _generation;
+      if (!stale) _picturesSent = false;
       // Photos never filed (the server did not accept the message) are not kept
       if (_staged.isNotEmpty) {
         final left = _staged;
         _staged = const <String>[];
-        _replace(
-          userItemId,
-          (old) => old is UserItem ? old.withPhotoPaths(const <String>[]) : old,
-        );
+        if (!stale) {
+          _replace(
+            userItemId,
+            (old) =>
+                old is UserItem ? old.withPhotoPaths(const <String>[]) : old,
+          );
+        }
         unawaited(_discardPhotos(left));
       }
-      _closeTurn();
-      if (_stopped) _add(NoticeItem(_id(), _words.chatStopped));
-      _stopped = false;
-      _abort = null;
+      // A stale send leaves the new start alone: its screen, its turn and its abort belong to somebody else now
+      if (!stale) {
+        // The pictures were left out and the answer went by their text: the notice comes only when that is what happened
+        if (picturesSwapped && _sawDone && photoTexts.isNotEmpty) {
+          _add(NoticeItem(_id(), _words.chatPicturesNoted));
+        }
+        _closeTurn();
+        if (_stopped) _add(NoticeItem(_id(), _words.chatStopped));
+        _stopped = false;
+        if (identical(_abort, abort)) _abort = null;
+      }
     }
+    return accepted && generation == _generation;
   }
 
   /// Applies one event of the stream.
   void _handle(Json e) {
+    // The caller drops events of a start that is over; this is the second line of defence
     switch (str(e['type'])) {
       case 'start':
         // The server says which message and which chat this is: the message can be branched from, and a first message names the chat

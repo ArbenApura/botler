@@ -36,12 +36,12 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- THE QUICK-ADD WIDGET OPENS THE APP WITH botler://quickadd -->
+            <!-- THE QUICK-ADD WIDGET OPENS THE APP WITH botler://quickadd. THE APP HANDLES NO OTHER HOST (app.dart), SO NO OTHER botler:// LINK IS ACCEPTED -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="botler"/>
+                <data android:scheme="botler" android:host="quickadd"/>
             </intent-filter>
         </activity>
 

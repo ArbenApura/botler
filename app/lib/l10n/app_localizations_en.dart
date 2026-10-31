@@ -1646,6 +1646,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expenseTitle => 'Add an expense';
 
   @override
+  String get fixQueued =>
+      'The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it.';
+
+  @override
   String get goalsAdd => 'Add a goal';
 
   @override
@@ -1714,8 +1718,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goalsWhere => 'Where does it sit?';
 
   @override
-  String goalsYear(String amount) {
-    return 'In a year (24 paydays) that is $amount.';
+  String goalsYear(int count, String amount) {
+    return 'In a year ($count paydays) that is $amount.';
   }
 
   @override
@@ -1922,6 +1926,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryUpdated => 'Botler updated';
+
+  @override
+  String get lockContinueWithout => 'Continue without a lock';
+
+  @override
+  String get lockNoScreenLock =>
+      'This phone has no screen lock set up, so Botler cannot ask for a fingerprint, face or PIN.';
 
   @override
   String get lockReason => 'Open Botler';
@@ -2203,6 +2214,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notebookExport => 'Copy as Markdown';
+
+  @override
+  String notebookExportBig(String size) {
+    return 'This notebook is about $size MB of text. Copying it may be slow.';
+  }
+
+  @override
+  String get notebookExportClipFail =>
+      'Could not copy to the clipboard. Try again.';
 
   @override
   String notebookExported(int count) {
@@ -2913,6 +2933,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get schedFirstDay => 'First day';
 
   @override
+  String schedFromDate(String date) {
+    return 'from $date';
+  }
+
+  @override
   String get schedFromDay => 'From day';
 
   @override
@@ -2926,6 +2951,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get schedMonth => 'Month';
+
+  @override
+  String schedNotOnDates(String dates) {
+    return 'not on $dates';
+  }
 
   @override
   String get schedNth1 => '1st';
@@ -3107,6 +3137,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get schedUnknown => 'A schedule this version of the app cannot edit';
+
+  @override
+  String schedUntilDate(String date) {
+    return 'until $date';
+  }
 
   @override
   String get schedWeekday => 'Weekday';
@@ -3378,10 +3413,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWeekStarts => 'Week starts on';
 
   @override
+  String get signInAgainBody =>
+      'What you wrote offline is kept on this phone. Sign in again to send it.';
+
+  @override
+  String get signInAgainButton => 'Sign in again';
+
+  @override
+  String get signInAgainTitle => 'Your sign in has ended';
+
+  @override
   String get signInButton => 'Sign in with Google';
 
   @override
   String get signInTagline => 'Your money and your time, in one quiet chat.';
+
+  @override
+  String signOutWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count changes are',
+      one: '1 change is',
+    );
+    return '$_temp0 still waiting to be sent. They stay on this phone and go out when you sign in again.';
+  }
 
   @override
   String simAbout(String amount) {
@@ -3734,6 +3790,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simPretendOut => 'Money out';
+
+  @override
+  String simPretendRange(String min, String max) {
+    return 'Use an amount from $min to $max.';
+  }
+
+  @override
+  String simPretendTooMany(int count) {
+    return 'You can pretend up to $count entries at once. Remove one first.';
+  }
 
   @override
   String get simRatesStale => 'Exchange rates are older than a day.';

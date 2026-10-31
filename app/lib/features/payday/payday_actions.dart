@@ -3,6 +3,8 @@
 // and a payday with earlier splits is deleted together with them only after the person has been told so.
 
 // -- DEP-MODULES -- //
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +16,11 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../money/schedule_picker.dart';
+
+// -- CONSTANTS -- //
+
+/// One key per payday delete, until it works, and no second call of the same one while it runs.
+final Once _incomeOnce = Once();
 
 // -- FUNCTIONS -- //
 
@@ -36,54 +43,71 @@ Future<bool> deleteSplitSheet(
   final done = await showFormSheet<bool>(
     context,
     title: all ? context.t.splitClearAllTitle : context.t.splitDeleteTitle,
-    builder: (sheet, close) => StatefulBuilder(
-      builder: (_, setState) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            all
-                ? sheet.t.splitClearAllBody
-                : sheet.t.splitDeleteBody(
-                    str(plan['payday']),
-                    sheet.moneyMain(intOf(plan['pay'])),
-                  ),
-          ),
-          if (all || approved) ...<Widget>[
-            const SizedBox(height: 8),
+    builder: (sheet, close) => SheetScope(
+      texts: const <String>[],
+      builder: (_, s) => StatefulBuilder(
+        builder: (_, setState) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
             Text(
-              sheet.t.splitDeleteKeepsMoney,
-              style: TextStyle(color: sheet.colors.muted),
+              all
+                  ? sheet.t.splitClearAllBody
+                  : sheet.t.splitDeleteBody(
+                      str(plan['payday']),
+                      sheet.moneyMain(intOf(plan['pay'])),
+                    ),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(sheet.t.splitDeleteEntriesSwitch),
-              subtitle: entries ? Text(sheet.t.splitDeleteEntriesHelp) : null,
-              value: entries,
-              onChanged: (v) => setState(() => entries = v),
+            if (all || approved) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                sheet.t.splitDeleteKeepsMoney,
+                style: TextStyle(color: sheet.colors.muted),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(sheet.t.splitDeleteEntriesSwitch),
+                subtitle: entries ? Text(sheet.t.splitDeleteEntriesHelp) : null,
+                value: entries,
+                onChanged: (v) => setState(() => entries = v),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton(
+              style: _dangerStyle(sheet),
+              onPressed: s.once.running()
+                  ? null
+                  : () async {
+                      try {
+                        // The intent names the target and the switch, so changing the switch is a new request
+                        final ran = await s.once.ok(
+                          (key) async {
+                            await ref.read(apiProvider).verb(
+                              'split_delete',
+                              <String, Object?>{
+                                if (all)
+                                  'all': true
+                                else
+                                  'splitId': str(plan['id']),
+                                if (entries) 'removeEntries': true,
+                              },
+                              key,
+                            );
+                          },
+                          intent:
+                              'del:${all ? 'all' : str(plan['id'])}:$entries',
+                        );
+                        if (!ran) return;
+                        close(true);
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, context));
+                      }
+                    },
+              child: Text(
+                all ? sheet.t.splitClearAllYes : sheet.t.splitDeleteYes,
+              ),
             ),
           ],
-          const SizedBox(height: 12),
-          FilledButton(
-            style: _dangerStyle(sheet),
-            onPressed: () async {
-              try {
-                await ref.read(apiProvider).verb(
-                  'split_delete',
-                  <String, Object?>{
-                    if (all) 'all': true else 'splitId': str(plan['id']),
-                    if (entries) 'removeEntries': true,
-                  },
-                );
-                close(true);
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(
-              all ? sheet.t.splitClearAllYes : sheet.t.splitDeleteYes,
-            ),
-          ),
-        ],
+        ),
       ),
     ),
   );
@@ -125,10 +149,14 @@ Future<bool> deleteIncomeFlow(
   );
   if (!yes || !context.mounted) return false;
   try {
-    await api.verb('income_delete', <String, Object?>{
-      'incomeId': str(income['id']),
-      if (hasSplits) 'withSplits': true,
-    });
+    final id = str(income['id']);
+    final ran = await _incomeOnce.ok((key) async {
+      await api.verb('income_delete', <String, Object?>{
+        'incomeId': id,
+        if (hasSplits) 'withSplits': true,
+      }, key);
+    }, intent: 'del:$id:$hasSplits');
+    if (!ran) return false;
     if (context.mounted) say(context, context.t.paydayDeleted);
     return true;
   } catch (e) {
@@ -145,14 +173,12 @@ Future<bool> incomeSheet(
   Json? existing,
 }) async {
   final editing = existing != null;
-  final label = TextEditingController(
-    text: editing ? str(existing['label']) : context.t.paydayIncomeDefault,
-  );
-  final amount = TextEditingController(
-    text: editing && existing['expectedAmount'] is int
-        ? context.plainAmountMain(intOf(existing['expectedAmount']))
-        : '',
-  );
+  final startLabel = editing
+      ? str(existing['label'])
+      : context.t.paydayIncomeDefault;
+  final startAmount = editing && existing['expectedAmount'] is int
+      ? context.plainAmountMain(intOf(existing['expectedAmount']))
+      : '';
   final schedule =
       (editing ? ScheduleValue.fromJson(asJson(existing['schedule'])) : null) ??
       ScheduleValue(pattern: SchedulePattern.semiMonthly, day: 15, day2: 30);
@@ -165,86 +191,104 @@ Future<bool> incomeSheet(
   final result = await showFormSheet<String>(
     context,
     title: editing ? context.t.paydayEditTitle : context.t.paydayIncomeTitle,
-    builder: (sheet, close) => StatefulBuilder(
-      builder: (_, setState) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Field(
-            controller: label,
-            label: sheet.t.paydayIncomeLabel,
-            capitalization: TextCapitalization.words,
-          ),
-          Field(
-            controller: amount,
-            label: sheet.t.paydayIncomeAmountLabel(sheet.currencyCode),
-            keyboard: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          Text(
-            sheet.t.paydayLandsIn,
-            style: TextStyle(color: sheet.colors.muted),
-          ),
-          Wrap(
-            spacing: 8,
+    builder: (sheet, close) => SheetScope(
+      texts: <String>[startLabel, startAmount],
+      builder: (_, s) => StatefulBuilder(
+        builder: (_, setState) {
+          final label = s.c[0];
+          final amount = s.c[1];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              for (final a in accounts)
-                ChoiceChip(
-                  label: Text(str(a['name'])),
-                  selected: str(a['id']) == accountId,
-                  onSelected: (_) => setState(() => accountId = str(a['id'])),
+              Field(
+                controller: label,
+                label: sheet.t.paydayIncomeLabel,
+                capitalization: TextCapitalization.words,
+              ),
+              Field(
+                controller: amount,
+                label: sheet.t.paydayIncomeAmountLabel(sheet.currencyCode),
+                keyboard: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              Text(
+                sheet.t.paydayLandsIn,
+                style: TextStyle(color: sheet.colors.muted),
+              ),
+              Wrap(
+                spacing: 8,
+                children: <Widget>[
+                  for (final a in accounts)
+                    ChoiceChip(
+                      label: Text(str(a['name'])),
+                      selected: str(a['id']) == accountId,
+                      onSelected: (_) =>
+                          setState(() => accountId = str(a['id'])),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // A payday is one day, so the patterns that give a window of days are not offered
+              SchedulePicker(
+                value: schedule,
+                weekend: weekend,
+                singleDayOnly: true,
+                onChanged: () => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        final cents = amount.text.trim().isEmpty
+                            ? null
+                            : context.parseAmountMain(amount.text);
+                        if (label.text.trim().isEmpty ||
+                            accountId.isEmpty ||
+                            (amount.text.trim().isNotEmpty && cents == null)) {
+                          say(sheet, sheet.t.paydayIncomeInvalid);
+                          return;
+                        }
+                        try {
+                          final body = <String, Object?>{
+                            if (editing) 'incomeId': str(existing['id']),
+                            'label': label.text.trim(),
+                            'accountId': accountId,
+                            'expectedAmount': cents,
+                            'schedule': schedule.toJson(),
+                            'weekendRule': weekend,
+                          };
+                          // The intent is the whole body: the same form again is the same request, a changed form is a new one
+                          final ran = await s.once.ok((key) async {
+                            await ref
+                                .read(apiProvider)
+                                .verb(
+                                  editing ? 'income_update' : 'income_create',
+                                  body,
+                                  key,
+                                );
+                          }, intent: jsonEncode(body));
+                          if (!ran) return;
+                          close('saved');
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.save),
+              ),
+              if (editing)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => close('delete'),
+                    child: Text(
+                      sheet.t.paydayDeleteButton,
+                      style: TextStyle(color: sheet.colors.danger),
+                    ),
+                  ),
                 ),
             ],
-          ),
-          const SizedBox(height: 12),
-          // A payday is one day, so the patterns that give a window of days are not offered
-          SchedulePicker(
-            value: schedule,
-            weekend: weekend,
-            singleDayOnly: true,
-            onChanged: () => setState(() {}),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(
-            onPressed: () async {
-              final cents = amount.text.trim().isEmpty
-                  ? null
-                  : context.parseAmountMain(amount.text);
-              if (label.text.trim().isEmpty ||
-                  accountId.isEmpty ||
-                  (amount.text.trim().isNotEmpty && cents == null)) {
-                say(sheet, sheet.t.paydayIncomeInvalid);
-                return;
-              }
-              try {
-                await ref.read(apiProvider).verb(
-                  editing ? 'income_update' : 'income_create',
-                  <String, Object?>{
-                    if (editing) 'incomeId': str(existing['id']),
-                    'label': label.text.trim(),
-                    'accountId': accountId,
-                    'expectedAmount': cents,
-                    'schedule': schedule.toJson(),
-                    'weekendRule': weekend,
-                  },
-                );
-                close('saved');
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.save),
-          ),
-          if (editing)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => close('delete'),
-                child: Text(
-                  sheet.t.paydayDeleteButton,
-                  style: TextStyle(color: sheet.colors.danger),
-                ),
-              ),
-            ),
-        ],
+          );
+        },
       ),
     ),
   );

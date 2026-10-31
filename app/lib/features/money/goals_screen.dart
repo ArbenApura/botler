@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'payday_count.dart';
 
 // -- CONSTANTS -- //
 
@@ -18,6 +19,9 @@ final FutureProvider<List<Json>> _goalsProvider =
     FutureProvider.autoDispose<List<Json>>(
       (ref) => ref.watch(apiProvider).verbList('goals_list'),
     );
+
+/// One key per goal switch (the intent names the target state) and per goal delete, and no second call while one runs.
+final Once _goalOnce = Once();
 
 // -- TYPES -- //
 
@@ -65,13 +69,14 @@ class GoalsScreen extends ConsumerWidget {
                         value: boolOf(g['active']),
                         onChanged: (on) async {
                           try {
-                            await ref.read(apiProvider).verb(
-                              'goal_update',
-                              <String, Object?>{
-                                'goalId': str(g['id']),
-                                'active': on,
-                              },
-                            );
+                            final id = str(g['id']);
+                            await _goalOnce.run((key) async {
+                              await ref.read(apiProvider).verb(
+                                'goal_update',
+                                <String, Object?>{'goalId': id, 'active': on},
+                                key,
+                              );
+                            }, intent: 'switch:$id:$on');
                             ref.invalidate(_goalsProvider);
                           } catch (e) {
                             if (context.mounted)
@@ -119,9 +124,12 @@ class GoalsScreen extends ConsumerWidget {
     );
     if (!ok) return;
     try {
-      await ref.read(apiProvider).verb('goal_delete', <String, Object?>{
-        'goalId': str(g['id']),
-      });
+      final id = str(g['id']);
+      await _goalOnce.run((key) async {
+        await ref.read(apiProvider).verb('goal_delete', <String, Object?>{
+          'goalId': id,
+        }, key);
+      }, intent: 'delete:$id');
       ref.invalidate(_goalsProvider);
       if (context.mounted) say(context, deleted);
     } catch (e) {
@@ -130,97 +138,128 @@ class GoalsScreen extends ConsumerWidget {
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final name = TextEditingController();
-    final per = TextEditingController();
-    final target = TextEditingController();
-    final accounts = await ref.read(balancesProvider.future);
+    // The accounts and the paydays are read first; a failure (offline) is said, never silent
+    final List<Json> accounts;
+    int? paydays;
+    try {
+      accounts = await ref.read(balancesProvider.future);
+      try {
+        paydays = paydaysPerYearOf(
+          await ref.read(apiProvider).verbList('income_list'),
+        );
+      } on Object {
+        // Without the paydays only the yearly line is left out
+        paydays = null;
+      }
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+      return;
+    }
     var accountId = str(accounts.firstOrNull?['id']);
     if (!context.mounted) return;
     final done = await showFormSheet<bool>(
       context,
       title: context.t.goalsAdd,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(
-              controller: name,
-              label: sheet.t.goalsNameLabel,
-              hint: sheet.t.goalsNameHint,
-              capitalization: TextCapitalization.words,
-            ),
-            Text(
-              sheet.t.goalsWhere,
-              style: TextStyle(color: sheet.colors.muted),
-            ),
-            Wrap(
-              spacing: 8,
+      builder: (sheet, close) => SheetScope(
+        texts: const <String>['', '', ''],
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) {
+            final name = s.c[0];
+            final per = s.c[1];
+            final target = s.c[2];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                for (final a in accounts)
-                  ChoiceChip(
-                    label: Text(str(a['name'])),
-                    selected: str(a['id']) == accountId,
-                    onSelected: (_) => setState(() => accountId = str(a['id'])),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Field(
-              controller: per,
-              label: sheet.t.goalsPerLabel(sheet.currencyCode),
-              keyboard: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-            ),
-            if (context.parseAmountMain(per.text) != null &&
-                (context.parseAmountMain(per.text) ?? 0) > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  sheet.t.goalsYear(
-                    context.moneyMain(
-                      (context.parseAmountMain(per.text) ?? 0) * 24,
-                    ),
-                  ),
+                Field(
+                  controller: name,
+                  label: sheet.t.goalsNameLabel,
+                  hint: sheet.t.goalsNameHint,
+                  capitalization: TextCapitalization.words,
+                ),
+                Text(
+                  sheet.t.goalsWhere,
                   style: TextStyle(color: sheet.colors.muted),
                 ),
-              ),
-            Field(
-              controller: target,
-              label: sheet.t.goalsTargetLabel(sheet.currencyCode),
-              keyboard: TextInputType.number,
-            ),
-            FilledButton(
-              onPressed: () async {
-                final perCents = per.text.trim().isEmpty
-                    ? 0
-                    : context.parseAmountMain(per.text);
-                final aim = target.text.trim().isEmpty
-                    ? null
-                    : context.parseAmountMain(target.text);
-                if (name.text.trim().isEmpty ||
-                    accountId.isEmpty ||
-                    perCents == null) {
-                  say(sheet, sheet.t.goalsAddInvalid);
-                  return;
-                }
-                try {
-                  await ref.read(apiProvider).verb(
-                    'goal_create',
-                    <String, Object?>{
-                      'name': name.text.trim(),
-                      'accountId': accountId,
-                      'perPayday': perCents,
-                      'targetAmount': aim,
-                    },
-                  );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.goalsAddButton),
-            ),
-          ],
+                Wrap(
+                  spacing: 8,
+                  children: <Widget>[
+                    for (final a in accounts)
+                      ChoiceChip(
+                        label: Text(str(a['name'])),
+                        selected: str(a['id']) == accountId,
+                        onSelected: (_) =>
+                            setState(() => accountId = str(a['id'])),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Field(
+                  controller: per,
+                  label: sheet.t.goalsPerLabel(sheet.currencyCode),
+                  keyboard: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
+                ),
+                if (paydays != null &&
+                    (context.parseAmountMain(per.text) ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      sheet.t.goalsYear(
+                        paydays,
+                        context.moneyMain(
+                          (context.parseAmountMain(per.text) ?? 0) * paydays,
+                        ),
+                      ),
+                      style: TextStyle(color: sheet.colors.muted),
+                    ),
+                  ),
+                Field(
+                  controller: target,
+                  label: sheet.t.goalsTargetLabel(sheet.currencyCode),
+                  keyboard: TextInputType.number,
+                ),
+                FilledButton(
+                  onPressed: s.once.running()
+                      ? null
+                      : () async {
+                          final perCents = per.text.trim().isEmpty
+                              ? 0
+                              : context.parseAmountMain(per.text);
+                          final aim = target.text.trim().isEmpty
+                              ? null
+                              : context.parseAmountMain(target.text);
+                          if (name.text.trim().isEmpty ||
+                              accountId.isEmpty ||
+                              perCents == null) {
+                            say(sheet, sheet.t.goalsAddInvalid);
+                            return;
+                          }
+                          try {
+                            if (!await s.once.ok((key) async {
+                              await ref.read(apiProvider).verb(
+                                'goal_create',
+                                <String, Object?>{
+                                  'name': name.text.trim(),
+                                  'accountId': accountId,
+                                  'perPayday': perCents,
+                                  'targetAmount': aim,
+                                },
+                                key,
+                              );
+                            })) {
+                              return;
+                            }
+                            close(true);
+                          } catch (e) {
+                            if (sheet.mounted)
+                              say(sheet, errorWords(e, context));
+                          }
+                        },
+                  child: Text(sheet.t.goalsAddButton),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

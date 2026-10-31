@@ -62,6 +62,9 @@ Json? _openPlanFor(List<Json> plans, Json upcoming) {
   return null;
 }
 
+/// One key per rule approve or decline, until it works, and no second call of the same one while it runs.
+final Once _ruleOnce = Once();
+
 // -- TYPES -- //
 
 class PaydayScreen extends ConsumerWidget {
@@ -454,9 +457,13 @@ class PaydayScreen extends ConsumerWidget {
     String? done,
   ) async {
     try {
-      await ref.read(apiProvider).verb(verb, <String, Object?>{
-        'ruleId': str(rule['id']),
-      });
+      final id = str(rule['id']);
+      final ran = await _ruleOnce.ok((key) async {
+        await ref.read(apiProvider).verb(verb, <String, Object?>{
+          'ruleId': id,
+        }, key);
+      }, intent: '$verb:$id');
+      if (!ran) return;
       _refresh(ref);
       if (done != null && context.mounted) say(context, done);
     } catch (e) {
@@ -467,52 +474,62 @@ class PaydayScreen extends ConsumerWidget {
   Future<void> _plan(BuildContext context, WidgetRef ref, Json upcoming) async {
     // The usual pay is filled in, so the common case is one tap
     final usual = _usualPay(ref, upcoming);
-    final pay = TextEditingController(
-      text: usual == null ? '' : context.plainAmountMain(usual),
-    );
+    final startPay = usual == null ? '' : context.plainAmountMain(usual);
     final result = await showFormSheet<Json>(
       context,
       title: context.t.paydayPlanTitle(
         str(upcoming['label']),
         niceDate(context, str(upcoming['payday'])),
       ),
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Field(
-            controller: pay,
-            label: sheet.t.paydayPayThisTime(sheet.currencyCode),
-            hint: sheet.t.paydayPayEmptyHint,
-            keyboard: const TextInputType.numberWithOptions(decimal: true),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final cents = pay.text.trim().isEmpty
+      builder: (sheet, close) => SheetScope(
+        texts: <String>[startPay],
+        builder: (_, s) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Field(
+              controller: s.c[0],
+              label: sheet.t.paydayPayThisTime(sheet.currencyCode),
+              hint: sheet.t.paydayPayEmptyHint,
+              keyboard: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            FilledButton(
+              onPressed: s.once.running()
                   ? null
-                  : context.parseAmountMain(pay.text);
-              if (pay.text.trim().isNotEmpty && cents == null) {
-                say(sheet, sheet.t.paydayPayInvalid(sheet.currencyCode));
-                return;
-              }
-              try {
-                final plan = asJson(
-                  await ref.read(apiProvider).verb(
-                    'split_propose',
-                    <String, Object?>{
-                      'incomeScheduleId': str(upcoming['incomeId']),
-                      'payday': str(upcoming['payday']),
-                      'pay': cents,
+                  : () async {
+                      final pay = s.c[0];
+                      final cents = pay.text.trim().isEmpty
+                          ? null
+                          : context.parseAmountMain(pay.text);
+                      if (pay.text.trim().isNotEmpty && cents == null) {
+                        say(
+                          sheet,
+                          sheet.t.paydayPayInvalid(sheet.currencyCode),
+                        );
+                        return;
+                      }
+                      try {
+                        final answer = await s.once.run(
+                          (key) => ref.read(apiProvider).verb(
+                            'split_propose',
+                            <String, Object?>{
+                              'incomeScheduleId': str(upcoming['incomeId']),
+                              'payday': str(upcoming['payday']),
+                              'pay': cents,
+                            },
+                            key,
+                          ),
+                          intent: 'plan:$cents',
+                        );
+                        if (answer == null) return;
+                        close(asJson(answer));
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, context));
+                      }
                     },
-                  ),
-                );
-                close(plan);
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.paydayMakeSplit),
-          ),
-        ],
+              child: Text(sheet.t.paydayMakeSplit),
+            ),
+          ],
+        ),
       ),
     );
     if (result == null || !context.mounted) return;
@@ -540,47 +557,56 @@ class PaydayScreen extends ConsumerWidget {
   }
 
   Future<void> _addRule(BuildContext context, WidgetRef ref) async {
-    final words = TextEditingController();
-    final name = TextEditingController();
     final done = await showFormSheet<bool>(
       context,
       title: context.t.paydayRuleTitle,
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Field(
-            controller: name,
-            label: sheet.t.paydayRuleNameLabel,
-            hint: sheet.t.paydayRuleNameHint,
-          ),
-          Field(
-            controller: words,
-            label: sheet.t.paydayRuleLabel,
-            hint: sheet.t.paydayRuleHint,
-          ),
-          Text(
-            sheet.t.paydayRuleExamples,
-            style: TextStyle(color: sheet.colors.muted),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () async {
-              try {
-                await ref.read(apiProvider).verb(
-                  'rule_from_text',
-                  <String, Object?>{
-                    'text': words.text.trim(),
-                    if (name.text.trim().isNotEmpty) 'label': name.text.trim(),
-                  },
-                );
-                close(true);
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.paydayRuleAddButton),
-          ),
-        ],
+      builder: (sheet, close) => SheetScope(
+        texts: const <String>['', ''],
+        builder: (_, s) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Field(
+              controller: s.c[0],
+              label: sheet.t.paydayRuleNameLabel,
+              hint: sheet.t.paydayRuleNameHint,
+            ),
+            Field(
+              controller: s.c[1],
+              label: sheet.t.paydayRuleLabel,
+              hint: sheet.t.paydayRuleHint,
+            ),
+            Text(
+              sheet.t.paydayRuleExamples,
+              style: TextStyle(color: sheet.colors.muted),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: s.once.running()
+                  ? null
+                  : () async {
+                      final words = s.c[1].text.trim();
+                      final name = s.c[0].text.trim();
+                      try {
+                        final ran = await s.once.ok((key) async {
+                          await ref.read(apiProvider).verb(
+                            'rule_from_text',
+                            <String, Object?>{
+                              'text': words,
+                              if (name.isNotEmpty) 'label': name,
+                            },
+                            key,
+                          );
+                        }, intent: 'rule:$name:$words');
+                        if (!ran) return;
+                        close(true);
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, context));
+                      }
+                    },
+              child: Text(sheet.t.paydayRuleAddButton),
+            ),
+          ],
+        ),
       ),
     );
     if (done == true) _refresh(ref);

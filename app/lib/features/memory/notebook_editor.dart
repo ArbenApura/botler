@@ -102,6 +102,7 @@ class _NotebookEditorState extends ConsumerState<NotebookEditor> {
       _keyText = _controller.text;
       _keyVersion = _version;
     }
+    // Set in the branch above whenever it was null, so it is never null here
     return _key!;
   }
 

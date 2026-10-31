@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/person_data.dart';
 import '../../l10n/l10n.dart';
 import '../../state/library.dart';
 import '../../state/providers.dart';
@@ -131,7 +132,10 @@ class _State extends ConsumerState<ResetScreen> {
       final deleted = asJson(r['deleted']);
       final total = deleted.values.fold<int>(0, (a, b) => a + intOf(b));
       // Writes queued before the reset must not replay onto the empty account, and the saved calendar is old now
-      await ref.read(outboxProvider).clear();
+      final outbox = ref.read(outboxProvider);
+      await outbox.clear();
+      // The refused writes of the old data are part of what was reset
+      await outbox.dismissFailed();
       ref.read(outboxCountProvider.notifier).refresh();
       // The pictures of sent messages are part of what was reset
       if (scope == 'memory_and_chat' || scope == 'everything') {
@@ -153,6 +157,13 @@ class _State extends ConsumerState<ResetScreen> {
       for (final key in simulateCacheKeys) {
         await ref.read(prefsProvider).remove(key);
       }
+      // The saved balances, summary and reminder bookkeeping are old as well
+      final withChat = scope == 'memory_and_chat' || scope == 'everything';
+      await clearPersonData(
+        ref.read(prefsProvider),
+        notebooks: withChat,
+        photos: withChat,
+      );
       ref
         ..invalidate(balancesProvider)
         ..invalidate(auditVerifyProvider);

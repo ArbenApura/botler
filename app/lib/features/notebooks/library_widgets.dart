@@ -10,20 +10,22 @@ import '../../core/library.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 
 // -- CONSTANTS -- //
-
-final DateFormat _when = DateFormat('d MMM, HH:mm');
 
 /// The height every row and bar keeps, a little over the 48 dp tap size.
 const double libraryRowHeight = 56;
 
 // -- FUNCTIONS -- //
 
-/// A time as the library writes it ("3 Nov, 10:20", in the phone's own time).
-String libraryWhen(DateTime? at) =>
-    at == null ? '' : _when.format(at.toLocal());
+/// A time as the library writes it ("Nov 3, 10:20", in the app's language and Manila time). The format is made here, not once for the app.
+String libraryWhen(BuildContext context, DateTime? at) => at == null
+    ? ''
+    : DateFormat.MMMd(Localizations.localeOf(context).toString())
+          .add_Hm()
+          .format(manilaWall(at));
 
 // -- WIDGETS -- //
 
@@ -38,7 +40,7 @@ class OfflineCopyNote extends StatelessWidget {
     final c = context.colors;
     final text = since == null
         ? context.t.libraryOffline
-        : context.t.libraryOfflineSince(libraryWhen(since));
+        : context.t.libraryOfflineSince(libraryWhen(context, since));
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Semantics(

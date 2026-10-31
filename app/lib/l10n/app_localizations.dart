@@ -2779,6 +2779,12 @@ abstract class AppLocalizations {
   /// **'Add an expense'**
   String get expenseTitle;
 
+  /// No description provided for @fixQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it.'**
+  String get fixQueued;
+
   /// No description provided for @goalsAdd.
   ///
   /// In en, this message translates to:
@@ -2896,8 +2902,8 @@ abstract class AppLocalizations {
   /// No description provided for @goalsYear.
   ///
   /// In en, this message translates to:
-  /// **'In a year (24 paydays) that is {amount}.'**
-  String goalsYear(String amount);
+  /// **'In a year ({count} paydays) that is {amount}.'**
+  String goalsYear(int count, String amount);
 
   /// No description provided for @histEntryTitle.
   ///
@@ -3192,6 +3198,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Botler updated'**
   String get libraryUpdated;
+
+  /// No description provided for @lockContinueWithout.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue without a lock'**
+  String get lockContinueWithout;
+
+  /// No description provided for @lockNoScreenLock.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone has no screen lock set up, so Botler cannot ask for a fingerprint, face or PIN.'**
+  String get lockNoScreenLock;
 
   /// No description provided for @lockReason.
   ///
@@ -3708,6 +3726,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy as Markdown'**
   String get notebookExport;
+
+  /// No description provided for @notebookExportBig.
+  ///
+  /// In en, this message translates to:
+  /// **'This notebook is about {size} MB of text. Copying it may be slow.'**
+  String notebookExportBig(String size);
+
+  /// No description provided for @notebookExportClipFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not copy to the clipboard. Try again.'**
+  String get notebookExportClipFail;
 
   /// No description provided for @notebookExported.
   ///
@@ -4939,6 +4969,12 @@ abstract class AppLocalizations {
   /// **'First day'**
   String get schedFirstDay;
 
+  /// No description provided for @schedFromDate.
+  ///
+  /// In en, this message translates to:
+  /// **'from {date}'**
+  String schedFromDate(String date);
+
   /// No description provided for @schedFromDay.
   ///
   /// In en, this message translates to:
@@ -4968,6 +5004,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Month'**
   String get schedMonth;
+
+  /// No description provided for @schedNotOnDates.
+  ///
+  /// In en, this message translates to:
+  /// **'not on {dates}'**
+  String schedNotOnDates(String dates);
 
   /// No description provided for @schedNth1.
   ///
@@ -5249,6 +5291,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A schedule this version of the app cannot edit'**
   String get schedUnknown;
+
+  /// No description provided for @schedUntilDate.
+  ///
+  /// In en, this message translates to:
+  /// **'until {date}'**
+  String schedUntilDate(String date);
 
   /// No description provided for @schedWeekday.
   ///
@@ -5718,6 +5766,24 @@ abstract class AppLocalizations {
   /// **'Week starts on'**
   String get settingsWeekStarts;
 
+  /// No description provided for @signInAgainBody.
+  ///
+  /// In en, this message translates to:
+  /// **'What you wrote offline is kept on this phone. Sign in again to send it.'**
+  String get signInAgainBody;
+
+  /// No description provided for @signInAgainButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in again'**
+  String get signInAgainButton;
+
+  /// No description provided for @signInAgainTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sign in has ended'**
+  String get signInAgainTitle;
+
   /// No description provided for @signInButton.
   ///
   /// In en, this message translates to:
@@ -5729,6 +5795,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your money and your time, in one quiet chat.'**
   String get signInTagline;
+
+  /// No description provided for @signOutWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 change is} other{{count} changes are}} still waiting to be sent. They stay on this phone and go out when you sign in again.'**
+  String signOutWaiting(int count);
 
   /// No description provided for @simAbout.
   ///
@@ -6281,6 +6353,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Money out'**
   String get simPretendOut;
+
+  /// No description provided for @simPretendRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an amount from {min} to {max}.'**
+  String simPretendRange(String min, String max);
+
+  /// No description provided for @simPretendTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'You can pretend up to {count} entries at once. Remove one first.'**
+  String simPretendTooMany(int count);
 
   /// No description provided for @simRatesStale.
   ///

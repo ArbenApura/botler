@@ -57,6 +57,9 @@ class PageTreeRow extends StatelessWidget {
                     excludeSemantics: true,
                     child: IconButton(
                       key: ValueKey<String>('fold.${page.id}'),
+                      tooltip: row.collapsed
+                          ? context.t.pageToggleOpen(page.title)
+                          : context.t.pageToggleClose(page.title),
                       onPressed: onToggle,
                       icon: AnimatedRotation(
                         turns: row.collapsed ? 0 : 0.25,

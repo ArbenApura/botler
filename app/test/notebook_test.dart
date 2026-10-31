@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:botler/core/api.dart';
 import 'package:botler/core/library.dart';
+import 'package:botler/features/auth/lock_gate.dart';
 import 'package:botler/features/memory/notebook_screen.dart';
 import 'package:botler/features/notebooks/library_screen.dart';
 import 'package:botler/features/money/goals_screen.dart';
@@ -248,6 +249,8 @@ Future<void> pump(WidgetTester tester, FakeBotler fake, Widget home) async {
     ProviderScope(
       overrides: [
         prefsProvider.overrideWithValue(prefs),
+        // The phone's lock is answered at once; a wipe asks for it
+        authenticateProvider.overrideWithValue(() async => true),
         apiProvider.overrideWithValue(
           ApiClient(
             base: 'https://botler.test',

@@ -49,7 +49,8 @@ MarkdownStyleSheet botlerMarkdownStyle(
     h6: h3,
     code: body.copyWith(
       fontFamily: 'monospace',
-      fontSize: 14,
+      // Code a step smaller than the body text: the theme's medium body size
+      fontSize: t.bodyMedium?.fontSize,
       backgroundColor: c.chip,
     ),
     codeblockPadding: const EdgeInsets.all(12),

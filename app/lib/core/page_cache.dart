@@ -29,6 +29,9 @@ const String _recentsKey = 'library.recents.v1';
 // -- FUNCTIONS -- //
 
 class PageCache {
+  /// The last queued change of the page index.
+  Future<void> _indexTail = Future<void>.value();
+
   PageCache(this._prefs);
 
   final SharedPreferences _prefs;
@@ -84,8 +87,16 @@ class PageCache {
     return j.isEmpty ? null : intOf(j['version']);
   }
 
+  /// Runs one change of the page index after the one before it, so two changes (a reader saving while the pinned-page prefetch saves) never
+  /// read the same index and write back over each other.
+  Future<void> _serial(Future<void> Function() change) {
+    final run = _indexTail.then((_) => change());
+    _indexTail = run.then((_) {}, onError: (Object _) {});
+    return run;
+  }
+
   /// Keeps this page as the newest used, and drops the oldest ones past the bound.
-  Future<void> savePage(PageDoc doc) async {
+  Future<void> savePage(PageDoc doc) => _serial(() async {
     await _prefs.setString('$_pagePrefix${doc.id}', jsonEncode(doc.toJson()));
     final ids = _index()
       ..remove(doc.id)
@@ -95,13 +106,13 @@ class PageCache {
       await _prefs.remove('$_pagePrefix$old');
     }
     await _saveIndex(ids);
-  }
+  });
 
-  Future<void> forgetPage(String id) async {
+  Future<void> forgetPage(String id) => _serial(() async {
     await _prefs.remove('$_pagePrefix$id');
     final ids = _index();
     if (ids.remove(id)) await _saveIndex(ids);
-  }
+  });
 
   /// The pages opened lately, newest first.
   List<RecentPage> recents() {

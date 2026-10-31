@@ -3,6 +3,8 @@
 // behind it (the task switcher also shows the lock, not the chat).
 
 // -- DEP-MODULES -- //
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
@@ -39,6 +41,24 @@ Future<bool> deviceAuthenticate() async {
   }
 }
 
+/// Whether the phone can check the person at all (a screen lock is set up). A seam, so tests can answer without a sensor.
+typedef LockAvailable = Future<bool> Function();
+
+Future<bool> deviceHasLock() async {
+  // Only the phone itself can say the lock is missing; anywhere else (a test, a desktop) the lock is kept
+  if (!Platform.isAndroid) return true;
+  try {
+    return await LocalAuthentication().isDeviceSupported();
+  } on Object {
+    // Cannot tell: the lock is kept, never skipped on a guess
+    return true;
+  }
+}
+
+final Provider<LockAvailable> lockAvailableProvider = Provider<LockAvailable>(
+  (ref) => deviceHasLock,
+);
+
 final Provider<Authenticate> authenticateProvider = Provider<Authenticate>(
   (ref) => deviceAuthenticate,
 );
@@ -57,6 +77,9 @@ class _LockGateState extends ConsumerState<LockGate>
   bool _locked = true;
   DateTime? _leftAt;
   bool _asking = false;
+
+  // The lock is on but this phone has no screen lock to ask: the person may go on after one explicit tap
+  bool _noPhoneLock = false;
 
   @override
   void initState() {
@@ -94,11 +117,23 @@ class _LockGateState extends ConsumerState<LockGate>
     }
     if (_asking) return;
     _asking = true;
-    final ok = await ref.read(authenticateProvider)();
-    _asking = false;
-    // The dialog's own pause does not count as time away
-    _leftAt = null;
-    if (mounted) setState(() => _locked = !ok);
+    var ok = false;
+    var noLock = false;
+    try {
+      ok = await ref.read(authenticateProvider)();
+      if (!ok) noLock = !await ref.read(lockAvailableProvider)();
+    } finally {
+      // Whatever went wrong, the next ask is not blocked for ever
+      _asking = false;
+      // The dialog's own pause does not count as time away
+      _leftAt = null;
+    }
+    if (mounted) {
+      setState(() {
+        _locked = !ok;
+        _noPhoneLock = noLock;
+      });
+    }
   }
 
   @override
@@ -118,7 +153,25 @@ class _LockGateState extends ConsumerState<LockGate>
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: _ask, child: Text(context.t.lockUnlock)),
+            if (_noPhoneLock) ...<Widget>[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  context.t.lockNoScreenLock,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: c.muted),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => setState(() {
+                  _locked = false;
+                  _noPhoneLock = false;
+                }),
+                child: Text(context.t.lockContinueWithout),
+              ),
+            ] else
+              FilledButton(onPressed: _ask, child: Text(context.t.lockUnlock)),
           ],
         ),
       ),

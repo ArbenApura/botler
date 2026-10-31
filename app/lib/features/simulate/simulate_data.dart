@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api.dart';
 import '../../core/json.dart';
 import '../../state/providers.dart';
+import '../../ui/manila_clock.dart';
 import '../calendar/calendar_data.dart';
 
 // -- TYPES -- //
@@ -498,9 +499,9 @@ DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// The earliest and latest day a jump may reach.
 DateTime earliestDay(DateTime today) =>
-    _dayOnly(today).subtract(const Duration(days: reachDays - 1));
+    addCalendarDays(_dayOnly(today), -(reachDays - 1));
 DateTime latestDay(DateTime today) =>
-    _dayOnly(today).add(const Duration(days: reachDays - 1));
+    addCalendarDays(_dayOnly(today), reachDays - 1);
 
 DateTime clampDay(DateTime d, DateTime today) {
   final day = _dayOnly(d);
@@ -531,7 +532,7 @@ SimWindow windowFor(
     case Zoom.week:
       // Blocks of 13 weeks counted from a fixed week start, so every week of a block asks for the same window
       final epoch = weekStart(DateTime(2000, 1, 3), weekStartsOn);
-      final weeks = weekStart(a, weekStartsOn).difference(epoch).inDays ~/ 7;
+      final weeks = calendarDaysBetween(epoch, weekStart(a, weekStartsOn)) ~/ 7;
       final block = weeks >= 0 ? weeks ~/ 13 : -((-weeks + 12) ~/ 13);
       from = DateTime(epoch.year, epoch.month, epoch.day + block * 91);
       to = DateTime(from.year, from.month, from.day + 90);
@@ -551,8 +552,8 @@ SimWindow windowFor(
   if (from.isBefore(lo)) from = lo;
   if (to.isAfter(hi)) to = hi;
   // A year window of 5 whole years can pass 1827 days with two leap days: trim the far end
-  while (to.difference(from).inDays + 1 > reachDays) {
-    to = to.subtract(const Duration(days: 1));
+  while (calendarDaysBetween(from, to) + 1 > reachDays) {
+    to = addCalendarDays(to, -1);
   }
   return SimWindow(dayOf(from), dayOf(to), group);
 }
@@ -578,10 +579,9 @@ DateTime jumpMonths(DateTime anchor, int months) => _addMonths(anchor, months);
 
 class SimViewNotifier extends Notifier<SimView> {
   @override
-  SimView build() =>
-      SimView(zoom: Zoom.month, anchor: _dayOnly(DateTime.now()));
+  SimView build() => SimView(zoom: Zoom.month, anchor: manilaTodayPicker());
 
-  DateTime get _today => _dayOnly(DateTime.now());
+  DateTime get _today => manilaTodayPicker();
 
   void setZoom(Zoom zoom) => state = SimView(zoom: zoom, anchor: state.anchor);
 

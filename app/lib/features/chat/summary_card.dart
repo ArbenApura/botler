@@ -15,6 +15,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import '../money/accounts_screen.dart' show walletsOf;
 import '../money/net_parts.dart';
@@ -172,7 +173,8 @@ class _OfflineChip extends StatelessWidget {
       ),
       child: Text(
         context.t.chatOffline,
-        style: TextStyle(color: c.warning, fontSize: 12),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: c.warning),
       ),
     );
   }
@@ -338,5 +340,5 @@ String _time(BuildContext context, String iso) {
       : DateFormat(
           'h:mm a',
           Localizations.localeOf(context).toString(),
-        ).format(d.toLocal());
+        ).format(manilaWall(d));
 }

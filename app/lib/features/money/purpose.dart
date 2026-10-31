@@ -64,12 +64,13 @@ bool purposeValid(String? purpose) {
 Future<void> savePurpose(
   WidgetRef ref,
   String accountId,
-  String? purpose,
-) async {
+  String? purpose, {
+  String? key,
+}) async {
   await ref.read(apiProvider).verb('account_update', <String, Object?>{
     'accountId': accountId,
     'purpose': purpose,
-  });
+  }, key);
   ref.invalidate(balancesProvider);
 }
 
@@ -83,26 +84,41 @@ Future<void> editPurpose(
   final done = await showFormSheet<bool>(
     context,
     title: context.t.purposeEditTitle(str(account['name'])),
-    builder: (sheet, close) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        PurposeField(value: value, onChanged: (v) => value = v),
-        FilledButton(
-          onPressed: () async {
-            if (!purposeValid(value)) {
-              say(sheet, sheet.t.purposeInvalid);
-              return;
-            }
-            try {
-              await savePurpose(ref, str(account['id']), value);
-              close(true);
-            } catch (e) {
-              if (sheet.mounted) say(sheet, errorWords(e, sheet));
-            }
-          },
-          child: Text(sheet.t.save),
-        ),
-      ],
+    builder: (sheet, close) => SheetScope(
+      texts: const <String>[],
+      builder: (_, s) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          PurposeField(value: value, onChanged: (v) => value = v),
+          FilledButton(
+            onPressed: s.once.running()
+                ? null
+                : () async {
+                    if (!purposeValid(value)) {
+                      say(sheet, sheet.t.purposeInvalid);
+                      return;
+                    }
+                    try {
+                      // The intent names the label, so a changed label is a new request and a retry of this one is the same
+                      final saved = await s.once.ok(
+                        (key) => savePurpose(
+                          ref,
+                          str(account['id']),
+                          value,
+                          key: key,
+                        ),
+                        intent: 'purpose:${value ?? ''}',
+                      );
+                      if (!saved) return;
+                      close(true);
+                    } catch (e) {
+                      if (sheet.mounted) say(sheet, errorWords(e, sheet));
+                    }
+                  },
+            child: Text(sheet.t.save),
+          ),
+        ],
+      ),
     ),
   );
   if (done == true && context.mounted) say(context, context.t.purposeSaved);

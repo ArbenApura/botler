@@ -184,11 +184,14 @@ const List<Currency> currencies = <Currency>[
 
 // -- FUNCTIONS -- //
 
-/// The currency of a code. An unknown code falls back to pesos, so a screen never breaks on a value from a newer server.
-Currency currencyOf(String code) => currencies.firstWhere(
-  (c) => c.code == code,
-  orElse: () => currencies.first,
-);
+/// The currency of a code. An unknown code (a value from a newer server) is a neutral currency that shows its own code and has two digits,
+/// so a screen never breaks and an amount is never shown as pesos by mistake.
+Currency currencyOf(String code) {
+  for (final c in currencies) {
+    if (c.code == code) return c;
+  }
+  return Currency(code, code.isEmpty ? '' : '$code ', 2, code);
+}
 
 String _grouped(int whole) => whole.toString().replaceAllMapped(
   RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -225,36 +228,65 @@ String plainAmount(int minor, [String code = defaultCurrency]) {
   return '$sign${abs ~/ per}.${(abs % per).toString().padLeft(c.digits, '0')}';
 }
 
-/// What a person typed ("180", "1,250.50", "₱ 90", "usd 5") as minor units, or null when it is not an amount of this currency.
-/// A currency with no decimals refuses a decimal point.
+/// What a person typed ("180", "1,250.50", "₱ 90", "usd 5", "12,50") as minor units, or null when it is not an amount of this currency.
+/// - A dot is the decimal mark, and more decimals than the currency has is refused (never cut short). A currency with no decimals refuses a dot.
+/// - Commas in groups of exactly three digits are thousands ("1,250", "1,250,000.50").
+/// - A lone comma followed by exactly the currency's decimal digits, with no dot, is the decimal mark ("12,50" is 12.50 pesos).
+/// - Anything that could be read both ways ("1,250" in a currency with three decimals) or either way badly ("12,5", "1.250,50") is refused.
 int? parseMoney(String text, [String code = defaultCurrency]) {
   final c = currencyOf(code);
   var cleaned = text.trim();
   final symbol = c.symbol.trim().toLowerCase();
   final lower = cleaned.toLowerCase();
-  if (lower.startsWith(symbol)) {
+  if (symbol.isNotEmpty && lower.startsWith(symbol)) {
     cleaned = cleaned.substring(symbol.length);
   } else if (lower.startsWith(c.code.toLowerCase())) {
     cleaned = cleaned.substring(c.code.length);
   }
-  cleaned = cleaned.replaceAll(RegExp(r'[,\s]'), '');
-  final m =
-      (c.digits == 0
-              ? RegExp(r'^(\d+)$')
-              : RegExp(r'^(\d+)(?:\.(\d{1,' + c.digits.toString() + r'}))?$'))
-          .firstMatch(cleaned);
-  if (m == null) return null;
-  final whole = int.tryParse(m.group(1) ?? '');
-  if (whole == null) return null;
+  cleaned = cleaned.replaceAll(RegExp(r'\s'), '');
+  final digits = c.digits;
+  final thousands = RegExp(r'^\d{1,3}(?:,\d{3})+$');
+  final String whole;
+  String frac = '';
+  if (!cleaned.contains(',')) {
+    final m = RegExp(r'^(\d+)(?:\.(\d+))?$').firstMatch(cleaned);
+    if (m == null) return null;
+    whole = m.group(1) ?? '';
+    frac = m.group(2) ?? '';
+  } else if (cleaned.contains('.')) {
+    // Thousands commas, then the decimal dot: "1,250.50"
+    final m = RegExp(r'^(\d{1,3}(?:,\d{3})+)\.(\d+)$').firstMatch(cleaned);
+    if (m == null) return null;
+    whole = (m.group(1) ?? '').replaceAll(',', '');
+    frac = m.group(2) ?? '';
+  } else {
+    final asThousands = thousands.hasMatch(cleaned);
+    final decimal = digits > 0
+        ? RegExp(r'^(\d+),(\d{' + digits.toString() + r'})$')
+              .firstMatch(cleaned)
+        : null;
+    // Both readings fit ("1,250" with three decimals): the person must say which
+    if (asThousands && decimal != null) return null;
+    if (asThousands) {
+      whole = cleaned.replaceAll(',', '');
+    } else if (decimal != null) {
+      whole = decimal.group(1) ?? '';
+      frac = decimal.group(2) ?? '';
+    } else {
+      return null;
+    }
+  }
+  if (frac.length > digits) return null;
+  final wholeValue = int.tryParse(whole);
+  if (wholeValue == null) return null;
   final int minor;
-  if (c.digits == 0) {
-    minor = whole;
+  if (digits == 0) {
+    minor = wholeValue;
   } else {
     final per = minorPerMajor(code);
     // A whole part this large cannot be multiplied without passing the cap
-    if (whole > maxMinor ~/ per) return null;
-    final frac = (m.group(2) ?? '').padRight(c.digits, '0');
-    minor = whole * per + (int.tryParse(frac.isEmpty ? '0' : frac) ?? 0);
+    if (wholeValue > maxMinor ~/ per) return null;
+    minor = wholeValue * per + (int.tryParse(frac.padRight(digits, '0')) ?? 0);
   }
   return minor > maxMinor ? null : minor;
 }

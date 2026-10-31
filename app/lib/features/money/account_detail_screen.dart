@@ -3,6 +3,8 @@
 // the difference is written as a reset and the history keeps the old balance. A reset needs a connection and is never queued.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +13,13 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/manila.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'accounts_screen.dart';
 import 'audit_words.dart';
@@ -30,6 +34,11 @@ final FutureProvider<Json> auditVerifyProvider =
     FutureProvider.autoDispose<Json>(
       (ref) => ref.watch(apiProvider).verbJson('audit_verify'),
     );
+
+// -- FUNCTIONS -- //
+
+/// A picked date as the date text the server takes, or null for no date.
+String? _isoOrNull(DateTime? d) => d == null ? null : isoOf(d);
 
 // -- TYPES -- //
 
@@ -61,8 +70,9 @@ class _Filter {
         'accountId': accountId,
         'currency': currency,
         'by': ?by,
-        if (from != null) 'from': DateFormat('yyyy-MM-dd').format(from!),
-        if (to != null) 'to': DateFormat('yyyy-MM-dd').format(to!),
+        // Null-aware elements: the date is there when the key is
+        'from': ?_isoOrNull(from),
+        'to': ?_isoOrNull(to),
         if (search.isNotEmpty) 'search': search,
         'cursor': ?cursor,
       };
@@ -92,6 +102,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
   /// The wallet whose history and balance are shown. Null until the person picks one: then the account's own currency.
   String? _wallet;
   final TextEditingController _search = TextEditingController();
+  // One key per balance reset (its intent names the amount and the reason) and no second call while one runs
+  Timer? _pause;
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
 
   // -- LIFECYCLES -- //
 
@@ -103,6 +118,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
 
   @override
   void dispose() {
+    _pause?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -150,6 +166,16 @@ class _State extends ConsumerState<AccountDetailScreen> {
     }
   }
 
+  /// Searches 300 ms after the last key, not on every key.
+  void _typed(String words) {
+    _pause?.cancel();
+    _pause = Timer(const Duration(milliseconds: 300), () {
+      final w = words.trim();
+      if (mounted && w != _filter.search)
+        _setFilter(_filter.copyWith(search: w));
+    });
+  }
+
   void _setFilter(_Filter f) {
     _filter = f;
     _load(reset: true);
@@ -175,10 +201,8 @@ class _State extends ConsumerState<AccountDetailScreen> {
         <String, Object?>{
           'accountId': widget.accountId,
           'format': format,
-          if (_filter.from != null)
-            'from': DateFormat('yyyy-MM-dd').format(_filter.from!),
-          if (_filter.to != null)
-            'to': DateFormat('yyyy-MM-dd').format(_filter.to!),
+          'from': ?_isoOrNull(_filter.from),
+          'to': ?_isoOrNull(_filter.to),
         },
       );
       await Clipboard.setData(ClipboardData(text: str(r['body'])));
@@ -213,15 +237,18 @@ class _State extends ConsumerState<AccountDetailScreen> {
     );
     if (!yes || !mounted) return;
     try {
-      await ref.read(apiProvider).verb('snapshot_record', <String, Object?>{
-        'accountId': widget.accountId,
-        'currency': code,
-        'amount': cents,
-        'mode': 'reset',
-        'reason': reason,
-        'confirmed': true,
-        'source': 'manual',
-      });
+      final ran = await _once.ok((key) async {
+        await ref.read(apiProvider).verb('snapshot_record', <String, Object?>{
+          'accountId': widget.accountId,
+          'currency': code,
+          'amount': cents,
+          'mode': 'reset',
+          'reason': reason,
+          'confirmed': true,
+          'source': 'manual',
+        }, key);
+      }, intent: 'reset:$code:$cents:$reason');
+      if (!ran) return;
       ref
         ..invalidate(balancesProvider)
         ..invalidate(assetsProvider);
@@ -242,46 +269,45 @@ class _State extends ConsumerState<AccountDetailScreen> {
     if (account == null) return;
     final t = context.t;
     final code = _currency();
-    final amount = TextEditingController();
-    final reason = TextEditingController(text: zero ? t.resetZeroReason : '');
     final picked = await showFormSheet<(int, String)>(
       context,
       title: zero ? t.acctMenuReset : t.setBalanceTitle(str(account['name'])),
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            sheet.t.setBalanceBody(sheet.moneyIn(_balance, code)),
-            style: TextStyle(color: sheet.colors.muted),
-          ),
-          const SizedBox(height: 12),
-          if (!zero)
-            Field(
-              controller: amount,
-              label: sheet.t.setBalanceNew(code),
-              keyboard: const TextInputType.numberWithOptions(decimal: true),
+      builder: (sheet, close) => SheetScope(
+        texts: <String>['', if (zero) t.resetZeroReason else ''],
+        builder: (_, s) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              sheet.t.setBalanceBody(sheet.moneyIn(_balance, code)),
+              style: TextStyle(color: sheet.colors.muted),
             ),
-          Field(controller: reason, label: sheet.t.setBalanceReason),
-          FilledButton(
-            onPressed: () {
-              final cents = zero ? 0 : sheet.parseAmountIn(amount.text, code);
-              if (cents == null) {
-                say(sheet, sheet.t.accountsCountInvalid(code));
-                return;
-              }
-              if (reason.text.trim().isEmpty) {
-                say(sheet, sheet.t.setBalanceReasonNeeded);
-                return;
-              }
-              close((cents, reason.text.trim()));
-            },
-            child: Text(zero ? t.acctMenuReset : t.acctMenuSet),
-          ),
-        ],
+            const SizedBox(height: 12),
+            if (!zero)
+              Field(
+                controller: s.c[0],
+                label: sheet.t.setBalanceNew(code),
+                keyboard: const TextInputType.numberWithOptions(decimal: true),
+              ),
+            Field(controller: s.c[1], label: sheet.t.setBalanceReason),
+            FilledButton(
+              onPressed: () {
+                final cents = zero ? 0 : sheet.parseAmountIn(s.c[0].text, code);
+                if (cents == null) {
+                  say(sheet, sheet.t.accountsCountInvalid(code));
+                  return;
+                }
+                if (s.c[1].text.trim().isEmpty) {
+                  say(sheet, sheet.t.setBalanceReasonNeeded);
+                  return;
+                }
+                close((cents, s.c[1].text.trim()));
+              },
+              child: Text(zero ? t.acctMenuReset : t.acctMenuSet),
+            ),
+          ],
+        ),
       ),
     );
-    amount.dispose();
-    reason.dispose();
     if (picked != null && mounted)
       await _setBalance(account, picked.$1, picked.$2);
   }
@@ -290,10 +316,11 @@ class _State extends ConsumerState<AccountDetailScreen> {
     final range = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      initialDateRange: _filter.from == null || _filter.to == null
-          ? null
-          : DateTimeRange(start: _filter.from!, end: _filter.to!),
+      lastDate: addCalendarDays(manilaTodayPicker(), 1),
+      initialDateRange: switch ((_filter.from, _filter.to)) {
+        (final from?, final to?) => DateTimeRange(start: from, end: to),
+        _ => null,
+      },
     );
     if (range != null) {
       _setFilter(_filter.copyWith(from: range.start, to: range.end));
@@ -490,6 +517,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
               filter: _filter,
               search: _search,
               onChange: _setFilter,
+              onTyped: _typed,
               onDates: _pickDates,
             ),
             Expanded(
@@ -505,16 +533,16 @@ class _State extends ConsumerState<AccountDetailScreen> {
 
   Widget _list(List<Json> rows) {
     final t = context.t;
-    if (_error != null && _entries.isEmpty) {
-      final offline =
-          _error is ApiException && (_error! as ApiException).code == 'NETWORK';
+    final error = _error;
+    if (error != null && _entries.isEmpty) {
+      final offline = error is ApiException && error.code == 'NETWORK';
       return Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              offline ? t.acctOffline : errorWords(_error!, context),
+              offline ? t.acctOffline : errorWords(error, context),
               textAlign: TextAlign.center,
             ),
             TextButton(
@@ -533,17 +561,26 @@ class _State extends ConsumerState<AccountDetailScreen> {
         child: SkeletonRows(count: 7),
       );
     }
-    return ListView(
+    // One formatter for the whole list, not one per row
+    final format = DateFormat.MMMd(Localizations.localeOf(context).toString())
+        .add_jm();
+    final code = _currency();
+    final lead = rows.isEmpty ? 1 : 0;
+    final tail = _more ? 1 : 0;
+    return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      children: <Widget>[
-        if (rows.isEmpty) Note(t.acctEmpty),
-        for (final e in rows) _EntryRow(entry: e, currency: _currency()),
-        if (_more)
-          TextButton(
-            onPressed: _loading ? null : () => _load(),
-            child: Text(t.acctLoadMore),
-          ),
-      ],
+      itemCount: lead + rows.length + tail,
+      itemBuilder: (_, i) {
+        if (i < lead) return Note(t.acctEmpty);
+        final n = i - lead;
+        if (n < rows.length) {
+          return _EntryRow(entry: rows[n], currency: code, format: format);
+        }
+        return TextButton(
+          onPressed: _loading ? null : () => _load(),
+          child: Text(t.acctLoadMore),
+        );
+      },
     );
   }
 }
@@ -555,12 +592,14 @@ class _Filters extends StatelessWidget {
     required this.filter,
     required this.search,
     required this.onChange,
+    required this.onTyped,
     required this.onDates,
   });
 
   final _Filter filter;
   final TextEditingController search;
   final ValueChanged<_Filter> onChange;
+  final ValueChanged<String> onTyped;
   final VoidCallback onDates;
 
   @override
@@ -569,7 +608,7 @@ class _Filters extends StatelessWidget {
     final locale = Localizations.localeOf(context).toString();
     final dates = filter.from == null || filter.to == null
         ? t.acctDateRange
-        : '${DateFormat.MMMd(locale).format(filter.from!)} - ${DateFormat.MMMd(locale).format(filter.to!)}';
+        : '${DateFormat.MMMd(locale).format(filter.from ?? DateTime(0))} - ${DateFormat.MMMd(locale).format(filter.to ?? DateTime(0))}';
     return Column(
       children: <Widget>[
         SizedBox(
@@ -632,6 +671,7 @@ class _Filters extends StatelessWidget {
               hintText: t.acctSearchHint,
               prefixIcon: const Icon(Icons.search),
             ),
+            onChanged: onTyped,
             onSubmitted: (v) => onChange(filter.copyWith(search: v.trim())),
           ),
         ),
@@ -643,9 +683,16 @@ class _Filters extends StatelessWidget {
 // -- ROWS -- //
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, required this.currency});
+  const _EntryRow({
+    required this.entry,
+    required this.currency,
+    required this.format,
+  });
 
   final Json entry;
+
+  /// The date format of the whole list, made once by the list.
+  final DateFormat format;
 
   /// The wallet the list shows: every amount of a row is in it.
   final String currency;
@@ -654,9 +701,8 @@ class _EntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final c = context.colors;
-    final locale = Localizations.localeOf(context).toString();
-    final at = (dateOf(entry['at']) ?? DateTime.now()).toLocal();
-    final when = DateFormat.MMMd(locale).add_jm().format(at);
+    final at = manilaWall(dateOf(entry['at']) ?? DateTime.now().toUtc());
+    final when = format.format(at);
     final delta = intOf(entry['delta']);
     final what = entryTitle(t, entry);
     final who = actorWords(t, entry);
@@ -724,7 +770,7 @@ Future<void> showEntrySheet(
   // The amounts of an entry are in the wallet it belongs to; a row of the trail that is not about money has no currency of its own
   final code = currency ?? str(entry['currency'], context.currencyCode);
   final locale = Localizations.localeOf(context).toString();
-  final at = (dateOf(entry['at']) ?? DateTime.now()).toLocal();
+  final at = manilaWall(dateOf(entry['at']) ?? DateTime.now().toUtc());
   final before = asJson(entry['before']);
   final after = asJson(entry['after']);
   final keys = <String>{...before.keys, ...after.keys}.toList()..sort();

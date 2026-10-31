@@ -46,8 +46,10 @@ String whenLabel(BuildContext context, ChatSummary c, {DateTime? now}) {
 }
 
 /// The name a chat shows: its title, or a plain placeholder when it has none.
-String chatName(BuildContext context, ChatSummary c) =>
-    (c.title ?? '').trim().isEmpty ? context.t.chatsUntitled : c.title!;
+String chatName(BuildContext context, ChatSummary c) {
+  final title = c.title ?? '';
+  return title.trim().isEmpty ? context.t.chatsUntitled : title;
+}
 
 /// Asks for a new name and saves it. Used by the drawer and by the title of the open chat. A failure keeps the sheet open with the words in it.
 Future<void> renameWithSheet(
@@ -154,6 +156,8 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
   Timer? _pause;
   String _query = '';
   bool _archive = false;
+  // True while a new chat is being made, so a second tap cannot make a second one
+  bool _creating = false;
 
   @override
   void dispose() {
@@ -195,8 +199,11 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
   }
 
   Future<void> _new() async {
+    if (_creating) return;
+    _creating = true;
     final navigator = Navigator.of(context);
     final ok = await _run(() => ref.read(chatProvider.notifier).startNew());
+    _creating = false;
     if (!ok || !mounted) return;
     widget.onOpened?.call();
     navigator.pop();

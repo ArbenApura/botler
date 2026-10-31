@@ -38,13 +38,14 @@ Future<void> undoEntry(
   ApiClient api,
   String entityId, {
   String gone = 'That entry can no longer be undone.',
+  String? key,
 }) async {
   final recent = await api.verbList('ledger_undoable', <String, Object?>{
     'limit': 20,
   });
   for (final r in recent) {
     if (str(asJson(r['after'])['id']) == entityId) {
-      await api.verb('undo', <String, Object?>{'journalId': str(r['id'])});
+      await api.verb('undo', <String, Object?>{'journalId': str(r['id'])}, key);
       return;
     }
   }
@@ -115,7 +116,7 @@ class ChatItemView extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              AgentText(text),
+              AgentText(text, streaming: streaming),
               if (streaming) const StreamCaret(),
             ],
           ),
@@ -220,7 +221,7 @@ class _ToolView extends ConsumerWidget {
               ),
               undoable: !item.resolved,
               undone: item.resolved,
-              onUndo: () => _undo(context, ref, str(txn['id'])),
+              onUndo: (key) => _undo(context, ref, str(txn['id']), key),
             );
           case 'needs_confirmation':
             final chip = asJson(data['chip']);
@@ -234,7 +235,7 @@ class _ToolView extends ConsumerWidget {
               ),
               resolved: item.resolved,
               yes: context.t.chatYesLogIt,
-              onYes: () async {
+              onYes: (key) async {
                 await api.verb('expense_log', <String, Object?>{
                   'accountId': str(chip['accountId']),
                   'amount': intOf(chip['amount']),
@@ -242,7 +243,7 @@ class _ToolView extends ConsumerWidget {
                     'currency': str(chip['currency']),
                   'note': str(chip['note']),
                   'confirmed': true,
-                });
+                }, key);
                 notifier.answer(item.id);
                 ref
                   ..invalidate(balancesProvider)
@@ -260,7 +261,7 @@ class _ToolView extends ConsumerWidget {
               ),
               names: asList(data['accounts']).whereType<String>().toList(),
               resolved: item.resolved,
-              onPick: (name) async {
+              onPick: (name, key) async {
                 final match = asJsonList(accounts)
                     .where((a) => str(a['name']) == name);
                 if (match.isEmpty) return;
@@ -270,7 +271,7 @@ class _ToolView extends ConsumerWidget {
                   if (str(data['currency']).isNotEmpty)
                     'currency': str(data['currency']),
                   'note': str(data['note']),
-                });
+                }, key);
                 notifier.answer(item.id);
                 ref
                   ..invalidate(balancesProvider)
@@ -294,7 +295,7 @@ class _ToolView extends ConsumerWidget {
           ),
           undoable: !item.resolved,
           undone: item.resolved,
-          onUndo: () => _undo(context, ref, str(data['id'])),
+          onUndo: (key) => _undo(context, ref, str(data['id']), key),
         );
       case 'split_propose':
         if (str(data['status']) == 'needs_amounts') {
@@ -330,7 +331,9 @@ class _ToolView extends ConsumerWidget {
         return _QuietRow(
           icon: Icons.search,
           text: _humanize(context, item.name),
-          style: TextStyle(color: c.muted, fontSize: 12),
+          style:
+              Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted) ??
+              TextStyle(color: c.muted),
           more: more,
         );
     }
@@ -340,12 +343,14 @@ class _ToolView extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     String entityId,
+    String key,
   ) async {
     try {
       await undoEntry(
         ref.read(apiProvider),
         entityId,
         gone: context.t.chatUndoGone,
+        key: key,
       );
       ref.read(chatProvider.notifier).answer(item.id, data: item.data);
       ref
@@ -490,7 +495,8 @@ class _EarlierDivider extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 context.t.chatEarlier,
-                style: TextStyle(color: c.muted, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: c.muted),
               ),
             ),
             Expanded(child: Divider(color: c.line, height: 1)),
@@ -501,7 +507,7 @@ class _EarlierDivider extends StatelessWidget {
   }
 }
 
-class _Logged extends StatelessWidget {
+class _Logged extends StatefulWidget {
   const _Logged({
     required this.line,
     required this.undoable,
@@ -512,7 +518,27 @@ class _Logged extends StatelessWidget {
   final String line;
   final bool undoable;
   final bool undone;
-  final VoidCallback onUndo;
+
+  /// Gets the request key of this undo: the same one for a second tap.
+  final Future<void> Function(String key) onUndo;
+
+  @override
+  State<_Logged> createState() => _LoggedState();
+}
+
+class _LoggedState extends State<_Logged> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  String get line => widget.line;
+  bool get undoable => widget.undoable;
+  bool get undone => widget.undone;
+
+  Future<void> _run() async {
+    await _once.run(widget.onUndo);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -528,13 +554,17 @@ class _Logged extends StatelessWidget {
         Expanded(
           child: Text(
             undone ? context.t.chatUndoneLine : line,
-            style: TextStyle(color: c.muted, fontSize: 14),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: c.muted),
           ),
         ),
         if (undoable)
           TextButton(
-            onPressed: onUndo,
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            onPressed: _once.running() ? null : _run,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              minimumSize: const Size(48, 48),
+            ),
             child: Text(context.t.undo),
           ),
       ],
@@ -542,7 +572,7 @@ class _Logged extends StatelessWidget {
   }
 }
 
-class _Ask extends StatelessWidget {
+class _Ask extends StatefulWidget {
   const _Ask({
     required this.question,
     required this.yes,
@@ -553,9 +583,33 @@ class _Ask extends StatelessWidget {
 
   final String question;
   final String yes;
-  final Future<void> Function() onYes;
+
+  /// Gets the request key of this answer: the same one for a second tap.
+  final Future<void> Function(String key) onYes;
   final Future<void> Function() onNo;
   final bool resolved;
+
+  @override
+  State<_Ask> createState() => _AskState();
+}
+
+class _AskState extends State<_Ask> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  String get question => widget.question;
+  String get yes => widget.yes;
+  bool get resolved => widget.resolved;
+
+  Future<void> _answer(Future<void> Function(String key) body) async {
+    try {
+      await _once.run(body);
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,9 +623,18 @@ class _Ask extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: <Widget>[
-              FilledButton(onPressed: onYes, child: Text(yes)),
+              FilledButton(
+                onPressed: _once.running() ? null : () => _answer(widget.onYes),
+                child: Text(yes),
+              ),
               const SizedBox(width: 8),
-              TextButton(onPressed: onNo, child: Text(context.t.no)),
+              TextButton(
+                onPressed: _once.running()
+                    ? null
+                    : () => _answer((_) => widget.onNo()),
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                child: Text(context.t.no),
+              ),
             ],
           ),
         ],
@@ -580,7 +643,7 @@ class _Ask extends StatelessWidget {
   }
 }
 
-class _Choose extends StatelessWidget {
+class _Choose extends StatefulWidget {
   const _Choose({
     required this.question,
     required this.names,
@@ -590,8 +653,33 @@ class _Choose extends StatelessWidget {
 
   final String question;
   final List<String> names;
-  final Future<void> Function(String name) onPick;
+
+  /// Gets the picked name and the request key of this pick.
+  final Future<void> Function(String name, String key) onPick;
   final bool resolved;
+
+  @override
+  State<_Choose> createState() => _ChooseState();
+}
+
+class _ChooseState extends State<_Choose> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  String get question => widget.question;
+  List<String> get names => widget.names;
+  bool get resolved => widget.resolved;
+
+  Future<void> _pick(String name) async {
+    try {
+      // One intent for the whole card: a second chip is not a second entry
+      await _once.run((key) => widget.onPick(name, key));
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -607,7 +695,10 @@ class _Choose extends StatelessWidget {
             spacing: 8,
             children: <Widget>[
               for (final n in names)
-                ActionChip(label: Text(n), onPressed: () => onPick(n)),
+                ActionChip(
+                  label: Text(n),
+                  onPressed: _once.running() ? null : () => _pick(n),
+                ),
             ],
           ),
         ],
@@ -627,7 +718,10 @@ class _RuleCard extends ConsumerStatefulWidget {
 
 class _RuleCardState extends ConsumerState<_RuleCard> {
   String _status = '';
-  bool _busy = false;
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -645,21 +739,22 @@ class _RuleCardState extends ConsumerState<_RuleCard> {
           const SizedBox(height: 8),
           if (status == 'proposed')
             FilledButton(
-              onPressed: _busy
+              onPressed: _once.running()
                   ? null
                   : () async {
-                      setState(() => _busy = true);
                       try {
-                        await ref.read(apiProvider).verb(
-                          'rule_approve',
-                          <String, Object?>{'ruleId': str(widget.rule['id'])},
-                        );
+                        await _once.run((key) async {
+                          await ref.read(apiProvider).verb(
+                            'rule_approve',
+                            <String, Object?>{'ruleId': str(widget.rule['id'])},
+                            key,
+                          );
+                        });
                         if (mounted) setState(() => _status = 'active');
                       } catch (e) {
-                        if (context.mounted)
+                        if (context.mounted) {
                           say(context, errorWords(e, context));
-                      } finally {
-                        if (mounted) setState(() => _busy = false);
+                        }
                       }
                     },
               child: Text(context.t.chatApproveRule),
@@ -675,16 +770,25 @@ class _RuleCardState extends ConsumerState<_RuleCard> {
   }
 }
 
-class _CardView extends ConsumerWidget {
+class _CardView extends ConsumerStatefulWidget {
   const _CardView(this.item);
 
   final CardItem item;
 
-  Future<void> _decide(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool approve,
-  }) async {
+  @override
+  ConsumerState<_CardView> createState() => _CardViewState();
+}
+
+class _CardViewState extends ConsumerState<_CardView> {
+  // -- STATES -- //
+  // The action id is the stable key of a card decision (the server takes no request key for it), so only the in-flight guard is needed
+  bool _deciding = false;
+
+  CardItem get item => widget.item;
+
+  Future<void> _decide({required bool approve}) async {
+    if (_deciding) return;
+    setState(() => _deciding = true);
     final notifier = ref.read(chatProvider.notifier);
     try {
       final r = await ref
@@ -710,12 +814,14 @@ class _CardView extends ConsumerWidget {
         ..invalidate(balancesProvider)
         ..invalidate(syncProvider);
     } catch (e) {
-      if (context.mounted) say(context, errorWords(e, context));
+      if (mounted) say(context, errorWords(e, context));
+    } finally {
+      if (mounted) setState(() => _deciding = false);
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final c = context.colors;
     return PaperCard(
       child: Column(
@@ -733,12 +839,12 @@ class _CardView extends ConsumerWidget {
             CardState.waiting => Row(
               children: <Widget>[
                 FilledButton(
-                  onPressed: () => _decide(context, ref, approve: true),
+                  onPressed: _deciding ? null : () => _decide(approve: true),
                   child: Text(context.t.chatApprove),
                 ),
                 const SizedBox(width: 8),
                 TextButton(
-                  onPressed: () => _decide(context, ref, approve: false),
+                  onPressed: _deciding ? null : () => _decide(approve: false),
                   child: Text(context.t.chatNotNow),
                 ),
               ],

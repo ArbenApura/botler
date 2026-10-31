@@ -16,6 +16,7 @@ import '../core/config.dart';
 import '../core/json.dart';
 import '../core/outbox.dart';
 import '../core/page_cache.dart';
+import '../core/person_data.dart';
 import '../core/push.dart';
 
 // -- TYPES -- //
@@ -162,9 +163,31 @@ final Provider<ApiClient> apiProvider = Provider<ApiClient>((ref) {
   return api;
 });
 
+/// The waiting writes of the signed-in person: they are tagged with the session's e-mail, and only that person's session sends them.
 final Provider<Outbox> outboxProvider = Provider<Outbox>(
-  (ref) => Outbox(ref.watch(prefsProvider)),
+  (ref) => Outbox(
+    ref.watch(prefsProvider),
+    userId: ref.watch(sessionProvider.select((s) => s.value?.email)),
+  ),
 );
+
+/// True after a flush was answered 401: the session no longer works, the waiting writes are kept, and the app shows a notice to sign in again.
+final NotifierProvider<NeedsSignIn, bool> needsSignInProvider =
+    NotifierProvider<NeedsSignIn, bool>(NeedsSignIn.new);
+
+class NeedsSignIn extends Notifier<bool> {
+  @override
+  bool build() {
+    // A new session (signing in, or out) settles it
+    ref.listen<String?>(
+      sessionProvider.select((s) => s.value?.email),
+      (_, _) => state = false,
+    );
+    return false;
+  }
+
+  void set(bool value) => state = value;
+}
 
 /// The photos of sent messages, kept on this phone for the signed-in person only. Tests override it with a temporary folder.
 final Provider<ChatPhotoStore> chatPhotoStoreProvider =
@@ -192,7 +215,15 @@ final Provider<PushService> pushServiceProvider = Provider<PushService>(
 
 class SessionNotifier extends AsyncNotifier<Session?> {
   @override
-  Future<Session?> build() => ref.watch(sessionStoreProvider).read();
+  Future<Session?> build() async {
+    final store = ref.watch(sessionStoreProvider);
+    try {
+      return await store.read();
+    } on Object {
+      // A keystore that cannot be read is "not signed in", never an error state that Riverpod retries on a timer; the stored session is untouched
+      return null;
+    }
+  }
 
   Future<void> signIn() async {
     state = const AsyncLoading<Session?>();
@@ -225,6 +256,13 @@ class SessionNotifier extends AsyncNotifier<Session?> {
       await PageCache(ref.read(prefsProvider)).wipe();
     } on Object {
       // Signing out never waits on the saved pages
+    }
+    // Nor the saved balances, calendar, summary or reminder bookkeeping. The waiting writes stay: they carry their owner and go out only
+    // when that person signs in again
+    try {
+      await clearPersonData(ref.read(prefsProvider));
+    } on Object {
+      // Signing out never waits on the saved copies
     }
     await ref.read(sessionStoreProvider).clear();
     state = const AsyncData<Session?>(null);

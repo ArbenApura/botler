@@ -38,8 +38,8 @@ void main() {
       expect(formatMoney(1234, 'JPY'), '¥1,234');
       expect(formatMoney(-1500000, 'KRW'), '-₩1,500,000');
       expect(formatMoney(5, 'EUR'), '€0.05');
-      // An unknown code never breaks a screen: it reads as pesos
-      expect(formatMoney(100, 'XXX'), '₱1.00');
+      // An unknown code never breaks a screen: it shows its own code, never pesos
+      expect(formatMoney(100, 'XXX'), 'XXX 1.00');
     });
 
     test('reads what a person types', () {
@@ -318,10 +318,13 @@ void main() {
       final report = await outbox.flush(api);
       expect(report.dropped, hasLength(2));
       expect(outbox.length, 0);
-      // Only the payment is kept; an undo that failed is just reported
+      // Every refused write is kept, whatever the verb
       final kept = outbox.failed();
-      expect(kept.single.verb, 'bill_mark_paid');
-      expect(kept.single.reason, 'That bill is already paid.');
+      expect(kept.map((f) => f.verb).toSet(), <String>{
+        'bill_mark_paid',
+        'undo',
+      });
+      expect(kept.first.reason, 'That bill is already paid.');
       await outbox.dismissFailed();
       expect(outbox.failed(), isEmpty);
     });

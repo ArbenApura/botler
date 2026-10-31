@@ -1657,6 +1657,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get expenseTitle => 'Magdagdag ng gastos';
 
   @override
+  String get fixQueued =>
+      'Nakasave sa phone na ito ang bagong entry at ipapadala kapag may koneksyon ka na. Mananatili ang lumang entry hangga\'t hindi mo ito ina-undo.';
+
+  @override
   String get goalsAdd => 'Magdagdag ng goal';
 
   @override
@@ -1725,8 +1729,8 @@ class AppLocalizationsFil extends AppLocalizations {
   String get goalsWhere => 'Saan ito nakalagay?';
 
   @override
-  String goalsYear(String amount) {
-    return 'Sa isang taon (24 payday) ito ay $amount.';
+  String goalsYear(int count, String amount) {
+    return 'Sa isang taon ($count payday) ito ay $amount.';
   }
 
   @override
@@ -1934,6 +1938,13 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get libraryUpdated => 'Binago ni Botler';
+
+  @override
+  String get lockContinueWithout => 'Magpatuloy nang walang lock';
+
+  @override
+  String get lockNoScreenLock =>
+      'Walang screen lock ang phone na ito, kaya hindi makahingi ang Botler ng fingerprint, mukha o PIN.';
 
   @override
   String get lockReason => 'Buksan ang Botler';
@@ -2219,6 +2230,15 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get notebookExport => 'Kopyahin bilang Markdown';
+
+  @override
+  String notebookExportBig(String size) {
+    return 'Humigit-kumulang $size MB ng teksto ang notebook na ito. Maaaring matagalan ang pag-copy.';
+  }
+
+  @override
+  String get notebookExportClipFail =>
+      'Hindi makopya sa clipboard. Subukan ulit.';
 
   @override
   String notebookExported(int count) {
@@ -2934,6 +2954,11 @@ class AppLocalizationsFil extends AppLocalizations {
   String get schedFirstDay => 'Unang araw';
 
   @override
+  String schedFromDate(String date) {
+    return 'mula $date';
+  }
+
+  @override
   String get schedFromDay => 'Mula sa araw';
 
   @override
@@ -2947,6 +2972,11 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get schedMonth => 'Buwan';
+
+  @override
+  String schedNotOnDates(String dates) {
+    return 'hindi sa $dates';
+  }
 
   @override
   String get schedNth1 => 'Una';
@@ -3130,6 +3160,11 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String get schedUnknown =>
       'Isang schedule na hindi kayang i-edit ng bersyong ito ng app';
+
+  @override
+  String schedUntilDate(String date) {
+    return 'hanggang $date';
+  }
 
   @override
   String get schedWeekday => 'Araw ng linggo';
@@ -3402,10 +3437,31 @@ class AppLocalizationsFil extends AppLocalizations {
   String get settingsWeekStarts => 'Nagsisimula ang linggo sa';
 
   @override
+  String get signInAgainBody =>
+      'Nasa phone na ito ang mga isinulat mo habang offline. Mag-sign in ulit para maipadala ang mga ito.';
+
+  @override
+  String get signInAgainButton => 'Mag-sign in ulit';
+
+  @override
+  String get signInAgainTitle => 'Natapos na ang iyong sign in';
+
+  @override
   String get signInButton => 'Mag-sign in gamit ang Google';
 
   @override
   String get signInTagline => 'Ang pera at oras mo, sa isang tahimik na chat.';
+
+  @override
+  String signOutWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pagbabago ang',
+      one: '1 pagbabago ang',
+    );
+    return '$_temp0 naghihintay pang maipadala. Mananatili ang mga ito sa phone na ito at ipapadala kapag nag-sign in ka ulit.';
+  }
 
   @override
   String simAbout(String amount) {
@@ -3758,6 +3814,16 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get simPretendOut => 'Lumabas';
+
+  @override
+  String simPretendRange(String min, String max) {
+    return 'Gumamit ng halagang mula $min hanggang $max.';
+  }
+
+  @override
+  String simPretendTooMany(int count) {
+    return 'Hanggang $count na pagpapanggap lang ang puwede nang sabay. Mag-alis muna ng isa.';
+  }
 
   @override
   String get simRatesStale => 'Mahigit isang araw na ang palitan.';

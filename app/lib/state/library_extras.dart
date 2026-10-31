@@ -11,6 +11,7 @@ import '../core/json.dart';
 import '../core/library.dart';
 import '../core/library_extras.dart';
 import '../core/line_diff.dart';
+import '../ui/once.dart';
 import 'library.dart';
 import 'providers.dart';
 
@@ -131,6 +132,10 @@ class ChangeActions {
 
   final Ref _ref;
 
+  // -- STATES -- //
+  // One key per undone revision until it works, and no second call of the same one while it runs
+  final Once _once = Once();
+
   /// Puts back the text Botler replaced (the newest saved change), or deletes the page when Botler made it. Throws [UndoUnavailable] when the
   /// earlier text is not there, and the ApiException of a failed call.
   Future<UndoResult> undo(ActivityEntry entry) async {
@@ -157,9 +162,12 @@ class ChangeActions {
         str(revisions.first['actor']) != 'agent') {
       throw const UndoUnavailable();
     }
-    await api.verb('page_restore', <String, Object?>{
-      'revisionId': str(revisions.first['id']),
-    }, newRequestId());
+    final revisionId = str(revisions.first['id']);
+    await _once.run((key) async {
+      await api.verb('page_restore', <String, Object?>{
+        'revisionId': revisionId,
+      }, key);
+    }, intent: 'page_restore:$revisionId');
     actions.refresh(entry.pageId);
     _ref.invalidate(activityProvider);
     return UndoResult.restored;

@@ -18,10 +18,20 @@ String manilaToday([DateTime? now]) =>
 String addDaysTo(String iso, int days) =>
     _day.format(DateTime.parse('${iso}T00:00:00Z').add(Duration(days: days)));
 
-/// A Manila date as a plain DateTime at local midnight, for a date picker. Null when [iso] is not a date.
+/// A Manila date as a plain DateTime at local midnight, for a date picker. Null when [iso] is not a date, or is a day that does not exist
+/// (2026-02-30 would otherwise slide to March 2).
 DateTime? dayOf(String iso) {
   final d = DateTime.tryParse(iso);
-  return d == null ? null : DateTime(d.year, d.month, d.day);
+  if (d == null) return null;
+  // The parser rolls an impossible day over to the next month, so the year, month and day written are checked against what came out
+  final written = RegExp(r'^\s*(\d{4})-(\d{2})-(\d{2})').firstMatch(iso);
+  if (written != null &&
+      (int.parse(written.group(1) ?? '0') != d.year ||
+          int.parse(written.group(2) ?? '0') != d.month ||
+          int.parse(written.group(3) ?? '0') != d.day)) {
+    return null;
+  }
+  return DateTime(d.year, d.month, d.day);
 }
 
 /// A date picker's answer as the date text the server takes.

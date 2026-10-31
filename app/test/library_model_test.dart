@@ -210,6 +210,16 @@ void main() {
       },
     );
 
+    test('saves made at the same moment all stay in the index', () async {
+      final c = await cache();
+      await Future.wait(<Future<void>>[
+        for (var i = 0; i < 10; i++) c.savePage(_doc('p$i')),
+      ]);
+      expect(c.cachedIds().toSet(), <String>{
+        for (var i = 0; i < 10; i++) 'p$i',
+      });
+    });
+
     test('forgets one page, and wipes everything of the library', () async {
       final c = await cache();
       await c.saveLibrary(const Library());

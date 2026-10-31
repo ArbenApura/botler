@@ -151,5 +151,7 @@
   "simPretendDate": "Sa {date}",
   "simRemove": "Alisin ang {name}",
   "simSkipPayday": "I-tap ang sweldong hindi darating:",
-  "simDone": "Tapos"
+  "simDone": "Tapos",
+  "simPretendTooMany": "Hanggang {count} na pagpapanggap lang ang puwede nang sabay. Mag-alis muna ng isa.",
+  "simPretendRange": "Gumamit ng halagang mula {min} hanggang {max}."
 }

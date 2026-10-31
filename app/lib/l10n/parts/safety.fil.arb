@@ -1,0 +1,16 @@
+{
+  "signInAgainTitle": "Natapos na ang iyong sign in",
+  "signInAgainBody": "Nasa phone na ito ang mga isinulat mo habang offline. Mag-sign in ulit para maipadala ang mga ito.",
+  "signInAgainButton": "Mag-sign in ulit",
+
+  "lockNoScreenLock": "Walang screen lock ang phone na ito, kaya hindi makahingi ang Botler ng fingerprint, mukha o PIN.",
+  "lockContinueWithout": "Magpatuloy nang walang lock",
+
+  "signOutWaiting": "{count, plural, =1{1 pagbabago ang} other{{count} pagbabago ang}} naghihintay pang maipadala. Mananatili ang mga ito sa phone na ito at ipapadala kapag nag-sign in ka ulit.",
+
+  "schedFromDate": "mula {date}",
+  "schedUntilDate": "hanggang {date}",
+  "schedNotOnDates": "hindi sa {dates}",
+
+  "fixQueued": "Nakasave sa phone na ito ang bagong entry at ipapadala kapag may koneksyon ka na. Mananatili ang lumang entry hangga't hindi mo ito ina-undo."
+}

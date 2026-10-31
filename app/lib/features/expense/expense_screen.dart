@@ -3,6 +3,8 @@
 // This is also where the home screen widget leads (botler://quickadd).
 
 // -- DEP-MODULES -- //
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,6 +52,8 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   /// The wallet it is spent from. Null until picked: then the account's own currency.
   String? _currency;
   bool _busy = false;
+  // One key per entry (the intent is the whole request): a second tap or a retry after a timeout is the same request
+  final Once _once = Once();
 
   @override
   void dispose() {
@@ -59,7 +63,10 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
   }
 
   /// Back to where the person came from; the home screen when this was the first screen (the widget opens it directly).
-  void _close() => context.canPop() ? context.pop() : context.go('/');
+  /// Pops `true` when the entry reached the server, 'queued' when it waits in the outbox (the old entry of a fix then stays), false otherwise.
+  void _close({bool saved = false, bool queued = false}) => context.canPop()
+      ? context.pop<Object>(queued ? 'queued' : saved)
+      : context.go('/');
 
   /// The currency of the entry: the one picked, else the one being fixed, else the account's own.
   String _code(Json? account) =>
@@ -68,6 +75,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       str(account?['currency'], context.currencyCode);
 
   Future<void> _save(String id, Json? account) async {
+    if (_busy) return;
     final code = _code(account);
     final cents = context.parseAmountIn(_amount.text, code);
     if (cents == null || cents <= 0) {
@@ -88,10 +96,12 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
       'note': _note.text.trim(),
       'source': 'manual',
     };
-    final key = newRequestId();
+    final intent = jsonEncode(args);
+    final key = _once.key(intent);
     final prefs = ref.read(prefsProvider);
     try {
       await ref.read(apiProvider).verb('expense_log', args, key);
+      _once.done(intent);
       await prefs.setString(_lastAccountKey, id);
       ref
         ..invalidate(balancesProvider)
@@ -99,7 +109,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         ..invalidate(syncProvider);
       if (!mounted) return;
       say(context, context.t.expenseLogged(context.moneyIn(cents, code)));
-      _close();
+      _close(saved: true);
     } on ApiException catch (e) {
       if (e.isNetwork) {
         // Kept on the phone under the same id: if the first try did arrive, the server knows the id and does not double it
@@ -107,7 +117,7 @@ class _ExpenseScreenState extends ConsumerState<ExpenseScreen> {
         ref.read(outboxCountProvider.notifier).refresh();
         if (!mounted) return;
         say(context, context.t.expenseOffline);
-        _close();
+        _close(saved: true, queued: true);
       } else if (mounted) {
         say(context, e.message);
       }

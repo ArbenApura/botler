@@ -325,3 +325,55 @@ class UpdateBanner extends ConsumerWidget {
     );
   }
 }
+
+/// Says the session no longer works (the server refused it while writes were waiting). The writes are kept on the phone and go out after the
+/// person signs in again; the button takes them to the sign in screen by ending this session, which keeps the waiting writes.
+class SignInAgainBanner extends ConsumerWidget {
+  const SignInAgainBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(needsSignInProvider)) return const SizedBox.shrink();
+    final c = context.colors;
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: PaperCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(Icons.lock_outline, color: c.warning),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        t.signInAgainTitle,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(t.signInAgainBody, style: TextStyle(color: c.muted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () =>
+                    unawaited(ref.read(sessionProvider.notifier).signOut()),
+                child: Text(t.signInAgainButton),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

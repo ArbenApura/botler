@@ -2,12 +2,15 @@
 // UNTIL THE SERVER HAS DONE IT, AND A FAILURE LEAVES THE LIST AS IT WAS. THE SERVER KEEPS EVERY CHAT: ARCHIVING ONLY HIDES IT FROM THE MAIN LIST.
 
 // -- DEP-MODULES -- //
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
 import '../../core/manila.dart';
 import '../../state/providers.dart';
+import '../../ui/once.dart';
 
 // -- TYPES -- //
 
@@ -106,16 +109,22 @@ final chatSearchProvider = FutureProvider.autoDispose
 
 /// What the person can do to one conversation. Each call is one action with one request id, so a repeat of it does nothing twice.
 class ChatActions {
-  const ChatActions(this._ref);
+  ChatActions(this._ref);
 
   final Ref _ref;
 
+  // -- STATES -- //
+  // One key per intent (the verb and its arguments) until it succeeds, and no second call of the same intent while one runs
+  final Once _once = Once();
+
   Future<void> _done(String verb, Json args) async {
-    await _ref.read(apiProvider).verb(verb, args);
-    _ref
-      ..invalidate(chatListProvider)
-      ..invalidate(archivedChatsProvider)
-      ..invalidate(chatSearchProvider);
+    await _once.run((key) async {
+      await _ref.read(apiProvider).verb(verb, args, key);
+      _ref
+        ..invalidate(chatListProvider)
+        ..invalidate(archivedChatsProvider)
+        ..invalidate(chatSearchProvider);
+    }, intent: '$verb:${jsonEncode(args)}');
   }
 
   Future<void> rename(String chatId, String title) => _done(

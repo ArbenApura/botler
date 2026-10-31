@@ -279,7 +279,10 @@ class _PageReaderScreenState extends ConsumerState<PageReaderScreen> {
                   ],
                   Flexible(
                     child: Text(
-                      context.t.pageUpdatedBy(who, libraryWhen(doc.updatedAt)),
+                      context.t.pageUpdatedBy(
+                        who,
+                        libraryWhen(context, doc.updatedAt),
+                      ),
                       style: small,
                     ),
                   ),

@@ -17,7 +17,9 @@ import '../../state/library.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
+import '../auth/lock_gate.dart';
 import 'notebook_editor.dart';
 import 'notebook_list.dart';
 import 'notebook_text.dart';
@@ -41,7 +43,8 @@ final _revisions = FutureProvider.autoDispose.family<List<Json>, String?>((
   return asJsonList(answer['revisions']);
 });
 
-final DateFormat _when = DateFormat('d MMM, HH:mm');
+/// One key per restore of a revision, until it works, and no second call of the same one while it runs.
+final Once _restoreOnce = Once();
 
 // -- TYPES -- //
 
@@ -59,6 +62,10 @@ class NotebookScreen extends ConsumerStatefulWidget {
 }
 
 class _NotebookScreenState extends ConsumerState<NotebookScreen> {
+  // -- STATES -- //
+  // One key per wipe or delete, until it works, and no second call of the same one while it runs
+  final Once _once = Once();
+
   // -- FUNCTIONS -- //
 
   String? get _id => widget.notebookId;
@@ -124,49 +131,25 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
   }
 
   Future<void> _wipe() async {
-    final typed = TextEditingController();
-    final wipeWord = context.t.memoryWipeWord;
     final wiped = context.t.memoryWiped;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        backgroundColor: context.colors.surface,
-        title: Text(context.t.memoryWipeTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(context.t.memoryWipeBody),
-            const SizedBox(height: 12),
-            TextField(
-              controller: typed,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(labelText: context.t.memoryWipeType),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(d).pop(false),
-            child: Text(context.t.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: context.colors.danger,
-              foregroundColor: context.colors.paper,
-            ),
-            onPressed: () => Navigator.of(d).pop(typed.text.trim() == wipeWord),
-            child: Text(context.t.memoryWipe),
-          ),
-        ],
-      ),
+      builder: (d) => _WipeDialog(wipeWord: d.t.memoryWipeWord),
     );
-    // The field is not disposed here: the dialog is still fading out and builds it once more
     if (ok != true) return;
+    // The phone's own lock is asked as for a data reset, so a borrowed phone cannot wipe the notebooks
+    final unlocked = await ref.read(authenticateProvider)();
+    if (!unlocked) {
+      if (mounted) say(context, context.t.resetBiometric);
+      return;
+    }
     try {
-      await ref.read(apiProvider).verb('memory_wipe', <String, Object?>{
-        'confirm': true,
-      });
+      final ran = await _once.ok((key) async {
+        await ref.read(apiProvider).verb('memory_wipe', <String, Object?>{
+          'confirm': true,
+        }, key);
+      }, intent: 'wipe');
+      if (!ran) return;
       // The wipe took the library's pages with it: the copies kept on the phone and the recently opened list are old now
       await ref.read(pageCacheProvider).wipe();
       ref
@@ -217,9 +200,13 @@ class _NotebookScreenState extends ConsumerState<NotebookScreen> {
     );
     if (!ok) return;
     try {
-      await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
-        'notebookId': str(book['id']),
-      });
+      final id = str(book['id']);
+      final ran = await _once.ok((key) async {
+        await ref.read(apiProvider).verb('notebook_delete', <String, Object?>{
+          'notebookId': id,
+        }, key);
+      }, intent: 'delete:$id');
+      if (!ran) return;
       ref
         ..invalidate(notebookListProvider)
         ..invalidate(libraryProvider);
@@ -429,9 +416,13 @@ class _Changes extends ConsumerWidget {
     );
     if (!ok) return;
     try {
-      await ref.read(apiProvider).verb('notebook_restore', <String, Object?>{
-        'revisionId': str(r['id']),
-      });
+      final id = str(r['id']);
+      final ran = await _restoreOnce.ok((key) async {
+        await ref.read(apiProvider).verb('notebook_restore', <String, Object?>{
+          'revisionId': id,
+        }, key);
+      }, intent: id);
+      if (!ran) return;
       if (context.mounted) {
         say(context, restored);
         onRestored();
@@ -457,7 +448,7 @@ class _Changes extends ConsumerWidget {
                 key: ValueKey<String>('revision.${str(r['id'])}'),
                 contentPadding: EdgeInsets.zero,
                 title: Text(
-                  '${_who(context, str(r['actor']))} · ${_formatWhen(dateOf(r['at']))}',
+                  '${_who(context, str(r['actor']))} · ${_formatWhen(context, dateOf(r['at']))}',
                 ),
                 subtitle: Text(
                   str(r['preview']),
@@ -477,8 +468,12 @@ class _Changes extends ConsumerWidget {
   }
 }
 
-String _formatWhen(DateTime? at) =>
-    at == null ? '' : _when.format(at.toLocal());
+/// A change time in the app's language, as the Manila clock reads. The format is made here, in the build, never once for the whole app.
+String _formatWhen(BuildContext context, DateTime? at) => at == null
+    ? ''
+    : DateFormat.MMMd(Localizations.localeOf(context).toString())
+          .add_Hm()
+          .format(manilaWall(at));
 
 /// The private names: chips with a way to add one and to take one away. Saved as the whole list.
 class _Names extends ConsumerStatefulWidget {
@@ -495,6 +490,8 @@ class _NamesState extends ConsumerState<_Names> {
   late final List<String> _names = <String>[...widget.initial];
   final TextEditingController _add = TextEditingController();
   bool _saving = false;
+  // The intent is the whole list, so a changed list is a new request and a retry of the same one is not
+  final Once _once = Once();
 
   @override
   void dispose() {
@@ -516,9 +513,13 @@ class _NamesState extends ConsumerState<_Names> {
     _addName();
     setState(() => _saving = true);
     try {
-      await ref.read(apiProvider).verb('profile_set', <String, Object?>{
-        'people': _names,
-      });
+      final people = List<String>.of(_names);
+      final ran = await _once.ok((key) async {
+        await ref.read(apiProvider).verb('profile_set', <String, Object?>{
+          'people': people,
+        }, key);
+      }, intent: jsonEncode(people));
+      if (!ran) return;
       widget.onSaved();
     } catch (e) {
       if (mounted) say(context, errorWords(e, context));
@@ -573,6 +574,65 @@ class _NamesState extends ConsumerState<_Names> {
               child: Text(context.t.save),
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The "type the word to wipe" dialog. It owns its field, so the field lives while the dialog fades out and is disposed after.
+class _WipeDialog extends StatefulWidget {
+  const _WipeDialog({required this.wipeWord});
+
+  final String wipeWord;
+
+  @override
+  State<_WipeDialog> createState() => _WipeDialogState();
+}
+
+class _WipeDialogState extends State<_WipeDialog> {
+  // -- STATES -- //
+  final TextEditingController _typed = TextEditingController();
+
+  // -- LIFECYCLES -- //
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: context.colors.surface,
+      title: Text(context.t.memoryWipeTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(context.t.memoryWipeBody),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _typed,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(labelText: context.t.memoryWipeType),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(context.t.cancel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: context.colors.danger,
+            foregroundColor: context.colors.paper,
+          ),
+          onPressed: () =>
+              Navigator.of(context).pop(_typed.text.trim() == widget.wipeWord),
+          child: Text(context.t.memoryWipe),
         ),
       ],
     );

@@ -93,15 +93,42 @@ class ApiClient {
     );
   }
 
-  Future<T> _guard<T>(Future<T> Function() call) async {
+  // One request that can be stopped from outside: when the wait runs out, completing [abort] closes the socket instead of leaving it open
+  Future<http.Response> _send(
+    String method,
+    Uri uri,
+    Future<void> abort, {
+    required Map<String, String> headers,
+    String? body,
+  }) async {
+    final req = http.AbortableRequest(method, uri, abortTrigger: abort)
+      ..headers.addAll(headers);
+    if (body != null) req.body = body;
+    return http.Response.fromStream(await _http.send(req));
+  }
+
+  Future<T> _guard<T>(Future<T> Function(Future<void> abort) call) async {
+    final abort = Completer<void>();
     try {
-      return await call().timeout(_timeout);
+      return await call(abort.future).timeout(_timeout);
     } on ApiException {
       rethrow;
     } on SocketException {
       throw const ApiException(
         'NETWORK',
         'No connection. It will be tried again.',
+        0,
+      );
+    } on HandshakeException {
+      throw const ApiException(
+        'NETWORK',
+        'A secure connection could not be made. It will be tried again.',
+        0,
+      );
+    } on TlsException {
+      throw const ApiException(
+        'NETWORK',
+        'A secure connection could not be made. It will be tried again.',
         0,
       );
     } on http.ClientException {
@@ -111,6 +138,8 @@ class ApiClient {
         0,
       );
     } on TimeoutException {
+      // The request that ran out of time is stopped (its socket closes); whatever it would have answered later is ignored
+      if (!abort.isCompleted) abort.complete();
       throw const ApiException(
         'NETWORK',
         'The server took too long. It will be tried again.',
@@ -120,17 +149,19 @@ class ApiClient {
   }
 
   Future<Json> get(String path, {Map<String, String>? query}) =>
-      _guard(() async {
+      _guard((abort) async {
         final uri = Uri.parse('$base$path').replace(queryParameters: query);
-        final r = await _http.get(uri, headers: await _headers());
+        final r = await _send('GET', uri, abort, headers: await _headers());
         if (r.statusCode >= 400) throw _failure(r);
         return decodeJson(r.body);
       });
 
   Future<Json> post(String path, Json body, {String? key, String? channel}) =>
-      _guard(() async {
-        final r = await _http.post(
+      _guard((abort) async {
+        final r = await _send(
+          'POST',
           Uri.parse('$base$path'),
+          abort,
           headers: await _headers(key: key, json: true, channel: channel),
           body: jsonEncode(body),
         );
@@ -139,9 +170,9 @@ class ApiClient {
       });
 
   Future<Json> delete(String path, {Map<String, String>? query}) =>
-      _guard(() async {
+      _guard((abort) async {
         final uri = Uri.parse('$base$path').replace(queryParameters: query);
-        final r = await _http.delete(uri, headers: await _headers());
+        final r = await _send('DELETE', uri, abort, headers: await _headers());
         if (r.statusCode >= 400) throw _failure(r);
         return decodeJson(r.body);
       });
@@ -156,19 +187,31 @@ class ApiClient {
         0,
       );
     }
-    final req = http.Request('GET', Uri.parse('$base$path'))
-      ..followRedirects = false
-      ..headers.addAll(await _headers())
-      // The file is already compressed, and the byte count must stay exact
-      ..headers['accept-encoding'] = 'identity';
+    final stop = Completer<void>();
+    final req =
+        http.AbortableRequest(
+            'GET',
+            Uri.parse('$base$path'),
+            abortTrigger: stop.future,
+          )
+          ..followRedirects = false
+          ..headers.addAll(await _headers())
+          // The file is already compressed, and the byte count must stay exact
+          ..headers['accept-encoding'] = 'identity';
     final http.StreamedResponse res;
     try {
       res = await _http.send(req).timeout(_timeout);
     } on SocketException {
       throw const ApiException('NETWORK', 'No connection.', 0);
+    } on HandshakeException {
+      throw const ApiException('NETWORK', 'No secure connection.', 0);
+    } on TlsException {
+      throw const ApiException('NETWORK', 'No secure connection.', 0);
     } on http.ClientException {
       throw const ApiException('NETWORK', 'No connection.', 0);
     } on TimeoutException {
+      // The late answer is not wanted: the request is stopped so its socket closes
+      if (!stop.isCompleted) stop.complete();
       throw const ApiException('NETWORK', 'The server took too long.', 0);
     }
     if (res.statusCode >= 300) {
@@ -231,11 +274,16 @@ class ApiClient {
     Future<void>? abort,
     Duration idle = _idle,
   }) async* {
+    // Stopped by the person (abort) or when the first answer takes too long: either way the socket is closed
+    final stop = Completer<void>();
+    if (abort != null) {
+      unawaited(abort.then((_) => stop.isCompleted ? null : stop.complete()));
+    }
     final req =
         http.AbortableRequest(
             'POST',
             Uri.parse('$base/api/v1/agent/chat'),
-            abortTrigger: abort,
+            abortTrigger: stop.future,
           )
           ..headers.addAll(await _headers(json: true))
           // Nothing may compress the stream: compressed pieces are held back and the answer would arrive all at once
@@ -262,9 +310,14 @@ class ApiClient {
       return;
     } on SocketException {
       throw const ApiException('NETWORK', 'No connection.', 0);
+    } on HandshakeException {
+      throw const ApiException('NETWORK', 'No secure connection.', 0);
+    } on TlsException {
+      throw const ApiException('NETWORK', 'No secure connection.', 0);
     } on http.ClientException {
       throw const ApiException('NETWORK', 'No connection.', 0);
     } on TimeoutException {
+      if (!stop.isCompleted) stop.complete();
       throw const ApiException('NETWORK', 'The server took too long.', 0);
     }
     if (res.statusCode >= 400)
@@ -288,9 +341,14 @@ class ApiClient {
       return;
     } on SocketException {
       throw const ApiException('NETWORK', 'The connection was lost.', 0);
+    } on HandshakeException {
+      throw const ApiException('NETWORK', 'The connection was lost.', 0);
+    } on TlsException {
+      throw const ApiException('NETWORK', 'The connection was lost.', 0);
     } on http.ClientException {
       throw const ApiException('NETWORK', 'The connection was lost.', 0);
     } on TimeoutException {
+      if (!stop.isCompleted) stop.complete();
       throw const ApiException('NETWORK', 'The connection went quiet.', 0);
     }
   }

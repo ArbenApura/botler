@@ -60,7 +60,7 @@
   "goalsNameLabel": "Para saan ka nag-iipon?",
   "goalsWhere": "Saan ito nakalagay?",
   "goalsPerLabel": "Itabi bawat payday ({currency}, opsyonal)",
-  "goalsYear": "Sa isang taon (24 payday) ito ay {amount}.",
+  "goalsYear": "Sa isang taon ({count} payday) ito ay {amount}.",
   "goalsTargetLabel": "Ang halagang gusto mong maabot ({currency}, opsyonal)",
   "goalsAddInvalid": "Lagyan ng pangalan, lugar, at mga halaga bilang numero.",
   "goalsAddButton": "Idagdag ang goal",

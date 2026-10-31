@@ -14,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
 import 'simulate_data.dart';
@@ -46,10 +47,7 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
 
   // -- FUNCTIONS -- //
 
-  DateTime get _today {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
-  }
+  DateTime get _today => manilaTodayPicker();
 
   /// Moves the anchor, and says so when the reach of 5 years stopped it.
   void _go(DateTime day) {

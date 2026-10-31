@@ -16,6 +16,8 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
+import '../../ui/manila_clock.dart';
+import 'pretend_rules.dart';
 import 'simulate_data.dart';
 import 'simulate_parts.dart';
 
@@ -67,13 +69,13 @@ WhatIf presetNoRules(WhatIf w, Json plan) => w.copyWith(
   },
 );
 
-/// Every payday with a known amount, changed by a percent (10 or -10), rounded down to the minor unit.
+/// Every payday with a known amount, changed by a percent (10 or -10), rounded half up to the minor unit.
 WhatIf presetPay(WhatIf w, Json plan, int percent) => w.copyWith(
   amounts: <String, int>{
     ...w.amounts,
     for (final i in asJsonList(plan['incomes']))
       if (boolOf(i['active'], true) && i['expectedAmount'] is num)
-        str(i['id']): (intOf(i['expectedAmount']) * (100 + percent)) ~/ 100,
+        str(i['id']): scaleByPercent(intOf(i['expectedAmount']), percent),
   },
 );
 
@@ -97,7 +99,7 @@ List<String> _ruleIds(Json plan) => <String>[
 Map<String, int> _payAmounts(Json plan, int percent) => <String, int>{
   for (final i in asJsonList(plan['incomes']))
     if (boolOf(i['active'], true) && i['expectedAmount'] is num)
-      str(i['id']): (intOf(i['expectedAmount']) * (100 + percent)) ~/ 100,
+      str(i['id']): scaleByPercent(intOf(i['expectedAmount']), percent),
 };
 
 /// False when the plan has nothing for it to act on (no next payday, no rule, no pay with an amount).
@@ -550,13 +552,13 @@ class _PretendFormState extends ConsumerState<_PretendForm> {
   final TextEditingController _label = TextEditingController();
   final TextEditingController _amount = TextEditingController();
   bool _income = false;
-  DateTime _date = DateTime.now();
+  DateTime _date = manilaTodayPicker();
   String? _accountId;
 
   // -- FUNCTIONS -- //
 
   Future<void> _pickDate() async {
-    final today = DateTime.now();
+    final today = manilaTodayPicker();
     final d = await showDatePicker(
       context: context,
       initialDate: _date,
@@ -571,8 +573,21 @@ class _PretendFormState extends ConsumerState<_PretendForm> {
     final label = _label.text.trim();
     final account =
         _accountId ?? (accounts.isEmpty ? null : str(accounts.first['id']));
-    if (amount == null || amount <= 0 || label.isEmpty || account == null)
+    if (ref.read(whatIfProvider).extra.length >= maxPretendEntries) {
+      say(context, context.t.simPretendTooMany(maxPretendEntries));
       return;
+    }
+    if (amount == null || !pretendAmountOk(amount)) {
+      say(
+        context,
+        context.t.simPretendRange(
+          context.moneyMain(minPretendAmount),
+          context.moneyMain(maxPretendAmount),
+        ),
+      );
+      return;
+    }
+    if (label.isEmpty || account == null) return;
     ref
         .read(whatIfProvider.notifier)
         .addEntry(

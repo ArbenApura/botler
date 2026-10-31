@@ -12,10 +12,12 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
+import '../../core/manila.dart' show manilaToday;
 import '../../core/schedule_text.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 
 // -- TYPES -- //
 
@@ -52,7 +54,7 @@ class ScheduleValue {
     DateTime? anchor,
     Map<String, Object?>? limits,
   }) : weekdays = weekdays ?? <int>{5},
-       anchor = anchor ?? DateTime.now(),
+       anchor = anchor ?? manilaTodayPicker(),
        limits = limits ?? <String, Object?>{};
 
   /// The first date, the last date and the dates left out that the server keeps with a schedule (startsOn, endsOn, skipDates). The
@@ -121,7 +123,7 @@ class ScheduleValue {
       case 'every_n_days':
         v.pattern = SchedulePattern.everyNDays;
         v.n = intOf(s['n'], 14);
-        v.anchor = DateTime.tryParse(str(s['anchor'])) ?? DateTime.now();
+        v.anchor = DateTime.tryParse(str(s['anchor'])) ?? manilaTodayPicker();
       case 'weekly':
         v.pattern = SchedulePattern.weekly;
         v.weekdays = asList(s['days']).map((d) => intOf(d)).toSet();
@@ -148,7 +150,7 @@ class ScheduleValue {
         v.day = intOf(s['day'], 1);
       case 'once':
         v.pattern = SchedulePattern.once;
-        v.anchor = DateTime.tryParse(str(s['date'])) ?? DateTime.now();
+        v.anchor = DateTime.tryParse(str(s['date'])) ?? manilaTodayPicker();
     }
     return v;
   }
@@ -158,7 +160,7 @@ class ScheduleValue {
       pattern != SchedulePattern.dayRange &&
       !(pattern == SchedulePattern.weekOfMonth && pick == 'window');
 
-  String get _anchorMonth => DateFormat('yyyy-MM').format(DateTime.now());
+  String get _anchorMonth => manilaToday().substring(0, 7);
 
   Json get _cycle => everyMonths > 1
       ? <String, Object?>{
@@ -670,8 +672,8 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
           const SizedBox(height: 4),
           if (_offline)
             Text(t.schedPreviewOffline, style: TextStyle(color: c.muted))
-          else if (_problem != null)
-            Text(_problem!, style: TextStyle(color: c.danger))
+          else if (_problem case final problem?)
+            Text(problem, style: TextStyle(color: c.danger))
           else if (_windows.isEmpty)
             Text(t.schedPreviewNone, style: TextStyle(color: c.muted))
           else

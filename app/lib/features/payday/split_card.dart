@@ -2,6 +2,8 @@
 // When the pay cannot cover everything the card shows the gap and what could be cut, and there is nothing to approve: the person decides.
 
 // -- DEP-MODULES -- //
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,15 +42,20 @@ class SplitCard extends ConsumerStatefulWidget {
 class _SplitCardState extends ConsumerState<SplitCard> {
   late Json _plan = widget.plan;
   bool _busy = false;
+  // One key per intent (the verb and its arguments) until it works, so a second tap or a retry is the same request
+  final Once _once = Once();
 
   Json get _result => asJson(_plan['result']);
   bool get _short => str(_plan['status']) == 'shortfall';
   bool get _approved => str(_plan['status']) == 'approved';
 
   Future<void> _call(String verb, Json args, {required String done}) async {
+    if (_busy) return;
     setState(() => _busy = true);
+    final intent = '$verb:${jsonEncode(args)}';
     try {
-      final r = await ref.read(apiProvider).verb(verb, args);
+      final r = await ref.read(apiProvider).verb(verb, args, _once.key(intent));
+      _once.done(intent);
       if (!mounted) return;
       // Approve returns the plan; mark-sent returns the transfer and the plan with it
       if (verb == 'split_approve') _plan = asJson(r);

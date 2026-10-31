@@ -128,7 +128,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       unawaited(_store?.discard(left) ?? Future<void>.value());
     _away.dispose();
     // Release the microphone if the screen goes away while listening
-    unawaited(_listener.stop());
+    unawaited(_listener.dispose());
     _text.dispose();
     _focus.dispose();
     _scroll.dispose();
@@ -330,7 +330,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       ref.read(editProvider.notifier).stop();
       _opened();
       // The photos stay on their chips for the next message: an edit sends only the new words
-      await ref.read(chatProvider.notifier).send(text);
+      final sent = await ref.read(chatProvider.notifier).send(text);
+      // The edited words are not lost when the send fails: they come back into the box, so one tap sends them again
+      if (!sent && mounted && _text.text.isEmpty) _fill(text);
       ref
         ..invalidate(syncProvider)
         ..invalidate(balancesProvider);
@@ -568,6 +570,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _speak() async {
     if (_hearing) {
       await _listener.stop();
+      if (!mounted) return;
       setState(() => _hearing = false);
       return;
     }
@@ -751,13 +754,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           children: <Widget>[
             // A newer build, when one is ready and was not dismissed
             const UpdateBanner(),
+            // The session was refused while writes were waiting: they are kept, and this says to sign in again
+            const SignInAgainBanner(),
             Expanded(
               child: Stack(
                 children: <Widget>[
                   RefreshIndicator(
                     onRefresh: () async {
                       ref.invalidate(syncProvider);
-                      await ref.read(syncProvider.future);
+                      // A refresh that cannot reach the server says so instead of failing silently
+                      try {
+                        await ref.read(syncProvider.future);
+                      } catch (e) {
+                        if (context.mounted) {
+                          say(context, errorWords(e, context));
+                        }
+                      }
                     },
                     child: NotificationListener<ScrollNotification>(
                       onNotification: _onScroll,

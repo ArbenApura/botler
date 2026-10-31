@@ -1,0 +1,20 @@
+{
+  "signInAgainTitle": "Your sign in has ended",
+  "signInAgainBody": "What you wrote offline is kept on this phone. Sign in again to send it.",
+  "signInAgainButton": "Sign in again",
+
+  "lockNoScreenLock": "This phone has no screen lock set up, so Botler cannot ask for a fingerprint, face or PIN.",
+  "lockContinueWithout": "Continue without a lock",
+
+  "signOutWaiting": "{count, plural, =1{1 change is} other{{count} changes are}} still waiting to be sent. They stay on this phone and go out when you sign in again.",
+  "@signOutWaiting": {"placeholders": {"count": {"type": "int"}}},
+
+  "schedFromDate": "from {date}",
+  "@schedFromDate": {"placeholders": {"date": {"type": "String"}}},
+  "schedUntilDate": "until {date}",
+  "@schedUntilDate": {"placeholders": {"date": {"type": "String"}}},
+  "schedNotOnDates": "not on {dates}",
+  "@schedNotOnDates": {"placeholders": {"dates": {"type": "String"}}},
+
+  "fixQueued": "The new entry is saved on this phone and goes out when you are online. The old entry stays until you undo it."
+}

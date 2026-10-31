@@ -7,9 +7,11 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/manila.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 
 // -- CONSTANTS -- //
@@ -28,11 +30,11 @@ final FutureProvider<List<Json>> _reminders =
     );
 final FutureProvider<List<Json>> _events =
     FutureProvider.autoDispose<List<Json>>((ref) {
-      final now = DateTime.now();
-      final f = DateFormat('yyyy-MM-dd');
+      // Manila calendar dates, whatever zone the phone is in
+      final today = manilaToday();
       return ref.watch(apiProvider).verbList('event_list', <String, Object?>{
-        'from': f.format(now),
-        'to': f.format(now.add(const Duration(days: 14))),
+        'from': today,
+        'to': addDaysTo(today, 14),
       });
     });
 
@@ -78,36 +80,54 @@ class AgendaScreen extends ConsumerWidget {
   }
 }
 
-/// The date and time pickers in one: a moment in the person's own time zone.
+/// The date and time pickers in one: a Manila wall reading (send it with [manilaInstant]).
 Future<DateTime?> pickMoment(BuildContext context, {DateTime? initial}) async {
-  final start = initial ?? DateTime.now().add(const Duration(hours: 1));
+  final start = initial ?? manilaNow().add(const Duration(hours: 1));
   final d = await showDatePicker(
     context: context,
-    initialDate: start,
-    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+    initialDate: DateTime(start.year, start.month, start.day),
+    firstDate: addCalendarDays(manilaTodayPicker(), -1),
     lastDate: DateTime(2100),
   );
   if (d == null || !context.mounted) return null;
   final t = await showTimePicker(
     context: context,
-    initialTime: TimeOfDay.fromDateTime(start),
+    initialTime: TimeOfDay(hour: start.hour, minute: start.minute),
   );
   if (t == null) return null;
   return DateTime(d.year, d.month, d.day, t.hour, t.minute);
 }
 
-String _stamp(BuildContext context, DateTime d) => DateFormat(
+/// A Manila wall reading as text, in the app's language.
+String _stampWall(BuildContext context, DateTime wall) => DateFormat(
   'EEE, MMM d · h:mm a',
   Localizations.localeOf(context).toString(),
-).format(d.toLocal());
+).format(wall);
+
+/// A real moment as Manila wall time.
+String _stamp(BuildContext context, DateTime instant) =>
+    _stampWall(context, manilaWall(instant));
+
+/// The moment a row's timestamp field holds; a missing one reads as now.
+DateTime _moment(Object? raw) => dateOf(raw) ?? DateTime.now().toUtc();
 
 // -- TASKS -- //
 
-class _TasksTab extends ConsumerWidget {
+class _TasksTab extends ConsumerStatefulWidget {
   const _TasksTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TasksTab> createState() => _TasksTabState();
+}
+
+class _TasksTabState extends ConsumerState<_TasksTab> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.colors;
     return ListView(
       padding: pagePadding(context),
@@ -129,35 +149,19 @@ class _TasksTab extends ConsumerWidget {
                       ? null
                       : Text(
                           context.t.agendaDue(
-                            _stamp(
-                              context,
-                              dateOf(t['dueAt']) ?? DateTime.now(),
-                            ),
+                            _stamp(context, _moment(t['dueAt'])),
                           ),
                           style: TextStyle(color: c.muted),
                         ),
-                  onChanged: (_) async {
-                    try {
-                      await ref.read(apiProvider).verb(
-                        'task_update',
-                        <String, Object?>{
-                          'taskId': str(t['id']),
-                          'status': 'done',
-                        },
-                      );
-                      ref
-                        ..invalidate(_tasks)
-                        ..invalidate(syncProvider);
-                    } catch (e) {
-                      if (context.mounted) say(context, errorWords(e, context));
-                    }
-                  },
+                  onChanged: _once.running('done:${str(t['id'])}')
+                      ? null
+                      : (_) => _finish(str(t['id'])),
                 ),
             ],
           ),
         ),
         OutlinedButton.icon(
-          onPressed: () => _add(context, ref),
+          onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddTask),
         ),
@@ -165,49 +169,78 @@ class _TasksTab extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final title = TextEditingController();
+  Future<void> _finish(String id) async {
+    try {
+      await _once.run((key) async {
+        await ref.read(apiProvider).verb('task_update', <String, Object?>{
+          'taskId': id,
+          'status': 'done',
+        }, key);
+        ref
+          ..invalidate(_tasks)
+          ..invalidate(syncProvider);
+      }, intent: 'done:$id');
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
+  }
+
+  Future<void> _add(BuildContext context) async {
     DateTime? due;
     final done = await showFormSheet<bool>(
       context,
       title: context.t.agendaAddTask,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(controller: title, label: sheet.t.agendaTaskWhat),
-            OutlinedButton(
-              onPressed: () async {
-                final m = await pickMoment(sheet, initial: due);
-                if (m != null) setState(() => due = m);
-              },
-              child: Text(
-                due == null
-                    ? sheet.t.agendaTaskDeadline
-                    : sheet.t.agendaDue(_stamp(sheet, due!)),
+      builder: (sheet, close) => SheetScope(
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(controller: s.c[0], label: sheet.t.agendaTaskWhat),
+              OutlinedButton(
+                onPressed: () async {
+                  final m = await pickMoment(sheet, initial: due);
+                  if (m != null) setState(() => due = m);
+                },
+                child: Text(
+                  due == null
+                      ? sheet.t.agendaTaskDeadline
+                      : sheet.t.agendaDue(
+                          _stampWall(sheet, due ?? DateTime(0)),
+                        ),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () async {
-                if (title.text.trim().isEmpty)
-                  return say(sheet, sheet.t.agendaTaskNeedsTitle);
-                try {
-                  await ref.read(apiProvider).verb(
-                    'task_create',
-                    <String, Object?>{
-                      'title': title.text.trim(),
-                      if (due != null) 'dueAt': due!.toUtc().toIso8601String(),
-                    },
-                  );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.agendaTaskSubmit),
-            ),
-          ],
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        final title = s.c[0].text.trim();
+                        if (title.isEmpty) {
+                          return say(sheet, sheet.t.agendaTaskNeedsTitle);
+                        }
+                        final at = due;
+                        try {
+                          if (!await s.once.ok((key) async {
+                            await ref.read(apiProvider).verb(
+                              'task_create',
+                              <String, Object?>{
+                                'title': title,
+                                if (at != null)
+                                  'dueAt': manilaInstant(at).toIso8601String(),
+                              },
+                              key,
+                            );
+                          }))
+                            return;
+                          close(true);
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.agendaTaskSubmit),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -221,11 +254,21 @@ class _TasksTab extends ConsumerWidget {
 
 // -- EVENTS -- //
 
-class _EventsTab extends ConsumerWidget {
+class _EventsTab extends ConsumerStatefulWidget {
   const _EventsTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_EventsTab> createState() => _EventsTabState();
+}
+
+class _EventsTabState extends ConsumerState<_EventsTab> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.colors;
     return ListView(
       padding: pagePadding(context),
@@ -246,38 +289,23 @@ class _EventsTab extends ConsumerWidget {
                         ? DateFormat(
                             'EEE, MMM d',
                             Localizations.localeOf(context).toString(),
-                          ).format(
-                            dateOf(e['startsAt'])?.toLocal() ?? DateTime.now(),
-                          )
-                        : _stamp(
-                            context,
-                            dateOf(e['startsAt']) ?? DateTime.now(),
-                          ),
+                          ).format(manilaWall(_moment(e['startsAt'])))
+                        : _stamp(context, _moment(e['startsAt'])),
                     style: TextStyle(color: c.muted),
                   ),
                   trailing: IconButton(
                     tooltip: context.t.agendaRemove,
                     icon: const Icon(Icons.close),
-                    onPressed: () async {
-                      try {
-                        await ref.read(apiProvider).verb(
-                          'event_delete',
-                          <String, Object?>{'eventId': str(e['id'])},
-                        );
-                        ref
-                          ..invalidate(_events)
-                          ..invalidate(syncProvider);
-                      } catch (err) {
-                        if (context.mounted) say(context, errorWords(err));
-                      }
-                    },
+                    onPressed: _once.running('del:${str(e['id'])}')
+                        ? null
+                        : () => _remove(str(e['id'])),
                   ),
                 ),
             ],
           ),
         ),
         OutlinedButton.icon(
-          onPressed: () => _add(context, ref),
+          onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddEvent),
         ),
@@ -285,47 +313,74 @@ class _EventsTab extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final title = TextEditingController();
+  Future<void> _remove(String id) async {
+    try {
+      await _once.run((key) async {
+        await ref.read(apiProvider).verb('event_delete', <String, Object?>{
+          'eventId': id,
+        }, key);
+        ref
+          ..invalidate(_events)
+          ..invalidate(syncProvider);
+      }, intent: 'del:$id');
+    } catch (err) {
+      if (mounted) say(context, errorWords(err));
+    }
+  }
+
+  Future<void> _add(BuildContext context) async {
     DateTime? when;
     final done = await showFormSheet<bool>(
       context,
       title: context.t.agendaAddEvent,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(controller: title, label: sheet.t.agendaEventWhat),
-            OutlinedButton(
-              onPressed: () async {
-                final m = await pickMoment(sheet, initial: when);
-                if (m != null) setState(() => when = m);
-              },
-              child: Text(
-                when == null ? sheet.t.agendaPickMoment : _stamp(sheet, when!),
+      builder: (sheet, close) => SheetScope(
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(controller: s.c[0], label: sheet.t.agendaEventWhat),
+              OutlinedButton(
+                onPressed: () async {
+                  final m = await pickMoment(sheet, initial: when);
+                  if (m != null) setState(() => when = m);
+                },
+                child: Text(
+                  when == null
+                      ? sheet.t.agendaPickMoment
+                      : _stampWall(sheet, when ?? DateTime(0)),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () async {
-                if (title.text.trim().isEmpty || when == null)
-                  return say(sheet, sheet.t.agendaEventNeeds);
-                try {
-                  await ref.read(apiProvider).verb(
-                    'event_create',
-                    <String, Object?>{
-                      'title': title.text.trim(),
-                      'startsAt': when!.toUtc().toIso8601String(),
-                    },
-                  );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.agendaEventSubmit),
-            ),
-          ],
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        final title = s.c[0].text.trim();
+                        final at = when;
+                        if (title.isEmpty || at == null) {
+                          return say(sheet, sheet.t.agendaEventNeeds);
+                        }
+                        try {
+                          if (!await s.once.ok((key) async {
+                            await ref.read(apiProvider).verb(
+                              'event_create',
+                              <String, Object?>{
+                                'title': title,
+                                'startsAt': manilaInstant(at).toIso8601String(),
+                              },
+                              key,
+                            );
+                          }))
+                            return;
+                          close(true);
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.agendaEventSubmit),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -339,11 +394,21 @@ class _EventsTab extends ConsumerWidget {
 
 // -- ROUTINES -- //
 
-class _RoutinesTab extends ConsumerWidget {
+class _RoutinesTab extends ConsumerStatefulWidget {
   const _RoutinesTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RoutinesTab> createState() => _RoutinesTabState();
+}
+
+class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.colors;
     return ListView(
       padding: pagePadding(context),
@@ -364,33 +429,36 @@ class _RoutinesTab extends ConsumerWidget {
                     style: TextStyle(color: c.muted),
                   ),
                   value: boolOf(r['active']),
-                  onChanged: (on) async {
-                    try {
-                      await ref.read(apiProvider).verb(
-                        'routine_update',
-                        <String, Object?>{
-                          'routineId': str(r['id']),
-                          'active': on,
-                        },
-                      );
-                      ref
-                        ..invalidate(_routines)
-                        ..invalidate(syncProvider);
-                    } catch (e) {
-                      if (context.mounted) say(context, errorWords(e, context));
-                    }
-                  },
+                  onChanged: _once.running('toggle:${str(r['id'])}')
+                      ? null
+                      : (on) => _toggle(str(r['id']), on),
                 ),
             ],
           ),
         ),
         OutlinedButton.icon(
-          onPressed: () => _add(context, ref),
+          onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddRoutine),
         ),
       ],
     );
+  }
+
+  Future<void> _toggle(String id, bool on) async {
+    try {
+      await _once.run((key) async {
+        await ref.read(apiProvider).verb('routine_update', <String, Object?>{
+          'routineId': id,
+          'active': on,
+        }, key);
+        ref
+          ..invalidate(_routines)
+          ..invalidate(syncProvider);
+      }, intent: 'toggle:$id');
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
   }
 
   static String _describe(BuildContext context, Json r) {
@@ -410,90 +478,102 @@ class _RoutinesTab extends ConsumerWidget {
     };
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
-    final title = TextEditingController();
+  Future<void> _add(BuildContext context) async {
     var freq = 'daily';
     final days = <int>{1, 3, 5};
     var time = const TimeOfDay(hour: 7, minute: 0);
     final done = await showFormSheet<bool>(
       context,
       title: context.t.agendaAddRoutine,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(
-              controller: title,
-              label: sheet.t.agendaEventWhat,
-              hint: sheet.t.agendaRoutineHint,
-            ),
-            Wrap(
-              spacing: 8,
-              children: <Widget>[
-                for (final (k, label) in <(String, String)>[
-                  ('daily', sheet.t.agendaFreqDaily),
-                  ('weekly', sheet.t.agendaFreqWeekly),
-                ])
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: freq == k,
-                    onSelected: (_) => setState(() => freq = k),
-                  ),
-              ],
-            ),
-            if (freq == 'weekly')
+      builder: (sheet, close) => SheetScope(
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(
+                controller: s.c[0],
+                label: sheet.t.agendaEventWhat,
+                hint: sheet.t.agendaRoutineHint,
+              ),
               Wrap(
-                spacing: 6,
+                spacing: 8,
                 children: <Widget>[
-                  for (var d = 0; d < 7; d++)
-                    FilterChip(
-                      label: Text(_dayName(sheet, d)),
-                      selected: days.contains(d),
-                      onSelected: (on) =>
-                          setState(() => on ? days.add(d) : days.remove(d)),
+                  for (final (k, label) in <(String, String)>[
+                    ('daily', sheet.t.agendaFreqDaily),
+                    ('weekly', sheet.t.agendaFreqWeekly),
+                  ])
+                    ChoiceChip(
+                      label: Text(label),
+                      selected: freq == k,
+                      onSelected: (_) => setState(() => freq = k),
                     ),
                 ],
               ),
-            OutlinedButton(
-              onPressed: () async {
-                final t = await showTimePicker(
-                  context: sheet,
-                  initialTime: time,
-                );
-                if (t != null) setState(() => time = t);
-              },
-              child: Text(sheet.t.agendaAtTime(time.format(sheet))),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () async {
-                if (title.text.trim().isEmpty ||
-                    (freq == 'weekly' && days.isEmpty))
-                  return say(sheet, sheet.t.agendaRoutineNeeds);
-                final hhmm =
-                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                try {
-                  await ref.read(apiProvider).verb(
-                    'routine_create',
-                    <String, Object?>{
-                      'title': title.text.trim(),
-                      'recurrence': freq == 'daily'
-                          ? <String, Object?>{'freq': 'daily', 'time': hhmm}
-                          : <String, Object?>{
-                              'freq': 'weekly',
-                              'days': days.toList()..sort(),
-                              'time': hhmm,
-                            },
-                    },
+              if (freq == 'weekly')
+                Wrap(
+                  spacing: 6,
+                  children: <Widget>[
+                    for (var d = 0; d < 7; d++)
+                      FilterChip(
+                        label: Text(_dayName(sheet, d)),
+                        selected: days.contains(d),
+                        onSelected: (on) =>
+                            setState(() => on ? days.add(d) : days.remove(d)),
+                      ),
+                  ],
+                ),
+              OutlinedButton(
+                onPressed: () async {
+                  final t = await showTimePicker(
+                    context: sheet,
+                    initialTime: time,
                   );
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.agendaRoutineSubmit),
-            ),
-          ],
+                  if (t != null) setState(() => time = t);
+                },
+                child: Text(sheet.t.agendaAtTime(time.format(sheet))),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        final title = s.c[0].text.trim();
+                        if (title.isEmpty ||
+                            (freq == 'weekly' && days.isEmpty)) {
+                          return say(sheet, sheet.t.agendaRoutineNeeds);
+                        }
+                        final hhmm =
+                            '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                        try {
+                          if (!await s.once.ok((key) async {
+                            await ref.read(apiProvider).verb(
+                              'routine_create',
+                              <String, Object?>{
+                                'title': title,
+                                'recurrence': freq == 'daily'
+                                    ? <String, Object?>{
+                                        'freq': 'daily',
+                                        'time': hhmm,
+                                      }
+                                    : <String, Object?>{
+                                        'freq': 'weekly',
+                                        'days': days.toList()..sort(),
+                                        'time': hhmm,
+                                      },
+                              },
+                              key,
+                            );
+                          }))
+                            return;
+                          close(true);
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.agendaRoutineSubmit),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -507,11 +587,21 @@ class _RoutinesTab extends ConsumerWidget {
 
 // -- REMINDERS -- //
 
-class _RemindersTab extends ConsumerWidget {
+class _RemindersTab extends ConsumerStatefulWidget {
   const _RemindersTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RemindersTab> createState() => _RemindersTabState();
+}
+
+class _RemindersTabState extends ConsumerState<_RemindersTab> {
+  // -- STATES -- //
+  late final Once _once = Once(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.colors;
     return ListView(
       padding: pagePadding(context),
@@ -533,26 +623,15 @@ class _RemindersTab extends ConsumerWidget {
                   }, color: c.muted),
                   title: Text(str(r['title'])),
                   subtitle: Text(
-                    _stamp(context, dateOf(r['remindAt']) ?? DateTime.now()),
+                    _stamp(context, _moment(r['remindAt'])),
                     style: TextStyle(color: c.muted),
                   ),
                   trailing: IconButton(
                     tooltip: context.t.cancel,
                     icon: const Icon(Icons.close),
-                    onPressed: () async {
-                      try {
-                        await ref.read(apiProvider).verb(
-                          'reminder_cancel',
-                          <String, Object?>{'reminderId': str(r['id'])},
-                        );
-                        ref
-                          ..invalidate(_reminders)
-                          ..invalidate(syncProvider);
-                      } catch (e) {
-                        if (context.mounted)
-                          say(context, errorWords(e, context));
-                      }
-                    },
+                    onPressed: _once.running('cancel:${str(r['id'])}')
+                        ? null
+                        : () => _cancel(str(r['id'])),
                   ),
                 ),
             ],
@@ -562,21 +641,17 @@ class _RemindersTab extends ConsumerWidget {
           spacing: 8,
           children: <Widget>[
             OutlinedButton(
-              onPressed: () => _add(
-                context,
-                ref,
-                'reminder_create',
-                context.t.agendaRemindMe,
-              ),
+              onPressed: () =>
+                  _add(context, 'reminder_create', context.t.agendaRemindMe),
               child: Text(context.t.agendaRemindMe),
             ),
             OutlinedButton(
               onPressed: () =>
-                  _add(context, ref, 'alarm_create', context.t.agendaAlarm),
+                  _add(context, 'alarm_create', context.t.agendaAlarm),
               child: Text(context.t.agendaSetAlarm),
             ),
             OutlinedButton(
-              onPressed: () => _timer(context, ref),
+              onPressed: () => _timer(context),
               child: Text(context.t.agendaStartTimer),
             ),
           ],
@@ -585,49 +660,74 @@ class _RemindersTab extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(
-    BuildContext context,
-    WidgetRef ref,
-    String verb,
-    String heading,
-  ) async {
-    final title = TextEditingController();
+  Future<void> _cancel(String id) async {
+    try {
+      await _once.run((key) async {
+        await ref.read(apiProvider).verb('reminder_cancel', <String, Object?>{
+          'reminderId': id,
+        }, key);
+        ref
+          ..invalidate(_reminders)
+          ..invalidate(syncProvider);
+      }, intent: 'cancel:$id');
+    } catch (e) {
+      if (mounted) say(context, errorWords(e, context));
+    }
+  }
+
+  Future<void> _add(BuildContext context, String verb, String heading) async {
     DateTime? when;
     final done = await showFormSheet<bool>(
       context,
       title: heading,
-      builder: (sheet, close) => StatefulBuilder(
-        builder: (_, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Field(controller: title, label: sheet.t.agendaReminderWhat),
-            OutlinedButton(
-              onPressed: () async {
-                final m = await pickMoment(sheet, initial: when);
-                if (m != null) setState(() => when = m);
-              },
-              child: Text(
-                when == null ? sheet.t.agendaPickMoment : _stamp(sheet, when!),
+      builder: (sheet, close) => SheetScope(
+        builder: (_, s) => StatefulBuilder(
+          builder: (_, setState) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Field(controller: s.c[0], label: sheet.t.agendaReminderWhat),
+              OutlinedButton(
+                onPressed: () async {
+                  final m = await pickMoment(sheet, initial: when);
+                  if (m != null) setState(() => when = m);
+                },
+                child: Text(
+                  when == null
+                      ? sheet.t.agendaPickMoment
+                      : _stampWall(sheet, when ?? DateTime(0)),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: () async {
-                if (title.text.trim().isEmpty || when == null)
-                  return say(sheet, sheet.t.agendaReminderNeeds);
-                try {
-                  await ref.read(apiProvider).verb(verb, <String, Object?>{
-                    'title': title.text.trim(),
-                    'at': when!.toUtc().toIso8601String(),
-                  });
-                  close(true);
-                } catch (e) {
-                  if (sheet.mounted) say(sheet, errorWords(e, context));
-                }
-              },
-              child: Text(sheet.t.save),
-            ),
-          ],
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: s.once.running()
+                    ? null
+                    : () async {
+                        final title = s.c[0].text.trim();
+                        final at = when;
+                        if (title.isEmpty || at == null) {
+                          return say(sheet, sheet.t.agendaReminderNeeds);
+                        }
+                        try {
+                          if (!await s.once.ok((key) async {
+                            await ref.read(apiProvider).verb(
+                              verb,
+                              <String, Object?>{
+                                'title': title,
+                                'at': manilaInstant(at).toIso8601String(),
+                              },
+                              key,
+                            );
+                          }))
+                            return;
+                          close(true);
+                        } catch (e) {
+                          if (sheet.mounted) say(sheet, errorWords(e, context));
+                        }
+                      },
+                child: Text(sheet.t.save),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -638,37 +738,46 @@ class _RemindersTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _timer(BuildContext context, WidgetRef ref) async {
-    final minutes = TextEditingController(text: '10');
+  Future<void> _timer(BuildContext context) async {
     final done = await showFormSheet<bool>(
       context,
       title: context.t.agendaStartTimer,
-      builder: (sheet, close) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Field(
-            controller: minutes,
-            label: sheet.t.agendaTimerMinutes,
-            keyboard: TextInputType.number,
-          ),
-          FilledButton(
-            onPressed: () async {
-              final m = int.tryParse(minutes.text.trim());
-              if (m == null || m < 1 || m > 1440)
-                return say(sheet, sheet.t.agendaTimerRange);
-              try {
-                await ref.read(apiProvider).verb(
-                  'timer_create',
-                  <String, Object?>{'minutes': m},
-                );
-                close(true);
-              } catch (e) {
-                if (sheet.mounted) say(sheet, errorWords(e, context));
-              }
-            },
-            child: Text(sheet.t.agendaTimerStart),
-          ),
-        ],
+      builder: (sheet, close) => SheetScope(
+        texts: const <String>['10'],
+        builder: (_, s) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Field(
+              controller: s.c[0],
+              label: sheet.t.agendaTimerMinutes,
+              keyboard: TextInputType.number,
+            ),
+            FilledButton(
+              onPressed: s.once.running()
+                  ? null
+                  : () async {
+                      final m = int.tryParse(s.c[0].text.trim());
+                      if (m == null || m < 1 || m > 1440) {
+                        return say(sheet, sheet.t.agendaTimerRange);
+                      }
+                      try {
+                        if (!await s.once.ok((key) async {
+                          await ref.read(apiProvider).verb(
+                            'timer_create',
+                            <String, Object?>{'minutes': m},
+                            key,
+                          );
+                        }))
+                          return;
+                        close(true);
+                      } catch (e) {
+                        if (sheet.mounted) say(sheet, errorWords(e, context));
+                      }
+                    },
+              child: Text(sheet.t.agendaTimerStart),
+            ),
+          ],
+        ),
       ),
     );
     if (done == true) {

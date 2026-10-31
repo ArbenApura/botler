@@ -62,6 +62,8 @@ class _NotebookInfoFormState extends ConsumerState<NotebookInfoForm> {
     text: str(widget.notebook?['summary']),
   );
   bool _saving = false;
+  // The intent is the title and the summary: the same form again is the same request, a changed form is a new one
+  final Once _once = Once();
 
   // -- FUNCTIONS -- //
 
@@ -79,19 +81,24 @@ class _NotebookInfoFormState extends ConsumerState<NotebookInfoForm> {
     setState(() => _saving = true);
     try {
       final api = ref.read(apiProvider);
-      final Json made;
-      if (existing == null) {
-        made = await api.verbJson('notebook_create', <String, Object?>{
-          'title': title,
-          'summary': _summary.text.trim(),
-        });
-      } else {
-        made = await api.verbJson('notebook_update', <String, Object?>{
+      final summary = _summary.text.trim();
+      final intent =
+          '${existing == null ? 'new' : str(existing['id'])}:$title:$summary';
+      final answer = await _once.run((key) async {
+        if (existing == null) {
+          return api.verb('notebook_create', <String, Object?>{
+            'title': title,
+            'summary': summary,
+          }, key);
+        }
+        return api.verb('notebook_update', <String, Object?>{
           'notebookId': str(existing['id']),
           'newTitle': title,
-          'summary': _summary.text.trim(),
-        });
-      }
+          'summary': summary,
+        }, key);
+      }, intent: intent);
+      if (answer == null) return;
+      final made = asJson(answer);
       ref
         ..invalidate(notebookListProvider)
         ..invalidate(libraryProvider);
@@ -140,6 +147,9 @@ class _NotebookInfoFormState extends ConsumerState<NotebookInfoForm> {
   }
 }
 
+/// One key per notebook put back, until it works, and no second call of the same one while it runs.
+final Once _undeleteOnce = Once();
+
 /// The deleted notebooks, each with a way back.
 class DeletedNotebooks extends ConsumerWidget {
   const DeletedNotebooks({required this.onRestored, super.key});
@@ -149,9 +159,13 @@ class DeletedNotebooks extends ConsumerWidget {
   Future<void> _restore(BuildContext context, WidgetRef ref, Json n) async {
     final restored = context.t.notebookRestored;
     try {
-      await ref.read(apiProvider).verb('notebook_undelete', <String, Object?>{
-        'notebookId': str(n['id']),
-      });
+      final id = str(n['id']);
+      final ran = await _undeleteOnce.ok((key) async {
+        await ref.read(apiProvider).verb('notebook_undelete', <String, Object?>{
+          'notebookId': id,
+        }, key);
+      }, intent: id);
+      if (!ran) return;
       ref
         ..invalidate(notebookListProvider)
         ..invalidate(libraryProvider);
