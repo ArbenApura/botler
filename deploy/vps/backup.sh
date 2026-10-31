@@ -58,7 +58,8 @@ mv "$dir/LAST_OK.tmp" "$dir/LAST_OK"
 if [ "$(date -u +%u)" = "7" ]; then
   cp -p "$file" "$dir/weekly/$(basename "$file")"
 fi
-ls -1t "$dir"/weekly/botler-*.sql.age 2>/dev/null | tail -n +9 | xargs -r rm -f
+# (ls fails when there is no match yet, which pipefail would turn into a failed backup: the || true keeps the retention step quiet)
+{ ls -1t "$dir"/weekly/botler-*.sql.age 2>/dev/null || true; } | tail -n +9 | xargs -r rm -f
 # Daily set: the newest 14
-ls -1t "$dir"/botler-*.sql.age | tail -n +15 | xargs -r rm -f
+{ ls -1t "$dir"/botler-*.sql.age 2>/dev/null || true; } | tail -n +15 | xargs -r rm -f
 echo "Backup written: $(basename "$file") ($(du -h "$file" | cut -f1))"

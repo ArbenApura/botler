@@ -27,6 +27,8 @@ db_ip="$(ipof "$DB")"
 [ "$pid" -gt 0 ] || { echo "$APP is not running"; exit 1; }
 [ -n "$db_ip" ] || { echo "no address for $DB"; exit 1; }
 db_ip6="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.GlobalIPv6Address}} {{end}}' "$DB" | awk '{print $1}')"
+# A container with no IPv6 address can print a word such as "invalid" instead of nothing: only a real address (it has a colon) counts
+case "$db_ip6" in *:*) ;; *) db_ip6="" ;; esac
 sudo nsenter -t "$pid" -n ip6tables -S >/dev/null 2>&1 || { echo "ip6tables does not work inside $APP: the IPv6 wall cannot be set (install the ip6tables / iptables package)"; exit 1; }
 
 # The first version of this wall used host chains; take them out if they are still there
