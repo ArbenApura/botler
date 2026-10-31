@@ -393,6 +393,37 @@ void main() {
       },
     );
 
+    test('a card shown as waiting takes the real answer the server now holds', () async {
+      Json history(String status) => <String, Object?>{
+        'turns': <Json>[
+          turn(
+            'add gym',
+            events: <Json>[
+              <String, Object?>{
+                'type': 'card',
+                'actionId': 'x1',
+                'summary': 'Add the bill "Gym".',
+                'status': status,
+              },
+            ],
+          ),
+        ],
+      };
+      final s = RestoreServer()..history = history('pending');
+      final c = await containerFor(s);
+      final chat = c.read(chatProvider.notifier);
+      await chat.restore();
+      CardState now() =>
+          c.read(chatProvider).restored.whereType<CardItem>().single.state;
+      // Still waiting on the server: nothing changes
+      await chat.syncCards();
+      expect(now(), CardState.waiting);
+      // Answered meanwhile (another screen, another phone): the buttons go away
+      s.history = history('applied');
+      await chat.syncCards();
+      expect(now(), CardState.approved);
+    });
+
     test(
       'starts over for another person: nothing is kept and it asks again',
       () async {

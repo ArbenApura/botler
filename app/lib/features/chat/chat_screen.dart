@@ -114,7 +114,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // (the lock screen, coming back from the menu) never asks again
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(ref.read(chatProvider.notifier).restore());
+      // Back from another screen the chat is already there: a card answered meanwhile must not keep its buttons
+      unawaited(
+        ref.read(chatProvider.notifier).restore().then((_) {
+          if (mounted) return ref.read(chatProvider.notifier).syncCards();
+        }),
+      );
       // A picture pasted and never added (the app was closed meanwhile) does not stay in the cache
       unawaited(sweepPastedFiles());
       // What is new after an update: once per run, never over the lock or the required-update screen (this screen is below both)

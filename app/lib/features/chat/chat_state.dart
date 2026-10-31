@@ -171,6 +171,15 @@ final class CardItem extends ChatItem {
   );
 }
 
+/// The card state for a status the server reports (pending, applied, rejected, failed, expired or gone).
+CardState cardStateOf(String status) => switch (status) {
+  'pending' => CardState.waiting,
+  'applied' => CardState.approved,
+  'rejected' => CardState.declined,
+  'failed' => CardState.failed,
+  _ => CardState.expired,
+};
+
 /// The model is down or over its cap: the manual expense form is offered.
 final class FallbackItem extends ChatItem {
   const FallbackItem(super.id, this.reason);
@@ -635,6 +644,40 @@ class ChatNotifier extends Notifier<ChatState> {
     }
   }
 
+  /// Asks the server how every card still shown as waiting really stands, and puts the answer on screen. A card answered elsewhere, or
+  /// answered here while this list was rebuilt, never keeps its Approve button. Quiet on any error: the card keeps what it shows.
+  Future<void> syncCards() async {
+    bool waiting(ChatItem i) =>
+        i is CardItem && i.state == CardState.waiting && !i.readOnly;
+    if (![...state.restored, ...state.items].any(waiting)) return;
+    final generation = _generation;
+    try {
+      final answer = await ref.read(apiProvider).verbJson(
+        'chat_history',
+        <String, Object?>{'chatId': ?state.chatId},
+      );
+      if (generation != _generation) return;
+      final now = <String, CardState>{
+        for (final t in asJsonList(answer['turns']))
+          for (final e in asJsonList(t['events']))
+            if (str(e['type']) == 'card')
+              str(e['actionId']): cardStateOf(str(e['status'])),
+      };
+      ChatItem fix(ChatItem i) {
+        if (!waiting(i)) return i;
+        final real = now[(i as CardItem).actionId];
+        return real == null || real == CardState.waiting ? i : i.with_(real);
+      }
+
+      state = state.copyWith(
+        restored: <ChatItem>[for (final i in state.restored) fix(i)],
+        items: <ChatItem>[for (final i in state.items) fix(i)],
+      );
+    } on Object {
+      // Offline or signed out: the next visit asks again
+    }
+  }
+
   /// One earlier turn as read-only items: what was said, what was done, what was answered.
   List<ChatItem> _restoredTurn(Json t, ChatPhotoStore? store) {
     final turn = t['id'] is String ? str(t['id']) : null;
@@ -672,13 +715,7 @@ class ChatNotifier extends Notifier<ChatState> {
               readOnly: t['copied'] == true,
               turnId: turn,
               verb: e['verb'] is String ? str(e['verb']) : null,
-              state: switch (str(e['status'])) {
-                'pending' => CardState.waiting,
-                'applied' => CardState.approved,
-                'rejected' => CardState.declined,
-                'failed' => CardState.failed,
-                _ => CardState.expired,
-              },
+              state: cardStateOf(str(e['status'])),
             ),
           );
         case 'fallback':
