@@ -211,7 +211,10 @@ export async function updateEvent(ctx: Ctx, raw: unknown): Promise<EventView> {
 	);
 }
 
-/** Removes an event. */
+/**
+ * Removes an event. One made from a bill or a payday follows it and is refused, as in updateEvent. The row is marked deleted (it stays for the
+ * audit trail and for the calendar sync) and the answer returns the removed event whole, so it can be read back.
+ */
 export async function deleteEvent(ctx: Ctx, raw: unknown) {
 	const { eventId } = parse(eventIdInput, raw);
 	return mapped(() =>
@@ -227,11 +230,20 @@ export async function deleteEvent(ctx: Ctx, raw: unknown) {
 					)
 				);
 			if (!cur) throw new OpsError('NOT_FOUND', 'That event does not exist.');
-			await tx
-				.delete(calendarEvent)
-				.where(and(eq(calendarEvent.userId, userId), eq(calendarEvent.id, eventId)));
+			if (cur.source === 'bill' || cur.source === 'payday')
+				throw new OpsError('INVALID', 'That event is made from a bill or payday and follows it.');
+			const [removed] = await tx
+				.update(calendarEvent)
+				.set({
+					deletedAt: sql`now()`,
+					version: sql`${calendarEvent.version} + 1`,
+					updatedAt: sql`now()`
+				})
+				.where(and(eq(calendarEvent.userId, userId), eq(calendarEvent.id, eventId)))
+				.returning();
+			if (!removed) throw new OpsError('NOT_FOUND', 'That event does not exist.');
 			await afterScheduleChange(tx, userId);
-			return { deleted: true };
+			return { deleted: true as const, event: eventView(removed) };
 		})
 	);
 }

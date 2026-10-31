@@ -49,6 +49,8 @@ describe('reading amounts from words', () => {
 
 	it('reads pesos as before and dollars, euros and yen in their own units', () => {
 		expect(parseExpenseText('lunch 180 wallet', accounts, 'PHP').amount).toBe(18_000);
+		// A number written with another separator style is refused, never read as its last piece
+		expect(parseExpenseText('lunch 1.234,56 wallet', accounts, 'PHP').amount).toBeNull();
 		expect(parseExpenseText('lunch $5.50 wallet', accounts, 'USD').amount).toBe(550);
 		expect(parseExpenseText('lunch usd 5 wallet', accounts, 'USD').amount).toBe(500);
 		expect(parseExpenseText('coffee €3.20', accounts, 'EUR').amount).toBe(320);
@@ -72,8 +74,9 @@ describe('reading amounts from words', () => {
 		}
 	});
 
-	it('drops a decimal part for a currency that has none, and never mistakes a word for a symbol', () => {
-		expect(parseExpenseText('ramen 1200.50', accounts, 'JPY').amount).toBe(1_200);
+	it('refuses a decimal part for a currency that has none instead of cutting it, and never mistakes a word for a symbol', () => {
+		expect(parseExpenseText('ramen 1200.50', accounts, 'JPY').amount).toBeNull();
+		expect(parseExpenseText('ramen 1200', accounts, 'JPY').amount).toBe(1_200);
 		// "firm" ends in rm, the symbol of ringgit: it is a word here
 		const r = parseExpenseText('firm 500 cash', accounts, 'PHP');
 		expect(r.amount).toBe(50_000);

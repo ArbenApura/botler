@@ -33,7 +33,7 @@ import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { buildMessages, photoTexts } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
-import { capReasoning, shortenResult, untrustedStub } from './transcript';
+import { shortenResult, untrustedStub } from './transcript';
 
 // -- TYPES -- //
 
@@ -64,6 +64,8 @@ export type TurnEvent =
 			toolsRun: string[];
 			/** The tool rounds of the message, for the chat to store. Left out when no tool ran. Never sent to the app. */
 			transcript?: TranscriptMessage[];
+			/** Untrusted text (a web page, a photo, someone else's calendar) entered the turn, so what the assistant wrote is stored marked. Never sent to the app. */
+			tainted?: boolean;
 	  };
 
 export type TurnModel = { stream(ctx: Ctx, req: CompletionRequest): AsyncGenerator<StreamEvent> };
@@ -159,6 +161,8 @@ export class TurnState {
 	/** Deletes started in this message: past the limit they wait for the person. */
 	deletes = 0;
 	readonly reasons = new Set<string>();
+	/** How many calls with the same verb and arguments already succeeded in this message, so the second real purchase gets its own request id. */
+	readonly succeeded = new Map<string, number>();
 	constructor(readonly userUrls: ReadonlySet<string> = new Set()) {}
 	taint(reason: string) {
 		this.tainted = true;
@@ -261,12 +265,46 @@ function capJson(value: unknown, max: number): string {
 		: JSON.stringify({ truncated: true, preview: text.slice(0, max - 80) });
 }
 
-function withTimeout<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+/** A tool that did not answer in time. Its work may still finish later, so a write must not be repeated blindly. */
+class ToolTimeout extends OpsError {
+	constructor(what: string) {
+		super('UNAVAILABLE', `${what} took too long.`);
+	}
+}
+
+/** Runs the work against a time limit. The abort signal is for tools that can stop (the web); a write cannot be stopped half way. */
+function withTimeout<T>(
+	work: (signal: AbortSignal | undefined) => Promise<T>,
+	ms: number,
+	what: string,
+	outer?: AbortSignal,
+	abortable = false
+): Promise<T> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	const stop = abortable ? new AbortController() : undefined;
+	const signal = stop ? (outer ? AbortSignal.any([outer, stop.signal]) : stop.signal) : undefined;
 	const late = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => reject(new OpsError('UNAVAILABLE', `${what} took too long.`)), ms);
+		timer = setTimeout(() => {
+			stop?.abort();
+			reject(new ToolTimeout(what));
+		}, ms);
 	});
-	return Promise.race([work, late]).finally(() => clearTimeout(timer));
+	return Promise.race([work(signal), late]).finally(() => clearTimeout(timer));
+}
+
+/** The same value with its object keys in order, so the same call always hashes the same. */
+function stableJson(value: unknown): string {
+	const order = (v: unknown): unknown =>
+		Array.isArray(v)
+			? v.map(order)
+			: v && typeof v === 'object'
+				? Object.fromEntries(
+						Object.entries(v as Record<string, unknown>)
+							.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+							.map(([k, x]) => [k, order(x)])
+					)
+				: v;
+	return JSON.stringify(order(value)) ?? 'null';
 }
 
 async function executeTool(
@@ -297,13 +335,20 @@ async function executeTool(
 		);
 	}
 	// The caller is built here from the session. Nothing in `args` can change it
+	// The write id is the turn, the call (verb and arguments) and how many identical calls already succeeded: a retry of a call that timed out
+	// or failed reuses its id and replays, two real identical purchases get 0 and 1 and both write, and a re-run of the turn repeats the ids
+	const callHash = createHash('sha256')
+		.update(`${tool.name}|${stableJson(args)}`)
+		.digest('hex')
+		.slice(0, 12);
+	const sameBefore = state.succeeded.get(callHash) ?? 0;
 	const agentCtx: Ctx = {
 		handle: p.ctx.handle,
 		actor: { userId: p.ctx.actor.userId, kind: 'agent', tool: tool.name },
 		channel: 'chat',
 		turnId: createHash('sha256').update(p.turnKey).digest('hex').slice(0, 32),
-		// Hashed so a long client message id cannot cut the sequence number off and make every write of a turn share one id
-		requestId: `t-${createHash('sha256').update(p.turnKey).digest('hex').slice(0, 40)}-${seq}`
+		// Hashed so a long client message id cannot cut the rest off: 2 + 40 + 1 + 12 + 1 + digits stays far under 80 characters
+		requestId: `t-${createHash('sha256').update(p.turnKey).digest('hex').slice(0, 40)}-${callHash}-${sameBefore}`
 	};
 
 	// -- WEB -- //
@@ -334,10 +379,13 @@ async function executeTool(
 				);
 		}
 		try {
+			const web = tool.web;
 			const result = await withTimeout(
-				tool.web(args, p.web ?? {}, p.signal),
+				(signal) => web(args, p.web ?? {}, signal),
 				limits.webTimeoutMs,
-				'The web'
+				'The web',
+				p.signal,
+				true
 			);
 			// Whatever came back from the web closes the door on writes. The one exception is a plain error the tool wrote itself (an own
 			// "error" text and no "untrusted" key): nothing from outside came back. Anything else fails closed and taints
@@ -361,7 +409,13 @@ async function executeTool(
 	// -- A CHANGE THE PERSON MUST APPROVE -- //
 	const asCard = async (why: string): Promise<Outcome> => {
 		try {
-			const card = await createAction(agentCtx, { verb: tool.name, args, turnId: p.turnKey });
+			const card = await createAction(agentCtx, {
+				verb: tool.name,
+				args,
+				turnId: p.turnKey,
+				// A re-run of this turn reaches the same call and finds its card instead of making a second one
+				key: `${seq}:${callHash}`
+			});
 			return {
 				status: 'needs_approval',
 				card,
@@ -393,10 +447,11 @@ async function executeTool(
 	// -- A READ OR A RECORD -- //
 	try {
 		const result = await withTimeout(
-			invokeVerb(agentCtx, tool.name, args),
+			() => invokeVerb(agentCtx, tool.name, args),
 			limits.toolTimeoutMs,
 			tool.name
 		);
+		state.succeeded.set(callHash, sameBefore + 1);
 		// A read that can hold text other people wrote (a calendar) is untrusted like a web page: it is marked, and the turn is
 		// closed to writes from here on
 		if (tool.taints) {
@@ -417,6 +472,12 @@ async function executeTool(
 		};
 	} catch (e) {
 		if (e instanceof OpsError) {
+			// A write that ran out of time may still finish: the model must check before it tries again
+			if (e instanceof ToolTimeout && tool.kind === 'free')
+				return err(
+					'timeout',
+					`${tool.name} took too long. The change may already have been made: read the data again to check before you try it again, and do not repeat it blindly.`
+				);
 			// A free verb that turns out to need approval for this input (a payment on a bill whose amount varies)
 			if (e.code === 'FORBIDDEN' && tool.kind === 'free')
 				return asCard('This one needs the person to approve it.');
@@ -558,12 +619,27 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			if (e instanceof OpsError && (e.code === 'UNAVAILABLE' || e.code === 'LIMIT')) {
 				const reason = /minute/i.test(e.message) ? 'rate' : e.code === 'LIMIT' ? 'capped' : 'down';
 				yield { type: 'fallback', reason, form: 'expense' };
+				// Writes may already have run in this message: the person is told what, so they are not done again by hand
+				const already = toolsRun.length
+					? `Before that stopped I had already run: ${[...new Set(toolsRun)].join(', ')}. Check those before you do them again.`
+					: '';
 				// A used-up monthly allowance says so in words, and is never retried by the app
 				if (reason === 'capped') {
-					reply += reply.trim() ? `\n\n${CAPPED_NOTE}` : CAPPED_NOTE;
+					const note = already ? `${CAPPED_NOTE} ${already}` : CAPPED_NOTE;
+					reply += reply.trim() ? `\n\n${note}` : note;
 					yield { type: 'delta', text: reply };
+				} else if (already) {
+					const tail = reply.trim() ? `\n\n${already}` : already;
+					reply += tail;
+					yield { type: 'delta', text: tail };
 				}
-				yield { type: 'done', reply, toolsRun, ...(transcript.length ? { transcript } : {}) };
+				yield {
+					type: 'done',
+					reply,
+					toolsRun,
+					...(transcript.length ? { transcript } : {}),
+					...(state.tainted ? { tainted: true } : {})
+				};
 				return;
 			}
 			throw e;
@@ -610,7 +686,13 @@ ${note}`
 				: note;
 			reply += tail;
 			yield { type: 'delta', text: tail };
-			yield { type: 'done', reply, stopped: 'length', toolsRun };
+			yield {
+				type: 'done',
+				reply,
+				stopped: 'length',
+				toolsRun,
+				...(state.tainted ? { tainted: true } : {})
+			};
 			return;
 		}
 		if (completion.toolCalls.length === 0) {
@@ -630,7 +712,8 @@ ${note}`
 				reply: final,
 				toolsRun,
 				...(stopped ? { stopped } : {}),
-				...(transcript.length ? { transcript } : {})
+				...(transcript.length ? { transcript } : {}),
+				...(state.tainted ? { tainted: true } : {})
 			};
 			return;
 		}
@@ -654,9 +737,6 @@ ${note}`
 					// The words around a stranger's text are dropped with it
 					content: roundUntrusted ? null : finished.content || null,
 					tool_calls: finished.toolCalls,
-					...(finished.provider === 'deepseek' && finished.reasoningRaw
-						? { reasoning_content: capReasoning(finished.reasoningRaw) }
-						: {}),
 					...(finished.provider ? { provider: finished.provider } : {})
 				},
 				...roundResults
@@ -729,6 +809,7 @@ ${note}`
 		reply,
 		stopped,
 		toolsRun,
-		...(transcript.length ? { transcript } : {})
+		...(transcript.length ? { transcript } : {}),
+		...(state.tainted ? { tainted: true } : {})
 	};
 }

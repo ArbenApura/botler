@@ -24,7 +24,7 @@ export type RatesStatus = {
 	asOf: string | null;
 	/** When the oldest stored rate was fetched. Differs from asOf when a rate was held back by the sanity check. */
 	oldestAt: string | null;
-	/** True when there are no rates or they are older than a day. */
+	/** True when there are no rates or they are older than 36 hours. */
 	stale: boolean;
 	source: string | null;
 	attemptedAt: string | null;
@@ -44,8 +44,8 @@ export type RefreshOutcome =
 export const MIN_REFRESH_INTERVAL_MS = 10 * 60_000;
 /** A rate that keeps jumping is held back for at most this long, then the new value is taken. */
 const HOLD_BACK_MAX_MS = 7 * 24 * 3_600_000;
-/** Rates older than this are stale, and reading a total starts a refresh in the background. */
-export const STALE_AFTER_MS = 24 * 3_600_000;
+/** Rates older than this are stale, and reading a total starts a refresh in the background. A daily feed that is a little late is not yet stale. */
+export const STALE_AFTER_MS = 36 * 3_600_000;
 
 // -- FUNCTIONS -- //
 
@@ -114,6 +114,8 @@ export async function refreshRates(
 	try {
 		// No transaction is open here: a slow source holds no connection and no person's lock
 		const fetched = await fetchRates(config);
+		// A rate keeps the feed's own timestamp when it gives one, so a feed that stopped updating shows as stale instead of looking fresh
+		const stamp = fetched.asOf ?? now;
 		const known = new Map((await handle.db.select().from(fxRate)).map((r) => [r.code, r]));
 		const held: string[] = [];
 		const fresh = Object.entries(fetched.rates).filter(([code, rate]) => {
@@ -136,7 +138,7 @@ export async function refreshRates(
 				await tx
 					.insert(fxRate)
 					.values(
-						fresh.map(([code, rate]) => ({ code, rate, fetchedAt: now, source: fetched.source }))
+						fresh.map(([code, rate]) => ({ code, rate, fetchedAt: stamp, source: fetched.source }))
 					)
 					.onConflictDoUpdate({
 						target: fxRate.code,

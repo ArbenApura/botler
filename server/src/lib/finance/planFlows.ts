@@ -94,6 +94,16 @@ export type WhatIf = {
 	extra: readonly PretendEntry[];
 };
 
+/** An income entry on an account, as the ledger holds it, for matching a recorded pay to its schedule. */
+export type RecordedIncome = {
+	accountId: string;
+	date: ManilaDate;
+	amount: number;
+	currency: string;
+	/** The income schedule a split wrote it for, or null for an entry the person made. */
+	scheduleId: string | null;
+};
+
 /** Everything the flows are made from, loaded once. Active items only, archived accounts included and flagged. */
 export type PlanData = {
 	main: string;
@@ -107,6 +117,11 @@ export type PlanData = {
 	settled: ReadonlyMap<string, readonly SettledStretch[]>;
 	/** `accountId|date` of every day an income was recorded on an account. */
 	incomeDays: ReadonlySet<string>;
+	/**
+	 * The same entries with their amount, currency and schedule, so a pay recorded on a day is matched to its own income schedule (see
+	 * `recordedPays`). Left out, any income on the account that day counts as that account's pay (`incomeDays`).
+	 */
+	incomeRecords?: readonly RecordedIncome[];
 	whatIf?: WhatIf;
 	/**
 	 * Each account's balance in the main currency now (BTL-20261029-0119). Given only in future mode: the splits then take bills from money
@@ -171,6 +186,103 @@ export const OVERDUE_DAYS = 31;
 const SHIFT_REACH_DAYS = 60 + 93;
 
 // -- FUNCTIONS -- //
+
+/**
+ * The incomes whose pay is already recorded on `date`: a payday of the income falls on it and a recorded entry belongs to it. An entry
+ * belongs to an income when a split wrote it for that schedule, or when the person made it on the same account, in the main currency, for
+ * about what the income expects (half to double of it; the closest entry wins, and one entry is never two incomes' pay). So a small refund
+ * or a second income on the same account that day does not hide the salary that has not arrived.
+ */
+export function recordedPays(plan: PlanData, date: ManilaDate): Set<string> {
+	const paid = new Set<string>();
+	const due = plan.incomes.filter(
+		(i) => occurrencesBetween(i.schedule, date, date, { weekend: i.weekendRule }).length > 0
+	);
+	if (!plan.incomeRecords) {
+		for (const i of due) if (plan.incomeDays.has(`${i.accountId}|${date}`)) paid.add(i.id);
+		return paid;
+	}
+	const records = plan.incomeRecords.filter((r) => r.date === date && r.currency === plan.main);
+	const taken = new Set<number>();
+	for (const i of due) {
+		const at = records.findIndex((r, n) => !taken.has(n) && r.scheduleId === i.id);
+		if (at >= 0) {
+			taken.add(at);
+			paid.add(i.id);
+		}
+	}
+	// The biggest expected pay chooses first, so a small side income never takes the salary's entry
+	const open = due
+		.filter((i) => !paid.has(i.id))
+		.sort((a, b) => (b.expectedAmount ?? 0) - (a.expectedAmount ?? 0));
+	for (const i of open) {
+		const expected = i.expectedAmount;
+		let best = -1;
+		for (const [n, r] of records.entries()) {
+			if (taken.has(n) || r.scheduleId !== null || r.accountId !== i.accountId) continue;
+			// An income with no amount yet takes any entry of its account; one with an amount takes an entry of about that size
+			if (expected !== null && expected > 0 && (r.amount * 2 < expected || r.amount > expected * 2))
+				continue;
+			const gap = expected === null ? 0 : Math.abs(r.amount - expected);
+			const bestGap =
+				best < 0 || expected === null
+					? Infinity
+					: Math.abs((records[best]?.amount ?? 0) - expected);
+			if (best < 0 || gap < bestGap) best = n;
+		}
+		if (best >= 0) {
+			taken.add(best);
+			paid.add(i.id);
+		}
+	}
+	return paid;
+}
+
+/**
+ * Puts the bill payments of the flows on the wallets that really exist (today's wallets of the active accounts). A bill is paid from the
+ * account's wallet in the bill's own currency (one that the plan's pay or payday moves open counts). With no such wallet it comes off the account's main currency wallet at the stored rate,
+ * rounded up so a forecast is never too rosy; with neither (or no rate to convert it) it is not in the balances at all and comes back in
+ * `unplaced`, so the caller can say so instead of dropping it silently. Every other flow is kept as it is. A bill in a currency with no
+ * rate that sits in its own wallet is kept too, and its currency is listed in `unrated` (the total cannot include it).
+ */
+export function placeBills(
+	flows: readonly PlanFlow[],
+	wallets: readonly { accountId: string; currency: string }[],
+	main: string,
+	rates: Rates
+): { flows: PlanFlow[]; unplaced: PlanFlow[]; unrated: string[] } {
+	const held = new Set(wallets.map((w) => `${w.accountId}|${w.currency}`));
+	// A wallet the plan's own money lands in (a pay, or a payday move that funds a bill's account) is there to be paid from
+	for (const flow of flows) {
+		if (flow.kind === 'in') held.add(`${flow.accountId}|${flow.currency}`);
+		else if (flow.kind === 'move' && flow.toAccountId)
+			held.add(`${flow.toAccountId}|${flow.currency}`);
+	}
+	const out: PlanFlow[] = [];
+	const unplaced: PlanFlow[] = [];
+	const unrated = new Set<string>();
+	for (const flow of flows) {
+		if (flow.origin !== 'bill' || flow.kind !== 'out') {
+			out.push(flow);
+			continue;
+		}
+		const rated = flow.currency === main || canConvert(flow.currency, main, rates);
+		if (held.has(`${flow.accountId}|${flow.currency}`)) {
+			if (!rated) unrated.add(flow.currency);
+			out.push(flow);
+		} else if (rated && held.has(`${flow.accountId}|${main}`)) {
+			out.push({
+				...flow,
+				currency: main,
+				amount: convertUp(flow.amount, flow.currency, main, rates)
+			});
+		} else {
+			unplaced.push(flow);
+			if (!rated) unrated.add(flow.currency);
+		}
+	}
+	return { flows: out, unplaced, unrated: [...unrated].sort() };
+}
 
 /** The latest of some dates. */
 const latest = (...dates: ManilaDate[]): ManilaDate => dates.reduce((a, b) => (a > b ? a : b));
@@ -416,10 +528,12 @@ export function planFlows(plan: PlanData, opts: PlanFlowsOptions): PlanFlows {
 				.map((payday) => ({ inc, payday }))
 		)
 		.sort((a, b) => (a.payday < b.payday ? -1 : a.payday > b.payday ? 1 : 0));
+	// The pay recorded today, each entry matched to its own income schedule
+	const paidToday = replay ? new Set<string>() : recordedPays(plan, today);
 	for (const { inc, payday } of paydays) {
 		const opts = { weekend: inc.weekendRule };
 		// A pay already recorded today is in today's balance: counting it again would double it
-		if (!replay && payday === today && plan.incomeDays.has(`${inc.accountId}|${today}`)) continue;
+		if (!replay && payday === today && paidToday.has(inc.id)) continue;
 		if (plan.whatIf?.skip.has(`${inc.id}|${payday}`)) continue;
 		if (inc.expectedAmount === null) {
 			unknown.push({ kind: 'income', date: payday, label: inc.label });

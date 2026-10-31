@@ -13,7 +13,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { toManilaDate } from '../../finance/dates';
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
-import { validateRules } from '../../finance/rules';
+import { ruleWarnings, validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
 import { account, allocationRule, bill, goal } from '../db/schema';
 import {
@@ -36,6 +36,8 @@ export type RuleView = Plain<RuleRow> & {
 	targetName: string;
 	/** The name of the bill the rule saves for, or null. */
 	fundsBillName: string | null;
+	/** Said at save (propose, approve): things that are allowed but probably not meant, for example percentages that can add up to more than the pay. */
+	warnings?: string[];
 };
 
 // -- FUNCTIONS -- //
@@ -274,7 +276,9 @@ export async function proposeRule(
 			// Tell the person now if the rule cannot fit with the ones already in force
 			const problems = validateRules([...active, row].map((r) => toRule(r)));
 			if (problems[0]) throw new OpsError('INVALID', problems[0]);
-			return view(row, await targetNames(tx, userId));
+			// The combined check of the shares is a warning, not a refusal: it depends on the bills of the day
+			const warnings = ruleWarnings([...active, row].map((r) => toRule(r)));
+			return { ...view(row, await targetNames(tx, userId)), warnings };
 		})
 	);
 }
@@ -348,7 +352,8 @@ export async function approveRule(ctx: Ctx, raw: { ruleId: string }): Promise<Ru
 				.where(and(eq(allocationRule.userId, userId), eq(allocationRule.id, ruleId)))
 				.returning();
 			if (!done) throw new OpsError('NOT_FOUND', 'That rule does not exist.');
-			return view(done, await targetNames(tx, userId));
+			const warnings = ruleWarnings([...active, row].map((r) => toRule(r)));
+			return { ...view(done, await targetNames(tx, userId)), warnings };
 		})
 	);
 }

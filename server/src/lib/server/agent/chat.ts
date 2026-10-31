@@ -53,6 +53,10 @@ export type ChatDeps = {
 	limits?: TurnParams['limits'];
 	/** Leave the notebook and the private names out of this call (tests of the loop alone). */
 	noMemory?: boolean;
+	/** How often a running message tells the database it is alive. Left out, 20 seconds. */
+	heartbeatMs?: number;
+	/** How long a running message may go without that before another request takes it over. Left out, 120 seconds. */
+	staleMs?: number;
 };
 
 // -- CONSTANTS -- //
@@ -77,13 +81,29 @@ export const chatInput = z.strictObject({
 });
 
 const STALE_RUNNING_MS = 120_000;
+const HEARTBEAT_MS = 20_000;
 const NOTE_TOOLS = 20;
+/** The most characters one stored tool event keeps (its data). A longer one is stored without the data: the screen shows the tool and its status only. */
+export const EVENT_CHARS = 4000;
+/** Stored with the events of a message whose answer was written after untrusted text. Never replayed to the app. */
+export const TAINTED_MARK = { type: 'tainted' } as const;
 /** The only events kept with a finished message. Thinking, phases and start are live only: never stored, never replayed. */
 const STORED = new Set<TurnEvent['type']>(['tool', 'card', 'fallback']);
 
 // -- FUNCTIONS -- //
 
-async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
+/** A tool event as it is stored: the data stays only up to EVENT_CHARS, and a note only up to the same. Everything else is kept as it is. */
+export function forStorage(e: TurnEvent): TurnEvent {
+	if (e.type !== 'tool') return e;
+	const { data, message, ...rest } = e;
+	return {
+		...rest,
+		...(message ? { message: message.slice(0, EVENT_CHARS) } : {}),
+		...(data !== undefined && (JSON.stringify(data) ?? '').length <= EVENT_CHARS ? { data } : {})
+	};
+}
+
+async function claim(ctx: Ctx, input: z.infer<typeof chatInput>, staleMs: number) {
 	return run(ctx, async (tx, userId) => {
 		// One person's first messages line up here, so two of them never make two chats
 		await lockPerson(tx, userId);
@@ -106,7 +126,7 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 				.returning({ id: chatTurn.id });
 			if (!fresh) throw new OpsError('CONFLICT', 'That message could not be started.');
 			await touchChat(tx, userId, target, input.text);
-			return { mode: 'run' as const, id: fresh.id, chatId: target.id };
+			return { mode: 'run' as const, id: fresh.id, chatId: target.id, runNo: 0 };
 		}
 		if (row.userText !== input.text)
 			throw new OpsError('CONFLICT', 'That message id was already used for a different message.');
@@ -114,18 +134,25 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>) {
 		if (input.chatId && input.chatId !== row.chatId)
 			throw new OpsError('CONFLICT', 'That message id belongs to another chat.');
 		if (row.status === 'done') return { mode: 'replay' as const, row };
-		const stale = Date.now() - row.updatedAt.getTime() > STALE_RUNNING_MS;
+		const stale = Date.now() - row.updatedAt.getTime() > staleMs;
 		if (row.status === 'running' && !stale)
 			throw new OpsError(
 				'CONFLICT',
 				'That message is still being answered. Ask again in a moment.'
 			);
-		// A failed or abandoned turn is taken over
-		await tx
+		// A failed or abandoned turn is taken over. The run number goes up, so the run that was stuck, if it is still alive, finds out
+		// at its next heartbeat and can no longer write the turn's end
+		const [taken] = await tx
 			.update(chatTurn)
-			.set({ status: 'running', updatedAt: sql`now()` })
-			.where(and(eq(chatTurn.id, row.id), ne(chatTurn.status, 'done')));
-		return { mode: 'run' as const, id: row.id, chatId: row.chatId };
+			.set({ status: 'running', runNo: sql`${chatTurn.runNo} + 1`, updatedAt: sql`now()` })
+			.where(and(eq(chatTurn.id, row.id), ne(chatTurn.status, 'done')))
+			.returning({ runNo: chatTurn.runNo });
+		return {
+			mode: 'run' as const,
+			id: row.id,
+			chatId: row.chatId,
+			runNo: taken?.runNo ?? row.runNo
+		};
 	});
 }
 
@@ -239,7 +266,7 @@ export async function* handleChat(
 	const input = parse(chatInput, raw);
 	// A picture that is not one is refused before the message is claimed, so the person can send it again without that picture
 	const pictures = readImages(input.images);
-	const claimed = await claim(ctx, input);
+	const claimed = await claim(ctx, input, deps.staleMs ?? STALE_RUNNING_MS);
 	// The message is accepted: the screen starts showing that the assistant is working before memory, history or the model are touched
 	const where =
 		claimed.mode === 'replay'
@@ -270,6 +297,32 @@ export async function* handleChat(
 	}
 	const kept: TurnEvent[] = [];
 	let reply = '';
+	// This run of the message. Another request that takes the message over raises the run number; the heartbeat below then finds no row to
+	// touch and stops this run, which also may no longer write the end of the turn
+	const mine = and(
+		eq(chatTurn.id, claimed.id),
+		eq(chatTurn.status, 'running'),
+		eq(chatTurn.runNo, claimed.runNo)
+	);
+	const owner = new AbortController();
+	const beat = setInterval(() => {
+		run(ctx, (tx, userId) =>
+			tx
+				.update(chatTurn)
+				.set({ updatedAt: sql`now()` })
+				.where(and(eq(chatTurn.userId, userId), mine))
+				.returning({ id: chatTurn.id })
+		).then(
+			(rows) => {
+				if (rows.length === 0) owner.abort();
+			},
+			// A failed heartbeat is not proof that the turn was taken: the next one tries again
+			() => undefined
+		);
+	}, deps.heartbeatMs ?? HEARTBEAT_MS);
+	beat.unref?.();
+	// A cancelled request is not working any more: the heartbeat stops with it, and the turn ends on its own
+	deps.signal?.addEventListener('abort', () => clearInterval(beat), { once: true });
 	try {
 		// The notebook and the private names. Trouble reading them never stops a chat: it is logged by class and skipped
 		const known = deps.noMemory
@@ -309,7 +362,7 @@ export async function* handleChat(
 			memories: deps.memories,
 			// Which cards the person approved or turned down since the last message. A read that fails never stops a chat
 			cards: await recentCardLines(ctx, 12, 3, claimed.chatId).catch(() => []),
-			signal: deps.signal,
+			signal: deps.signal ? AbortSignal.any([deps.signal, owner.signal]) : owner.signal,
 			now: deps.now?.(),
 			tools: deps.tools,
 			web: deps.web,
@@ -320,22 +373,25 @@ export async function* handleChat(
 			if (e.type === 'done') {
 				reply = e.reply;
 				const ended = e.stopped !== 'cancelled' && e.stopped !== 'length';
-				await run(ctx, (tx, userId) =>
+				const written = await run(ctx, (tx, userId) =>
 					tx
 						.update(chatTurn)
 						.set({
 							status: ended ? 'done' : 'failed',
 							reply,
-							events: kept,
+							// After untrusted text the answer is marked, so a summary later treats it as untrusted data
+							events: e.tainted ? [...kept, TAINTED_MARK] : kept,
 							// The tool rounds stay for the next messages of the chat; a cancelled or cut-off message keeps none
 							transcript: ended && e.transcript ? e.transcript : null,
 							finishedAt: sql`now()`,
 							updatedAt: sql`now()`
 						})
-						.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, claimed.id)))
+						// Only the run that owns the message writes its end: a run that was taken over leaves the new run's result alone
+						.where(and(eq(chatTurn.userId, userId), mine))
+						.returning({ id: chatTurn.id })
 				);
 				// A long chat is folded into its summary in the background, never inside a message. A failure here never stops the reply
-				if (ended)
+				if (ended && written.length > 0)
 					await run(ctx, (tx, userId) =>
 						queueCompactionIfDue(
 							tx,
@@ -345,10 +401,10 @@ export async function* handleChat(
 							deps.historyTokens ?? DEFAULT_HISTORY_TOKENS
 						)
 					).catch(() => undefined);
-			} else if (STORED.has(e.type)) kept.push(e);
+			} else if (STORED.has(e.type)) kept.push(forStorage(e));
 			// The tool rounds are for the database only: the app never gets them
-			if (e.type === 'done' && e.transcript) {
-				const { transcript: _kept, ...rest } = e;
+			if (e.type === 'done' && (e.transcript || e.tainted)) {
+				const { transcript: _kept, tainted: _tainted, ...rest } = e;
 				yield rest;
 			} else yield e;
 		}
@@ -357,9 +413,12 @@ export async function* handleChat(
 			tx
 				.update(chatTurn)
 				.set({ status: 'failed', updatedAt: sql`now()` })
-				.where(and(eq(chatTurn.userId, userId), eq(chatTurn.id, claimed.id)))
+				// Not a run that was taken over: the new run keeps the message
+				.where(and(eq(chatTurn.userId, userId), mine))
 		).catch(() => undefined);
 		throw e;
+	} finally {
+		clearInterval(beat);
 	}
 }
 
@@ -373,5 +432,11 @@ export async function chatStatus(ctx: Ctx, clientMessageId: string) {
 		return r;
 	});
 	if (!row) throw new OpsError('NOT_FOUND', 'There is no such message.');
-	return row;
+	// The marks only the server reads stay out of what the app gets
+	return {
+		...row,
+		events: Array.isArray(row.events)
+			? (row.events as TurnEvent[]).filter((x) => STORED.has(x.type))
+			: row.events
+	};
 }

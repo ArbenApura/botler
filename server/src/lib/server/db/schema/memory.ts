@@ -8,6 +8,7 @@ import {
 	boolean,
 	check,
 	date,
+	foreignKey,
 	index,
 	integer,
 	jsonb,
@@ -103,6 +104,12 @@ export const memoryFact = userTable(
 	},
 	(t) => [
 		unique('memory_fact_user_id_uq').on(t.userId, t.id),
+		// Deleting a fact clears only superseded_by (hand-written in migration 0040; drizzle cannot say a column list)
+		foreignKey({
+			name: 'memory_fact_superseded_fk',
+			columns: [t.userId, t.supersededBy],
+			foreignColumns: [t.userId, t.id]
+		}),
 		index('memory_fact_user_state_idx').on(t.userId, t.suppressed, t.validTo),
 		index('memory_fact_user_hash_idx').on(t.userId, t.textHash),
 		index('memory_fact_user_subject_idx').on(t.userId, t.subject),

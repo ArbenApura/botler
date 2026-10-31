@@ -16,6 +16,7 @@ import type {
 // -- DEP-MODULES -- //
 import { randomUUID } from 'node:crypto';
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { z } from 'zod';
 // -- MODULES -- //
 import { chat, chatTurn } from '../db/schema';
 import {
@@ -134,17 +135,35 @@ function likePattern(text: string): string {
 	return `%${text.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 }
 
-/** The person's chats, newest first. A chat with nothing said in it is not listed. */
-export async function chatList(ctx: Ctx, raw: ChatListInput): Promise<{ chats: ChatSummary[] }> {
+/**
+ * The list of chats with a cursor: `before` is the last chat of the page before (its lastActiveAt and id, as the list gave them), and the
+ * page that follows starts right after it. Left out, the list starts at the newest chat.
+ */
+export const chatListPageInput = chatListInput.extend({
+	before: z.strictObject({ at: z.iso.datetime(), id: z.uuid() }).optional()
+});
+
+/** The person's chats, newest first, a page at a time. A chat with nothing said in it is not listed. */
+export async function chatList(
+	ctx: Ctx,
+	raw: ChatListInput | z.infer<typeof chatListPageInput>
+): Promise<{ chats: ChatSummary[]; next: { at: string; id: string } | null }> {
 	requirePerson(ctx.actor.kind, 'list the chats');
-	const input = parse(chatListInput, raw);
+	const input = parse(chatListPageInput, raw);
 	return run(ctx, async (tx, userId) => {
 		const said = sql`exists (select 1 from ${chatTurn} where ${chatTurn.userId} = ${chat.userId} and ${chatTurn.chatId} = ${chat.id} and ${chatTurn.userText} <> '')`;
 		const pattern = input.search ? likePattern(input.search) : null;
 		const match = pattern
 			? sql`(${chat.title} ilike ${pattern} escape '\\' or exists (select 1 from ${chatTurn} where ${chatTurn.userId} = ${chat.userId} and ${chatTurn.chatId} = ${chat.id} and ${chatTurn.userText} ilike ${pattern} escape '\\'))`
 			: undefined;
-		const rows = await tx
+		// Compared to the millisecond, which is what the list shows, so a cursor made from a listed chat lands exactly after it
+		const stamp = sql`date_trunc('milliseconds', ${chat.lastActiveAt})`;
+		const after = input.before
+			? sql`(${stamp}, ${chat.id}) < (${input.before.at}::timestamptz, ${input.before.id}::uuid)`
+			: undefined;
+		// A search keeps to the limit the caller gave (up to 30 when none is given), like a plain list
+		const size = input.limit ?? (pattern ? SEARCH_LIMIT : DEFAULT_LIST);
+		const found = await tx
 			.select()
 			.from(chat)
 			.where(
@@ -152,12 +171,17 @@ export async function chatList(ctx: Ctx, raw: ChatListInput): Promise<{ chats: C
 					eq(chat.userId, userId),
 					input.archived ? isNotNull(chat.archivedAt) : isNull(chat.archivedAt),
 					said,
-					match
+					match,
+					after
 				)
 			)
-			.orderBy(desc(chat.lastActiveAt), desc(chat.id))
-			.limit(pattern ? SEARCH_LIMIT : (input.limit ?? DEFAULT_LIST));
-		if (rows.length === 0) return { chats: [] };
+			.orderBy(desc(stamp), desc(chat.id))
+			.limit(size + 1);
+		const rows = found.slice(0, size);
+		const tail = rows.at(-1);
+		const next =
+			found.length > size && tail ? { at: tail.lastActiveAt.toISOString(), id: tail.id } : null;
+		if (rows.length === 0) return { chats: [], next: null };
 		const ids = rows.map((r) => r.id);
 		const counts = await tx
 			.select({ chatId: chatTurn.chatId, n: count() })
@@ -183,7 +207,8 @@ export async function chatList(ctx: Ctx, raw: ChatListInput): Promise<{ chats: C
 				pinned: r.pinnedAt !== null,
 				archived: r.archivedAt !== null,
 				forkedFromChatId: r.forkedFromChatId
-			}))
+			})),
+			next
 		};
 	});
 }

@@ -3,10 +3,15 @@
 // -- TYPES -- //
 import type { DbHandle } from './client';
 // -- ENVS -- //
-import { BOTLER_AUTO_MIGRATE, DATABASE_OWNER_URL, DATABASE_URL } from '$app/env/private';
+import {
+	BOTLER_AUTO_MIGRATE,
+	DATABASE_OWNER_URL,
+	DATABASE_URL,
+	DB_POOL_MAX
+} from '$app/env/private';
 // -- MODULES -- //
 import { createPostgres } from './client';
-import { migrateLocked } from './migrate';
+import { assertMigrated, migrateLocked } from './migrate';
 import { RUNTIME_ROLE } from './security';
 import { assertRuntimeRole } from './tenant';
 
@@ -29,10 +34,13 @@ async function open(): Promise<DbHandle> {
 	const h = createPostgres({
 		runtimeUrl: DATABASE_OWNER_URL ? DATABASE_URL : undefined,
 		ownerUrl: owner,
-		...(loginIsRuntime ? { switchRole: false, poolMax: 5 } : {})
+		...(loginIsRuntime ? { switchRole: false } : {}),
+		poolMax: DB_POOL_MAX
 	});
 	try {
 		if (BOTLER_AUTO_MIGRATE === '1') await migrateLocked(h);
+		// Without auto migration the schema must already be current: a stale one stops the start with the missing tags
+		else await assertMigrated(h.owner);
 		// Fails loudly when requests would run as a role that skips row level security (a superuser, the owner, BYPASSRLS)
 		await assertRuntimeRole(h);
 	} catch (e) {

@@ -37,10 +37,14 @@ export function securityStatements(only?: ReadonlySet<string>): string[] {
 		const col = q(t.userColumn);
 		out.push(`ALTER TABLE ${q(t.name)} ENABLE ROW LEVEL SECURITY`);
 		out.push(`ALTER TABLE ${q(t.name)} FORCE ROW LEVEL SECURITY`);
-		out.push(`DROP POLICY IF EXISTS user_isolation ON ${q(t.name)}`);
+		// The policy is replaced inside one statement string (one implicit transaction): the new one is created, the old one dropped, and the
+		// new one renamed, so there is never a moment with no policy (forced row level security would then deny every row)
 		// WITH CHECK stops a write that would move a row to another person
 		out.push(
-			`CREATE POLICY user_isolation ON ${q(t.name)} FOR ALL TO ${RUNTIME_ROLE} USING (${col} = ${USER}) WITH CHECK (${col} = ${USER})`
+			`DROP POLICY IF EXISTS user_isolation_next ON ${q(t.name)}; ` +
+				`CREATE POLICY user_isolation_next ON ${q(t.name)} FOR ALL TO ${RUNTIME_ROLE} USING (${col} = ${USER}) WITH CHECK (${col} = ${USER}); ` +
+				`DROP POLICY IF EXISTS user_isolation ON ${q(t.name)}; ` +
+				`ALTER POLICY user_isolation_next ON ${q(t.name)} RENAME TO user_isolation`
 		);
 		// An append-only table is also stripped of any wider grant it may have had before
 		if (t.appendOnly)
@@ -67,6 +71,10 @@ export function securityStatements(only?: ReadonlySet<string>): string[] {
 	}
 	out.push(
 		`DO $$ BEGIN IF to_regprocedure('data_reset(text, text)') IS NOT NULL THEN REVOKE ALL ON FUNCTION data_reset(text, text) FROM PUBLIC; GRANT EXECUTE ON FUNCTION data_reset(text, text) TO ${RUNTIME_ROLE}; END IF; END $$`
+	);
+	// The app reads the migration record at start (BOTLER_AUTO_MIGRATE off) to refuse a stale schema; it never writes it
+	out.push(
+		`DO $$ BEGIN IF to_regclass('public.__botler_migrations') IS NOT NULL THEN GRANT SELECT ON "__botler_migrations" TO ${RUNTIME_ROLE}; END IF; END $$`
 	);
 	out.push(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${RUNTIME_ROLE}`);
 	return out;

@@ -835,11 +835,16 @@ describe('searching, the outline, links, pins and activity', () => {
 		expect(gone.notebooks[0]?.pages[0]?.deletedAt).toBeTruthy();
 		// Links by title, and by notebook and title
 		const zed = await idOf(c, 'Trip', 'Zed');
-		await createPage(as(c), { notebook: 'Work', title: 'Plan', text: 'see [[Zed]] and more' });
+		// A plain [[Zed]] points at a page of the same notebook; from another notebook it has to be written [[Trip/Zed]]
+		await createPage(as(c), { notebook: 'Trip', title: 'Plan', text: 'see [[Zed]] and more' });
 		await createPage(as(c), { notebook: 'Work', title: 'Plan 2', text: 'also [[trip/zed]]' });
-		await createPage(as(c), { notebook: 'Work', title: 'Plan 3', text: 'no link [[Zeds]]' });
+		await createPage(as(c), {
+			notebook: 'Work',
+			title: 'Plan 3',
+			text: 'no link [[Zeds]] or [[Zed]]'
+		});
 		const links = await pageBacklinks(c, { pageId: zed });
-		expect(links.links.map((l) => `${l.notebook}/${l.page}`)).toEqual(['Work/Plan', 'Work/Plan 2']);
+		expect(links.links.map((l) => `${l.notebook}/${l.page}`)).toEqual(['Trip/Plan', 'Work/Plan 2']);
 		expect(links.links[0]?.snippet).toContain('[[Zed]]');
 		await expect(pageBacklinks(agentOf(c), { pageId: zed })).rejects.toMatchObject({
 			code: 'FORBIDDEN'

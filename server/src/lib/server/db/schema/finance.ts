@@ -344,6 +344,12 @@ export const ledgerTxn = userTable(
 			columns: [t.userId, t.billId],
 			foreignColumns: [bill.userId, bill.id]
 		}),
+		// Deleting a split clears only split_id (hand-written in migration 0040; drizzle cannot say a column list), so the entries stay as plain ones
+		foreignKey({
+			name: 'ledger_txn_split_fk',
+			columns: [t.userId, t.splitId],
+			foreignColumns: [splitPlan.userId, splitPlan.id]
+		}),
 		oneOf('ledger_txn_type_chk', t.type, TXN_TYPE_VALUES),
 		currencyShape('ledger_txn_currency_chk', t.currency),
 		check(

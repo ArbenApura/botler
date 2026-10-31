@@ -69,6 +69,30 @@ export async function migrate(db: SqlExecutor, dir = MIGRATIONS_DIR): Promise<st
 	return applied;
 }
 
+/**
+ * For a start with BOTLER_AUTO_MIGRATE off: compares the journal with what was applied and refuses a database that is behind (or a
+ * journal older than the database), with the tags that are missing. Reads only; it never changes anything.
+ */
+export async function assertMigrated(db: SqlExecutor, dir = MIGRATIONS_DIR): Promise<void> {
+	const journal = JSON.parse(readFileSync(join(dir, 'meta', '_journal.json'), 'utf8')) as Journal;
+	let applied: Set<string>;
+	try {
+		applied = new Set(
+			(await db.query<{ tag: string }>(`SELECT tag FROM "__botler_migrations"`)).map((r) => r.tag)
+		);
+	} catch (e) {
+		throw new Error(
+			'The database schema cannot be checked: the migration record is missing or unreadable. Run the migrations (yarn db:migrate) or set BOTLER_AUTO_MIGRATE=1.',
+			{ cause: e }
+		);
+	}
+	const missing = journal.entries.map((x) => x.tag).filter((tag) => !applied.has(tag));
+	if (missing.length > 0)
+		throw new Error(
+			`The database schema is behind this version of the app: ${missing.length} migration(s) not applied (${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ', ...' : ''}). Run the migrations (yarn db:migrate) before starting, or set BOTLER_AUTO_MIGRATE=1.`
+		);
+}
+
 /** Roles, grants and forced row level security. Safe to run again, and run after every migration. */
 export async function secure(db: SqlExecutor, onlyExisting = false): Promise<void> {
 	const only = onlyExisting

@@ -669,7 +669,6 @@ const EXPECTED_TOOLS = [
 	'split_mark_sent',
 	'split_propose',
 	'split_upcoming',
-	'sync_get',
 	'task_create',
 	'task_list',
 	'task_update',

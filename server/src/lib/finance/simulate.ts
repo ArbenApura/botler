@@ -59,6 +59,11 @@ export type SimulateInput = {
 	wallets: readonly { accountId: string; currency: string }[];
 	snapshots: readonly RecordedSnapshot[];
 	txns: readonly RecordedTxn[];
+	/**
+	 * The instant of the very first count or entry, when `snapshots` and `txns` are only the window a range needs (ops/simulate.ts loads
+	 * just that). Left out, the first record is the earliest of the rows given.
+	 */
+	firstRecordAt?: Date | null;
 	/** detail adds every entry of the range and the spending per group. */
 	detail: boolean;
 	/** Names of bills that are no longer in the plan (deleted or inactive), by id, for the labels of their spending. */
@@ -274,19 +279,34 @@ export function simulate(input: SimulateInput): Simulation {
 		remember(t.accountId, t.currency);
 		if (t.type === 'transfer' && t.toAccountId) remember(t.toAccountId, t.toCurrency ?? t.currency);
 	}
+	// Counts of each wallet, newest first and sorted once, so a balance at an instant takes the first one not after it
 	const snapsOf = new Map<string, RecordedSnapshot[]>();
-	for (const s of input.snapshots)
-		snapsOf.set(key(s.accountId, s.currency), [
-			...(snapsOf.get(key(s.accountId, s.currency)) ?? []),
-			s
-		]);
+	for (const s of input.snapshots) {
+		const k = key(s.accountId, s.currency);
+		const list = snapsOf.get(k);
+		if (list) list.push(s);
+		else snapsOf.set(k, [s]);
+	}
+	for (const list of snapsOf.values())
+		list.sort((a, b) => b.takenAt.getTime() - a.takenAt.getTime());
+	// The entries that touch each account, once, so a wallet looks only at its own account's rows
+	const txnsOfAccount = new Map<string, RecordedTxn[]>();
+	for (const t of input.txns)
+		for (const id of new Set([t.accountId, t.toAccountId])) {
+			if (!id) continue;
+			const list = txnsOfAccount.get(id);
+			if (list) list.push(t);
+			else txnsOfAccount.set(id, [t]);
+		}
 	const txnsOf = new Map<string, RecordedTxn[]>();
 	for (const [k, w] of walletKeys)
 		txnsOf.set(
 			k,
-			input.txns.filter((t) => effectOn(t, w.accountId, w.currency) !== 0 || touches(t, w))
+			(txnsOfAccount.get(w.accountId) ?? []).filter(
+				(t) => effectOn(t, w.accountId, w.currency) !== 0 || touches(t, w)
+			)
 		);
-	let first: Date | null = null;
+	let first: Date | null = input.firstRecordAt ?? null;
 	for (const s of input.snapshots) if (!first || s.takenAt < first) first = s.takenAt;
 	for (const t of input.txns) if (!first || t.occurredAt < first) first = t.occurredAt;
 	const firstRecord = first ? toManilaDate(first) : null;
@@ -295,10 +315,7 @@ export function simulate(input: SimulateInput): Simulation {
 	const recordedAt = (at: Date): Map<string, number | null> => {
 		const out = new Map<string, number | null>();
 		for (const [k, w] of walletKeys) {
-			const snap =
-				(snapsOf.get(k) ?? [])
-					.filter((s) => s.takenAt <= at)
-					.sort((a, b) => b.takenAt.getTime() - a.takenAt.getTime())[0] ?? null;
+			const snap = (snapsOf.get(k) ?? []).find((s) => s.takenAt <= at) ?? null;
 			const rows = (txnsOf.get(k) ?? []).filter((t) => t.occurredAt <= at);
 			out.set(
 				k,
@@ -314,10 +331,12 @@ export function simulate(input: SimulateInput): Simulation {
 		}
 		return out;
 	};
-	const totalOf = (balances: ReadonlyMap<string, number | null>): number => {
+	/** The total in the main currency. `activeOnly` leaves out hidden accounts, as the plan does from today on. */
+	const totalOf = (balances: ReadonlyMap<string, number | null>, activeOnly = false): number => {
 		let sum = 0;
 		for (const [k, b] of balances) {
 			if (b === null) continue;
+			if (activeOnly && accounts.get(walletKeys.get(k)?.accountId ?? '')?.archived) continue;
 			const v = inMain(b, walletKeys.get(k)?.currency ?? main);
 			if (v !== null) sum += v;
 		}
@@ -796,7 +815,8 @@ export function simulate(input: SimulateInput): Simulation {
 			const startBalances = recordedAt(before(start));
 			const endBalances = recordedAt(part === 'past' ? endOf(end) : now);
 			recordedStart = totalOf(startBalances);
-			recordedEnd = totalOf(endBalances);
+			// Up to today a hidden account's money was real; from today on the plan no longer counts it, as the simulated start does not
+			recordedEnd = totalOf(endBalances, part !== 'past');
 			for (const [k, b] of endBalances) if (b !== null) line(k).recorded = b;
 			if (part === 'past') {
 				// The replay starts from what was really there when the period began. In the period of the first record it starts the day

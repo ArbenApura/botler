@@ -87,6 +87,11 @@ export type Period = {
 	/** Money in and out of the person's accounts in the period, in the main currency. Moves are in neither. */
 	inTotal: number;
 	outTotal: number;
+	/**
+	 * What rounding each wallet and each flow on its own to the main currency leaves over, so that
+	 * endTotal = startTotal + inTotal - outTotal + rounding always holds. Zero when everything is in the main currency.
+	 */
+	rounding: number;
 	ins: PeriodFlow[];
 	outs: PeriodFlow[];
 	moves: PeriodFlow[];
@@ -112,6 +117,8 @@ export type Forecast = {
 	currency: string;
 	startTotal: number;
 	endTotal: number;
+	/** The sum of the periods' rounding: endTotal = startTotal + all money in - all money out + rounding. */
+	rounding: number;
 	periods: Period[];
 	/** Every wallet at the end of the range. */
 	endWallets: WalletLine[];
@@ -314,13 +321,17 @@ export function forecast(input: ForecastInput): Forecast {
 			const was = before.get(k) ?? 0;
 			if (now !== was) wallets.push(lineOf(k, was, now));
 		}
+		const periodEndTotal = total();
+		const inTotal = ins.reduce((s, f) => s + (f.amountMain ?? 0), 0);
+		const outTotal = outs.reduce((s, f) => s + (f.amountMain ?? 0), 0);
 		periods.push({
 			from: start,
 			to: end,
 			startTotal: beforeTotal,
-			endTotal: total(),
-			inTotal: ins.reduce((s, f) => s + (f.amountMain ?? 0), 0),
-			outTotal: outs.reduce((s, f) => s + (f.amountMain ?? 0), 0),
+			endTotal: periodEndTotal,
+			inTotal,
+			outTotal,
+			rounding: periodEndTotal - beforeTotal - inTotal + outTotal,
 			ins,
 			outs,
 			moves,
@@ -358,6 +369,7 @@ export function forecast(input: ForecastInput): Forecast {
 		currency: main,
 		startTotal,
 		endTotal: total(),
+		rounding: periods.reduce((sum, p) => sum + p.rounding, 0),
 		periods,
 		endWallets,
 		missing: [...missing].sort(),

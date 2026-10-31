@@ -4,7 +4,8 @@
 // - a tool result is shortened to 3000 characters, with a marker that says it is old (the data may have changed: read it again);
 // - a web or calendar result (untrusted text) is replaced by a stub that names the tool, and the assistant text of that round is dropped,
 //   so nothing a stranger wrote is replayed as if it were true or as an instruction;
-// - thinking is kept only for the provider that needs it back (DeepSeek, on messages with tool calls) and only a capped part of it.
+// - thinking is never kept: the model's reasoning stays in memory for the tool rounds of the live message only (the host wants it back
+//   while a round continues) and is not written to the database. Old rows that carry a `reasoning_content` field are read without it.
 // Coming back, a message whose rounds do not fit the live provider, or do not pair up, is replayed as its two texts only.
 
 // -- TYPES -- //
@@ -18,8 +19,6 @@ export type TranscriptMessage =
 			role: 'assistant';
 			content: string | null;
 			tool_calls: ToolCall[];
-			/** DeepSeek's thinking for this message, capped. Never kept for another provider. */
-			reasoning_content?: string;
 			/** Which provider wrote it: the rounds are replayed only to the same one. */
 			provider?: TranscriptProvider;
 	  }
@@ -36,7 +35,6 @@ export type HistoryTurn = {
 // -- CONSTANTS -- //
 
 export const RESULT_CHARS = 3000;
-export const REASONING_CHARS = 2000;
 const SHORTENED = ' ...[shortened: read again for current data]';
 const STEP = 5;
 /** What a message with tool rounds but no written answer says in history, so the work it did stays in view. */
@@ -56,10 +54,6 @@ export function untrustedStub(tool: string): string {
 		source: tool,
 		note: 'The text this tool returned was not kept. Run the tool again if it is needed.'
 	});
-}
-
-export function capReasoning(text: string): string {
-	return text.length <= REASONING_CHARS ? text : text.slice(0, REASONING_CHARS);
 }
 
 /** About four characters to the token, as everywhere else in the proxy. */
@@ -96,9 +90,6 @@ export function readTranscript(value: unknown): TranscriptMessage[] | null {
 				role: 'assistant',
 				content: m.content,
 				tool_calls: calls,
-				...(typeof m.reasoning_content === 'string'
-					? { reasoning_content: m.reasoning_content }
-					: {}),
 				...(m.provider === 'anthropic' || m.provider === 'deepseek' ? { provider: m.provider } : {})
 			});
 		} else return null;
@@ -107,9 +98,8 @@ export function readTranscript(value: unknown): TranscriptMessage[] | null {
 }
 
 /**
- * The rounds as chat messages for the live provider, or null when they cannot be replayed: another provider wrote them, a DeepSeek message
- * with tool calls has no thinking to give back, or a tool call has no answer (or an answer has no call). Anthropic never gets thinking
- * from history.
+ * The rounds as chat messages for the live provider, or null when they cannot be replayed: another provider wrote them, or a tool call has no
+ * answer (or an answer has no call). No host gets thinking from history: it is not stored, and the models do not need it for a new message.
  */
 export function replayRounds(
 	transcript: TranscriptMessage[],
@@ -122,15 +112,11 @@ export function replayRounds(
 		if (m.role === 'assistant') {
 			if (open && open.size > 0) return null;
 			if (m.provider !== provider) return null;
-			if (provider === 'deepseek' && !m.reasoning_content) return null;
 			open = new Set(m.tool_calls.map((c) => c.id));
 			out.push({
 				role: 'assistant',
 				content: m.content,
-				tool_calls: m.tool_calls,
-				...(provider === 'deepseek' && m.reasoning_content
-					? { reasoning_content: m.reasoning_content }
-					: {})
+				tool_calls: m.tool_calls
 			});
 		} else {
 			if (!open || !open.delete(m.tool_call_id)) return null;

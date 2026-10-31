@@ -48,7 +48,7 @@ import {
 	pageUndeleteInput
 } from '../db/zod';
 import { redactSecrets } from '../memory/pure';
-import { addLine, EditError, removeOnce, replaceOnce } from '../notebook/text';
+import { addLine, EditError, linksTo, removeOnce, replaceOnce } from '../notebook/text';
 import { OpsError, run, runWrite } from './context';
 import { actorOf, redactText, refOf, resolveNotebook } from './notebook';
 import {
@@ -514,7 +514,10 @@ export async function notebookSearch(ctx: Ctx, raw: unknown) {
 	});
 }
 
-/** The live pages of the library whose text points at a page with [[Title]] or [[Notebook/Title]]. */
+/**
+ * The live pages of the library whose text points at a page with [[Title]] or [[Notebook/Title]]. A link written [[Title]] counts from a page
+ * of the same notebook only; links written inside code (a span or a fenced block) are not links.
+ */
 export async function pageBacklinks(ctx: Ctx, raw: unknown) {
 	requirePerson(ctx.actor.kind, 'see the links to a page');
 	const input = parse(pageIdInput, raw);
@@ -542,9 +545,15 @@ export async function pageBacklinks(ctx: Ctx, raw: unknown) {
 				)
 			)
 			.orderBy(asc(sql`lower(${notebook.title})`), asc(sql`lower(${notebookPage.title})`))
-			.limit(50);
+			.limit(200);
+		// The database found the pages that hold the words; the text is read again here, outside code, to see which really link
+		const real = rows
+			.filter((r) =>
+				linksTo(r.page.text, book.title, page.title, r.page.notebookId === page.notebookId)
+			)
+			.slice(0, 50);
 		return {
-			links: rows.map((r) => ({
+			links: real.map((r) => ({
 				pageId: r.page.id,
 				notebookId: r.page.notebookId,
 				notebook: r.book,
@@ -1044,6 +1053,12 @@ export async function undeletePage(ctx: Ctx, raw: unknown): Promise<PageView> {
 		throw new OpsError('INVALID', 'Name the deleted page to restore.');
 	return runWrite(ctx, 'page.undelete', input, async (tx, userId) => {
 		const { page, book } = await resolvePage(tx, userId, input, { deleted: true });
+		// Past the days a deleted page is kept it cannot come back, even before the nightly clean-up has removed it
+		if (page.deletedAt && Date.now() - page.deletedAt.getTime() > NOTEBOOK_TRASH_DAYS * 86_400_000)
+			throw new OpsError(
+				'NOT_FOUND',
+				`That page was deleted more than ${NOTEBOOK_TRASH_DAYS} days ago and cannot be restored.`
+			);
 		const together =
 			page.parentPageId === null && page.deletedAt
 				? await tx

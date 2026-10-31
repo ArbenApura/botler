@@ -49,7 +49,14 @@ import {
 } from '../db/zod';
 import { enqueue } from '../jobs/queue';
 import { redactSecrets } from '../memory/pure';
-import { addLine, buildDraft, EditError, removeOnce, replaceOnce } from '../notebook/text';
+import {
+	addLine,
+	buildDraft,
+	EditError,
+	peopleNames,
+	removeOnce,
+	replaceOnce
+} from '../notebook/text';
 import { OpsError, run, runWrite } from './context';
 import {
 	applyPageChange,
@@ -250,6 +257,17 @@ export const RESERVED_TITLE = 'main';
 /** A title or a summary on one line with its numbers taken out; null when nothing is left. */
 export const oneLine = (s: string) => redactSecrets(s.replace(/\s+/g, ' '));
 
+/**
+ * Numbers (account, card and phone) are taken out of what the assistant writes, never out of what the person writes: their own text and
+ * titles are kept as typed. A one-line piece of text for the caller; null when nothing is left.
+ */
+export const lineFor = (ctx: Ctx, s: string): string | null =>
+	actorOf(ctx) === 'agent' ? oneLine(s) : s.replace(/\s+/g, ' ').trim() || null;
+
+/** Free text for the caller, with the numbers taken out only when the assistant wrote it. */
+export const bodyFor = (ctx: Ctx, s: string): string =>
+	actorOf(ctx) === 'agent' ? redactText(s) : s;
+
 /** The live extra notebooks of the person, to name them in a refusal the assistant can act on. */
 export async function liveTitles(tx: Tx, userId: string): Promise<string[]> {
 	const rows = await tx
@@ -408,7 +426,8 @@ export async function loadNotebookContext(ctx: Ctx): Promise<{
 		});
 		return {
 			text: row.text,
-			names,
+			// The private names the person listed, and the names under People in the main notebook (the assistant keeps that list)
+			names: [...new Set([...names, ...peopleNames(row.text)])],
 			others: extras.map((e) => ({
 				title: e.title,
 				summary: e.summary,
@@ -586,16 +605,21 @@ export async function editNotebook(
 				if (!input.heading || !input.line)
 					throw new OpsError('INVALID', 'To add a line give the heading and the line.');
 				// Account, card and phone numbers never go into the notebook
-				const line = redactSecrets(input.line);
+				const line =
+					actorOf(ctx) === 'agent' ? redactSecrets(input.line) : input.line.trim() || null;
 				if (!line) throw new OpsError('INVALID', 'The line is empty.');
 				// The heading is one line and has its numbers taken out too, like the line
-				const heading = redactSecrets(input.heading.replace(/\s+/g, ' '));
+				const heading = lineFor(ctx, input.heading);
 				if (!heading) throw new OpsError('INVALID', 'The heading is empty.');
 				result = addLine(current, heading, line, limit);
 			} else if (input.op === 'replace') {
 				if (!input.find || input.replacement === undefined)
 					throw new OpsError('INVALID', 'To replace text give the exact text and its replacement.');
-				const replacement = input.replacement ? redactSecrets(input.replacement) : '';
+				const replacement = input.replacement
+					? actorOf(ctx) === 'agent'
+						? redactSecrets(input.replacement)
+						: input.replacement
+					: '';
 				if (replacement === null) throw new OpsError('INVALID', 'The replacement is empty.');
 				result = replaceOnce(current, input.find, replacement, limit);
 			} else {
@@ -784,13 +808,13 @@ export async function createNotebook(ctx: Ctx, raw: unknown): Promise<NotebookVi
 	const input = parse(notebookCreateInput, raw);
 	return runWrite(ctx, 'notebook.create', input, async (tx, userId) => {
 		// Taking numbers out can make a line longer, so the limits are applied to what is stored, before the title is compared
-		const title = oneLine(input.title)?.slice(0, NOTEBOOK_TITLE_MAX).trim();
+		const title = lineFor(ctx, input.title)?.slice(0, NOTEBOOK_TITLE_MAX).trim();
 		if (!title || title.toLowerCase() === RESERVED_TITLE)
 			throw new OpsError('INVALID', 'Give the notebook a title other than "main".');
 		const summary = input.summary
-			? (oneLine(input.summary) ?? '').slice(0, NOTEBOOK_SUMMARY_MAX)
+			? (lineFor(ctx, input.summary) ?? '').slice(0, NOTEBOOK_SUMMARY_MAX)
 			: '';
-		const text = redactText(input.text ?? '');
+		const text = bodyFor(ctx, input.text ?? '');
 		if (text.length > NOTEBOOK_MAX_CHARS)
 			throw new OpsError(
 				'INVALID',
@@ -847,7 +871,7 @@ export async function updateNotebook(ctx: Ctx, raw: unknown): Promise<NotebookVi
 			throw new OpsError('INVALID', 'The main notebook has no title or summary. Edit its text.');
 		const patch: Partial<typeof notebook.$inferInsert> = {};
 		if (input.newTitle !== undefined) {
-			const title = oneLine(input.newTitle)?.slice(0, NOTEBOOK_TITLE_MAX).trim();
+			const title = lineFor(ctx, input.newTitle)?.slice(0, NOTEBOOK_TITLE_MAX).trim();
 			if (!title || title.toLowerCase() === RESERVED_TITLE)
 				throw new OpsError('INVALID', 'Give the notebook a title other than "main".');
 			const clash = (await liveTitles(tx, userId)).some(
@@ -857,7 +881,7 @@ export async function updateNotebook(ctx: Ctx, raw: unknown): Promise<NotebookVi
 			patch.title = title;
 		}
 		if (input.summary !== undefined)
-			patch.summary = (oneLine(input.summary) ?? '').slice(0, NOTEBOOK_SUMMARY_MAX);
+			patch.summary = (lineFor(ctx, input.summary) ?? '').slice(0, NOTEBOOK_SUMMARY_MAX);
 		const [next] = await tx
 			.update(notebook)
 			.set({ ...patch, updatedAt: sql`now()` })
@@ -901,6 +925,12 @@ export async function undeleteNotebook(ctx: Ctx, raw: unknown): Promise<Notebook
 	return runWrite(ctx, 'notebook.undelete', input, async (tx, userId) => {
 		const row = await resolveNotebook(tx, userId, input, { deleted: true });
 		if (row.kind === 'main') throw new OpsError('INVALID', 'The main notebook is not deleted.');
+		// Past the days a deleted notebook is kept it cannot come back, even before the nightly clean-up has removed it
+		if (row.deletedAt && Date.now() - row.deletedAt.getTime() > NOTEBOOK_TRASH_DAYS * 86_400_000)
+			throw new OpsError(
+				'NOT_FOUND',
+				`That notebook was deleted more than ${NOTEBOOK_TRASH_DAYS} days ago and cannot be restored.`
+			);
 		const live = await liveTitles(tx, userId);
 		if (live.length >= NOTEBOOK_MAX_EXTRA)
 			throw new OpsError(

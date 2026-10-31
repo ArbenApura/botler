@@ -11,7 +11,7 @@ export type Push =
 	| { token: string; kind: 'sync' }
 	| { token: string; kind: 'notice'; title: string; body?: string; key?: string };
 
-/** `unregistered`: the token is dead and must be forgotten. `failed`: try again later. */
+/** `unregistered`: Firebase says the token is dead (UNREGISTERED or NOT_FOUND) and it must be forgotten. `failed`: anything else, the phone is kept. */
 export type PushResult = 'sent' | 'unregistered' | 'failed';
 
 export type Pusher = { send(p: Push): Promise<PushResult> };
@@ -32,6 +32,21 @@ const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 // -- FUNCTIONS -- //
 
 const b64url = (s: string | Buffer) => Buffer.from(s).toString('base64url');
+
+/** Firebase's own error code from an error body: the detail errorCode when there is one (UNREGISTERED), else the status (NOT_FOUND, INVALID_ARGUMENT). */
+function errorCodeOf(body: string): string {
+	try {
+		const err = (JSON.parse(body) as { error?: { status?: unknown; details?: unknown } }).error;
+		const details = Array.isArray(err?.details) ? err.details : [];
+		for (const d of details) {
+			const c = (d as { errorCode?: unknown } | null)?.errorCode;
+			if (typeof c === 'string') return c;
+		}
+		return typeof err?.status === 'string' ? err.status : 'UNKNOWN';
+	} catch {
+		return 'UNKNOWN';
+	}
+}
 
 /** Reads the service account JSON the server was given (base64 of the file). The private key is never logged or returned. */
 export function parseServiceAccount(encoded: string): { clientEmail: string; privateKey: string } {
@@ -107,13 +122,13 @@ export function createFcmPusher(config: FcmConfig): Pusher {
 					}
 				);
 				if (res.ok) return 'sent';
-				const text = await res.text();
-				// A token that was uninstalled or rotated: UNREGISTERED, or INVALID_ARGUMENT on the token itself
-				if (res.status === 404 || /UNREGISTERED|registration-token-not-registered/i.test(text))
+				const code = errorCodeOf(await res.text());
+				// Only a token Firebase says is gone is forgotten: UNREGISTERED or NOT_FOUND. A 400 INVALID_ARGUMENT can be our own message that is
+				// wrong, and forgetting the phone for that would silence it for good, so the phone is kept and the failure is only counted
+				if (res.status === 404 || code === 'UNREGISTERED' || code === 'NOT_FOUND')
 					return 'unregistered';
-				if (res.status === 400 && /registration token|INVALID_ARGUMENT/i.test(text))
-					return 'unregistered';
-				console.error(JSON.stringify({ event: 'push_failed', status: res.status }));
+				// The status and Firebase's own error code only: never the body, which can hold the message text
+				console.error(JSON.stringify({ event: 'push_failed', status: res.status, code }));
 				return 'failed';
 			} catch (e) {
 				console.error(

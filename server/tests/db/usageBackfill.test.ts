@@ -142,11 +142,11 @@ describe('migrations 0027 and 0028', () => {
 				expect(forced).toEqual([{ relforcerowsecurity: true }]);
 				// Another provider in the same month is a new row; the same provider twice is refused
 				await reader.query(
-					`INSERT INTO model_usage (user_id, bucket, month, provider) VALUES ('u_old', 'chat', '2026-10', 'anthropic')`
+					`INSERT INTO model_usage (user_id, bucket, month, provider) VALUES ('u_old', 'chat', '2026-10', 'deepseek')`
 				);
 				await expect(
 					reader.query(
-						`INSERT INTO model_usage (user_id, bucket, month, provider) VALUES ('u_old', 'chat', '2026-10', 'anthropic')`
+						`INSERT INTO model_usage (user_id, bucket, month, provider) VALUES ('u_old', 'chat', '2026-10', 'deepseek')`
 					)
 				).rejects.toThrow();
 				await expect(

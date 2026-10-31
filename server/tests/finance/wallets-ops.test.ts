@@ -18,7 +18,13 @@ import {
 	updateAccount
 } from '../../src/lib/server/ops/accounts';
 import { accountHistory } from '../../src/lib/server/ops/audit';
-import { createBill, listBills, markBillPaid, updateBill } from '../../src/lib/server/ops/bills';
+import {
+	createBill,
+	deleteBill,
+	listBills,
+	markBillPaid,
+	updateBill
+} from '../../src/lib/server/ops/bills';
 import {
 	accountBalances,
 	logExpense,
@@ -437,6 +443,10 @@ describe('changing the main currency', () => {
 			schedule: { kind: 'semi_monthly', days: [15, 30] },
 			weekendRule: 'before'
 		});
+		// The Meralco bill an earlier test left in Singapore dollars has no rate here, and the split rightly refuses a bill it cannot count: whether
+		// it falls inside the pay period depends on the run date, so this test takes it away and stays about the main currency
+		const left = (await listBills(person(id))).find((b) => b.currency === 'SGD');
+		if (left) await deleteBill(as(person(id)), { billId: left.id });
 		await setSettings(as(person(id)), { currency: 'USD' });
 		// The pesos are still there; with no dollar wallet there is nothing to judge, so no warning (and not an "empty" account)
 		const after = (await accountBalances(person(id))).find((a) => a.id === bank.id);

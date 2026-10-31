@@ -35,6 +35,16 @@ const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g
 const HOLD_OPEN = '';
 const HOLD_CLOSE = '';
 const HELD = /(\d+)/g;
+// A date, or a date with a time: its digit groups would look like an account number, so dates are set aside while masking too
+const DATE_TIME =
+	/\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?)?(?!\d|-\d)/g;
+// A bare JSON number after a key such as "amount": or "balance":. A money amount in minor units can run to nine digits or more, and a
+// unix time in milliseconds has thirteen; neither is an account number. Account-like keys never count.
+const NUMBER_KEY = /"([A-Za-z_][A-Za-z0-9_]{0,40})"\s*:\s*-?$/;
+const MONEY_KEY =
+	/amount|balance|total|minor|expected|income|net(?:$|[A-Z_])|fee|gap|sum|saved|spent|cost|price|pay(?:$|[A-Z_])|payday|due|left|remaining|short|surplus|cash|min(?:$|[A-Z_])|max(?:$|[A-Z_])|limit|target|basis|funds|holds|worth|value|charged|diff|delta|rest|cap(?:$|[A-Z_])|at$|ms$|time$|stamp|epoch|version|seq/i;
+const ACCOUNT_KEY =
+	/number|account|acct|acc(?:$|[A-Z_])|card|phone|mobile|iban|digits|contact|tel(?:$|[A-Z_])|ref(?:$|[A-Z_])/i;
 // The longest placeholder is [PHONE_999], so a chunk end that could still become one is at most this long
 const PARTIAL_PLACEHOLDER = /\[[A-Z]{0,5}_?\d{0,3}$/;
 
@@ -101,6 +111,7 @@ export function createMasker(names: readonly string[] = []): Masker {
 				.replaceAll(HOLD_OPEN, '')
 				.replaceAll(HOLD_CLOSE, '')
 				.replace(UUID, (id) => `${HOLD_OPEN}${ids.push(id) - 1}${HOLD_CLOSE}`)
+				.replace(DATE_TIME, (d) => `${HOLD_OPEN}${ids.push(d) - 1}${HOLD_CLOSE}`)
 				.replace(FORGED, '[$1-$2]');
 			// Order matters: emails and phones first, so their digits are not read as an account number
 			out = out.replace(EMAIL, (m) => tokenFor('EMAIL', m));
@@ -111,6 +122,11 @@ export function createMasker(names: readonly string[] = []): Masker {
 			});
 			out = out.replace(DIGIT_RUN, (m, offset: number, whole: string) => {
 				const digits = digitsOf(m);
+				// A whole number under a money or time key of a JSON object is an amount or a time, not an account
+				if (/^\d+$/.test(m) && !/\w/.test(whole[offset + m.length] ?? '')) {
+					const key = NUMBER_KEY.exec(whole.slice(Math.max(0, offset - 60), offset))?.[1];
+					if (key && MONEY_KEY.test(key) && !ACCOUNT_KEY.test(key)) return m;
+				}
 				if (digits.length >= 13 && digits.length <= 19 && luhn(digits))
 					return tokenFor('CARD', digits);
 				const before = whole.slice(Math.max(0, offset - 16), offset);

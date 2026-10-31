@@ -165,15 +165,15 @@ describe('replaying the rounds', () => {
 		expect(roles(req2)).toEqual(['system', 'user', 'assistant', 'user']);
 	});
 
-	it('gives DeepSeek its thinking back on a message with tool calls, and only then', async () => {
+	it('replays a DeepSeek message with tool calls without any thinking, and stores none', async () => {
 		const req = await twoMessages('deepseek', 'deepseek', 'check the accounts');
 		const call = req.messages.find((m) => m.role === 'assistant' && 'tool_calls' in m);
-		expect(call && 'reasoning_content' in call ? call.reasoning_content : '').toBe(
-			'check the accounts'
-		);
-		// A DeepSeek message with tool calls and no thinking is replayed as text only
+		expect(call).toBeDefined();
+		expect(JSON.stringify(req.messages)).not.toContain('reasoning_content');
+		expect(JSON.stringify(req.messages)).not.toContain('check the accounts');
+		// With or without thinking the rounds come back the same way
 		const bare = await twoMessages('deepseek', 'deepseek');
-		expect(roles(bare)).toEqual(['system', 'user', 'assistant', 'user']);
+		expect(roles(bare)).toEqual(roles(req));
 	});
 
 	it('replays as text when history has no provider to name', async () => {

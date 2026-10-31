@@ -22,7 +22,7 @@ import type { PlanData } from './planFlows';
 import { billOccurrences } from './billWindows';
 import { addDays } from './dates';
 import { reservedFor } from './funding';
-import { OVERDUE_DAYS, planLinks } from './planFlows';
+import { OVERDUE_DAYS, planLinks, recordedPays } from './planFlows';
 import { occurrencesBetween } from './schedule';
 
 // -- TYPES -- //
@@ -83,9 +83,10 @@ const keyOf = (accountId: string, currency: string) => `${accountId}|${currency}
 /** The first date from today that a pay is still to arrive, or null when no income has an amount and a date ahead. */
 export function nextPayday(plan: PlanData, today: ManilaDate): ManilaDate | null {
 	let first: ManilaDate | null = null;
+	const paidToday = recordedPays(plan, today);
 	for (const i of plan.incomes) {
 		if ((i.expectedAmount ?? 0) <= 0) continue;
-		const recorded = plan.incomeDays.has(`${i.accountId}|${today}`);
+		const recorded = paidToday.has(i.id);
 		const from = recorded ? addDays(today, 1) : today;
 		const date = occurrencesBetween(i.schedule, from, addDays(from, 800), {
 			weekend: i.weekendRule

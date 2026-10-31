@@ -68,8 +68,9 @@ describe('every layer in one range', () => {
 			accountId: acc,
 			kind: 'fixed',
 			amount: 150_000,
-			// A window from the day-of-month two days away to the end of that month
-			schedule: { kind: 'day_range', from: Number(start.slice(8)), to: -1 },
+			// A window of that one day-of-month two days away. A window is listed by the day it closes, so one that runs to the end of the month
+			// would fall outside the range on the last days of a month and the test would depend on the run date
+			schedule: { kind: 'day_range', from: Number(start.slice(8)), to: Number(start.slice(8)) },
 			weekendRule: 'none',
 			startsOn: '2000-01-01',
 			deferrable: false
@@ -201,7 +202,8 @@ describe('the forecast', () => {
 			amount: 450_000,
 			schedule: { kind: 'monthly', day: due },
 			weekendRule: 'none',
-			startsOn: '2000-01-01',
+			// Starts today: an earlier month's unpaid rent would be overdue (up to 31 days back) and depend on the run date
+			startsOn: today(),
 			deferrable: false
 		});
 		await createIncome(as(c), {
@@ -238,7 +240,7 @@ describe('the forecast', () => {
 			amount: null,
 			schedule: { kind: 'monthly', day: Number(inDays(2).slice(8)) },
 			weekendRule: 'none',
-			startsOn: '2000-01-01',
+			startsOn: today(),
 			deferrable: false
 		});
 		await createBill(as(c), {
@@ -249,7 +251,7 @@ describe('the forecast', () => {
 			amount: 20_000,
 			schedule: { kind: 'monthly', day: Number(inDays(-2).slice(8)) },
 			weekendRule: 'none',
-			startsOn: '2000-01-01',
+			startsOn: inDays(-2),
 			deferrable: false
 		});
 		const r = await calendarRange(c, { from: today(), to: inDays(10) });

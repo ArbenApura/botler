@@ -1,5 +1,5 @@
 // SCHEDULE SEMANTICS (decision, P2.8): HOW PAYDAYS AND BILL DUE DATES REPEAT
-// - semi_monthly(days): two days of the month, for example [15, 30]. A day past the end of a short month is clamped to the last day.
+// - semi_monthly(days): two days of the month, for example [15, 30]. A day past the end of a short month is clamped to the last day. When both days clamp to the same date (for example [30, 31] in February) that month has one payday on that date, not two; any two days that stay different keep both.
 // - every_n_days(anchor, n): the anchor date and every n days after (and before) it. A 14 day pay cycle never drifts with the month.
 // - monthly(day): one day of the month, clamped to the last day (the 31st in February is the 28th or 29th). Day -1 is the last day.
 // - weekend rule: 'none' keeps the date, 'before' moves a Saturday, Sunday or holiday to the previous working day, 'after' to the next.

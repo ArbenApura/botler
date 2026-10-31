@@ -106,9 +106,9 @@ describe('secrets and tokens', () => {
 		expect(() => assertProviderKeys('mistral', { deepseek: 'k' })).toThrow(/MODEL_PROVIDER/);
 	});
 
-	it('has a default exchange rate feed, trims it, and stops the server on an address that is not https', () => {
-		expect(check('FX_RATES_URL', undefined)).toBe('https://open.er-api.com/v6/latest/USD');
-		expect(check('FX_RATES_URL', '  ')).toBe('https://open.er-api.com/v6/latest/USD');
+	it('has no feed outside production when none is set, trims it, and stops the server on an address that is not https', () => {
+		expect(check('FX_RATES_URL', undefined)).toBe('');
+		expect(check('FX_RATES_URL', '  ')).toBe('');
 		expect(check('FX_RATES_URL', ' https://rates.example.com/latest ')).toBe(
 			'https://rates.example.com/latest'
 		);

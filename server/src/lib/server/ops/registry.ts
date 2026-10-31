@@ -93,7 +93,6 @@ import {
 	chatForkInput,
 	chatHistoryInput,
 	chatIdInput,
-	chatListInput,
 	chatPinInput,
 	chatRenameInput,
 	calendarRangeInput,
@@ -124,6 +123,7 @@ import {
 	chatClear,
 	chatFork,
 	chatList,
+	chatListPageInput,
 	chatNew,
 	chatOpen,
 	chatPin,
@@ -673,6 +673,8 @@ export const VERBS: readonly Verb[] = [
 		name: 'sync_get',
 		kind: 'read',
 		description: 'What the phone should have: reminders, the summary card.',
+		// For the phone only: it takes the person lock to settle reminders, and the assistant has no use for it
+		agent: false,
 		input: syncInput,
 		run: (ctx, a) => syncGet(ctx, a)
 	}),
@@ -1241,7 +1243,7 @@ export const VERBS: readonly Verb[] = [
 		kind: 'person',
 		description:
 			'The list of conversations, newest first, with a search over titles and messages. Never handed to the assistant.',
-		input: chatListInput,
+		input: chatListPageInput,
 		run: (ctx, a) => chatList(ctx, a)
 	}),
 	verb({

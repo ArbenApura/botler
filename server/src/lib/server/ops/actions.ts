@@ -6,8 +6,9 @@
 import type { Plain } from './shared';
 import type { Ctx } from './context';
 import type { Schedule } from '../../finance/schedule';
+import type { DbHandle, Tx } from '../db/client';
 // -- DEP-MODULES -- //
-import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { describeSchedule, validateSchedule } from '../../finance/schedule';
@@ -18,9 +19,11 @@ import {
 	bill,
 	chatTurn,
 	goal,
-	incomeSchedule
+	incomeSchedule,
+	user
 } from '../db/schema';
-import { OpsError, run } from './context';
+import { lockPerson, setAuditContext, withUser } from '../db/tenant';
+import { auditOf, OpsError, run } from './context';
 import { balanceFor } from './ledger';
 import { redactText } from './notebook';
 import { readSettings } from './settings';
@@ -44,7 +47,9 @@ const CONFIRMING_VERBS = new Set(['expense_log', 'expense_from_text', 'snapshot_
 // -- FUNCTIONS -- //
 
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
-const text = (v: unknown, max = 60): string => (typeof v === 'string' ? v.slice(0, max) : '');
+/** A short piece of model-written text on a card: control and format characters (line breaks, hidden marks) become spaces, then it is cut. */
+const text = (v: unknown, max = 60): string =>
+	typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ').slice(0, max) : '';
 
 /** The words of a note or page on a card: all of it up to 2000 characters, and the rest counted, so nothing the person approves is hidden. */
 const words = (v: unknown, max = 2000): string =>
@@ -282,7 +287,17 @@ export function describeAction(
  */
 export async function createAction(
 	ctx: Ctx,
-	opts: { verb: string; args: unknown; turnId?: string }
+	opts: {
+		verb: string;
+		args: unknown;
+		turnId?: string;
+		/**
+		 * The call that asked for this card inside its turn (the call number and a hash of the verb and arguments). A second request with the
+		 * same turn and key, such as a re-run of a turn that was taken over, finds the card that exists instead of making another. The key is
+		 * kept in the card's result field while the card waits, so the table needs no new column.
+		 */
+		key?: string;
+	}
 ): Promise<{ actionId: string; summary: string }> {
 	const v = verbByName(opts.verb);
 	if (!v || v.kind === 'person' || v.kind === 'read')
@@ -348,6 +363,21 @@ export async function createAction(
 	const summary = describeAction(v.name, args, names, currency, current);
 	return mapped(async () => {
 		const row = await run(ctx, async (tx, userId) => {
+			if (opts.key && opts.turnId) {
+				// The person's lock serialises two runs of one turn, so the second finds the first one's card
+				await lockPerson(tx, userId);
+				const [same] = await tx
+					.select({ id: agentAction.id, summary: agentAction.summary })
+					.from(agentAction)
+					.where(
+						and(
+							eq(agentAction.userId, userId),
+							eq(agentAction.turnId, opts.turnId),
+							sql`${agentAction.result}->>'key' = ${opts.key}`
+						)
+					);
+				if (same) return same;
+			}
 			const [r] = await tx
 				.insert(agentAction)
 				.values({
@@ -356,29 +386,70 @@ export async function createAction(
 					args,
 					summary,
 					turnId: opts.turnId ?? null,
+					...(opts.key && opts.turnId ? { result: { key: opts.key } } : {}),
 					expiresAt: new Date(Date.now() + CARD_LIFETIME_MS)
 				})
 				.returning({ id: agentAction.id });
-			return r;
+			return r ? { id: r.id, summary } : undefined;
 		});
 		if (!row) throw new OpsError('CONFLICT', 'The card could not be saved.');
-		return { actionId: row.id, summary };
+		return { actionId: row.id, summary: row.summary };
 	});
 }
 
 /** The cards of the caller, newest first. */
 export async function listActions(ctx: Ctx, status?: ActionView['status']): Promise<ActionView[]> {
-	const rows = await run(ctx, (tx, userId) =>
-		tx
+	const rows = await run(ctx, async (tx, userId) => {
+		// A card past its time is marked expired here too, so the list never shows a pending card that can no longer be approved
+		await expireCards(tx, userId);
+		return tx
 			.select()
 			.from(agentAction)
 			.where(
 				and(eq(agentAction.userId, userId), status ? eq(agentAction.status, status) : undefined)
 			)
 			.orderBy(desc(agentAction.createdAt))
-			.limit(50)
-	);
+			.limit(50);
+	});
 	return plain(rows);
+}
+
+/** Marks the pending cards of one person that are past their time as expired. Returns how many. */
+async function expireCards(tx: Tx, userId: string): Promise<number> {
+	const done = await tx
+		.update(agentAction)
+		.set({ status: 'expired', decidedAt: sql`now()`, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(agentAction.userId, userId),
+				eq(agentAction.status, 'pending'),
+				lt(agentAction.expiresAt, sql`now()`)
+			)
+		)
+		.returning({ id: agentAction.id });
+	return done.length;
+}
+
+/**
+ * Housekeeping, for the hourly job: marks every pending card past its time as expired, for every person. Pass the database handle (it sets
+ * each person's context itself). Returns how many cards it closed. Safe to run at any time and as often as wanted.
+ */
+export async function expireStaleActions(handle: DbHandle): Promise<number> {
+	const people = await handle.db.select({ id: user.id }).from(user);
+	let closed = 0;
+	for (const p of people) {
+		const ctx: Ctx = {
+			handle,
+			actor: { userId: p.id, kind: 'agent', tool: 'job:actions.expire' },
+			via: 'job',
+			channel: 'job'
+		};
+		closed += await withUser(handle, p.id, async (tx) => {
+			await setAuditContext(tx, { ...auditOf(ctx) });
+			return expireCards(tx, p.id);
+		});
+	}
+	return closed;
 }
 
 /**
@@ -390,68 +461,78 @@ export async function decideAction(
 	opts: { actionId: string; decision: 'approve' | 'reject' }
 ): Promise<ActionView> {
 	requirePerson(ctx.actor.kind, 'answer an approval card');
-	const card = await run(ctx, async (tx, userId) => {
-		const [row] = await tx
+	// The card's row stays locked from the read to the answer, so an approve and a reject that arrive together take turns: the second finds
+	// the card already answered and gets a clear error, and the row keeps the first decision. The verb runs on its own connection
+	return run(ctx, async (tx, userId) => {
+		const [card] = await tx
 			.select()
 			.from(agentAction)
-			.where(and(eq(agentAction.userId, userId), eq(agentAction.id, opts.actionId)));
-		return row;
-	});
-	if (!card) throw new OpsError('NOT_FOUND', 'That card does not exist.');
-	if (card.status !== 'pending' && !(card.status === 'failed' && opts.decision === 'approve'))
-		throw new OpsError('CONFLICT', `That card is already ${card.status}.`);
-	const settle = (patch: Partial<typeof agentAction.$inferInsert>) =>
-		run(ctx, async (tx, userId) => {
+			.where(and(eq(agentAction.userId, userId), eq(agentAction.id, opts.actionId)))
+			.for('update');
+		if (!card) throw new OpsError('NOT_FOUND', 'That card does not exist.');
+		if (card.status !== 'pending' && !(card.status === 'failed' && opts.decision === 'approve'))
+			throw new OpsError('CONFLICT', `That card is already ${card.status}.`);
+		// Only the card as it was read can be settled
+		const settle = async (patch: Partial<typeof agentAction.$inferInsert>) => {
 			const [row] = await tx
 				.update(agentAction)
 				.set({ ...patch, decidedAt: sql`now()`, updatedAt: sql`now()` })
-				.where(and(eq(agentAction.userId, userId), eq(agentAction.id, card.id)))
+				.where(
+					and(
+						eq(agentAction.userId, userId),
+						eq(agentAction.id, card.id),
+						eq(agentAction.status, card.status)
+					)
+				)
 				.returning();
-			if (!row) throw new OpsError('NOT_FOUND', 'That card does not exist.');
+			if (!row)
+				throw new OpsError('CONFLICT', 'That card was already answered. Open the list again.');
 			return plain(row);
-		});
-	if (card.expiresAt.getTime() < Date.now()) return settle({ status: 'expired' });
-	if (opts.decision === 'reject') return settle({ status: 'rejected' });
-	try {
-		// Approving is the yes the verb asks for. A balance count ten times off asks again: it needs the second approval
-		const asksForYes = CONFIRMING_VERBS.has(card.verb);
-		const wasAsked = (card.result as { status?: unknown } | null)?.status === 'needs_confirmation';
-		// A balance card states the old balance, the new one and the difference. A count of exactly zero is a deliberate reset, so one tap
-		// is the whole yes; any other count ten times off (most often a typo) still asks a second time
-		const zero = (card.args as Args).amount === 0;
-		const args = asksForYes
-			? {
-					...(card.args as Args),
-					confirmed: true,
-					...(card.verb === 'snapshot_record' && (wasAsked || zero)
-						? { acknowledgeLarge: true }
-						: {})
-				}
-			: card.args;
-		// The assistant asked, the person approved: the audit trail says both
-		const result = await invokeVerb(
-			{
-				...ctx,
-				requestId: `card-${card.id}`,
-				approvalId: card.id,
-				...(card.turnId ? { onBehalfOf: 'agent' as const, turnId: card.turnId } : {})
-			},
-			card.verb,
-			args
-		);
-		// A verb that only asked for more (an amount, an account, a second yes) wrote nothing, so the card is not applied
-		const status = (result as { status?: unknown } | null)?.status;
-		if (typeof status === 'string' && status.startsWith('needs_'))
-			return await settle({ status: 'failed', result: result ?? null });
-		return await settle({ status: 'applied', result: result ?? null });
-	} catch (e) {
-		if (e instanceof OpsError) {
+		};
+		if (card.expiresAt.getTime() < Date.now()) return settle({ status: 'expired' });
+		if (opts.decision === 'reject') return settle({ status: 'rejected' });
+		let patch: Partial<typeof agentAction.$inferInsert>;
+		try {
+			// Approving is the yes the verb asks for. A balance count ten times off asks again: it needs the second approval
+			const asksForYes = CONFIRMING_VERBS.has(card.verb);
+			const wasAsked =
+				(card.result as { status?: unknown } | null)?.status === 'needs_confirmation';
+			// A balance card states the old balance, the new one and the difference. A count of exactly zero is a deliberate reset, so one tap
+			// is the whole yes; any other count ten times off (most often a typo) still asks a second time
+			const zero = (card.args as Args).amount === 0;
+			const args = asksForYes
+				? {
+						...(card.args as Args),
+						confirmed: true,
+						...(card.verb === 'snapshot_record' && (wasAsked || zero)
+							? { acknowledgeLarge: true }
+							: {})
+					}
+				: card.args;
+			// The assistant asked, the person approved: the audit trail says both
+			const result = await invokeVerb(
+				{
+					...ctx,
+					requestId: `card-${card.id}`,
+					approvalId: card.id,
+					...(card.turnId ? { onBehalfOf: 'agent' as const, turnId: card.turnId } : {})
+				},
+				card.verb,
+				args
+			);
+			// A verb that only asked for more (an amount, an account, a second yes) wrote nothing, so the card is not applied
+			const status = (result as { status?: unknown } | null)?.status;
+			patch =
+				typeof status === 'string' && status.startsWith('needs_')
+					? { status: 'failed', result: result ?? null }
+					: { status: 'applied', result: result ?? null };
+		} catch (e) {
+			if (!(e instanceof OpsError)) throw e;
 			// A refusal (a rule that no longer fits, an archived account) is shown on the card, which can be approved again after a fix
-			const done = await settle({ status: 'failed', result: { error: e.message } });
-			return done;
+			patch = { status: 'failed', result: { error: e.message } };
 		}
-		throw e;
-	}
+		return settle(patch);
+	});
 }
 
 /**

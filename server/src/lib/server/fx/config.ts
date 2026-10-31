@@ -35,6 +35,22 @@ export function checkFxUrl(url: string): string {
 	return parsed.toString();
 }
 
+/**
+ * The address from the environment. In production a missing one stops the server at start (no silent guess); elsewhere (development, tests)
+ * a missing one means no feed: nothing is fetched and a manual refresh says so. A given address is always checked.
+ */
+export function fxUrlFromEnv(value: string | undefined, production: boolean): string {
+	const url = value?.trim() ?? '';
+	if (!url) {
+		if (production)
+			throw new Error(
+				'FX_RATES_URL is required in production, for example https://open.er-api.com/v6/latest/USD'
+			);
+		return '';
+	}
+	return checkFxUrl(url);
+}
+
 /** Sets the source. Called once when the server starts, and by tests. */
 export function configureFx(config: FxConfig | null): void {
 	current = config ? { ...config, url: checkFxUrl(config.url) } : null;

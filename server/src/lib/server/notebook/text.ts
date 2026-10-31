@@ -298,3 +298,109 @@ export function buildDraft(input: DraftInput, max: number): string {
 	}
 	return text;
 }
+
+/** Words that name a relation, not a person: a bullet that starts with one is read as "Relation: Name". */
+const RELATIONS = new Set([
+	'mother',
+	'mom',
+	'mama',
+	'father',
+	'dad',
+	'papa',
+	'sister',
+	'brother',
+	'wife',
+	'husband',
+	'partner',
+	'son',
+	'daughter',
+	'friend',
+	'boss',
+	'cousin',
+	'aunt',
+	'uncle',
+	'grandmother',
+	'grandfather',
+	'lola',
+	'lolo',
+	'nanay',
+	'tatay',
+	'ate',
+	'kuya'
+]);
+
+/**
+ * The names under the "People" heading of the main notebook, for the masker: each bullet's name before a bracket, colon, comma or dash
+ * ("- Maria Cruz (sister)", "- Sister: Maria Cruz"), as a whole and as single capitalised words of three letters or more. Only capitalised
+ * words count, so a plain sentence is not taken for a name. Pure and bounded: at most 60 names of 40 characters.
+ */
+export function peopleNames(text: string): string[] {
+	const out = new Set<string>();
+	let inside = false;
+	for (const raw of text.split('\n')) {
+		const h = HEADING_LINE.exec(raw);
+		if (h) {
+			inside = normalize(h[2] ?? '') === normalize(HEADINGS.people);
+			continue;
+		}
+		if (!inside) continue;
+		const bullet = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/.exec(raw);
+		if (!bullet?.[1]) continue;
+		let rest = bullet[1].trim();
+		const colon = /^([\p{L}'-]+)\s*:\s*(.*)$/u.exec(rest);
+		if (colon?.[1] && RELATIONS.has(colon[1].toLowerCase())) rest = colon[2] ?? '';
+		const head = (rest.split(/[(:,;]|\s[-–—]\s/)[0] ?? '').trim();
+		const words = head.split(/\s+/).filter(Boolean);
+		if (words.length === 0 || words.length > 4) continue;
+		if (!words.every((w) => /^\p{Lu}[\p{L}'.-]*$/u.test(w))) continue;
+		if (words.length === 1 && RELATIONS.has(head.toLowerCase())) continue;
+		if (head.length >= 2 && head.length <= 40) out.add(head);
+		for (const w of words) if (w.length >= 3 && w.length <= 40) out.add(w.replace(/[.'-]+$/, ''));
+		if (out.size >= 60) break;
+	}
+	return [...out].slice(0, 60);
+}
+
+/** The text with fenced code blocks and inline code spans cut out, so a link written inside code is not a link. */
+export function withoutCode(text: string): string {
+	let inFence: string | null = null;
+	const kept: string[] = [];
+	for (const line of text.split('\n')) {
+		const fence = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
+		if (inFence) {
+			if (fence?.[1] && fence[1][0] === inFence[0] && fence[1].length >= inFence.length)
+				inFence = null;
+			continue;
+		}
+		if (fence?.[1]) {
+			inFence = fence[1];
+			continue;
+		}
+		kept.push(line.replace(/(`+)[^`]*?\1(?!`)/g, ' '));
+	}
+	return kept.join('\n');
+}
+
+/** The targets of the [[...]] links in a text, outside code: the whole text of each link (before a | label), trimmed. */
+export function linkTargets(text: string): string[] {
+	const out: string[] = [];
+	for (const m of withoutCode(text).matchAll(/\[\[([^[\]\n|]{1,200})(?:\|[^\]\n]{0,200})?\]\]/g)) {
+		const t = (m[1] ?? '').trim();
+		if (t) out.push(t);
+	}
+	return out;
+}
+
+/**
+ * Whether a text links to the page `title` of the notebook `book`. A link written [[Title]] points at a page of the notebook the text is
+ * in (`sameBook`); one written [[Notebook/Title]] points there from anywhere. Case does not matter. Links in code do not count.
+ */
+export function linksTo(text: string, book: string, title: string, sameBook: boolean): boolean {
+	const lower = (s: string) => s.trim().toLowerCase();
+	const plain = lower(title);
+	const full = lower(`${book}/${title}`);
+	return linkTargets(text).some((t) => {
+		const x = lower(t);
+		return x === full || (sameBook && x === plain);
+	});
+}

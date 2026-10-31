@@ -16,10 +16,13 @@ import { and, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import {
 	account,
+	accountWallet,
 	allocationRule,
 	balanceSnapshot,
 	bill,
+	billOverride,
 	billPayment,
+	calendarEvent,
 	chat,
 	chatTurn,
 	goal,
@@ -33,7 +36,11 @@ import {
 	notebookPage,
 	notebookPageRevision,
 	notebookRevision,
-	splitPlan
+	reminder,
+	routine,
+	splitPlan,
+	task,
+	userSetting
 } from '../db/schema';
 import {
 	memoryEditInput,
@@ -477,7 +484,21 @@ export async function exportAll(ctx: Ctx) {
 					.where(mine(ledgerTxn))
 					.orderBy(ledgerTxn.occurredAt),
 				balanceSnapshots: await tx.select().from(balanceSnapshot).where(mine(balanceSnapshot)),
-				splits: await tx.select().from(splitPlan).where(mine(splitPlan))
+				splits: await tx.select().from(splitPlan).where(mine(splitPlan)),
+				// Added fields only: an older reader of the export simply does not look at them
+				accountWallets: await tx.select().from(accountWallet).where(mine(accountWallet)),
+				billOverrides: await tx.select().from(billOverride).where(mine(billOverride))
+			},
+			settings: await tx.select().from(userSetting).where(mine(userSetting)),
+			schedule: {
+				tasks: await tx.select().from(task).where(mine(task)).orderBy(task.createdAt),
+				events: await tx
+					.select()
+					.from(calendarEvent)
+					.where(mine(calendarEvent))
+					.orderBy(calendarEvent.startsAt),
+				routines: await tx.select().from(routine).where(mine(routine)).orderBy(routine.createdAt),
+				reminders: await tx.select().from(reminder).where(mine(reminder)).orderBy(reminder.remindAt)
 			}
 		};
 		return plain(out);

@@ -25,6 +25,11 @@ export type JobRow = {
 
 export type JobHandler = (job: JobRow, tx: Tx, ctx: Ctx) => Promise<void>;
 
+/** A handler that is given no transaction: it opens short ones itself, after its network call (see noTx). */
+export type NoTxHandler = (job: JobRow, ctx: Ctx) => Promise<void>;
+
+type MaybeNoTx = JobHandler & { noTx?: NoTxHandler };
+
 export type EnqueueInput = {
 	userId: string;
 	kind: string;
@@ -46,6 +51,17 @@ const CLAIM_MS = 5 * 60_000;
  * the lock themselves just before they write, checking again that nothing changed.
  */
 export const UNLOCKED_JOBS: ReadonlySet<string> = new Set(['chat.compact', 'notebook.seed']);
+/**
+ * The NO_TX class: jobs that wait on a network call (the rates feed, Firebase). They run with no transaction, no connection and no person
+ * lock held while they wait, and write through short transactions of their own after it. Mark a handler with noTx().
+ */
+export function noTx(handler: NoTxHandler): JobHandler {
+	// Called the old way (job, tx, ctx) the transaction is ignored and nothing is held either; the runner calls the handler directly
+	const placeholder: MaybeNoTx = (job, _tx, ctx) => handler(job, ctx);
+	placeholder.noTx = handler;
+	return placeholder;
+}
+
 const BACKOFF_BASE_MS = 30_000;
 const BACKOFF_MAX_MS = 60 * 60_000;
 /** Finished jobs are kept a week, failed ones a month, then removed. */
@@ -83,7 +99,12 @@ export async function enqueue(tx: Tx, input: EnqueueInput): Promise<boolean> {
  * update repeats the runnable test, so a job another worker just took is never taken again.
  * A running job whose claim expired after its last allowed try is marked failed first: a job that crashes the process cannot loop.
  */
-export async function claim(handle: DbHandle, now: Date, limit: number): Promise<JobRow[]> {
+export async function claim(
+	handle: DbHandle,
+	now: Date,
+	limit: number,
+	claimMs: number = CLAIM_MS
+): Promise<JobRow[]> {
 	await handle.db.execute(sql`
 		update job set status = 'failed', locked_until = null, last_error = 'Abandoned', updated_at = now()
 		where status = 'running' and locked_until < ${now} and attempts >= max_attempts`);
@@ -98,16 +119,32 @@ export async function claim(handle: DbHandle, now: Date, limit: number): Promise
 			  )
 			order by j.user_id, j.run_after, j.created_at
 		), picked as (
+			-- This claim lock has its own key (hashtext, 32 bit) and is not the person lock of lockPerson (hashtextextended): holding one never waits on the other
 			select j.id from job j
 			where j.id in (select id from candidates) and pg_try_advisory_xact_lock(hashtext(j.user_id))
 			for update of j skip locked limit ${limit}
 		)
 		update job set status = 'running', attempts = attempts + 1,
-			locked_until = ${new Date(now.getTime() + CLAIM_MS)}, updated_at = now()
+			locked_until = ${new Date(now.getTime() + claimMs)}, updated_at = now()
 		where id in (select id from picked)
 		  and ((status = 'queued' and run_after <= ${now}) or (status = 'running' and locked_until < ${now}))
 		returning id, user_id as "userId", kind, key, payload, attempts, max_attempts as "maxAttempts"`);
 	return (result as unknown as { rows: JobRow[] }).rows;
+}
+
+/** Pushes the claim of jobs that are still running further out, so a job longer than the claim time is not taken by another worker. */
+export async function heartbeat(
+	handle: DbHandle,
+	ids: readonly string[],
+	claimMs: number = CLAIM_MS
+): Promise<void> {
+	if (ids.length === 0) return;
+	await handle.db.execute(sql`
+		update job set locked_until = ${new Date(Date.now() + claimMs)}
+		where status = 'running' and id in (${sql.join(
+			ids.map((id) => sql`${id}::uuid`),
+			sql`, `
+		)})`);
 }
 
 /** Marks a job done. */
@@ -147,10 +184,24 @@ const logError = (event: string, e: unknown, extra: Record<string, string> = {})
 export async function runBatch(
 	handle: DbHandle,
 	handlers: Record<string, JobHandler>,
-	options: { now?: Date; limit?: number } = {}
+	options: { now?: Date; limit?: number; claimMs?: number } = {}
 ): Promise<number> {
 	const now = options.now ?? new Date();
-	const rows = await claim(handle, now, options.limit ?? 5);
+	const claimMs = options.claimMs ?? CLAIM_MS;
+	const rows = await claim(handle, now, options.limit ?? 5, claimMs);
+	// While the batch runs, the claims are renewed, so a long job (a slow model or feed) is never taken a second time
+	const beat =
+		rows.length > 0
+			? setInterval(
+					() =>
+						void heartbeat(
+							handle,
+							rows.map((r) => r.id),
+							claimMs
+						).catch((e: unknown) => logError('job_heartbeat_failed', e)),
+					Math.max(50, Math.floor(claimMs / 3))
+				)
+			: null;
 	await Promise.allSettled(
 		rows.map(async (row) => {
 			const handler = handlers[row.kind];
@@ -163,12 +214,16 @@ export async function runBatch(
 					via: 'job',
 					channel: 'job'
 				};
+				const direct = (handler as MaybeNoTx).noTx;
+				// A NO_TX job holds nothing while it waits on the network; its own short transactions take what they need
+				if (direct) await direct(row, ctx);
 				// The handler's transaction sets the owner's user id before its first query, then who is acting for the audit trail
-				await withUser(handle, row.userId, async (tx) => {
-					if (!UNLOCKED_JOBS.has(row.kind)) await lockPerson(tx, row.userId);
-					await setAuditContext(tx, { ...auditOf(ctx) });
-					return handler(row, tx, ctx);
-				});
+				else
+					await withUser(handle, row.userId, async (tx) => {
+						if (!UNLOCKED_JOBS.has(row.kind)) await lockPerson(tx, row.userId);
+						await setAuditContext(tx, { ...auditOf(ctx) });
+						return handler(row, tx, ctx);
+					});
 				outcome = 'done';
 			} catch (e) {
 				logError('job_failed', e, { kind: row.kind });
@@ -181,7 +236,9 @@ export async function runBatch(
 				logError('job_outcome_not_recorded', e, { kind: row.kind });
 			}
 		})
-	);
+	).finally(() => {
+		if (beat) clearInterval(beat);
+	});
 	return rows.length;
 }
 
@@ -225,7 +282,13 @@ export function startWorker(
 		// Hourly: purge old jobs and queue the daily work
 		const hourly = ticks % Math.round(3_600_000 / intervalMs) === 1;
 		const housekeeping = hourly
-			? purgeFinished(handle).then(() => scheduleMaintenance(handle))
+			? purgeFinished(handle)
+					.then(() => scheduleMaintenance(handle))
+					// Approval cards past their time are closed (loaded here, not at the top: the operations layer itself enqueues jobs)
+					.then(async () => {
+						const { expireStaleActions } = await import('../ops/actions');
+						await expireStaleActions(handle);
+					})
 			: Promise.resolve();
 		housekeeping
 			.then(() => runBatch(handle, handlers))

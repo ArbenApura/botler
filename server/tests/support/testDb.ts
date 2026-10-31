@@ -36,8 +36,27 @@ function withDatabase(url: string, name: string, user?: string, password?: strin
 	return u.toString();
 }
 
+/** Refuses any Postgres but Botler's own local one (127.0.0.1 or localhost, port 5434). Pure: it never connects. */
+export function assertLocalTestPg(url: string): void {
+	let u: URL;
+	try {
+		u = new URL(url);
+	} catch {
+		throw new Error('The test Postgres URL is not a valid URL. Tests run only on 127.0.0.1:5434.');
+	}
+	if (u.hostname !== '127.0.0.1' && u.hostname !== 'localhost')
+		throw new Error(
+			`Refusing to run tests on host "${u.hostname}": tests run only on Botler's own local Postgres (127.0.0.1 or localhost, port 5434).`
+		);
+	if (u.port !== '5434')
+		throw new Error(
+			`Refusing to run tests on port "${u.port || '5432'}": tests run only on Botler's own local Postgres (port 5434, never AFB's 5433).`
+		);
+}
+
 /** Creates a migrated throwaway database. The app connects as app_runtime, as in production. */
 export async function createTestDb(): Promise<TestDb> {
+	assertLocalTestPg(ADMIN_URL);
 	const name = `botler_test_${randomBytes(6).toString('hex')}`;
 	const admin = new pg.Client({ connectionString: ADMIN_URL });
 	try {

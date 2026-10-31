@@ -69,7 +69,19 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 			.select({ n: sql<number>`count(*)::int`, m: sql<Date | null>`max(${reminder.updatedAt})` })
 			.from(reminder)
 			.where(eq(reminder.userId, userId));
-		const cursor = `${stamp?.n ?? 0}:${stamp?.m ? new Date(stamp.m).getTime() : 0}`;
+		// The next scheduled reminder past the window: when it enters the window the cursor changes, so the phone gets it
+		const [edge] = await tx
+			.select({ at: sql<Date | null>`min(${reminder.remindAt})` })
+			.from(reminder)
+			.where(
+				and(
+					eq(reminder.userId, userId),
+					eq(reminder.status, 'scheduled'),
+					gte(reminder.remindAt, new Date(now.getTime() + HORIZON_MS))
+				)
+			);
+		// Opaque to the phone and compared for equality only: any other string, an old format included, simply means "changed"
+		const cursor = `${stamp?.n ?? 0}:${stamp?.m ? new Date(stamp.m).getTime() : 0}:${edge?.at ? new Date(edge.at).getTime() : 0}`;
 		const changed = cursor !== input.cursor;
 
 		const reminders = changed

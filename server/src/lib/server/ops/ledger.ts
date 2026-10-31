@@ -31,6 +31,7 @@ import {
 	billOverride,
 	billPayment,
 	ledgerTxn,
+	requestLog,
 	splitPlan,
 	undoJournal
 } from '../db/schema';
@@ -253,7 +254,22 @@ export async function logExpenseFromText(
 	raw: ExpenseFromTextInput
 ): Promise<ExpenseResult> {
 	const input = parse(expenseFromTextInput, raw);
-	const { accounts, currency } = await run(ctx, async (tx, userId) => ({
+	const { accounts, currency, prior } = await run(ctx, async (tx, userId) => ({
+		// What this request id already saved: a retry after the account list changed must get that answer, not a conflict
+		prior: ctx.requestId
+			? (((
+					await tx
+						.select({ result: requestLog.result })
+						.from(requestLog)
+						.where(
+							and(
+								eq(requestLog.userId, userId),
+								eq(requestLog.requestId, ctx.requestId),
+								eq(requestLog.verb, 'expense.log')
+							)
+						)
+				)[0]?.result ?? null) as { status?: string; txn?: TxnView } | null)
+			: null,
 		accounts: await tx
 			.select({ id: account.id, name: account.name, currency: account.currency })
 			.from(account)
@@ -263,6 +279,11 @@ export async function logExpenseFromText(
 		currency: (await readSettings(tx, userId)).currency
 	}));
 	const names = accounts.map((a) => a.name);
+	// The first answer is replayed when the words still read as the amount that was saved (a different message under the same id is still refused)
+	if (prior?.status === 'saved' && prior.txn) {
+		const again = parseExpenseText(input.text, names, prior.txn.currency);
+		if (again.amount === prior.txn.amount) return { status: 'saved', txn: prior.txn };
+	}
 	let parsed = parseExpenseText(input.text, names, currency);
 	const named = parsed.accountName
 		? accounts.find((a) => a.name.toLowerCase() === parsed.accountName?.toLowerCase())
@@ -566,6 +587,84 @@ export async function walletCurrencies(
 }
 
 /**
+ * The wallets of some accounts and the balance of each, in one pass: one query for the wallets, one for the latest count of every wallet and
+ * one for the entries after the oldest count, however many accounts there are. The same rule as balanceFor: the latest count at or before
+ * `at` plus the signed entries after it. Keys are `accountId|currency`; `order` lists each account's currencies, its own first.
+ */
+export async function walletBalances(
+	tx: Tx,
+	userId: string,
+	accounts: readonly { id: string; currency: string }[],
+	at: Date = new Date()
+) {
+	const order = new Map<string, string[]>();
+	const out = new Map<string, { balance: number; countedAt: Date | null; hasData: boolean }>();
+	if (accounts.length === 0) return { order, balances: out };
+	const walletRows = await tx
+		.select({ accountId: accountWallet.accountId, currency: accountWallet.currency })
+		.from(accountWallet)
+		.where(eq(accountWallet.userId, userId));
+	for (const a of accounts) {
+		const rest = walletRows.filter((w) => w.accountId === a.id && w.currency !== a.currency);
+		order.set(
+			a.id,
+			[a.currency, ...rest.map((w) => w.currency)].sort((x, y) =>
+				x === a.currency ? -1 : y === a.currency ? 1 : x < y ? -1 : 1
+			)
+		);
+	}
+	// The latest count of every wallet (one row each)
+	const snaps = await tx
+		.selectDistinctOn([balanceSnapshot.accountId, balanceSnapshot.currency])
+		.from(balanceSnapshot)
+		.where(and(eq(balanceSnapshot.userId, userId), lte(balanceSnapshot.takenAt, at)))
+		.orderBy(balanceSnapshot.accountId, balanceSnapshot.currency, desc(balanceSnapshot.takenAt));
+	const snapOf = new Map(snaps.map((s) => [`${s.accountId}|${s.currency}`, s]));
+	// Entries after the oldest count; when some wallet has no count, every entry up to `at` counts for it
+	const wanted = accounts.flatMap((a) => (order.get(a.id) ?? []).map((c) => `${a.id}|${c}`));
+	const allCounted = wanted.every((k) => snapOf.has(k));
+	const oldest = allCounted
+		? Math.min(...wanted.map((k) => (snapOf.get(k) as { takenAt: Date }).takenAt.getTime()))
+		: null;
+	const rows = await tx
+		.select()
+		.from(ledgerTxn)
+		.where(
+			and(
+				eq(ledgerTxn.userId, userId),
+				isNull(ledgerTxn.voidedAt),
+				lte(ledgerTxn.occurredAt, at),
+				oldest === null ? undefined : gt(ledgerTxn.occurredAt, new Date(oldest))
+			)
+		);
+	const byAccount = new Map<string, Txn[]>();
+	for (const r of rows) {
+		const t = toTxn(r);
+		for (const id of new Set([r.accountId, r.toAccountId])) {
+			if (!id) continue;
+			byAccount.set(id, [...(byAccount.get(id) ?? []), t]);
+		}
+	}
+	for (const a of accounts)
+		for (const currency of order.get(a.id) ?? []) {
+			const snap = snapOf.get(`${a.id}|${currency}`);
+			const mine = byAccount.get(a.id) ?? [];
+			out.set(`${a.id}|${currency}`, {
+				balance: balanceOf(
+					a.id,
+					currency,
+					snap ? { amount: snap.amount, takenAt: snap.takenAt } : null,
+					mine
+				),
+				countedAt: snap?.takenAt ?? null,
+				hasData:
+					Boolean(snap) || mine.some((r) => r.currency === currency || r.toCurrency === currency)
+			});
+		}
+	return { order, balances: out };
+}
+
+/**
  * Every active account with its balance now. `balance` and `countedAt` are those of the wallet in the account's own currency (what an
  * older app reads); `wallets` lists every currency the account holds. The minimum balance is a money plan rule, so it is judged in the
  * main currency: an account with no wallet in it is not below its minimum (there is nothing to judge), never "empty".
@@ -583,14 +682,15 @@ export async function balancesIn(tx: Tx, userId: string) {
 		.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
 		.orderBy(account.sortOrder, account.name);
 	const out = [];
+	const { order, balances } = await walletBalances(tx, userId, accounts);
 	for (const a of accounts) {
 		const wallets: WalletBalance[] = [];
-		for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
-			const b = await balanceFor(tx, userId, a.id, currency);
+		for (const currency of order.get(a.id) ?? [a.currency]) {
+			const b = balances.get(`${a.id}|${currency}`);
 			wallets.push({
 				currency,
-				balance: b.balance,
-				countedAt: b.countedAt?.toISOString() ?? null
+				balance: b?.balance ?? 0,
+				countedAt: b?.countedAt?.toISOString() ?? null
 			});
 		}
 		const own = wallets[0] as WalletBalance;
@@ -661,12 +761,22 @@ export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string 
 			all.filter((r) => r.currency !== currency && r.type !== 'transfer').map((r) => r.currency)
 		)
 	].sort();
+	// The same pieces as `spending` (expenses, transfer fees, less refunds), so the categories add up to it. Categories that differ only in case
+	// or spaces are one group (as in the simulation), shown under the spelling met first; a fee is "fees"; a refund comes off its category.
 	const byCategory: Record<string, number> = {};
-	for (const r of rows)
-		if (r.type === 'expense') {
-			const k = r.category ?? 'other';
-			byCategory[k] = (byCategory[k] ?? 0) + r.amount;
-		}
+	const labelOf = new Map<string, string>();
+	const addTo = (category: string | null, amount: number) => {
+		const name = (category ?? '').trim() || 'other';
+		const key = name.toLowerCase();
+		const label = labelOf.get(key) ?? name;
+		labelOf.set(key, label);
+		byCategory[label] = (byCategory[label] ?? 0) + amount;
+	};
+	for (const r of rows) {
+		if (r.type === 'expense') addTo(r.category, r.amount);
+		else if (r.type === 'refund') addTo(r.category, -r.amount);
+		else if (r.type === 'transfer' && r.fee > 0) addTo('fees', r.fee);
+	}
 	return {
 		from,
 		to,
@@ -693,9 +803,14 @@ export async function weeklyCheckin(ctx: Ctx) {
 		const main = (await readSettings(tx, userId)).currency;
 		const list = [];
 		// One line for every wallet: each currency is counted on its own
+		const { order, balances } = await walletBalances(tx, userId, accounts, now);
 		for (const a of accounts) {
-			for (const currency of await walletCurrencies(tx, userId, a.id, a.currency)) {
-				const b = await balanceFor(tx, userId, a.id, currency, now);
+			for (const currency of order.get(a.id) ?? [a.currency]) {
+				const b = balances.get(`${a.id}|${currency}`) ?? {
+					balance: 0,
+					countedAt: null,
+					hasData: false
+				};
 				const days = b.countedAt
 					? Math.floor((now.getTime() - b.countedAt.getTime()) / 86_400_000)
 					: null;
@@ -711,22 +826,37 @@ export async function weeklyCheckin(ctx: Ctx) {
 			}
 		}
 		const drifts = await tx
-			.select({ amount: ledgerTxn.amount, category: ledgerTxn.category })
+			.select({
+				amount: ledgerTxn.amount,
+				category: ledgerTxn.category,
+				currency: ledgerTxn.currency
+			})
 			.from(ledgerTxn)
 			.where(
 				and(
 					eq(ledgerTxn.userId, userId),
-					eq(ledgerTxn.currency, main),
 					eq(ledgerTxn.type, 'adjustment'),
 					isNull(ledgerTxn.voidedAt),
 					gte(ledgerTxn.occurredAt, since)
 				)
 			);
+		const counted = drifts.filter((d) => d.category !== 'reset');
+		// Untracked money of a wallet in another currency is named, never dropped and never added to the main currency's figure
+		const other = new Map<string, number>();
+		for (const d of counted)
+			if (d.currency !== main && d.amount < 0)
+				other.set(d.currency, (other.get(d.currency) ?? 0) - d.amount);
 		return {
 			accounts: list,
 			untrackedLast7Days: untrackedSpendingOf(
-				drifts.filter((d) => d.category !== 'reset').map((d) => d.amount)
-			)
+				counted.filter((d) => d.currency === main).map((d) => d.amount)
+			),
+			/** The currency of untrackedLast7Days: the main currency. */
+			untrackedCurrency: main,
+			/** Untracked money of wallets in other currencies, each in its own currency (never added to the figure above). */
+			untrackedOtherCurrencies: [...other.entries()]
+				.sort(([a], [b]) => (a < b ? -1 : 1))
+				.map(([currency, amount]) => ({ currency, amount }))
 		};
 	});
 }

@@ -1,7 +1,16 @@
 // THE AGENT'S TABLES: APPROVAL CARDS (A CHANGE TO THE MONEY PLAN THE ASSISTANT PROPOSED, WAITING FOR THE PERSON) AND CHAT TURNS (ONE ROW PER MESSAGE, SO A RETRIED OR RECONNECTED MESSAGE NEVER RUNS TWICE)
 
 // -- DEP-MODULES -- //
-import { foreignKey, index, jsonb, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+	foreignKey,
+	index,
+	integer,
+	jsonb,
+	text,
+	timestamp,
+	unique,
+	uuid
+} from 'drizzle-orm/pg-core';
 // -- MODULES -- //
 import { user } from './auth';
 import { id, oneOf, stamps, userTable } from './helpers';
@@ -91,6 +100,8 @@ export const chatTurn = userTable(
 		clientMessageId: text('client_message_id').notNull(),
 		userText: text('user_text').notNull(),
 		status: text('status', { enum: TURN_STATUSES }).notNull().default('running'),
+		/** Counts the takeovers of this turn: only the run that holds the latest number may finish it. */
+		runNo: integer('run_no').notNull().default(0),
 		reply: text('reply').notNull().default(''),
 		/** The events sent to the app (tool results, cards, fallback), replayed as they were. */
 		events: jsonb('events').notNull().default([]),

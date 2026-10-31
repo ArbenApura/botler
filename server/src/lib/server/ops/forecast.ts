@@ -17,7 +17,7 @@ import type { PaydayFunding, PlanNote } from '../../finance/planFlows';
 // -- MODULES -- //
 import { diffDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { forecast, MAX_FORECAST_DAYS } from '../../finance/forecast';
-import { planFlows } from '../../finance/planFlows';
+import { placeBills, planFlows } from '../../finance/planFlows';
 import { cashflowForecastInput } from '../db/zod';
 import { refreshInBackground } from '../fx/store';
 import { OpsError, run } from './context';
@@ -150,6 +150,12 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 			{ mode: 'future', from: today, to: input.to, today }
 		);
 		for (const n of made.notes) notes.push(noteText(n));
+		// Bills go on the wallets that exist, the same way the calendar's forecast does; one with no wallet to be paid from is named
+		const placed = placeBills(made.flows, wallets, settings.currency, status.rates);
+		if (placed.unplaced.length > 0)
+			notes.push(
+				`${placed.unplaced.length} bill payment${placed.unplaced.length > 1 ? 's are' : ' is'} not in the balances: the account they are paid from holds no wallet to pay them (${[...new Set(placed.unplaced.map((x) => x.label))].slice(0, 5).join(', ')}).`
+			);
 		const names = new Map(accounts.map((a) => [a.id, a.name]));
 		const funding = shortFunding(made.funding ?? [], (id) => names.get(id) ?? 'an account');
 		const brokenLinks = made.brokenLinks ?? [];
@@ -158,7 +164,7 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 			settings,
 			status,
 			wallets,
-			flows: made.flows.map(({ origin: _origin, refId: _refId, ...f }): ForecastFlow => f),
+			flows: placed.flows.map(({ origin: _origin, refId: _refId, ...f }): ForecastFlow => f),
 			unknown: made.unknown,
 			notes,
 			funding,

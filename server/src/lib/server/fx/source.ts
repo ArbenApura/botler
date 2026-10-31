@@ -19,6 +19,8 @@ export type FetchedRates = {
 	source: string;
 	/** Codes of the catalogue the feed had no usable rate for. */
 	missing: string[];
+	/** When the feed says its rates were made (time_last_update_unix), or null when it does not say or the value is not believable. */
+	asOf: Date | null;
 };
 
 /** Why a fetch failed: a short code, never text from the feed. */
@@ -39,8 +41,17 @@ const MIN_RATES = 100;
 const feedSchema = z.object({
 	result: z.literal('success'),
 	base_code: z.literal(BASE_CURRENCY),
-	rates: z.record(z.string(), z.unknown())
+	rates: z.record(z.string(), z.unknown()),
+	time_last_update_unix: z.unknown().optional()
 });
+
+/** The feed's own timestamp in seconds, if it is a sane number: after 2020 and not more than an hour ahead of now. */
+function feedTime(value: unknown, now: number): Date | null {
+	if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+	const ms = value * 1000;
+	if (ms < Date.UTC(2020, 0, 1) || ms > now + 3_600_000) return null;
+	return new Date(ms);
+}
 
 // -- FUNCTIONS -- //
 
@@ -113,5 +124,10 @@ export async function fetchRates(config: FxConfig): Promise<FetchedRates> {
 		else missing.push(code);
 	}
 	if (Object.keys(rates).length < MIN_RATES) throw new FxFetchError('too_few_rates');
-	return { rates, source: new URL(url).hostname, missing };
+	return {
+		rates,
+		source: new URL(url).hostname,
+		missing,
+		asOf: feedTime(parsed.data.time_last_update_unix, Date.now())
+	};
 }

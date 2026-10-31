@@ -139,7 +139,8 @@ describe('the Firebase sender', () => {
 			createFcmPusher({ projectId: 'p', clientEmail: 'e', privateKey: pem, fetch: f.fetchFn });
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 		expect(await make(dead).send({ token: 'x', kind: 'sync' })).toBe('unregistered');
-		expect(await make(bad).send({ token: 'x', kind: 'sync' })).toBe('unregistered');
+		// INVALID_ARGUMENT can be our own message that is wrong: the phone is kept
+		expect(await make(bad).send({ token: 'x', kind: 'sync' })).toBe('failed');
 		expect(await make(flaky).send({ token: 'x', kind: 'sync' })).toBe('failed');
 		spy.mockRestore();
 	});
@@ -287,6 +288,13 @@ describe('the push jobs', () => {
 		const r = await createReminder(
 			{ ...f.ctx, requestId: rid() },
 			{ title: 'Call the landlord', at: new Date(Date.now() + 3_600_000).toISOString() }
+		);
+		// The nudge is queued to run at the reminder's time, so by then it is due
+		await withUser(t.handle, f.userId, (tx) =>
+			tx
+				.update(reminder)
+				.set({ remindAt: new Date(Date.now() - 1000) })
+				.where(eq(reminder.id, r.id))
 		);
 		const rec = recorder();
 		const handlers = createPushHandlers({ pusher: () => rec.pusher });

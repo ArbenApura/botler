@@ -6,6 +6,7 @@ import type { Tx } from '../db/client';
 // -- DEP-MODULES -- //
 import { and, eq } from 'drizzle-orm';
 // -- MODULES -- //
+import { MAX_MINOR } from '../../finance/money';
 import { account, bill, goal, incomeSchedule } from '../db/schema';
 import { OpsError } from './context';
 
@@ -24,6 +25,26 @@ export type Plain<T> = T extends Date
 
 export const plain = <T>(value: T): Plain<T> =>
 	JSON.parse(JSON.stringify(value ?? null)) as Plain<T>;
+
+/**
+ * The sum of amounts in minor units. It is checked as it grows: a result past the largest safe integer would silently lose precision as a
+ * number, so it throws a plain error instead. Use it for any sum of money that is added up in JavaScript (a database sum comes back as text).
+ */
+export function sumMinor(values: Iterable<number | bigint | string>): number {
+	let total = 0n;
+	for (const v of values) {
+		let n: bigint;
+		try {
+			n = BigInt(v);
+		} catch {
+			throw new OpsError('INVALID', 'An amount is not a whole number of minor units.');
+		}
+		total += n;
+		if (total > BigInt(MAX_MINOR) || total < -BigInt(MAX_MINOR))
+			throw new OpsError('INVALID', 'The total is too large to add up exactly.');
+	}
+	return Number(total);
+}
 
 /**
  * The first problem of a failed parse in plain words. A field the input does not have names the fields it does have, so the assistant

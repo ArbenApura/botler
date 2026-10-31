@@ -53,7 +53,8 @@ export async function pushToUser(
 		}
 		const result = await pusher.send({ ...message, token: d.pushToken } as Push);
 		if (result === 'sent') summary.sent++;
-		else if (result === 'failed') summary.failed++;
+		else if (result !== 'unregistered') summary.failed++;
+		// Only a token Firebase called dead (UNREGISTERED or NOT_FOUND) is deleted; any other answer keeps the phone
 		else {
 			await run(ctx, async (tx, userId) => {
 				await tx.delete(device).where(and(eq(device.userId, userId), eq(device.id, d.id)));

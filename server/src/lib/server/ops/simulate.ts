@@ -8,15 +8,16 @@
 //   cut in the middle; the app gets the whole answer of what it asked for.
 
 // -- TYPES -- //
+import type { Tx } from '../db/client';
 import type { Ctx } from './context';
 import type { PlanData, PlanNote } from '../../finance/planFlows';
 import type { Scenario } from '../../finance/scenario';
 import type { ScenarioInput } from '../db/zod';
 import type { RecordedSnapshot, RecordedTxn, Simulation } from '../../finance/simulate';
 // -- DEP-MODULES -- //
-import { and, asc, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, isNull, lt, lte } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, diffDays, toManilaDate } from '../../finance/dates';
+import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { applyScenario } from '../../finance/scenario';
 import { simulate } from '../../finance/simulate';
 import { accountWallet, balanceSnapshot, bill, ledgerTxn } from '../db/schema';
@@ -152,6 +153,97 @@ export function toScenario(input: ScenarioInput | undefined, plan: PlanData): Sc
 	};
 }
 
+/**
+ * The counts and entries a range needs, and no more. A balance at any instant of the range is a wallet's latest count at or before it plus
+ * the entries after that count, so only these are read: for each wallet its latest count before the range, every count inside it, and the
+ * entries after the oldest of those latest counts (every entry, when some wallet has no count yet). The very first record is found with two
+ * small queries, because the range may begin long after it. Everything is up to `now`, in one fixed order.
+ */
+export async function loadRecorded(
+	tx: Tx,
+	userId: string,
+	opts: { from: string; now: Date; wallets: readonly { accountId: string; currency: string }[] }
+): Promise<{
+	snapshots: RecordedSnapshot[];
+	txns: RecordedTxn[];
+	firstRecordAt: Date | null;
+}> {
+	const { now } = opts;
+	const windowStart = new Date(Math.min(manilaStart(opts.from).getTime(), now.getTime()));
+	const mine = eq(balanceSnapshot.userId, userId);
+	const earlier = await tx
+		.selectDistinctOn([balanceSnapshot.accountId, balanceSnapshot.currency])
+		.from(balanceSnapshot)
+		.where(and(mine, lt(balanceSnapshot.takenAt, windowStart)))
+		.orderBy(balanceSnapshot.accountId, balanceSnapshot.currency, desc(balanceSnapshot.takenAt));
+	const inside = await tx
+		.select()
+		.from(balanceSnapshot)
+		.where(and(mine, gte(balanceSnapshot.takenAt, windowStart), lte(balanceSnapshot.takenAt, now)));
+	const counted = new Set(earlier.map((s) => `${s.accountId}|${s.currency}`));
+	const everyWalletCounted =
+		opts.wallets.length > 0 &&
+		opts.wallets.every((w) => counted.has(`${w.accountId}|${w.currency}`));
+	const lower = everyWalletCounted ? Math.min(...earlier.map((s) => s.takenAt.getTime())) : null;
+	const rows = await tx
+		.select()
+		.from(ledgerTxn)
+		.where(
+			and(
+				eq(ledgerTxn.userId, userId),
+				isNull(ledgerTxn.voidedAt),
+				lte(ledgerTxn.occurredAt, now),
+				lower === null ? undefined : gt(ledgerTxn.occurredAt, new Date(lower))
+			)
+		)
+		// One fixed order, so a page of entries never repeats or skips a row between requests
+		.orderBy(asc(ledgerTxn.occurredAt), asc(ledgerTxn.id));
+	const [firstSnap] = await tx
+		.select({ at: balanceSnapshot.takenAt })
+		.from(balanceSnapshot)
+		.where(and(mine, lte(balanceSnapshot.takenAt, now)))
+		.orderBy(asc(balanceSnapshot.takenAt))
+		.limit(1);
+	const [firstTxn] = await tx
+		.select({ at: ledgerTxn.occurredAt })
+		.from(ledgerTxn)
+		.where(
+			and(eq(ledgerTxn.userId, userId), isNull(ledgerTxn.voidedAt), lte(ledgerTxn.occurredAt, now))
+		)
+		.orderBy(asc(ledgerTxn.occurredAt))
+		.limit(1);
+	const firstRecordAt =
+		firstSnap && firstTxn
+			? firstSnap.at < firstTxn.at
+				? firstSnap.at
+				: firstTxn.at
+			: (firstSnap?.at ?? firstTxn?.at ?? null);
+	return {
+		snapshots: [...earlier, ...inside].map((s) => ({
+			accountId: s.accountId,
+			currency: s.currency,
+			amount: s.amount,
+			takenAt: s.takenAt
+		})),
+		txns: rows.map((r) => ({
+			id: r.id,
+			label: labelOf(r),
+			type: r.type,
+			accountId: r.accountId,
+			toAccountId: r.toAccountId,
+			amount: r.amount,
+			currency: r.currency,
+			toCurrency: r.toCurrency,
+			toAmount: r.toAmount,
+			fee: r.fee,
+			occurredAt: r.occurredAt,
+			billId: r.billId,
+			category: r.category
+		})),
+		firstRecordAt
+	};
+}
+
 /** The label a recorded entry shows: its note, else its category, else its type. */
 const labelOf = (r: typeof ledgerTxn.$inferSelect) =>
 	r.note.trim() || r.category || (r.type === 'adjustment' ? 'Balance count' : r.type);
@@ -191,62 +283,34 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 
 	const gathered = await run(ctx, async (tx, userId) => {
 		// The plan, with every recorded pay day for the missed paydays
-		const loaded = await loadPlan(tx, userId, { now, incomeSince: new Date(0) });
+		// (recorded pay is read from the range's first day: a payday is judged from its own day on)
+		// (a range that starts in the future still plans from today, so a pay recorded today must be in the set)
+		const loaded = await loadPlan(tx, userId, {
+			now,
+			incomeSince: new Date(
+				Math.min(manilaStart(input.from).getTime(), manilaStart(today).getTime())
+			)
+		});
 		const walletRows = await tx
 			.select({ accountId: accountWallet.accountId, currency: accountWallet.currency })
 			.from(accountWallet)
 			.where(eq(accountWallet.userId, userId));
-		const snapshots: RecordedSnapshot[] = (
-			await tx
-				.select()
-				.from(balanceSnapshot)
-				.where(and(eq(balanceSnapshot.userId, userId), lte(balanceSnapshot.takenAt, now)))
-		).map((s) => ({
-			accountId: s.accountId,
-			currency: s.currency,
-			amount: s.amount,
-			takenAt: s.takenAt
-		}));
-		// Every entry up to now, once: the balances at each period's start and end are sliced from these rows (finance/ledger.ts balanceOf)
-		const txns: RecordedTxn[] = (
-			await tx
-				.select()
-				.from(ledgerTxn)
-				.where(
-					and(
-						eq(ledgerTxn.userId, userId),
-						isNull(ledgerTxn.voidedAt),
-						lte(ledgerTxn.occurredAt, now)
-					)
-				)
-				// One fixed order, so a page of entries never repeats or skips a row between requests
-				.orderBy(asc(ledgerTxn.occurredAt), asc(ledgerTxn.id))
-		).map((r) => ({
-			id: r.id,
-			label: labelOf(r),
-			type: r.type,
-			accountId: r.accountId,
-			toAccountId: r.toAccountId,
-			amount: r.amount,
-			currency: r.currency,
-			toCurrency: r.toCurrency,
-			toAmount: r.toAmount,
-			fee: r.fee,
-			occurredAt: r.occurredAt,
-			billId: r.billId,
-			category: r.category
-		}));
+		const wallets = [
+			...loaded.accounts.map((a) => ({ accountId: a.id, currency: a.currency })),
+			...walletRows
+		];
+		const { snapshots, txns, firstRecordAt } = await loadRecorded(tx, userId, {
+			from: input.from,
+			now,
+			wallets
+		});
 		// The names of every bill, active or not, so the spending of a bill that is gone still has its name
 		const billNames = new Map(
 			(
 				await tx.select({ id: bill.id, name: bill.name }).from(bill).where(eq(bill.userId, userId))
 			).map((b) => [b.id, b.name] as const)
 		);
-		const wallets = [
-			...loaded.accounts.map((a) => ({ accountId: a.id, currency: a.currency })),
-			...walletRows
-		];
-		return { ...loaded, wallets, snapshots, txns, billNames };
+		return { ...loaded, wallets, snapshots, txns, billNames, firstRecordAt };
 	});
 	refreshInBackground(ctx.handle, gathered.status);
 
@@ -266,6 +330,7 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 			wallets: gathered.wallets,
 			snapshots: gathered.snapshots,
 			txns: gathered.txns,
+			firstRecordAt: gathered.firstRecordAt,
 			billNames: gathered.billNames,
 			detail: view === 'detail',
 			// Paging is for the app; the assistant keeps its own cut answer

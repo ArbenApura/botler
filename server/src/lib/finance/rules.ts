@@ -67,6 +67,52 @@ export function validateRules(rules: readonly Rule[], pay?: number): string[] {
 	return problems;
 }
 
+/**
+ * Things that are allowed but probably not meant, in plain words. A percentage of the pay and a percentage of what is left after bills are
+ * both worked out from the same pay (the second is not taken after the first), so together they can ask for more than the pay when the bills
+ * are small: the split then comes back short. An empty list means nothing to say. Saved rules are not refused for these.
+ */
+export function ruleWarnings(rules: readonly Rule[]): string[] {
+	const warnings: string[] = [];
+	let pay = 0;
+	let remaining = 0;
+	for (const r of rules) {
+		if (r.mode !== 'percent' || !r.basisPoints || r.basisPoints <= 0) continue;
+		if (r.base === 'pay') pay += r.basisPoints;
+		else remaining += r.basisPoints;
+	}
+	// Each alone is already refused above 100%; here they are added: with no bills the share of what is left is the whole pay
+	if (pay <= 10_000 && remaining <= 10_000 && pay + remaining > 10_000)
+		warnings.push(
+			'The percentages of the pay and the percentages of what is left add up to more than the pay when the bills are small, so the split can come back short.'
+		);
+	return warnings;
+}
+
+/** A rule's target is still there to receive money: a goal that is switched on, or an account that is not hidden. */
+export type RuleTargets = {
+	liveGoals: ReadonlySet<string>;
+	hiddenAccounts: ReadonlySet<string>;
+};
+
+/** Whether the target of a rule can receive money today. */
+export const ruleTargetIsLive = (
+	target: { kind: 'account' | 'goal'; id: string },
+	live: RuleTargets
+): boolean =>
+	target.kind === 'goal' ? live.liveGoals.has(target.id) : !live.hiddenAccounts.has(target.id);
+
+/**
+ * The rules that can be placed: those whose goal is switched off or whose account is hidden are left out, so money never goes to a place the
+ * person no longer sees. The payday split, the forecast, the simulation and the calendar all keep their rules through this one filter.
+ */
+export function liveRules<T extends { target: { kind: 'account' | 'goal'; id: string } }>(
+	rules: readonly T[],
+	live: RuleTargets
+): T[] {
+	return rules.filter((r) => ruleTargetIsLive(r.target, live));
+}
+
 /** The rules that apply on a payday: effective by then, in order. */
 export function rulesFor(rules: readonly Rule[], payday: ManilaDate): Rule[] {
 	return rules

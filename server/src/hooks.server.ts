@@ -34,7 +34,9 @@ export const init: ServerInit = async () => {
 	if (!getPusher()) console.warn(JSON.stringify({ event: 'push_not_configured' }));
 	const pushHandlers = createPushHandlers({ pusher: () => getPusher() });
 	// The exchange rate source is fixed at start; a bad address already stopped the server when the environment was read
-	configureFx({ url: FX_RATES_URL });
+	// (a missing address already stopped a production start; in development it means no feed)
+	if (FX_RATES_URL) configureFx({ url: FX_RATES_URL });
+	else console.warn(JSON.stringify({ event: 'fx_not_configured' }));
 	const chatHandlers = createChatHandlers({
 		model: () => getModelClient(),
 		historyTokens: HISTORY_TOKENS

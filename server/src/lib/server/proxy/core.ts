@@ -34,6 +34,8 @@ export type CoreConfig = {
 	rateLimiter?: RateLimiter;
 	timeoutMs: number;
 	maxRetries: number;
+	/** The most the wait for a first byte may take over all its tries and the pauses between them. Left out, two minutes. */
+	maxTotalMs?: number;
 	fetch: typeof fetch;
 	sleep: (ms: number) => Promise<void>;
 };
@@ -42,6 +44,8 @@ export type CoreConfig = {
 
 export const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 export const DOWN = 'The assistant is not available right now.';
+/** All the tries of one request for a first byte, with their pauses, stop by this time (a person is waiting on the other end). */
+export const MAX_TOTAL_MS = 120_000;
 
 // -- FUNCTIONS -- //
 
@@ -177,8 +181,12 @@ export function createCore(config: CoreConfig) {
 	 */
 	const send: CoreSend = async ({ url, headers, body, signal }) => {
 		let last = 'no response';
+		// Time already used: the real time of each try plus the pauses asked for, so a slow host cannot hold the request for minutes
+		let spent = 0;
+		const total = config.maxTotalMs ?? MAX_TOTAL_MS;
 		for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
 			if (signal?.aborted) throw new OpsError('UNAVAILABLE', 'The request was cancelled.');
+			const tryStarted = Date.now();
 			const start = new AbortController();
 			const timer = setTimeout(() => start.abort(), config.timeoutMs);
 			try {
@@ -190,6 +198,8 @@ export function createCore(config: CoreConfig) {
 				});
 				clearTimeout(timer);
 				if (res.ok) return res;
+				// The body of a failed answer is never read: it is cancelled, so the connection is freed and nothing from it is kept
+				await res.body?.cancel().catch(() => undefined);
 				last = `status ${res.status}`;
 				if (res.status === 401 || res.status === 403)
 					// A rejected key is a configuration problem. Nothing about it is shown to the person.
@@ -198,14 +208,21 @@ export function createCore(config: CoreConfig) {
 					);
 				if (!RETRY_STATUS.has(res.status)) break;
 				const after = Number(res.headers.get('retry-after'));
-				await config.sleep(
-					Math.min(5000, Number.isFinite(after) && after > 0 ? after * 1000 : 400 * 2 ** attempt)
+				const pause = Math.min(
+					5000,
+					Number.isFinite(after) && after > 0 ? after * 1000 : 400 * 2 ** attempt
 				);
+				spent += Date.now() - tryStarted + pause;
+				if (spent >= total) break;
+				await config.sleep(pause);
 			} catch (e) {
 				clearTimeout(timer);
 				if (signal?.aborted) throw new OpsError('UNAVAILABLE', 'The request was cancelled.');
 				last = e instanceof Error ? e.name : 'error';
-				if (attempt < config.maxRetries) await config.sleep(400 * 2 ** attempt);
+				const pause = 400 * 2 ** attempt;
+				spent += Date.now() - tryStarted + pause;
+				if (spent >= total) break;
+				if (attempt < config.maxRetries) await config.sleep(pause);
 			}
 		}
 		console.error(JSON.stringify({ event: 'model_unavailable', reason: last }));

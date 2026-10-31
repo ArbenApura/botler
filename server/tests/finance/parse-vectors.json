@@ -1,0 +1,227 @@
+[
+	{
+		"code": "PHP",
+		"text": "180",
+		"minor": 18000
+	},
+	{
+		"code": "PHP",
+		"text": "1,250.50",
+		"minor": 125050
+	},
+	{
+		"code": "PHP",
+		"text": "₱ 1,250.50",
+		"minor": 125050
+	},
+	{
+		"code": "PHP",
+		"text": "₱ 90",
+		"minor": 9000
+	},
+	{
+		"code": "PHP",
+		"text": "php 12.5",
+		"minor": 1250
+	},
+	{
+		"code": "PHP",
+		"text": "12,50",
+		"minor": 1250
+	},
+	{
+		"code": "PHP",
+		"text": "1,25",
+		"minor": 125
+	},
+	{
+		"code": "PHP",
+		"text": "1,250",
+		"minor": 125000
+	},
+	{
+		"code": "PHP",
+		"text": "1,250,000",
+		"minor": 125000000
+	},
+	{
+		"code": "PHP",
+		"text": "1,250,000.5",
+		"minor": 125000050
+	},
+	{
+		"code": "PHP",
+		"text": "0,50",
+		"minor": 50
+	},
+	{
+		"code": "PHP",
+		"text": "12,5",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "1,2500",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "1,25,000",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "1.250,50",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "12,50.5",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "1.239",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "12.345",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": ".5",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "12.",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "abc",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "",
+		"minor": null
+	},
+	{
+		"code": "PHP",
+		"text": "99999999999999999",
+		"minor": null
+	},
+	{
+		"code": "JPY",
+		"text": "1250",
+		"minor": 1250
+	},
+	{
+		"code": "JPY",
+		"text": "1,250",
+		"minor": 1250
+	},
+	{
+		"code": "JPY",
+		"text": "¥ 500",
+		"minor": 500
+	},
+	{
+		"code": "JPY",
+		"text": "jpy 500",
+		"minor": 500
+	},
+	{
+		"code": "JPY",
+		"text": "12.5",
+		"minor": null
+	},
+	{
+		"code": "JPY",
+		"text": "12,50",
+		"minor": null
+	},
+	{
+		"code": "KWD",
+		"text": "5",
+		"minor": 5000
+	},
+	{
+		"code": "KWD",
+		"text": "kwd 5",
+		"minor": 5000
+	},
+	{
+		"code": "KWD",
+		"text": "12.5",
+		"minor": 12500
+	},
+	{
+		"code": "KWD",
+		"text": "1.250",
+		"minor": 1250
+	},
+	{
+		"code": "KWD",
+		"text": "1,250.500",
+		"minor": 1250500
+	},
+	{
+		"code": "KWD",
+		"text": "1,250",
+		"minor": null
+	},
+	{
+		"code": "KWD",
+		"text": "12,500",
+		"minor": null
+	},
+	{
+		"code": "KWD",
+		"text": "1,25",
+		"minor": null
+	},
+	{
+		"code": "KWD",
+		"text": "1.2345",
+		"minor": null
+	},
+	{
+		"code": "USD",
+		"text": "usd 5",
+		"minor": 500
+	},
+	{
+		"code": "USD",
+		"text": "usd5",
+		"minor": 500
+	},
+	{
+		"code": "USD",
+		"text": "$5",
+		"minor": 500
+	},
+	{
+		"code": "USD",
+		"text": "$1,234.56",
+		"minor": 123456
+	},
+	{
+		"code": "USD",
+		"text": "1,234",
+		"minor": 123400
+	},
+	{
+		"code": "USD",
+		"text": "5,00",
+		"minor": 500
+	},
+	{
+		"code": "USD",
+		"text": "5,0",
+		"minor": null
+	}
+]

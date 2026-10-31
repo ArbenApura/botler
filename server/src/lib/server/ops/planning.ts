@@ -12,11 +12,11 @@ import type {
 import type { Plain } from './shared';
 import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { describeSchedule, occurrencesBetween, previewOccurrences } from '../../finance/schedule';
-import { allocationRule, goal, incomeSchedule, splitPlan } from '../db/schema';
+import { allocationRule, goal, incomeSchedule, ledgerTxn, splitPlan } from '../db/schema';
 import {
 	goalCreateInput,
 	goalDeleteInput,
@@ -88,10 +88,31 @@ export async function deleteIncome(ctx: Ctx, raw: unknown) {
 		runWrite(ctx, 'income.delete', { incomeId, withSplits }, async (tx, userId) => {
 			const current = await requireIncome(tx, userId, incomeId);
 			// The splits made for it go first when asked (the reference from a split to its payday allows no delete). Ledger entries stay
+			// The entries stay but lose the link to their split: cleared here so the change is audited (the foreign key would clear it unseen)
 			if (withSplits)
 				await tx
-					.delete(splitPlan)
-					.where(and(eq(splitPlan.userId, userId), eq(splitPlan.incomeScheduleId, incomeId)));
+					.update(ledgerTxn)
+					.set({ splitId: null, updatedAt: sql`now()` })
+					.where(
+						and(
+							eq(ledgerTxn.userId, userId),
+							inArray(
+								ledgerTxn.splitId,
+								tx
+									.select({ id: splitPlan.id })
+									.from(splitPlan)
+									.where(
+										and(eq(splitPlan.userId, userId), eq(splitPlan.incomeScheduleId, incomeId))
+									)
+							)
+						)
+					);
+			const removedSplits = withSplits
+				? await tx
+						.delete(splitPlan)
+						.where(and(eq(splitPlan.userId, userId), eq(splitPlan.incomeScheduleId, incomeId)))
+						.returning()
+				: [];
 			const [plans] = await tx
 				.select({ n: sql<number>`count(*)::int` })
 				.from(splitPlan)
@@ -118,7 +139,12 @@ export async function deleteIncome(ctx: Ctx, raw: unknown) {
 			await tx
 				.delete(incomeSchedule)
 				.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.id, incomeId)));
-			return { deleted: true as const, switchedOff: false as const, income: plain(current) };
+			return {
+				deleted: true as const,
+				switchedOff: false as const,
+				income: plain(current),
+				removedSplits: plain(removedSplits)
+			};
 		})
 	);
 }

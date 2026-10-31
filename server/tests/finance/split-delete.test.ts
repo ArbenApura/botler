@@ -5,7 +5,7 @@
 import type { Fixture } from '../agent/support';
 import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
-import { eq } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { DELETE_VERBS } from '../../src/lib/server/agent/turn';
@@ -133,12 +133,17 @@ describe('split_delete', () => {
 		})) as { entriesVoided: number };
 		expect(done.entriesVoided).toBe(1);
 		expect(await balanceOf(f, f.rcbc)).toBe(after);
-		// The voided entry is kept for the record
+		// The voided entry is kept for the record. Its link to the deleted split is cleared by the composite key (ledger_txn_split_fk)
 		const txns = await withUser(t.handle, f.userId, (tx) =>
-			tx.select().from(ledgerTxn).where(eq(ledgerTxn.splitId, q.id))
+			tx.select().from(ledgerTxn).where(isNotNull(ledgerTxn.voidedAt))
 		);
 		expect(txns).toHaveLength(1);
-		expect(txns[0]?.voidedAt).not.toBeNull();
+		expect(txns[0]?.splitId).toBeNull();
+		expect(
+			await withUser(t.handle, f.userId, (tx) =>
+				tx.select().from(ledgerTxn).where(eq(ledgerTxn.splitId, q.id))
+			)
+		).toHaveLength(0);
 	});
 
 	it('never touches another person, and names the actor in the audit trail', async () => {

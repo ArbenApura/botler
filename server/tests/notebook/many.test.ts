@@ -122,9 +122,31 @@ describe('making and reading notebooks', () => {
 		});
 	});
 
-	it('takes account, card and phone numbers out of the title, summary and first text', async () => {
+	it('keeps what the person writes as typed, numbers included', async () => {
 		const c = await newUser();
 		const made = await createNotebook(as(c), {
+			title: 'Locker 4111 1111 1111 1111',
+			summary: 'Code 4111 1111 1111 1111',
+			text: '# Codes\n- locker 4111 1111 1111 1111'
+		});
+		expect(made.title).toBe('Locker 4111 1111 1111 1111');
+		expect(made.summary).toBe('Code 4111 1111 1111 1111');
+		expect(made.text).toContain('4111 1111 1111 1111');
+		const edited = await editNotebook(as(c), {
+			notebook: 'Locker 4111 1111 1111 1111',
+			op: 'add',
+			heading: 'Codes 0917 123 4567',
+			line: 'gate 09171234567'
+		});
+		expect(edited.section).toContain('0917 123 4567');
+		expect((await getNotebook(c, { notebook: 'Locker 4111 1111 1111 1111' })).text).toContain(
+			'gate 09171234567'
+		);
+	});
+
+	it('takes account, card and phone numbers out of the title, summary and first text the assistant writes', async () => {
+		const c = await newUser();
+		const made = await createNotebook(agentOf(c), {
 			title: 'Cards',
 			summary: 'My card 4111 1111 1111 1111 notes',
 			text: '# Cards\n- visa 4111 1111 1111 1111\n\n- plain line'

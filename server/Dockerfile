@@ -27,8 +27,6 @@ COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/releases .yarn/releases
 # Only the production dependencies: no test tools, no linters
 RUN yarn workspaces focus --production
-# The embedding runtime ships binaries for every system. Only Linux is needed here, which saves about 220 MB
-RUN rm -rf node_modules/onnxruntime-node/bin/napi-v6/darwin node_modules/onnxruntime-node/bin/napi-v6/win32
 
 FROM node:24-slim
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
@@ -40,9 +38,10 @@ COPY --from=deps /app/package.json ./package.json
 COPY --from=build /app/build ./build
 COPY --from=build /app/cli ./cli
 COPY src/lib/server/db/migrations ./src/lib/server/db/migrations
-# Where the embedding model is kept after its first download (a volume in compose, so it survives a rebuild)
-RUN mkdir /models && chown node:node /models
-ENV BOTLER_EMBED_CACHE=/models
+# The deploy script passes a build id; it is a label (read with docker inspect) and an env var the server can show in /healthz
+ARG BUILD_ID=dev
+LABEL botler.build=$BUILD_ID
+ENV BOTLER_BUILD=$BUILD_ID
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=4s --start-period=20s --retries=4 \

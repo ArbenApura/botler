@@ -4,7 +4,7 @@
 // -- DEP-MODULES -- //
 import { defineEnvVars } from '@sveltejs/kit/env';
 // -- MODULES -- //
-import { checkFxUrl } from './lib/server/fx/config';
+import { fxUrlFromEnv } from './lib/server/fx/config';
 import { DEFAULT_HISTORY_TOKENS } from './lib/server/agent/compact';
 import {
 	DEFAULT_CHAT_MAX_TOKENS,
@@ -87,9 +87,13 @@ export const variables = defineEnvVars({
 	},
 	FX_RATES_URL: {
 		description:
-			'The https address of the exchange rate feed: JSON with result "success", base_code "USD" and a rates table of units per dollar. Defaults to the free open.er-api.com feed. It holds no key and no person data is ever sent to it. A value that is not https stops the server.',
-		schema: (value) =>
-			checkFxUrl(value && value.trim() ? value.trim() : 'https://open.er-api.com/v6/latest/USD')
+			'The https address of the exchange rate feed: JSON with result "success", base_code "USD" and a rates table of units per dollar, for example https://open.er-api.com/v6/latest/USD. Required in production (the server stops at start without it); in development a missing value means no feed. It holds no key and no person data is ever sent to it. A value that is not https stops the server.',
+		schema: (value) => fxUrlFromEnv(value, process.env.NODE_ENV === 'production')
+	},
+	DB_POOL_MAX: {
+		description:
+			'The most database connections the app holds. Default 10. A request that finds the pool full fails after 10 seconds instead of waiting for ever. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 10, 'DB_POOL_MAX')
 	},
 	BOTLER_AUTO_MIGRATE: {
 		description: 'Set to 1 to run the migrations when the server starts (local development).',

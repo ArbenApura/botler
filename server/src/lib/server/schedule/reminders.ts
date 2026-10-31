@@ -15,6 +15,7 @@ import { addDays, toManilaDate } from '../../finance/dates';
 import { occurrencesBetween } from '../../finance/schedule';
 import { atManilaTime, recurrenceOccurrences } from '../../schedule/recurrence';
 import { calendarEvent, incomeSchedule, reminder, routine, splitPlan, task } from '../db/schema';
+import { lockPerson } from '../db/tenant';
 import { dueBills } from '../ops/bills';
 
 // -- TYPES -- //
@@ -200,6 +201,8 @@ export async function reconcileReminders(
 	userId: string,
 	now: Date = new Date()
 ): Promise<Reconciled> {
+	// Line up with this person's other syncs and writes first, so two reconciles never insert the same reminder and never deadlock a write
+	await lockPerson(tx, userId);
 	const wanted = await desiredReminders(tx, userId, now);
 	const existing = await tx
 		.select()
@@ -209,25 +212,38 @@ export async function reconcileReminders(
 	const result: Reconciled = { created: 0, moved: 0, cancelled: 0 };
 	const wantKeys = new Set<string>();
 	const bump = { version: sql`${reminder.version} + 1`, updatedAt: sql`now()` };
-	const set = (id: string, values: Partial<typeof reminder.$inferInsert>) =>
+	const set = (id: string, version: number, values: Partial<typeof reminder.$inferInsert>) =>
 		tx
 			.update(reminder)
 			.set({ ...values, ...bump })
-			.where(and(eq(reminder.userId, userId), eq(reminder.id, id)));
+			.where(
+				and(
+					eq(reminder.userId, userId),
+					eq(reminder.id, id),
+					// Only a system reminder, and only the version that was read: a row someone else changed meanwhile is left alone
+					eq(reminder.origin, 'system'),
+					eq(reminder.version, version)
+				)
+			);
 
 	for (const d of wanted) {
 		wantKeys.add(d.refKey);
 		const ex = have.get(d.refKey);
 		if (!ex) {
-			await tx.insert(reminder).values({
-				userId,
-				kind: d.kind,
-				refKey: d.refKey,
-				title: d.title,
-				remindAt: d.remindAt,
-				origin: 'system'
-			});
-			result.created++;
+			// A row with the same key made meanwhile (or by hand) is kept as it is
+			const made = await tx
+				.insert(reminder)
+				.values({
+					userId,
+					kind: d.kind,
+					refKey: d.refKey,
+					title: d.title,
+					remindAt: d.remindAt,
+					origin: 'system'
+				})
+				.onConflictDoNothing({ target: [reminder.userId, reminder.refKey] })
+				.returning({ id: reminder.id });
+			if (made.length > 0) result.created++;
 			continue;
 		}
 		const shift = d.remindAt.getTime() - ex.remindAt.getTime();
@@ -238,14 +254,16 @@ export async function reconcileReminders(
 			(ex.status === 'sent' && shift >= RESEND_AFTER_MS) ||
 			(ex.status === 'dismissed' && Math.abs(shift) > DISMISS_STICKS_MS)
 		) {
-			await set(ex.id, { status: 'scheduled', remindAt: d.remindAt, title: d.title });
+			await set(ex.id, ex.version, { status: 'scheduled', remindAt: d.remindAt, title: d.title });
 			result.moved++;
 		}
 	}
 	// Whatever no longer needs action is closed: one whose time has passed counts as sent, the rest are cancelled
 	for (const ex of existing)
 		if (!wantKeys.has(ex.refKey) && ex.status === 'scheduled') {
-			await set(ex.id, { status: ex.remindAt.getTime() <= now.getTime() ? 'sent' : 'cancelled' });
+			await set(ex.id, ex.version, {
+				status: ex.remindAt.getTime() <= now.getTime() ? 'sent' : 'cancelled'
+			});
 			result.cancelled++;
 		}
 	return result;

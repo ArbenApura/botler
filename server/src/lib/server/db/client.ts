@@ -42,12 +42,24 @@ export function createPostgres(options: {
 	ownerUrl: string;
 	/** Left out, the role is switched in each transaction when there is no runtime URL. Set false when the one URL already logs in as the runtime role. */
 	switchRole?: boolean;
-	/** Connections the pool may hold. */
+	/** Connections the runtime pool may hold. Default 10. */
 	poolMax?: number;
+	/** How long a request waits for a free connection before it fails loudly (a full pool). Default 10 seconds. */
+	connectionTimeoutMs?: number;
 }): DbHandle {
-	const ownerPool = new pg.Pool({ connectionString: options.ownerUrl, max: options.poolMax ?? 2 });
+	const wait = options.connectionTimeoutMs ?? 10_000;
+	// A full pool fails after `wait` instead of queueing for ever behind a stuck connection
+	const ownerPool = new pg.Pool({
+		connectionString: options.ownerUrl,
+		max: options.poolMax ?? 2,
+		connectionTimeoutMillis: wait
+	});
 	const runtimePool = options.runtimeUrl
-		? new pg.Pool({ connectionString: options.runtimeUrl, max: options.poolMax ?? 10 })
+		? new pg.Pool({
+				connectionString: options.runtimeUrl,
+				max: options.poolMax ?? 10,
+				connectionTimeoutMillis: wait
+			})
 		: ownerPool;
 	// An idle connection that Postgres closes emits an error event. Without a listener it would crash the process
 	for (const pool of new Set([ownerPool, runtimePool]))

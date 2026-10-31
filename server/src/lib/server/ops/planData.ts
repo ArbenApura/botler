@@ -6,7 +6,7 @@
 
 // -- TYPES -- //
 import type { Tx } from '../db/client';
-import type { PlanData, PlanRule } from '../../finance/planFlows';
+import type { PlanData, PlanRule, RecordedIncome } from '../../finance/planFlows';
 import type { Schedule } from '../../finance/schedule';
 import type { SettledStretch } from '../../finance/billWindows';
 import type { RatesStatus } from '../fx/store';
@@ -15,6 +15,7 @@ import type { SettingsView } from './settings';
 import { and, eq, gte, inArray, isNull } from 'drizzle-orm';
 // -- MODULES -- //
 import { toManilaDate } from '../../finance/dates';
+import { ruleTargetIsLive } from '../../finance/rules';
 import {
 	account,
 	allocationRule,
@@ -23,7 +24,8 @@ import {
 	billPayment,
 	goal,
 	incomeSchedule,
-	ledgerTxn
+	ledgerTxn,
+	splitPlan
 } from '../db/schema';
 import { loadRates } from '../fx/store';
 import { estimatesOf } from './bills';
@@ -97,17 +99,29 @@ export async function loadPlan(
 		.from(goal)
 		.where(and(eq(goal.userId, userId), eq(goal.active, true)));
 	const live = new Set(goals.map((g) => g.id));
-	// A rule on a switched-off goal is left out, as the payday split leaves it out, so the moves are the same ones
+	// A rule on a switched-off goal or into a hidden account is left out, through the same filter the payday split uses, so every view
+	// of the plan makes the same moves
+	const targets = {
+		liveGoals: live,
+		hiddenAccounts: new Set(accounts.filter((a) => a.archivedAt !== null).map((a) => a.id))
+	};
 	const ruleRows = (
 		await tx
 			.select()
 			.from(allocationRule)
 			.where(and(eq(allocationRule.userId, userId), eq(allocationRule.status, 'active')))
-	).filter((r) => !r.targetGoalId || live.has(r.targetGoalId));
+	).filter((r) => ruleTargetIsLive(toRule(r).target, targets));
 	const incomeDays = new Set<string>();
-	if (opts.incomeSince)
-		for (const r of await tx
-			.select({ accountId: ledgerTxn.accountId, occurredAt: ledgerTxn.occurredAt })
+	const incomeRecords: RecordedIncome[] = [];
+	if (opts.incomeSince) {
+		const recorded = await tx
+			.select({
+				accountId: ledgerTxn.accountId,
+				occurredAt: ledgerTxn.occurredAt,
+				amount: ledgerTxn.amount,
+				currency: ledgerTxn.currency,
+				splitId: ledgerTxn.splitId
+			})
 			.from(ledgerTxn)
 			.where(
 				and(
@@ -116,8 +130,31 @@ export async function loadPlan(
 					isNull(ledgerTxn.voidedAt),
 					gte(ledgerTxn.occurredAt, opts.incomeSince)
 				)
-			))
-			incomeDays.add(`${r.accountId}|${toManilaDate(r.occurredAt)}`);
+			);
+		// An entry a split wrote belongs to that split's income schedule
+		const splitIds = [...new Set(recorded.flatMap((r) => (r.splitId ? [r.splitId] : [])))];
+		const scheduleOf = new Map(
+			splitIds.length === 0
+				? []
+				: (
+						await tx
+							.select({ id: splitPlan.id, incomeScheduleId: splitPlan.incomeScheduleId })
+							.from(splitPlan)
+							.where(and(eq(splitPlan.userId, userId), inArray(splitPlan.id, splitIds)))
+					).map((p) => [p.id, p.incomeScheduleId] as const)
+		);
+		for (const r of recorded) {
+			const date = toManilaDate(r.occurredAt);
+			incomeDays.add(`${r.accountId}|${date}`);
+			incomeRecords.push({
+				accountId: r.accountId,
+				date,
+				amount: r.amount,
+				currency: r.currency,
+				scheduleId: r.splitId ? (scheduleOf.get(r.splitId) ?? null) : null
+			});
+		}
+	}
 
 	const day = (d: Date) => toManilaDate(d);
 	const plan: PlanData = {
@@ -167,7 +204,8 @@ export async function loadPlan(
 		})),
 		overrides,
 		settled,
-		incomeDays
+		incomeDays,
+		incomeRecords
 	};
 	return { settings, status, plan, accounts };
 }

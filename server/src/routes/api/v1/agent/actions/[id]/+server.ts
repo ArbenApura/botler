@@ -15,11 +15,20 @@ export const POST: RequestHandler = async ({ locals, request, params }) => {
 	const c = await callerCtx(locals, request);
 	if ('response' in c) return c.response;
 	try {
-		const body = (await readJson(request)) as { decision?: unknown };
-		if (body.decision !== 'approve' && body.decision !== 'reject')
+		const body = await readJson(request);
+		// A body of null, a list or a bare value is a bad request, not a crash
+		if (!body || typeof body !== 'object' || Array.isArray(body))
+			throw new OpsError('INVALID', 'The request body must be a JSON object');
+		if (
+			(body as { decision?: unknown }).decision !== 'approve' &&
+			(body as { decision?: unknown }).decision !== 'reject'
+		)
 			throw new OpsError('INVALID', 'decision must be "approve" or "reject"');
 		return json({
-			action: await decideAction(c.ctx, { actionId: params.id, decision: body.decision })
+			action: await decideAction(c.ctx, {
+				actionId: params.id,
+				decision: (body as { decision: 'approve' | 'reject' }).decision
+			})
 		});
 	} catch (e) {
 		return fail(e);

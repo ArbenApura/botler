@@ -4,7 +4,7 @@
 // -- TYPES -- //
 import type { RuleBase, RuleMode } from './rules';
 // -- MODULES -- //
-import { CURRENCIES, currencyOf, DEFAULT_CURRENCY } from './currency';
+import { CURRENCIES, currencyOf, DEFAULT_CURRENCY, parseDecimalText } from './currency';
 
 // -- TYPES -- //
 
@@ -154,11 +154,11 @@ const AMOUNT_PREFIXES = [
 			: escapeToken(t);
 		return (letters ? '(?<![A-Za-z])' : '') + body;
 	});
-// Group 1 is the symbol or code that was written, 2 the whole part, 3 the decimals, 4 the "k"
+// Group 1 is the symbol or code that was written, 2 the number as written (commas and the decimal mark kept), 3 the "k"
 const AMOUNT_RE = new RegExp(
 	'(?:(' +
 		AMOUNT_PREFIXES.join('|') +
-		')|\\b[pP](?=\\d))?\\s?(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d{1,3}))?\\s?([kK]\\b)?',
+		')|\\b[pP](?=\\d))?\\s?((?<!\\d[.,]?)\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?(?![\\d]|[.,]\\d)|(?<!\\d[.,]?)\\d+(?:[.,]\\d+)?(?![\\d]|[.,]\\d))\\s?([kK]\\b)?',
 	'g'
 );
 
@@ -174,12 +174,12 @@ const CURRENCY_OF_TOKEN = new Map(
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Minor units of what was read. A zero digit currency (yen) has no fraction, so a decimal part is dropped. */
-function toMinor(whole: string, frac: string | undefined, k: boolean, digits: 0 | 2 | 3): number {
-	const major = Number(whole.replaceAll(',', ''));
-	if (digits === 0) return major * (k ? 1000 : 1);
-	const minor = frac ? Number(frac.slice(0, digits).padEnd(digits, '0')) : 0;
-	return (major * 10 ** digits + minor) * (k ? 1000 : 1);
+/** Minor units of what was read, or null when the number does not fit the currency (extra decimals, "1,250" in a three digit currency, too large). */
+function toMinor(raw: string, k: boolean, digits: 0 | 2 | 3): number | null {
+	const minor = parseDecimalText(raw, digits);
+	if (minor === null) return null;
+	const scaled = k ? minor * 1000 : minor;
+	return Number.isSafeInteger(scaled) ? scaled : null;
 }
 
 /** The category a note most likely belongs to. */
@@ -210,7 +210,7 @@ export function parseExpenseText(
 	// A symbol or code in front of the number names the currency; without one the number is in the currency the caller passes
 	const written = last?.[1] ? (CURRENCY_OF_TOKEN.get(last[1].toLowerCase()) ?? null) : null;
 	const digits = currencyOf(written ?? currency).digits;
-	const amount = last ? toMinor(last[2] as string, last[3], Boolean(last[4]), digits) : null;
+	const amount = last ? toMinor(last[2] as string, Boolean(last[3]), digits) : null;
 	const account = findName(
 		text,
 		accountNames.map((name) => ({ name }))
@@ -239,16 +239,18 @@ export function parseRuleText(
 ): ParsedRule {
 	const digits = currencyOf(currency).digits;
 	const said = text.trim();
-	const rest = /\b(the )?rest\b|\beverything else\b|\bwhatever is left\b/i.test(said);
-	const pct = /(\d+(?:\.\d+)?)\s?(%|percent\b)/i.exec(said);
 	const target = findName(said, targets);
 	if (!target) return { ok: false, reason: 'I could not tell which account or goal you mean.' };
+	// The target's own name is taken out first, so "Rest and travel" or "50% club" is a name and not the rest rule or a share
+	const withoutName = said.replace(new RegExp(escapeRe(target.name), 'i'), ' ');
+	const rest = /\b(the )?rest\b|\beverything else\b|\bwhatever is left\b/i.test(withoutName);
+	const pct = /(\d+(?:\.\d+)?)\s?(%|percent\b)/i.exec(withoutName);
 	const t = { kind: target.kind, id: target.id };
 	if (pct && !rest) {
 		const bp = Math.round(Number(pct[1]) * 100);
 		if (bp <= 0 || bp > 10_000)
 			return { ok: false, reason: 'A share must be above 0% and at most 100%.' };
-		const base: RuleBase = /\b(left|remaining|after)\b/i.test(said) ? 'remaining' : 'pay';
+		const base: RuleBase = /\b(left|remaining|after)\b/i.test(withoutName) ? 'remaining' : 'pay';
 		return {
 			ok: true,
 			mode: 'percent',
@@ -270,7 +272,6 @@ export function parseRuleText(
 			label: target.name
 		};
 	// The amount is the number that is not part of the target's own name
-	const withoutName = said.replace(new RegExp(escapeRe(target.name), 'i'), ' ');
 	const amounts = [...withoutName.matchAll(AMOUNT_RE)];
 	const a = amounts.at(-1);
 	if (!a || rest || pct)
@@ -278,7 +279,8 @@ export function parseRuleText(
 			ok: false,
 			reason: 'Say it as an amount, a percentage or "the rest", then where it goes.'
 		};
-	const amount = toMinor(a[2] as string, a[3], Boolean(a[4]), digits);
+	const amount = toMinor(a[2] as string, Boolean(a[3]), digits);
+	if (amount === null) return { ok: false, reason: 'I could not read that amount.' };
 	if (amount <= 0) return { ok: false, reason: 'The amount must be above zero.' };
 	return {
 		ok: true,

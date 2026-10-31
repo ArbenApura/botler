@@ -7,3 +7,5 @@ static
 coverage
 test-results
 cli
+src/lib/server/db/migrations/meta
+.embed-cache

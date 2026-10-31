@@ -2,6 +2,7 @@
 import type { RequestHandler } from './$types';
 // -- MODULES -- //
 import { callerCtx, fail, json, readJson } from '#lib/server/api/http.js';
+import { OpsError } from '#lib/server/ops/context.js';
 import { listDevices, registerDevice, unregisterDevice } from '#lib/server/ops/devices.js';
 
 // -- FUNCTIONS -- //
@@ -22,8 +23,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const c = await callerCtx(locals, request);
 	if ('response' in c) return c.response;
 	try {
-		const input = (await readJson(request)) as Parameters<typeof registerDevice>[1];
-		return json({ device: await registerDevice(c.ctx, input) }, 201);
+		const input = await readJson(request);
+		// A body of null, a list or a bare value is a bad request, not a crash
+		if (!input || typeof input !== 'object' || Array.isArray(input))
+			throw new OpsError('INVALID', 'The request body must be a JSON object');
+		return json(
+			{ device: await registerDevice(c.ctx, input as Parameters<typeof registerDevice>[1]) },
+			201
+		);
 	} catch (e) {
 		return fail(e);
 	}

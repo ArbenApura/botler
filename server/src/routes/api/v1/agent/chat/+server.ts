@@ -28,11 +28,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if ('response' in c) return c.response;
 	let events: AsyncGenerator<unknown>;
 	let first: IteratorResult<unknown>;
+	// The phone closing the stream stops the message too, not only a dropped request
+	const stopTurn = new AbortController();
 	try {
 		const body = await readJson(request, CHAT_BODY_MAX);
 		events = handleChat(c.ctx, body, {
 			model: getModelClient(),
-			signal: request.signal,
+			signal: AbortSignal.any([request.signal, stopTurn.signal]),
 			web: webDeps(),
 			provider: getProviderOf(),
 			historyTokens: HISTORY_TOKENS,
@@ -78,6 +80,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		},
 		cancel() {
+			stopTurn.abort();
 			stop();
 			void events.return(undefined);
 		}

@@ -1,8 +1,9 @@
 // THE CALENDAR READ MODEL (BTL-20261022-0218, ADR 4): EVERYTHING DATED IN A RANGE OF DAYS, AND AN ESTIMATE OF WHAT EACH ACCOUNT WILL HOLD
 // One verb for the app's month, week and agenda views and for the assistant. It reads and changes nothing. Bills come as payment windows, paydays
 // as single days, routines as their next moments, events as they are.
-// The forecast starts from today's real balances, takes off the unpaid bills on the last day of their window and adds the expected pay on
-// payday. It is an estimate and says so: a variable bill with no estimate yet counts as zero and is reported.
+// The forecast is the one of cashflow_forecast (finance/planFlows.ts over today's wallets): it takes off the unpaid bills (late ones up to 31
+// days, today) on the last day of their window and adds the expected pay on payday, today's included unless it is recorded. It is an estimate
+// and says so: a variable bill with no estimate yet counts as zero and is reported.
 
 // -- TYPES -- //
 import type { Ctx } from './context';
@@ -10,29 +11,21 @@ import type { CalendarRangeInput } from '../db/zod';
 import type { Schedule } from '../../finance/schedule';
 import type { Recurrence } from '../../schedule/recurrence';
 import type { ManilaDate } from '../../finance/dates';
+import type { ForecastFlow, ForecastWallet } from '../../finance/forecast';
 // -- DEP-MODULES -- //
-import { and, eq, gte, isNull, lte, ne } from 'drizzle-orm';
+import { and, eq, gt, gte, isNull, lt, ne, or } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
-import { canConvert, convertUp } from '../../finance/fx';
+import { forecast } from '../../finance/forecast';
+import { placeBills, planFlows } from '../../finance/planFlows';
 import { occurrencesBetween } from '../../finance/schedule';
 import { recurrenceOccurrences } from '../../schedule/recurrence';
-import {
-	account,
-	accountWallet,
-	calendarEvent,
-	incomeSchedule,
-	reminder,
-	routine,
-	splitPlan,
-	task
-} from '../db/schema';
+import { calendarEvent, incomeSchedule, reminder, routine, splitPlan, task } from '../db/schema';
 import { calendarRangeInput } from '../db/zod';
 import { OpsError, run } from './context';
 import { dueBills } from './bills';
-import { balanceFor } from './ledger';
-import { loadRates } from '../fx/store';
-import { readSettings } from './settings';
+import { walletBalances } from './ledger';
+import { loadPlan } from './planData';
 import { parse } from './shared';
 
 // -- TYPES -- //
@@ -88,16 +81,18 @@ export type CalendarRange = {
 		accounts: { id: string; name: string; minBalance: number }[];
 		/** Bills in the range with no amount to take off yet. */
 		unknownBills: number;
-		/** Bills in another currency whose exchange rate is not known, so they are not taken off. */
+		/** Bills that could not be taken off: in a currency with no known rate, or on an account with no wallet in the bill's currency. */
 		unconvertedBills: number;
+		/** Currencies held or owed with no exchange rate: left out of every total. */
+		missingRates: string[];
 	};
 };
 
 // -- CONSTANTS -- //
 
 export const LAYERS = ['bills', 'paydays', 'events', 'routines', 'tasks', 'reminders'] as const;
-/** The same lookback the reminders use, so a bill is overdue in the forecast exactly when it is overdue in a reminder. */
-const OVERDUE_LOOKBACK_DAYS = 7;
+/** How far past today the forecast is worked out (the simulation's reach: 5 years). */
+const FORECAST_REACH_DAYS = 1827;
 export const MAX_RANGE_DAYS = 92;
 
 // -- FUNCTIONS -- //
@@ -189,9 +184,9 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					and(
 						eq(calendarEvent.userId, userId),
 						isNull(calendarEvent.deletedAt),
-						// Overlapping the range: starts before it ends and ends after it starts
-						lte(calendarEvent.startsAt, endInstant),
-						gte(calendarEvent.endsAt, startInstant),
+						// Overlapping the range: starts before the next day's first instant, and ends after the range starts (or starts in it)
+						lt(calendarEvent.startsAt, endInstant),
+						or(gt(calendarEvent.endsAt, startInstant), gte(calendarEvent.startsAt, startInstant)),
 						// Bills and paydays Botler put on the calendar are shown by their own layers
 						ne(calendarEvent.source, 'bill'),
 						ne(calendarEvent.source, 'payday')
@@ -246,7 +241,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 						eq(task.userId, userId),
 						eq(task.status, 'open'),
 						gte(task.dueAt, startInstant),
-						lte(task.dueAt, endInstant)
+						lt(task.dueAt, endInstant)
 					)
 				);
 			for (const t of tasks)
@@ -273,7 +268,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 						eq(reminder.status, 'scheduled'),
 						ne(reminder.origin, 'system'),
 						gte(reminder.remindAt, startInstant),
-						lte(reminder.remindAt, endInstant)
+						lt(reminder.remindAt, endInstant)
 					)
 				);
 			for (const r of reminders)
@@ -290,89 +285,95 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 		items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.title < b.title ? -1 : 1));
 
 		// -- THE FORECAST -- //
-		// The forecast is a money plan view, so it is in the main currency: an account with no wallet in it has nothing to forecast
-		const main = (await readSettings(tx, userId)).currency;
-		const withMain = new Set(
-			(
-				await tx
-					.select({ id: accountWallet.accountId })
-					.from(accountWallet)
-					.where(and(eq(accountWallet.userId, userId), eq(accountWallet.currency, main)))
-			).map((w) => w.id)
-		);
-		const accounts = (
-			await tx
-				.select({ id: account.id, name: account.name, minBalance: account.minBalance })
-				.from(account)
-				.where(and(eq(account.userId, userId), isNull(account.archivedAt)))
-		).filter((a) => withMain.has(a.id));
+		// The same engine as cashflow_forecast and the simulation: the plan's flows (finance/planFlows.ts, future mode) over today's wallets, with
+		// every rule that rests on a hidden account or a switched-off goal already left out (ops/planData.ts). Wallets of other currencies are
+		// forecast in their own currency and converted at the stored rates for the total; a currency with no rate is named, never counted as zero.
+		const loaded = await loadPlan(tx, userId, { now, incomeSince: manilaStart(today) });
+		const main = loaded.settings.currency;
+		const activeAccounts = loaded.accounts.filter((a) => a.archivedAt === null);
+		const { order, balances: walletNow } = await walletBalances(tx, userId, activeAccounts, now);
+		// The minimum balance is judged in the main currency: an account with no wallet in it has nothing to judge or forecast
+		const accounts = activeAccounts
+			.filter((a) => (order.get(a.id) ?? []).includes(main))
+			.map((a) => ({ id: a.id, name: a.name, minBalance: a.minBalance }));
 		const days: ForecastDay[] = [];
 		let unknownBills = 0;
 		let unconvertedBills = 0;
-		const rates = await loadRates(tx);
+		const missing = new Set<string>();
 		const first = from > today ? from : today;
-		if (first <= to && accounts.length > 0) {
-			const balances = new Map<string, number>();
-			for (const a of accounts)
-				balances.set(a.id, (await balanceFor(tx, userId, a.id, main, now)).balance);
-			// Bills the range does not show, still unpaid and past due, come off today
-			const overdue = (
-				await dueBills(tx, userId, addDays(today, -OVERDUE_LOOKBACK_DAYS), addDays(today, -1))
-			).filter((b) => !b.paid);
-			const ahead = await dueBills(tx, userId, first, to);
-			const unpaid = [
-				...overdue.map((b) => ({ ...b, dueDate: today })),
-				...ahead.filter((b) => !b.paid)
-			];
-			const unknown = new Set<string>();
-			const delta = new Map<ManilaDate, Map<string, number>>();
-			const add = (date: ManilaDate, accountId: string, amount: number) => {
-				const m = delta.get(date) ?? new Map<string, number>();
-				m.set(accountId, (m.get(accountId) ?? 0) + amount);
-				delta.set(date, m);
-			};
-			for (const b of unpaid) {
-				if (b.amount === null) unknown.add(`${b.billId}|${b.dueDate}`);
-				// A bill in another currency comes off in the main currency at the stored rate, rounded up so the forecast is never too rosy
-				else if (b.currency !== main) {
-					if (canConvert(b.currency, main, rates.rates))
-						add(b.dueDate, b.accountId, -convertUp(b.amount, b.currency, main, rates.rates));
-					else unconvertedBills++;
-				} else add(b.dueDate, b.accountId, -b.amount);
-			}
-			// Expected pay arrives on payday, after today (today's is assumed recorded already)
-			const futurePaydays = await Promise.all(
-				incomes.map(async (inc) => ({
-					inc,
-					dates: occurrencesBetween(inc.schedule as Schedule, addDays(today, 1), to, {
-						weekend: inc.weekendRule
-					})
-				}))
+		if (first <= to && diffDays(to, today) < FORECAST_REACH_DAYS && activeAccounts.length > 0) {
+			const wallets: ForecastWallet[] = [];
+			for (const a of activeAccounts)
+				for (const currency of order.get(a.id) ?? [])
+					wallets.push({
+						accountId: a.id,
+						accountName: a.name,
+						currency,
+						balance: walletNow.get(`${a.id}|${currency}`)?.balance ?? 0
+					});
+			const mainNow = new Map(
+				wallets.filter((w) => w.currency === main).map((w) => [w.accountId, w.balance])
 			);
-			for (const { inc, dates } of futurePaydays)
-				for (const d of dates) if (inc.expectedAmount) add(d, inc.accountId, inc.expectedAmount);
-			unknownBills = unknown.size;
-			const span = diffDays(to, first);
-			for (let i = 0; i <= span; i++) {
-				const d = addDays(first, i);
-				for (const [accountId, amount] of delta.get(d) ?? [])
-					balances.set(accountId, (balances.get(accountId) ?? 0) + amount);
-				if (d < from) continue;
-				let total = 0;
-				const low: string[] = [];
-				for (const a of accounts) {
-					const b = balances.get(a.id) ?? 0;
-					total += b;
-					if (b < a.minBalance) low.push(a.id);
+			const made = planFlows(
+				{
+					...loaded.plan,
+					accounts: loaded.plan.accounts.filter((x) => !x.archived),
+					balances: mainNow
+				},
+				{ mode: 'future', from: today, to, today }
+			);
+			// Bills go on the wallets that exist (finance/planFlows.ts placeBills); one that has none to be paid from is counted, not dropped
+			const placed = placeBills(made.flows, wallets, main, loaded.status.rates);
+			const flows: ForecastFlow[] = placed.flows.map(
+				({ origin: _origin, refId: _refId, ...flow }) => flow
+			);
+			unconvertedBills = placed.unplaced.filter((x) => x.date >= first).length;
+			for (const c of placed.unrated) missing.add(c);
+			unknownBills = made.unknown.filter((u) => u.kind === 'bill' && u.date >= first).length;
+			const result = forecast({
+				from: today,
+				to,
+				group: 'day',
+				weekStart: loaded.settings.weekStartsOn,
+				main,
+				rates: loaded.status.rates,
+				wallets,
+				flows,
+				limits: {
+					maxDays: FORECAST_REACH_DAYS,
+					maxDailyDays: FORECAST_REACH_DAYS,
+					maxWeeklyDays: FORECAST_REACH_DAYS
 				}
-				days.push({ date: d, total, lowAccountIds: low });
+			});
+			// The main currency balance of each listed account, moved day by day by the wallets that changed
+			const running = new Map(
+				wallets.filter((w) => w.currency === main).map((w) => [w.accountId, w.balance])
+			);
+			for (const p of result.periods) {
+				for (const w of p.wallets) if (w.currency === main) running.set(w.accountId, w.end);
+				if (p.from < from) continue;
+				days.push({
+					date: p.from,
+					total: p.endTotal,
+					lowAccountIds: accounts
+						.filter((a) => (running.get(a.id) ?? 0) < a.minBalance)
+						.map((a) => a.id)
+				});
 			}
+			for (const c of result.missing) missing.add(c);
 		}
 		return {
 			from,
 			to,
 			items,
-			forecast: { estimate: true as const, days, accounts, unknownBills, unconvertedBills }
+			forecast: {
+				estimate: true as const,
+				days,
+				accounts,
+				unknownBills,
+				unconvertedBills,
+				missingRates: [...missing].sort()
+			}
 		};
 	});
 }

@@ -143,6 +143,17 @@ describe('income_delete', () => {
 		expect(done).toMatchObject({ deleted: false, switchedOff: true });
 		expect((await listIncome(f.ctx))[0]).toMatchObject({ active: false });
 	});
+
+	it('returns the splits it removes when asked to remove them too', async () => {
+		const f = await seedPerson(t);
+		await proposeSplitPlan(w(f), { incomeScheduleId: f.incomeId });
+		const done = (await invokeVerb(agentOf(f), 'income_delete', {
+			incomeId: f.incomeId,
+			withSplits: true
+		})) as { deleted: boolean; removedSplits: unknown[] };
+		expect(done.deleted).toBe(true);
+		expect(done.removedSplits).toHaveLength(1);
+	});
 });
 
 describe('rule_delete', () => {

@@ -244,23 +244,58 @@ export function plainAmount(minor: number, code: string = DEFAULT_CURRENCY): str
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * What a person typed ("180", "1,250.50", "$ 90", "usd 5") as minor units, or null when it is not an amount of this currency.
- * A currency with no decimals refuses a decimal point. Never goes through a float.
+ * The number part of an amount ("1,250.50", "12,50", "180") as minor units of a currency with this many decimals.
+ * A lone comma followed by exactly the currency's decimals is a decimal mark; commas in groups of three are thousands;
+ * a text that fits both readings, extra decimals, or a number beyond the safe range is null. Never goes through a float.
+ */
+export function parseDecimalText(raw: string, digits: number): number | null {
+	let whole: string;
+	let frac = '';
+	if (!raw.includes(',')) {
+		const m = /^(\d+)(?:\.(\d+))?$/.exec(raw);
+		if (!m) return null;
+		whole = m[1] as string;
+		frac = m[2] ?? '';
+	} else if (raw.includes('.')) {
+		// A dot and commas: the commas are thousands and the dot is the decimal mark
+		const m = /^(\d{1,3}(?:,\d{3})+)\.(\d+)$/.exec(raw);
+		if (!m) return null;
+		whole = (m[1] as string).replaceAll(',', '');
+		frac = m[2] as string;
+	} else {
+		const parts = raw.split(',');
+		if (parts.length > 2) {
+			if (!/^\d{1,3}(?:,\d{3})+$/.test(raw)) return null;
+			whole = parts.join('');
+		} else {
+			const [a, b] = parts as [string, string];
+			if (!/^\d+$/.test(a) || !/^\d+$/.test(b)) return null;
+			const asThousands = a.length <= 3 && b.length === 3;
+			const asDecimal = digits > 0 && b.length === digits;
+			// Both readings fit (1,250 in a three digit currency): refuse instead of guessing
+			if (asThousands && asDecimal) return null;
+			if (asThousands) whole = a + b;
+			else if (asDecimal) {
+				whole = a;
+				frac = b;
+			} else return null;
+		}
+	}
+	// More decimals than the currency has are never cut off
+	if (frac.length > digits) return null;
+	const minor = Number(whole + frac.padEnd(digits, '0'));
+	return isMinorAmount(minor) ? minor : null;
+}
+
+/**
+ * What a person typed ("180", "1,250.50", "12,50", "$ 90", "usd 5") as minor units, or null when it is not an amount of this currency.
+ * A currency with no decimals refuses a decimal part. Never goes through a float.
  */
 export function parseMoney(text: string, code: string = DEFAULT_CURRENCY): number | null {
 	const c = currencyOf(code);
 	const prefix = new RegExp(`^(?:${escapeRe(c.symbol.trim())}|${c.code})`, 'i');
-	const cleaned = text.trim().replace(prefix, '').replace(/[\s,]/g, '');
-	const m = (c.digits === 0 ? /^(\d+)$/ : new RegExp(`^(\\d+)(?:\\.(\\d{1,${c.digits}}))?$`)).exec(
-		cleaned
-	);
-	if (!m) return null;
-	const whole = Number(m[1]);
-	const minor =
-		c.digits === 0
-			? whole
-			: whole * 10 ** c.digits + Number((m[2] ?? '').padEnd(c.digits, '0') || '0');
-	return isMinorAmount(minor) ? minor : null;
+	const cleaned = text.trim().replace(prefix, '').replace(/\s/g, '');
+	return parseDecimalText(cleaned, c.digits);
 }
 
 /** The size of a balance change that must be confirmed, in this currency's minor units (2,000 pesos worth). */

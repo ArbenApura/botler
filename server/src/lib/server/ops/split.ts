@@ -17,7 +17,8 @@ import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
 import { canConvert, convertUp, showRate } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
-import { fundingAt, planFlows } from '../../finance/planFlows';
+import { fundingAt, planFlows, recordedPays } from '../../finance/planFlows';
+import { ruleTargetIsLive } from '../../finance/rules';
 import { proposeSplit } from '../../finance/split';
 import { account, allocationRule, goal, incomeSchedule, ledgerTxn, splitPlan } from '../db/schema';
 import { splitApproveInput, splitDeleteInput, splitProposeInput, splitSentInput } from '../db/zod';
@@ -126,11 +127,8 @@ export async function proposeSplitPlan(
 		// would have taken goes where unclaimed pay always goes, and the plan says which rule was skipped
 		// A rule into an account the person hid is left out the same way, so money never goes to an account they no longer see
 		const hidden = new Set(accounts.filter((a) => a.archivedAt !== null).map((a) => a.id));
-		const rules = inForce.filter(
-			(r) =>
-				(!r.targetGoalId || live.has(r.targetGoalId)) &&
-				(!r.targetAccountId || !hidden.has(r.targetAccountId))
-		);
+		const targets = { liveGoals: live, hiddenAccounts: hidden };
+		const rules = inForce.filter((r) => ruleTargetIsLive(toRule(r).target, targets));
 		// What the split may take from money already in the accounts, and the rules that save for bills: the plan's own flows from today to
 		// the day before this payday give each account's balance at its start, as the forecast does
 		const now = new Date();
@@ -142,8 +140,9 @@ export async function proposeSplitPlan(
 					a.id,
 					(await balanceFor(tx, userId, a.id, loaded.settings.currency, now)).balance
 				);
-		// A pay already in the balance (recorded today, or a payday in the past) is this split's own money: it never pays its bills twice
-		if (payday < today || loaded.plan.incomeDays.has(`${inc.accountId}|${today}`))
+		// A pay already in the balance (a payday in the past, or this income's pay recorded today) is this split's own money: it never pays its
+		// bills twice. For a payday still ahead, what was recorded today is real money in the account and stays.
+		if (payday < today || (payday === today && recordedPays(loaded.plan, today).has(inc.id)))
 			balances.set(inc.accountId, 0);
 		const plan = {
 			...loaded.plan,
@@ -444,7 +443,11 @@ export async function approveSplit(
 							category: 'income',
 							note: 'Pay',
 							source: 'split',
-							splitId: plan.id
+							splitId: plan.id,
+							// A split for a day gone by records its pay on that day (midday in Manila), not now
+							...(plan.payday < today
+								? { occurredAt: new Date(manilaStart(plan.payday).getTime() + 12 * 3_600_000) }
+								: {})
 						},
 						{ journal: false }
 					);

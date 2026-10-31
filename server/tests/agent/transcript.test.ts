@@ -5,9 +5,7 @@ import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
 	buildHistory,
-	capReasoning,
 	readTranscript,
-	REASONING_CHARS,
 	replayRounds,
 	RESULT_CHARS,
 	shortenResult,
@@ -56,8 +54,18 @@ describe('what is kept', () => {
 		expect(JSON.parse(stub)).toMatchObject({ untrusted: true, source: 'calendar_events' });
 	});
 
-	it('caps the thinking', () => {
-		expect(capReasoning('t'.repeat(REASONING_CHARS + 50))).toHaveLength(REASONING_CHARS);
+	it('reads old rows without the thinking they carry, and replays them to DeepSeek without it', () => {
+		// Rows written before thinking stopped being stored still have the field: it is dropped on the way in
+		const read = readTranscript(rounds('deepseek'));
+		expect(read?.[0]).not.toHaveProperty('reasoning_content');
+		// A DeepSeek round with no thinking is replayed like any other: it is no longer a reason to fall back to text
+		const bare = readTranscript([
+			{ role: 'assistant', content: null, provider: 'deepseek', tool_calls: [call('c1')] },
+			{ role: 'tool', tool_call_id: 'c1', content: 'r' }
+		])!;
+		const replayed = replayRounds(bare, 'deepseek');
+		expect(replayed).toHaveLength(2);
+		expect(JSON.stringify(replayed)).not.toContain('reasoning_content');
 	});
 
 	it('reads back only what has the shape it wrote', () => {
@@ -78,7 +86,8 @@ describe('what comes back', () => {
 		expect(replayRounds(a, 'deepseek')).toBeNull();
 		expect(replayRounds(a, undefined)).toBeNull();
 		const d = readTranscript(rounds('deepseek'))!;
-		expect(replayRounds(d, 'deepseek')?.[0]).toMatchObject({ reasoning_content: 'thought' });
+		expect(replayRounds(d, 'deepseek')).toHaveLength(2);
+		expect(JSON.stringify(replayRounds(d, 'deepseek'))).not.toContain('thought');
 		expect(replayRounds(d, 'anthropic')).toBeNull();
 	});
 
