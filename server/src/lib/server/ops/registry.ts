@@ -99,6 +99,7 @@ import {
 	calendarRangeInput,
 	pictureGetInput,
 	markFromPhotoInput,
+	markFromWebInput,
 	dataResetInput,
 	dataResetPreviewInput,
 	profileSetInput,
@@ -136,6 +137,7 @@ import {
 import { calendarRange } from './calendarRange';
 import { getPicture } from './picture';
 import { markFromPhoto } from './markPhoto';
+import { markFromWeb } from './markWeb';
 import { previewDataReset, resetData } from './dataReset';
 import { runCalc } from './calc';
 import { cashflowForecast } from './forecast';
@@ -1222,6 +1224,16 @@ export const VERBS: readonly Verb[] = [
 		agentOmit: ['imageData'],
 		agentStrict: true,
 		run: (ctx, a) => markFromPhoto(ctx, a)
+	}),
+	verb({
+		name: 'mark_from_web',
+		kind: 'gated',
+		description:
+			'Make the picture of an account or a bill from a logo found on the web, when the person asks you to find an icon or logo for it (for example "find an icon for my RCBC account"). It always becomes a card the person approves in the app: their phone downloads the candidates itself, trims and fits them, shows them, and the person picks one and can zoom or move it before approving; you never get the picture. name is the exact name of the account or bill. domain is the site of the organisation, without https:// (rcbc.com): the phone looks for its icon in fixed places, so a correct domain is usually enough. If you are not sure of the domain, use web_search first. urls (at most 4) are optional plain https addresses of logo pictures you found, with no query string. fit contain (the default) keeps the whole logo, cover fills the badge. If the person asks for another logo, call this again with a different domain or addresses. Say in one short line what you looked for. Do not say it is done until they approve.',
+		input: markFromWebInput,
+		agentOmit: ['imageData'],
+		agentStrict: true,
+		run: (ctx, a) => markFromWeb(ctx, a)
 	}),
 
 	// -- PERSON ONLY -- //

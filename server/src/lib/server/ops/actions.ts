@@ -42,6 +42,8 @@ type Args = Record<string, unknown>;
 const CARD_LIFETIME_MS = 24 * 3_600_000;
 
 /** Verbs that ask the person to confirm an amount: an approved card is that confirmation. */
+/** The cards whose approval carries a picture the phone made (imageData). */
+const PICTURE_VERBS: ReadonlySet<string> = new Set(['mark_from_photo', 'mark_from_web']);
 const CONFIRMING_VERBS = new Set(['expense_log', 'expense_from_text', 'snapshot_record']);
 
 // -- FUNCTIONS -- //
@@ -194,6 +196,8 @@ export function describeAction(
 				: `Remove one recorded payday split for good${args.removeEntries === true ? ', and take its pay and transfers out of your balances, which changes your account balances' : '. The pay and transfers it wrote to your ledger stay'}. This cannot be undone.`;
 		case 'mark_from_photo':
 			return `Use photo ${num(args.photo) ?? '?'} of your message as the picture of the ${args.target === 'bill' ? 'bill' : 'account'} "${text(args.name, 80)}"${args.fit === 'contain' ? ', keeping the whole part chosen' : ''}. Your phone cuts it and shows the result here; you can zoom or move it before you approve.`;
+		case 'mark_from_web':
+			return `Find a logo for the ${args.target === 'bill' ? 'bill' : 'account'} "${text(args.name, 80)}"${typeof args.domain === 'string' ? ` from ${text(args.domain, 100)}` : ''} and use it as its picture. Your phone downloads the candidates and shows them here; you pick one and can zoom or move it before you approve.`;
 		case 'account_delete':
 			return `Remove the account ${nm(args.accountId)}. If it has entries or balance counts it is hidden instead and its history stays; if a bill, payday, goal or rule still uses it, nothing happens.`;
 		case 'account_wallet_remove':
@@ -499,7 +503,7 @@ export async function decideAction(
 		if (card.expiresAt.getTime() < Date.now()) return settle({ status: 'expired' });
 		if (opts.decision === 'reject') return settle({ status: 'rejected' });
 		// A picture comes only with a card that asks for one: it is never carried by another card
-		if (opts.imageData !== undefined && card.verb !== 'mark_from_photo')
+		if (opts.imageData !== undefined && !PICTURE_VERBS.has(card.verb))
 			throw new OpsError('INVALID', 'This card does not take a picture.');
 		let patch: Partial<typeof agentAction.$inferInsert>;
 		try {
@@ -518,7 +522,7 @@ export async function decideAction(
 							? { acknowledgeLarge: true }
 							: {})
 					}
-				: card.verb === 'mark_from_photo' && opts.imageData !== undefined
+				: PICTURE_VERBS.has(card.verb) && opts.imageData !== undefined
 					? { ...(card.args as Args), imageData: opts.imageData }
 					: card.args;
 			// The assistant asked, the person approved: the audit trail says both

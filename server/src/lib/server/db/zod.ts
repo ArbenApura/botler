@@ -204,6 +204,24 @@ export const markFromPhotoInput = z.strictObject({
 });
 export type MarkFromPhotoInput = z.infer<typeof markFromPhotoInput>;
 
+/**
+ * A request to make the mark of an account or bill from a picture found on the web (BTL-20261031-1334). The assistant names the item and where
+ * its logo lives (a domain and/or up to four https picture addresses); the phone downloads and cuts the candidates, the person picks one and
+ * the phone sends the result with the approval (imageData, the person's alone: the assistant's schema leaves it out).
+ */
+export const markFromWebInput = z.strictObject({
+	target: z.enum(['account', 'bill']),
+	name: z.string().trim().min(1).max(80),
+	/** The organisation's site, such as rcbc.com. The phone looks for its icon in fixed places. */
+	domain: z.string().trim().toLowerCase().min(3).max(100).optional(),
+	/** Plain https addresses of candidate pictures found on the web. */
+	urls: z.array(z.string().trim().min(8).max(300)).max(4).optional(),
+	/** cover fills the badge; contain keeps the whole picture inside it (the default for a logo). */
+	fit: z.enum(['cover', 'contain']).optional(),
+	imageData: z.string().max(PICTURE_MAX_BASE64).optional()
+});
+export type MarkFromWebInput = z.infer<typeof markFromWebInput>;
+
 // -- ACCOUNTS -- //
 
 /** What an account is dedicated to. Short, no run of four or more digits (an account or phone number must not be kept in a label). Null clears it, absent leaves it alone. */

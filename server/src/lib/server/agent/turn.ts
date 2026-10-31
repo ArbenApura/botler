@@ -22,6 +22,7 @@ import type {
 } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
 import type { AgentTool, WebDeps } from './tools';
+import type { DeviceOutcome } from './device';
 import type { TranscriptMessage } from './transcript';
 // -- DEP-MODULES -- //
 import { createHash } from 'node:crypto';
@@ -29,9 +30,11 @@ import { createHash } from 'node:crypto';
 import { createAction } from '../ops/actions';
 import { OpsError } from '../ops/context';
 import { checkMarkFromPhoto } from '../ops/markPhoto';
+import { checkMarkFromWeb } from '../ops/markWeb';
 import { invokeVerb } from '../ops/registry';
 import { defaultSettingsView, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
+import { expectDevice, newCallId, shapeDeviceResult } from './device';
 import { buildMessages, photoTexts } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
 import { shortenResult, untrustedStub } from './transcript';
@@ -45,7 +48,13 @@ export type TurnEvent =
 	| { type: 'pictures'; used: false }
 	| { type: 'phase'; phase: 'thinking' | 'writing' }
 	| { type: 'reasoning'; text: string }
-	| { type: 'tool_start'; id: string; name: string }
+	| {
+			type: 'tool_start';
+			id: string;
+			name: string;
+			/** Only for a tool the phone runs: the call id its answer is posted under, and the arguments. Live only, never stored. */
+			device?: { callId: string; args: Record<string, unknown>; tainted: boolean };
+	  }
 	| { type: 'delta'; text: string }
 	| {
 			type: 'tool';
@@ -109,6 +118,8 @@ export type TurnParams = {
 	now?: Date;
 	tools?: AgentTool[];
 	web?: WebDeps;
+	/** The app can run the tools that run on the phone (scripts, the toolbox). Left out, they are not offered. */
+	device?: boolean;
 	limits?: Partial<typeof LIMITS>;
 };
 
@@ -137,6 +148,10 @@ export const LIMITS = {
 	maxWebReads: 5,
 	/** Deletes the assistant may make in one message before the rest become cards, so one misread message cannot empty the money plan. */
 	maxDeletes: 3,
+	/** Script and toolbox calls in one message: each one keeps the phone busy, so a loop of them cannot run it down. */
+	maxDeviceRuns: 12,
+	/** How long the server waits for the phone to answer a call (a script may run 30 seconds on its own). */
+	deviceTimeoutMs: 45_000,
 	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
 	maxTaintedQueryChars: 80,
 	toolTimeoutMs: 15_000,
@@ -171,6 +186,8 @@ export class TurnState {
 	reads = 0;
 	/** Deletes started in this message: past the limit they wait for the person. */
 	deletes = 0;
+	/** Calls sent to the phone in this message, counted before each is sent. */
+	devices = 0;
 	readonly reasons = new Set<string>();
 	/** How many calls with the same verb and arguments already succeeded in this message, so the second real purchase gets its own request id. */
 	readonly succeeded = new Map<string, number>();
@@ -276,6 +293,68 @@ function capJson(value: unknown, max: number): string {
 		: JSON.stringify({ truncated: true, preview: text.slice(0, max - 80) });
 }
 
+/** A call to the phone that is on its way, or why it was not sent. The wait is registered before the call leaves, and never rejects. */
+type DeviceStart =
+	| { ok: true; callId: string; args: Record<string, unknown>; wait: Promise<DeviceOutcome> }
+	| { ok: false; code: string; message: string; status: Outcome['status'] };
+
+/** Checks a phone tool's arguments, counts the call, registers the wait for its answer. */
+function startDevice(
+	p: TurnParams,
+	limits: typeof LIMITS,
+	state: TurnState,
+	tool: AgentTool,
+	call: ToolCall
+): DeviceStart {
+	let raw: unknown;
+	try {
+		raw = JSON.parse(call.function.arguments || '{}');
+	} catch {
+		return {
+			ok: false,
+			code: 'invalid_arguments',
+			message: 'The arguments were not a JSON object. Call the tool again with valid JSON.',
+			status: 'error'
+		};
+	}
+	const parsed = tool.deviceInput?.safeParse(raw);
+	if (!parsed?.success)
+		return {
+			ok: false,
+			code: 'invalid_arguments',
+			message: parsed?.error.issues[0]?.message ?? 'The arguments do not match the tool.',
+			status: 'error'
+		};
+	// Untrusted text was read in this message: the toolbox cannot be changed now, so text from outside cannot be planted as a saved script
+	if (tool.name === 'toolbox' && state.tainted) {
+		const action = (parsed.data as { action?: string }).action;
+		if (action === 'save' || action === 'delete')
+			return {
+				ok: false,
+				code: 'blocked',
+				message:
+					'Untrusted text was already read in this message, so the toolbox cannot be changed now. Ask the person again in a new message.',
+				status: 'blocked'
+			};
+	}
+	// Counted before the call is sent, so a failed one still counts
+	state.devices += 1;
+	if (state.devices > limits.maxDeviceRuns)
+		return {
+			ok: false,
+			code: 'blocked',
+			message: `At most ${limits.maxDeviceRuns} script and toolbox calls are allowed in one message. Answer with what you have.`,
+			status: 'blocked'
+		};
+	const callId = newCallId();
+	return {
+		ok: true,
+		callId,
+		args: parsed.data as Record<string, unknown>,
+		wait: expectDevice(p.ctx.actor.userId, callId, limits.deviceTimeoutMs, p.signal)
+	};
+}
+
 /** A tool that did not answer in time. Its work may still finish later, so a write must not be repeated blindly. */
 class ToolTimeout extends OpsError {
 	constructor(what: string) {
@@ -324,7 +403,8 @@ async function executeTool(
 	state: TurnState,
 	byName: ReadonlyMap<string, AgentTool>,
 	call: ToolCall,
-	seq: number
+	seq: number,
+	device?: DeviceStart
 ): Promise<Outcome> {
 	const err = (code: string, message: string, status: Outcome['status'] = 'error'): Outcome => ({
 		status,
@@ -361,6 +441,35 @@ async function executeTool(
 		// Hashed so a long client message id cannot cut the rest off: 2 + 40 + 1 + 12 + 1 + digits stays far under 80 characters
 		requestId: `t-${createHash('sha256').update(p.turnKey).digest('hex').slice(0, 40)}-${callHash}-${sameBefore}`
 	};
+
+	// -- THE PHONE -- //
+	if (tool.kind === 'device') {
+		if (!device) return err('unavailable', 'That tool is not available here.');
+		if (!device.ok) return err(device.code, device.message, device.status);
+		const outcome = await device.wait;
+		if (outcome.kind === 'timeout') {
+			const message = 'The phone did not answer in time. Keep the Botler app open and ask again.';
+			return {
+				status: 'error',
+				message,
+				forModel: JSON.stringify({
+					error: 'unavailable',
+					message: `${message} Tell the person, and do not try again unless they ask.`
+				})
+			};
+		}
+		if (outcome.kind === 'cancelled') return err('cancelled', 'Stopped.');
+		const shaped = shapeDeviceResult(outcome.result);
+		// The phone says so when the script's folder holds anything written while untrusted text was in a message: its output is then untrusted too
+		if ((shaped as { untrusted?: unknown } | null)?.untrusted === true) state.taint('script');
+		const text = (shaped as { error?: unknown } | null)?.error;
+		return {
+			status: outcome.ok ? 'ok' : 'error',
+			data: shaped,
+			...(!outcome.ok && typeof text === 'string' ? { message: text } : {}),
+			forModel: capJson(shaped, limits.maxResultChars)
+		};
+	}
 
 	// -- WEB -- //
 	if (tool.kind === 'web' && tool.web) {
@@ -439,7 +548,10 @@ async function executeTool(
 			});
 			return {
 				status: 'needs_approval',
-				card: tool.name === 'mark_from_photo' ? { ...card, verb: tool.name } : card,
+				card:
+					tool.name === 'mark_from_photo' || tool.name === 'mark_from_web'
+						? { ...card, verb: tool.name }
+						: card,
 				message: card.summary,
 				forModel: JSON.stringify({
 					status: 'needs_approval',
@@ -467,6 +579,18 @@ async function executeTool(
 		}
 		return asCard(
 			'The picture is made on the phone from the photo and shown on the card, so the person approves it there.'
+		);
+	}
+	if (tool.name === 'mark_from_web') {
+		// The domain and addresses are checked before a card is made: the phone downloads them when the card shows
+		try {
+			await checkMarkFromWeb(agentCtx, args, { tainted: state.tainted });
+		} catch (e) {
+			if (e instanceof OpsError) return err('invalid_arguments', e.message);
+			throw e;
+		}
+		return asCard(
+			'The phone downloads the logo candidates and shows them on the card, so the person picks and approves there.'
 		);
 	}
 	if (tool.kind === 'gated')
@@ -535,7 +659,7 @@ async function executeTool(
 /** Runs one message from the person to the end, yielding what the app should show as it happens. */
 export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	const limits = { ...LIMITS, ...p.limits };
-	const tools = p.tools ?? buildTools();
+	const tools = p.tools ?? buildTools({ device: p.device === true });
 	const byName = new Map(tools.map((t) => [t.name, t]));
 	const defs = toDefs(tools);
 	const state = new TurnState(urlsIn(p.userText));
@@ -796,10 +920,20 @@ ${note}`
 				continue;
 			}
 			seq++;
-			// Only the call id and the tool's name: the arguments may hold text from the web or from memory
-			if (byName.has(tc.function.name))
-				yield { type: 'tool_start', id: tc.id, name: tc.function.name };
-			const out = await executeTool(p, limits, state, byName, tc, seq);
+			// Only the call id and the tool's name: the arguments may hold text from the web or from memory. A tool the phone runs also
+			// sends its checked arguments, to the person's own phone, with the id the answer comes back under
+			const called = byName.get(tc.function.name);
+			const dev = called?.kind === 'device' ? startDevice(p, limits, state, called, tc) : undefined;
+			if (called)
+				yield {
+					type: 'tool_start',
+					id: tc.id,
+					name: tc.function.name,
+					...(dev?.ok
+						? { device: { callId: dev.callId, args: dev.args, tainted: state.tainted } }
+						: {})
+				};
+			const out = await executeTool(p, limits, state, byName, tc, seq, dev);
 			toolsRun.push(tc.function.name);
 			yield {
 				type: 'tool',

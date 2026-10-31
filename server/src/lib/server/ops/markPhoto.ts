@@ -22,7 +22,7 @@ import { mapped, parse } from './shared';
  * (and used only when nothing live has it); several live ones with one name make the assistant ask the person. The same lookup runs again when
  * the card is approved, so a name that no longer matches exactly one row fails the card instead of marking something else.
  */
-async function findTarget(
+export async function findTarget(
 	ctx: Ctx,
 	target: 'account' | 'bill',
 	name: string

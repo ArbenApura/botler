@@ -83,7 +83,9 @@ export const chatInput = z.strictObject({
 		})
 		.optional(),
 	/** Pictures of the photos. Used only when the person chose the picture and their host reads pictures; otherwise dropped, never kept. Untrusted. */
-	images: imagesInput.optional()
+	images: imagesInput.optional(),
+	/** The app can run the tools that run on the phone (scripts, the toolbox) and answer them at the device-result route. */
+	scripts: z.boolean().optional()
 });
 
 const STALE_RUNNING_MS = 120_000;
@@ -379,6 +381,7 @@ export async function* handleChat(
 			signal: deps.signal ? AbortSignal.any([deps.signal, owner.signal]) : owner.signal,
 			now: deps.now?.(),
 			tools: deps.tools,
+			device: input.scripts === true,
 			web: deps.web,
 			limits: deps.limits
 		});

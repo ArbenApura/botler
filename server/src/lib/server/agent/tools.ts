@@ -14,7 +14,7 @@ import { untrustedBlock } from './prompt';
 
 // -- TYPES -- //
 
-export type ToolKind = 'read' | 'free' | 'gated' | 'web';
+export type ToolKind = 'read' | 'free' | 'gated' | 'web' | 'device';
 
 export type AgentTool = {
 	name: string;
@@ -26,6 +26,8 @@ export type AgentTool = {
 	taints: boolean;
 	/** The strict schema the arguments are checked against (web tools only: verbs check themselves). */
 	web?: (args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) => Promise<unknown>;
+	/** The strict schema the arguments are checked against before the call goes to the phone (device tools only). */
+	deviceInput?: z.ZodType;
 };
 
 /** What the web tools need from outside: the DeepSeek key and address, and a replacement fetch for tests. Production passes the key. */
@@ -38,6 +40,36 @@ export const WEB_READ = 'web_read';
 
 /** The whole web_read result as JSON stays under this, so the turn's result cap (16000) never cuts it into a preview. */
 const MAX_READ_JSON_CHARS = 15_000;
+
+export const SCRIPT_RUN = 'script_run';
+export const TOOLBOX = 'toolbox';
+
+export const SCRIPT_CODE_MAX = 20_000;
+export const TOOLBOX_NAME_MAX = 60;
+
+const scriptRunInput = z
+	.strictObject({
+		code: z.string().min(1).max(SCRIPT_CODE_MAX).optional(),
+		saved: z.string().trim().min(1).max(TOOLBOX_NAME_MAX).optional(),
+		input: z.string().max(4000).optional()
+	})
+	.refine((v) => (v.code === undefined) !== (v.saved === undefined), {
+		message:
+			'Give either code (a new script) or saved (the name of a script in the toolbox), not both.'
+	});
+
+const toolboxInput = z
+	.strictObject({
+		action: z.enum(['list', 'read', 'save', 'delete']),
+		name: z.string().trim().min(1).max(TOOLBOX_NAME_MAX).optional(),
+		code: z.string().min(1).max(SCRIPT_CODE_MAX).optional()
+	})
+	.refine((v) => v.action === 'list' || v.name !== undefined, {
+		message: 'read, save and delete need the name of a script.'
+	})
+	.refine((v) => v.action !== 'save' || v.code !== undefined, {
+		message: 'save needs the code of the script.'
+	});
 
 const searchInput = z.strictObject({ query: z.string().trim().min(2).max(128) });
 const readInput = z.strictObject({ url: z.string().trim().min(8).max(2000) });
@@ -222,8 +254,32 @@ async function webRead(args: Record<string, unknown>, deps: WebDeps, signal?: Ab
 	return make();
 }
 
-/** Every tool the assistant is offered. */
-export function buildTools(): AgentTool[] {
+/** The tools the phone runs for the assistant. Offered only to an app that says it can (the chat request's scripts flag). */
+function deviceTools(): AgentTool[] {
+	return [
+		{
+			name: SCRIPT_RUN,
+			description:
+				"Run a short JavaScript program on the person's phone, in a sandbox, and get what it prints. Use it when you need real computation or file work: exact arithmetic over many numbers, parsing or totalling CSV text, resizing, cropping or rotating a picture, converting data. The sandbox has NO internet, cannot reach the person's data or Botler, and only has a scratch folder for this chat. Globals: print(...) (this is what you get back), INPUT (the input text), fs.write(name, text), fs.read(name), fs.list(), fs.remove(name), fs.writeBase64(name, b64), fs.readBase64(name), fs.photo(n, name) (copies photo n of THIS message into the scratch folder), image.info(name) -> {width, height}, image.resize(src, dst, {width, height, fit: 'contain'|'cover'}), image.crop(src, dst, {x, y, width, height}) in pixels, image.rotate(src, dst, degrees), image.grayscale(src, dst), csv.parse(text) -> rows, csv.stringify(rows), base64.encode(text), base64.decode(b64), JSON, Math. File names are flat (no slashes). Limits: 30 seconds, 128 MB, 50 MB of files per chat. Write plain synchronous code: promises and async/await may not finish before the script ends. Money is integer minor units only, never floats. Returns {ok, output, error, files}. The app must be open on the phone; if it is not, the call fails and you say so. Give code (a new script) or saved (the name of a toolbox script), and optional input text.",
+			kind: 'device',
+			parameters: toParameters(scriptRunInput),
+			taints: false,
+			deviceInput: scriptRunInput
+		},
+		{
+			name: TOOLBOX,
+			description:
+				"The person's saved scripts on their phone: list their names, read one, save one, delete one. Save a script only when the person asks you to or agrees to your offer, and say in your reply that you saved it and under what name. At most 30 scripts, 20000 characters each. Run a saved one with script_run saved.",
+			kind: 'device',
+			parameters: toParameters(toolboxInput),
+			taints: false,
+			deviceInput: toolboxInput
+		}
+	];
+}
+
+/** Every tool the assistant is offered. The phone's tools are included only when [device] says the app can run them. */
+export function buildTools({ device = false }: { device?: boolean } = {}): AgentTool[] {
 	const fromVerbs: AgentTool[] = agentVerbs().map((v) => ({
 		name: v.name,
 		description: v.description,
@@ -233,6 +289,7 @@ export function buildTools(): AgentTool[] {
 	}));
 	return [
 		...fromVerbs,
+		...(device ? deviceTools() : []),
 		{
 			name: WEB_SEARCH,
 			description:

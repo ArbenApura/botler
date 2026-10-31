@@ -207,6 +207,8 @@ export async function play(opts: {
 	turnKey?: string;
 	signal?: AbortSignal;
 	limits?: Parameters<typeof runTurn>[0]['limits'];
+	/** The app can run the tools that run on the phone. */
+	device?: boolean;
 }): Promise<TurnEvent[]> {
 	const events: TurnEvent[] = [];
 	for await (const e of runTurn({
@@ -222,6 +224,7 @@ export async function play(opts: {
 		web: opts.web,
 		signal: opts.signal,
 		limits: opts.limits,
+		device: opts.device,
 		now: new Date('2026-10-21T04:00:00Z')
 	}))
 		events.push(e);
