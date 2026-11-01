@@ -1,10 +1,12 @@
 // THE SWITCH ABOVE "COMING UP" ON THE BILLS SCREEN: THE SAME LIST, SECTIONED BY WEEK OR BY MONTH. IT IS NOT A CALENDAR (THE CALENDAR SCREEN HAS THOSE).
+// It looks like the Calendar's tab bar: plain words in a row, the chosen one underlined in the accent, a quiet rule under both.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 
 // -- MODULES -- //
 import '../../l10n/l10n.dart';
+import '../../theme/tokens.dart';
 
 // -- CONSTANTS -- //
 
@@ -13,7 +15,7 @@ enum BillsGroup { week, month }
 
 // -- TYPES -- //
 
-/// Week or Month: one segmented control, remembered by the screen.
+/// Week or Month as two tabs, remembered by the screen.
 class BillsGroupSwitch extends StatelessWidget {
   const BillsGroupSwitch({
     required this.value,
@@ -27,22 +29,56 @@ class BillsGroupSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<BillsGroup>(
-        showSelectedIcon: false,
-        segments: <ButtonSegment<BillsGroup>>[
-          ButtonSegment<BillsGroup>(
-            value: BillsGroup.week,
-            label: Text(t.billsViewWeek),
-          ),
-          ButtonSegment<BillsGroup>(
-            value: BillsGroup.month,
-            label: Text(t.billsViewMonth),
-          ),
+    final c = context.colors;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.line)),
+      ),
+      child: Row(
+        children: <Widget>[
+          for (final (g, label) in <(BillsGroup, String)>[
+            (BillsGroup.week, t.billsViewWeek),
+            (BillsGroup.month, t.billsViewMonth),
+          ])
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: g == value,
+                label: label,
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: () => onChanged(g),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: g == value
+                                ? c.accent
+                                : c.line.withValues(alpha: 0),
+                            width: 2.5,
+                          ),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          label,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                color: g == value ? c.ink : c.muted,
+                                fontWeight: g == value
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-        selected: <BillsGroup>{value},
-        onSelectionChanged: (s) => onChanged(s.first),
       ),
     );
   }

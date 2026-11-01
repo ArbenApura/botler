@@ -454,5 +454,15 @@
     "fil": [
       "Listahan na ulit ang Bills: sa ilalim ng Coming up, piliin ang Week o Month at ang parehong listahan ay hahatiin sa bawat linggo o buwan. Wala na ang calendar-style na view mula sa huling update, dahil ginagawa na iyon ng Calendar screen."
     ]
+  },
+  {
+    "versionCode": 43,
+    "versionName": "1.4.2",
+    "en": [
+      "The Week and Month choice on Bills is now a tab bar like the one on Calendar: the chosen tab is underlined."
+    ],
+    "fil": [
+      "Ang pagpili ng Week at Month sa Bills ay tab bar na ngayon tulad ng sa Calendar: may guhit sa ilalim ng napiling tab."
+    ]
   }
 ]
