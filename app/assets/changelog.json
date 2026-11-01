@@ -486,5 +486,15 @@
     "fil": [
       "Bumalik na ang mga logo at icon ng mga bill mo sa listahan ng Bills, sa tabi ng bawat pangalan."
     ]
+  },
+  {
+    "versionCode": 46,
+    "versionName": "1.4.5",
+    "en": [
+      "Bills rows are laid out in two lines so a long bill name has the whole width and wraps instead of being squeezed: the day, logo and name on top, then the amount, weekday and Mark paid."
+    ],
+    "fil": [
+      "Dalawang linya na ang bawat row sa Bills para hindi maipit ang mahabang pangalan ng bill: sa itaas ang araw, logo at pangalan, sa ibaba ang halaga, weekday at Mark paid."
+    ]
   }
 ]

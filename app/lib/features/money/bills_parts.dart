@@ -146,8 +146,8 @@ class MonthHeader extends StatelessWidget {
   }
 }
 
-/// One due date as a slim row (it sits inside its group's card): the day, the name and weekday, the cost, and "Mark paid" or "Paid".
-/// Tap the body to change it, or the text button to mark it paid.
+/// One due date, in two lines so a long name never gets squeezed: the day, the logo and the whole name on top; below it the cost and weekday, with
+/// "Mark paid" (or "Paid") at the end. The body opens the bill sheet; the text button pays it.
 class DueRow extends StatelessWidget {
   const DueRow({
     required this.due,
@@ -179,114 +179,130 @@ class DueRow extends StatelessWidget {
     final day = dayOf(str(due['dueDate']));
     final tone = paid ? c.success : (overdue ? c.warning : c.ink);
     final text = Theme.of(context).textTheme;
-    return Row(
+    // The cost and weekday wrap onto a second line instead of pushing the button away
+    final detail = ExcludeSemantics(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 2,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: <Widget>[
+          Text(
+            cost,
+            style: text.bodyMedium?.copyWith(
+              fontFeatures: tabular,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(when, style: text.bodySmall?.copyWith(color: c.muted)),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Expanded(
-          child: Semantics(
-            button: true,
-            label: overdue && !paid
-                ? '$name, ${t.billsOverdue}, $when, $cost'
-                : '$name, $when, $cost',
-            hint: t.billsEditHint,
-            excludeSemantics: true,
-            child: InkWell(
-              onTap: onEdit,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: _tap.height),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      // The day and month, plain: warning when late, success when paid
-                      SizedBox(
-                        width: 36,
-                        child: day == null
-                            ? null
-                            : Column(
-                                children: <Widget>[
-                                  Text(
-                                    '${day.day}',
-                                    style: text.titleMedium?.copyWith(
-                                      color: tone,
-                                      fontFeatures: tabular,
-                                    ),
-                                  ),
-                                  Text(
-                                    DateFormat.MMM(_locale(context))
-                                        .format(day),
-                                    style: text.labelSmall?.copyWith(
-                                      color: c.muted,
-                                    ),
-                                  ),
-                                ],
+        Semantics(
+          button: true,
+          label: overdue && !paid
+              ? '$name, ${t.billsOverdue}, $when, $cost'
+              : '$name, $when, $cost',
+          hint: t.billsEditHint,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onEdit,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // The day and month, plain: warning when late, success when paid
+                  SizedBox(
+                    width: 36,
+                    child: day == null
+                        ? null
+                        : Column(
+                            children: <Widget>[
+                              Text(
+                                '${day.day}',
+                                style: text.titleMedium?.copyWith(
+                                  color: tone,
+                                  fontFeatures: tabular,
+                                ),
                               ),
-                      ),
-                      const SizedBox(width: 12),
-                      MarkBadge(name: name, mark: mark, size: 36),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: text.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
+                              Text(
+                                DateFormat.MMM(_locale(context)).format(day),
+                                style: text.labelSmall?.copyWith(
+                                  color: c.muted,
+                                ),
                               ),
-                            ),
-                            Text(
-                              when,
-                              style: text.bodySmall?.copyWith(color: c.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          cost,
-                          textAlign: TextAlign.end,
-                          style: text.bodyMedium?.copyWith(
-                            fontFeatures: tabular,
+                            ],
                           ),
-                        ),
-                      ),
-                    ],
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  MarkBadge(name: name, mark: mark, size: 36),
+                  const SizedBox(width: 12),
+                  // The name has the whole rest of the line, and may take two
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.titleMedium,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        if (paid)
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.check, size: 16, color: c.success),
-                const SizedBox(width: 4),
-                Text(t.billsPaid, style: TextStyle(color: c.success)),
-              ],
-            ),
-          )
-        else
-          Semantics(
-            button: true,
-            label: t.billsMarkPaidFor(name),
-            excludeSemantics: true,
-            child: TextButton(
-              style: TextButton.styleFrom(
-                minimumSize: _tap,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+        // The second line sits under the name (day 36 + logo 36 + gaps 24 + padding 16 = 112)
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: InkWell(
+                onTap: onEdit,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: _tap.height),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(112, 0, 8, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: detail,
+                    ),
+                  ),
+                ),
               ),
-              onPressed: onPay,
-              child: Text(t.billsMarkPaid),
             ),
-          ),
+            if (paid)
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.check, size: 16, color: c.success),
+                    const SizedBox(width: 4),
+                    Text(t.billsPaid, style: TextStyle(color: c.success)),
+                  ],
+                ),
+              )
+            else
+              Semantics(
+                button: true,
+                label: t.billsMarkPaidFor(name),
+                excludeSemantics: true,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    minimumSize: _tap,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  onPressed: onPay,
+                  child: Text(t.billsMarkPaid),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
