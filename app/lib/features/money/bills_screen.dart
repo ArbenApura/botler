@@ -81,7 +81,7 @@ class BillsScreen extends ConsumerWidget {
           SectionTitle(context.t.billsComingUp),
           AsyncBody<List<Json>>(
             value: due,
-            skeleton: const SkeletonRows(),
+            skeleton: const SkeletonRows(kind: SkeletonKind.tile),
             onRetry: () => ref.invalidate(_dueProvider),
             data: (list) {
               final groups = groupDue(list, manilaToday());
@@ -95,6 +95,7 @@ class BillsScreen extends ConsumerWidget {
                       DueRow(
                         due: d,
                         mark: byBill[str(d['billId'])] ?? const Mark(),
+                        overdue: g.isOverdue,
                         onEdit: () => _editDate(context, ref, d),
                         onPay: () => _pay(context, ref, d),
                       ),
@@ -106,7 +107,7 @@ class BillsScreen extends ConsumerWidget {
           SectionTitle(context.t.billsAll),
           AsyncBody<List<Json>>(
             value: bills,
-            skeleton: const SkeletonRows(),
+            skeleton: const SkeletonRows(kind: SkeletonKind.tile),
             onRetry: () => ref.invalidate(_billsProvider),
             data: (list) => Column(
               children: <Widget>[
@@ -122,7 +123,7 @@ class BillsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
+          FilledButton.icon(
             onPressed: () => _add(context, ref),
             icon: const Icon(Icons.add),
             label: Text(context.t.billsAdd),

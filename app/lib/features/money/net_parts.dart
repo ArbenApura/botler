@@ -16,6 +16,7 @@ import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
+import 'money_parts.dart';
 
 // -- FUNCTIONS -- //
 
@@ -152,21 +153,10 @@ class _NetToggleLineState extends ConsumerState<NetToggleLine> {
   Widget build(BuildContext context) {
     final on = ref.watch(settingsProvider).showNetBalance;
     final label = on ? context.t.netShowGross : context.t.netShowNet;
-    return Semantics(
-      button: true,
+    return ActionRow(
+      icon: on ? Icons.account_balance_wallet_outlined : Icons.savings_outlined,
       label: label,
-      child: InkWell(
-        onTap: () => _flip(!on),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: ExcludeSemantics(
-              child: Text(label, style: TextStyle(color: context.colors.muted)),
-            ),
-          ),
-        ),
-      ),
+      onTap: () => _flip(!on),
     );
   }
 }

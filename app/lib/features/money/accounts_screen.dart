@@ -23,6 +23,7 @@ import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'currency_picker.dart';
 import 'mark_picker.dart';
+import 'money_parts.dart';
 import 'net_parts.dart';
 import 'purpose.dart';
 import 'rates.dart';
@@ -62,7 +63,7 @@ class AccountsScreen extends ConsumerWidget {
             if (list.isEmpty) Note(context.t.accountsEmpty),
             for (final a in list)
               Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: PaperCard(
                   onTap: () => context.push('/account/${str(a['id'])}'),
                   child: Column(
@@ -71,7 +72,11 @@ class AccountsScreen extends ConsumerWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          MarkBadge(name: str(a['name']), mark: markOf(a)),
+                          MarkBadge(
+                            name: str(a['name']),
+                            mark: markOf(a),
+                            size: 44,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -79,41 +84,71 @@ class AccountsScreen extends ConsumerWidget {
                               children: <Widget>[
                                 Text(
                                   str(a['name']),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium,
                                 ),
                                 PurposeChip(purposeOf(a)),
-                                Text(
-                                  a['countedAt'] == null
-                                      ? context.t.accountsNeverCounted
-                                      : context.t.accountsCounted(
-                                          _ago(context, str(a['countedAt'])),
-                                        ),
-                                  style: TextStyle(color: c.muted),
-                                ),
-                                if (boolOf(a['belowMinimum']))
-                                  Text(
-                                    context.t.accountsBelowMinimum,
-                                    style: TextStyle(color: c.warning),
-                                  ),
-                                if (!hasWalletIn(a, context.currencyCode) &&
-                                    intOf(a['minBalance']) > 0)
-                                  Text(
-                                    context.t.accountsNoMainWallet(
-                                      context.currencyCode,
-                                    ),
-                                    style: TextStyle(color: c.muted),
-                                  ),
                               ],
                             ),
                           ),
-                          _Wallets(
-                            account: a,
-                            subtotal: subtotals[str(a['id'])],
-                            main: context.currencyCode,
-                            net: net,
+                          if (walletsOf(a).length == 1) ...<Widget>[
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: _Wallets(
+                                account: a,
+                                subtotal: subtotals[str(a['id'])],
+                                main: context.currencyCode,
+                                net: net,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      // Several currencies: a ruled list of wallets under the name, then what the account comes to in all
+                      if (walletsOf(a).length > 1) ...<Widget>[
+                        const SizedBox(height: 12),
+                        const Divider(),
+                        _Wallets(
+                          account: a,
+                          subtotal: subtotals[str(a['id'])],
+                          main: context.currencyCode,
+                          net: net,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          InfoPill(
+                            text: a['countedAt'] == null
+                                ? context.t.accountsNeverCounted
+                                : context.t.accountsCounted(
+                                    _ago(context, str(a['countedAt'])),
+                                  ),
+                            color: c.muted,
+                            icon: a['countedAt'] == null
+                                ? Icons.edit_note_outlined
+                                : Icons.check_circle_outline,
                           ),
+                          if (boolOf(a['belowMinimum']))
+                            InfoPill(
+                              text: context.t.accountsBelowMinimum,
+                              color: c.warning,
+                              icon: Icons.warning_amber_rounded,
+                            ),
+                          if (!hasWalletIn(a, context.currencyCode) &&
+                              intOf(a['minBalance']) > 0)
+                            InfoPill(
+                              text: context.t.accountsNoMainWallet(
+                                context.currencyCode,
+                              ),
+                              color: c.muted,
+                              icon: Icons.info_outline,
+                            ),
                         ],
                       ),
                       // What consumed the net: the first few bills, rules and goals (only with the net on and sent)
@@ -122,8 +157,8 @@ class AccountsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
+            const SizedBox(height: 4),
+            FilledButton.icon(
               onPressed: () => _add(context, ref),
               icon: const Icon(Icons.add),
               label: Text(context.t.accountsAdd),
@@ -498,97 +533,105 @@ class _TotalCard extends ConsumerWidget {
     // The net leads only when the server sent it: an older answer or one it could not work out shows the total as counted
     final netTotal = net ? netInt(data, 'netTotal') : null;
     final shortTotal = netInt(data, 'shortfallTotal') ?? 0;
+    final ratesLabel = asOf == null
+        ? t.accountsRatesNone
+        : old
+        ? t.accountsRatesStale(ratesDate(context, asOf))
+        : t.accountsRatesAsOf(ratesDate(context, asOf));
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16),
       child: PaperCard(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
               netTotal == null ? t.accountsTotalTitle : t.netTotalTitle,
-              style: TextStyle(color: c.muted),
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: c.muted),
             ),
-            const SizedBox(height: 4),
-            Amount(netTotal ?? intOf(data['total']), currency: main),
-            if (netTotal != null) ...<Widget>[
-              Text(
-                t.netGross(context.moneyIn(intOf(data['total']), main)),
-                style: TextStyle(color: c.muted, fontFeatures: tabular),
+            const SizedBox(height: 6),
+            // A very large total shrinks to fit instead of wrapping
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Amount(
+                netTotal ?? intOf(data['total']),
+                currency: main,
+                style: Theme.of(context).textTheme.displaySmall,
               ),
-              if (shortTotal > 0)
-                Text(
-                  t.netShortfall(context.moneyIn(shortTotal, main)),
-                  style: TextStyle(color: c.warning, fontFeatures: tabular),
-                ),
-            ],
-            if (net && netTotal == null) ...<Widget>[
-              const SizedBox(height: 6),
-              Text(t.netUnavailable, style: TextStyle(color: c.muted)),
-            ],
-            if (missing.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 6),
-              Text(
-                t.accountsMissingRate(missing.join(', ')),
-                style: TextStyle(color: c.warning),
+            ),
+            if (netTotal != null ||
+                (net && netTotal == null) ||
+                missing.isNotEmpty ||
+                offline) ...<Widget>[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  if (netTotal != null) ...<Widget>[
+                    InfoPill(
+                      text: t.netGross(
+                        context.moneyIn(intOf(data['total']), main),
+                      ),
+                      color: c.muted,
+                    ),
+                    if (shortTotal > 0)
+                      InfoPill(
+                        text: t.netShortfall(context.moneyIn(shortTotal, main)),
+                        color: c.warning,
+                        icon: Icons.warning_amber_rounded,
+                      ),
+                  ],
+                  if (net && netTotal == null)
+                    InfoPill(
+                      text: t.netUnavailable,
+                      color: c.muted,
+                      icon: Icons.info_outline,
+                    ),
+                  if (missing.isNotEmpty)
+                    InfoPill(
+                      text: t.accountsMissingRate(missing.join(', ')),
+                      color: c.warning,
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                  if (offline)
+                    InfoPill(
+                      text: t.accountsRatesOffline,
+                      color: c.muted,
+                      icon: Icons.cloud_off_outlined,
+                    ),
+                ],
               ),
-            ],
-            if (offline) ...<Widget>[
-              const SizedBox(height: 6),
-              Text(t.accountsRatesOffline, style: TextStyle(color: c.muted)),
             ],
             // One line per added currency with its rate against the main currency (display only, shown as the server sent it)
             for (final e in rateLinesOf(data, main).entries)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   t.accountsRateLine(e.key, e.value, main),
                   style: TextStyle(color: c.muted, fontFeatures: tabular),
                 ),
               ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
+            const Divider(),
             // The rates line is also the button that updates them (a 48 dp target)
-            Semantics(
-              button: true,
-              label: t.accountsRatesRefresh,
-              child: InkWell(
-                onTap: () => refreshRates(context, ref),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      asOf == null
-                          ? t.accountsRatesNone
-                          : old
-                          ? t.accountsRatesStale(ratesDate(context, asOf))
-                          : t.accountsRatesAsOf(ratesDate(context, asOf)),
-                      style: TextStyle(color: old ? c.warning : c.muted),
-                    ),
-                  ),
-                ),
-              ),
+            ActionRow(
+              icon: old ? Icons.sync_problem_outlined : Icons.sync,
+              label: ratesLabel,
+              semanticLabel: t.accountsRatesRefresh,
+              onTap: () => refreshRates(context, ref),
             ),
-            // Time travel: the balances on any past or future day (BTL-20261029-0117), a line like the rates line, not a second button
-            Semantics(
-              button: true,
+            const Divider(),
+            // Time travel: the balances on any past or future day (BTL-20261029-0117)
+            ActionRow(
+              icon: Icons.timeline,
               label: t.simSeeOverTime,
-              child: InkWell(
-                onTap: () => context.push('/simulate'),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ExcludeSemantics(
-                      child: Text(
-                        t.simSeeOverTime,
-                        style: TextStyle(color: c.muted),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              onTap: () => context.push('/simulate'),
             ),
-            // Net or as counted: the same setting as in Settings, a line like the two above
+            const Divider(),
+            // Net or as counted: the same setting as in Settings
             const NetToggleLine(),
           ],
         ),
@@ -599,7 +642,7 @@ class _TotalCard extends ConsumerWidget {
 
 // -- WALLETS OF ONE ACCOUNT -- //
 
-/// The right side of an account card: the balance of its one wallet, or every wallet with what the account comes to in all.
+/// The balance of an account's one wallet (right of its name), or every wallet in a ruled list with what the account comes to in all.
 class _Wallets extends StatelessWidget {
   const _Wallets({
     required this.account,
@@ -622,40 +665,71 @@ class _Wallets extends StatelessWidget {
     if (wallets.length == 1) {
       final only = wallets.first;
       final code = str(only['currency'], own);
+      final big = Theme.of(context).textTheme.titleLarge
+          ?.copyWith(fontWeight: FontWeight.w400);
       if (net && netInt(only, 'netBalance') != null) {
-        return NetAmount(wallet: only, currency: code);
+        return NetAmount(wallet: only, currency: code, style: big);
       }
-      return Amount(intOf(only['balance']), currency: code);
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Amount(intOf(only['balance']), currency: code, style: big),
+      );
     }
     final sub = subtotal;
+    final c = context.colors;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         for (final w in wallets)
-          if (net && netInt(w, 'netBalance') != null)
-            NetAmount(
-              wallet: w,
-              currency: str(w['currency'], own),
-              style: Theme.of(context).textTheme.titleMedium,
-            )
-          else
-            Amount(
-              intOf(w['balance']),
-              currency: str(w['currency'], own),
-              style: Theme.of(context).textTheme.titleMedium,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    str(w['currency'], own),
+                    style: TextStyle(
+                      color: c.muted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: net && netInt(w, 'netBalance') != null
+                        ? NetAmount(
+                            wallet: w,
+                            currency: str(w['currency'], own),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          )
+                        : Amount(
+                            intOf(w['balance']),
+                            currency: str(w['currency'], own),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                  ),
+                ),
+              ],
             ),
+          ),
         if (sub != null)
-          Text(
-            context.t.accountsSubtotal(
-              context.moneyIn(
-                (net ? netInt(sub, 'netSubtotal') : null) ??
-                    intOf(sub['subtotal']),
-                main,
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              context.t.accountsSubtotal(
+                context.moneyIn(
+                  (net ? netInt(sub, 'netSubtotal') : null) ??
+                      intOf(sub['subtotal']),
+                  main,
+                ),
               ),
-            ),
-            style: TextStyle(
-              color: context.colors.muted,
-              fontFeatures: tabular,
+              textAlign: TextAlign.end,
+              style: TextStyle(color: c.muted, fontFeatures: tabular),
             ),
           ),
       ],

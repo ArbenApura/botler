@@ -412,5 +412,17 @@
       "Naayos ang paghahanap ng logo sa web: nailo-load na ng card ang mga pagpipilian, at sinusubukan din ang website na may at walang www.",
       "Mas maayos na ang listahan sa Settings: ang Toolbox ay kasabay na ng ibang mga row na may espasyo sa paligid, at ang mga naka-save na script ay nasa malinaw na block ang code."
     ]
+  },
+  {
+    "versionCode": 40,
+    "versionName": "1.3.2",
+    "en": [
+      "The Accounts and Bills screens have a new look. Accounts: a bigger total at the top with its notes as small badges and the rates, time travel and net view as tidy rows; each account shows its balance, when it was counted and any warning at a glance, and accounts with several currencies list each one in a clean column.",
+      "Bills: every due date has a date tile (tinted when it is overdue, green when it is paid), the bill name, when and how much, with a clear Mark paid button. The list of all bills is now cards, and a bill that is switched off looks quieter."
+    ],
+    "fil": [
+      "Bago na ang itsura ng mga screen ng Accounts at Bills. Accounts: mas malaki ang total sa itaas, ang mga paalala ay maliliit na badge, at ang rates, time travel at net view ay maayos na mga row; makikita agad sa bawat account ang balanse, kung kailan huling binilang at anumang babala, at ang mga account na may maraming currency ay nakalista nang malinis.",
+      "Bills: bawat petsa ng bayad ay may date tile (may kulay kapag lampas na, berde kapag bayad na), ang pangalan ng bill, kailan at magkano, at malinaw na Mark paid na button. Cards na ang listahan ng lahat ng bills, at mas tahimik ang itsura ng bill na naka-off."
+    ]
   }
 ]

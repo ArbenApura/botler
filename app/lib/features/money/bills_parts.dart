@@ -15,6 +15,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/mark_badge.dart';
+import 'money_parts.dart';
 
 // -- CONSTANTS -- //
 
@@ -102,7 +103,7 @@ String describeBill(BuildContext context, Json b) {
 
 // -- TYPES -- //
 
-/// "October 2026", or "Overdue" for the late bills.
+/// "October 2026", or "Overdue" for the late bills, with a rule that runs to the edge.
 class MonthHeader extends StatelessWidget {
   const MonthHeader({required this.month, super.key});
 
@@ -121,10 +122,65 @@ class MonthHeader extends StatelessWidget {
       header: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: late ? c.warning : c.ink),
+        child: Row(
+          children: <Widget>[
+            if (late) ...<Widget>[
+              Icon(Icons.schedule, size: 18, color: c.warning),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: late ? c.warning : c.ink),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Divider()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The day and month of a due date in a small tinted square: warning when late, success when paid, quiet otherwise.
+class _DateBlock extends StatelessWidget {
+  const _DateBlock({required this.iso, required this.tint});
+
+  final String iso;
+
+  /// The status colour, or null for an ordinary due date.
+  final Color? tint;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final d = dayOf(iso);
+    if (d == null) return const SizedBox(width: 8);
+    final ink = tint ?? c.ink;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 48),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tint == null ? c.chip : tint!.withValues(alpha: tintAlpha),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                '${d.day}',
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: ink, fontFeatures: tabular),
+              ),
+              Text(
+                DateFormat.MMM(_locale(context)).format(d),
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: tint ?? c.muted),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -138,6 +194,7 @@ class DueRow extends StatelessWidget {
     required this.onEdit,
     required this.onPay,
     this.mark = const Mark(),
+    this.overdue = false,
     super.key,
   });
 
@@ -145,6 +202,9 @@ class DueRow extends StatelessWidget {
 
   /// The mark of the bill (its own, or its account's), drawn before the name.
   final Mark mark;
+
+  /// The row sits in the late group (from the grouping, not worked out again here).
+  final bool overdue;
   final VoidCallback onEdit;
   final VoidCallback onPay;
 
@@ -156,6 +216,7 @@ class DueRow extends StatelessWidget {
     final name = str(due['name']);
     final when = _when(context, due);
     final cost = _cost(context, due);
+    final tint = paid ? c.success : (overdue ? c.warning : null);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Card(
@@ -166,7 +227,9 @@ class DueRow extends StatelessWidget {
             Expanded(
               child: Semantics(
                 button: true,
-                label: '$name, $when, $cost',
+                label: overdue && !paid
+                    ? '$name, ${t.billsOverdue}, $when, $cost'
+                    : '$name, $when, $cost',
                 hint: t.billsEditHint,
                 excludeSemantics: true,
                 child: InkWell(
@@ -174,31 +237,40 @@ class DueRow extends StatelessWidget {
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: _tap.height),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          MarkBadge(name: name, mark: mark, size: 36),
+                          _DateBlock(iso: str(due['dueDate']), tint: tint),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text(
-                                  name,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
+                                Row(
+                                  children: <Widget>[
+                                    MarkBadge(name: name, mark: mark, size: 22),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                const SizedBox(height: 2),
                                 Text(when, style: TextStyle(color: c.muted)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  cost,
+                                  style: const TextStyle(fontFeatures: tabular),
+                                ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: Text(
-                              cost,
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(fontFeatures: tabular),
                             ),
                           ),
                         ],
@@ -214,21 +286,31 @@ class DueRow extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(Icons.check, size: 18, color: c.muted),
+                    Icon(Icons.check_circle, size: 18, color: c.success),
                     const SizedBox(width: 4),
-                    Text(t.billsPaid, style: TextStyle(color: c.muted)),
+                    Text(t.billsPaid, style: TextStyle(color: c.success)),
                   ],
                 ),
               )
             else
-              Semantics(
-                button: true,
-                label: t.billsMarkPaidFor(name),
-                excludeSemantics: true,
-                child: TextButton(
-                  style: TextButton.styleFrom(minimumSize: _tap),
-                  onPressed: onPay,
-                  child: Text(t.billsMarkPaid),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Semantics(
+                  button: true,
+                  label: t.billsMarkPaidFor(name),
+                  excludeSemantics: true,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: _tap,
+                      backgroundColor: c.accentSoft,
+                      foregroundColor: c.accentText,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: onPay,
+                    child: Text(t.billsMarkPaid),
+                  ),
                 ),
               ),
           ],
@@ -238,7 +320,7 @@ class DueRow extends StatelessWidget {
   }
 }
 
-/// One bill in "All bills": tap to change it, the switch to turn it off or on.
+/// One bill in "All bills": tap to change it, the switch to turn it off or on. A bill that is off reads quieter.
 class BillTile extends StatelessWidget {
   const BillTile({
     required this.bill,
@@ -258,19 +340,50 @@ class BillTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minTileHeight: _tap.height,
-      leading: MarkBadge(name: str(bill['name']), mark: mark),
-      title: Text(str(bill['name'])),
-      subtitle: Text(
-        describeBill(context, bill),
-        style: TextStyle(color: c.muted),
-      ),
-      onTap: onEdit,
-      trailing: Semantics(
-        label: str(bill['name']),
-        child: Switch(value: boolOf(bill['active']), onChanged: onActive),
+    final on = boolOf(bill['active']);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onEdit,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: _tap.height),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+              child: Row(
+                children: <Widget>[
+                  MarkBadge(name: str(bill['name']), mark: mark),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          str(bill['name']),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: on ? c.ink : c.muted),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          describeBill(context, bill),
+                          style: TextStyle(color: c.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Semantics(
+                    label: str(bill['name']),
+                    child: Switch(value: on, onChanged: onActive),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
