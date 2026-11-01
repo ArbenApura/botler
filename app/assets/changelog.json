@@ -496,5 +496,15 @@
     "fil": [
       "Dalawang linya na ang bawat row sa Bills para hindi maipit ang mahabang pangalan ng bill: sa itaas ang araw, logo at pangalan, sa ibaba ang halaga, weekday at Mark paid."
     ]
+  },
+  {
+    "versionCode": 47,
+    "versionName": "1.4.6",
+    "en": [
+      "Bills rows are slim again: a bill with a short name stays on one line, and only a long name takes the two-line layout so it can wrap."
+    ],
+    "fil": [
+      "Manipis na ulit ang mga row sa Bills: ang bill na may maikling pangalan ay nasa isang linya, at ang mahabang pangalan lang ang gumagamit ng dalawang linya para makapag-wrap."
+    ]
   }
 ]
