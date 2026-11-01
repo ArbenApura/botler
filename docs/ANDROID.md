@@ -63,3 +63,19 @@ A reminder must ring with the phone asleep. With the emulator or a phone connect
 ## Quick-add widget
 
 Long-press the home screen, Widgets, Botler: "Add an expense". One tap opens the expense box (`botler://quickadd`). With no connection the entry is kept in the outbox and sent once later.
+
+## Live preview (hot reload on the emulator)
+
+F5 in VS Code runs the debug app on `emulator-5554` against the local server, signed in with a dev session (no Google), and every saved Dart file hot reloads at once (`.vscode/launch.json` and `.vscode/settings.json`). The preview talks to the local dev database only, never the VPS.
+
+Once per day, before F5:
+
+```powershell
+# 1. Docker Desktop up (it starts botler-pg-dev on 5434; never touch AFB's container)
+# 2. the local server, from server/
+yarn dev:emulator    # port 5280 on 127.0.0.1 (the emulator reaches the PC as 10.0.2.2, which plain `yarn dev` does not serve)
+# 3. a dev session for the emulator, from server/ (writes app/.dev/dev-session.json, git-ignored, holds a token)
+yarn dev:session
+```
+
+Without VS Code: `cd app; flutter run -d emulator-5554 --dart-define-from-file=.dev/dev-session.json`, then `r` reloads and `R` restarts. The session script refuses any database but 127.0.0.1:5434. The dev database starts empty: add accounts and bills in the app (or through the chat) to see the screens with data.

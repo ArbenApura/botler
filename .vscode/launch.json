@@ -1,0 +1,16 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			// Live preview: F5 runs the debug app on the emulator against the local server (yarn dev on 5280), signed in with the dev session.
+			// Needs once per day: Docker Desktop up, `yarn dev:emulator` in server/, and `yarn dev:session` in server/ (see docs/ANDROID.md, "Live preview").
+			"name": "Botler (emulator, local server)",
+			"type": "dart",
+			"request": "launch",
+			"cwd": "app",
+			"program": "lib/main.dart",
+			"deviceId": "emulator-5554",
+			"args": ["--dart-define-from-file=.dev/dev-session.json"]
+		}
+	]
+}

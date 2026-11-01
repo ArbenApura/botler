@@ -24,6 +24,8 @@
 		"chat": "tsx scripts/chat.ts",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "tsx scripts/migrate.ts",
+		"dev:emulator": "vite dev --port 5280 --strictPort --host 127.0.0.1",
+		"dev:session": "tsx scripts/dev-session.ts",
 		"build:cli": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --packages=external --outfile=cli/migrate.mjs --log-level=warning",
 		"deploy:vps": "powershell -ExecutionPolicy Bypass -File ../deploy/vps/deploy.ps1"
 	},

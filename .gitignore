@@ -69,3 +69,6 @@ CREDENTIALS.md
 
 *.apk
 *.aab
+
+# A dev session for the emulator (holds a token)
+app/.dev/
