@@ -17,7 +17,7 @@ const int billsAheadDays = 122;
 class DueGroup {
   const DueGroup({required this.month, required this.rows});
 
-  /// yyyy-MM, or an empty text for the late bills.
+  /// yyyy-MM for a month, yyyy-MM-dd (its first day) for a week, or an empty text for the late bills.
   final String month;
   final List<Json> rows;
 
@@ -48,15 +48,29 @@ List<Json> withoutBeforeAdded(List<Json> rows, List<Json> bills) {
   }).toList();
 }
 
-/// Splits the due rows (from `bills_due`) into the late ones and one group per month, in date order. A late bill is one that is unpaid
+/// Splits the due rows (from `bills_due`) into the late ones and one group per month (or per week), in date order. A late bill is one that is unpaid
 /// and due before [today]; a paid bill from before this month is left out, and an empty month is not shown.
-List<DueGroup> groupDue(List<Json> rows, String today) {
+List<DueGroup> groupDue(
+  List<Json> rows,
+  String today, {
+  bool weekly = false,
+  int startsOn = 1,
+}) {
+  // A week is named by its first day (yyyy-MM-dd), a month by yyyy-MM
+  String keyOf(String date) {
+    if (!weekly) return date.substring(0, 7);
+    final d = DateTime.parse(date);
+    final back = (d.weekday % 7 - startsOn + 7) % 7;
+    return addDaysTo(date, -back);
+  }
+
   final sorted = List<Json>.of(rows)
     ..sort((a, b) {
       final byDate = str(a['dueDate']).compareTo(str(b['dueDate']));
       return byDate != 0 ? byDate : str(a['name']).compareTo(str(b['name']));
     });
-  final monthStart = '${today.substring(0, 7)}-01';
+  // A paid bill from before this month (or this week) is left out
+  final monthStart = weekly ? keyOf(today) : '${today.substring(0, 7)}-01';
   final overdue = <Json>[];
   final months = <String, List<Json>>{};
   for (final r in sorted) {
@@ -65,7 +79,7 @@ List<DueGroup> groupDue(List<Json> rows, String today) {
     if (!paid && date.compareTo(today) < 0) {
       overdue.add(r);
     } else if (date.compareTo(paid ? monthStart : today) >= 0) {
-      months.putIfAbsent(date.substring(0, 7), () => <Json>[]).add(r);
+      months.putIfAbsent(keyOf(date), () => <Json>[]).add(r);
     }
   }
   return <DueGroup>[

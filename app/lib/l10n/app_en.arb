@@ -3287,23 +3287,6 @@
   "chatScriptFailed": "The script did not finish",
   "chatOutputShowAll": "Show all of it",
   "chatOutputShowLess": "Show less",
-  "billsViewList": "List",
   "billsViewWeek": "Week",
-  "billsViewMonth": "Month",
-  "billsDayEmpty": "Nothing due this day.",
-  "billsPrevWeek": "Previous week",
-  "billsNextWeek": "Next week",
-  "billsPrevMonth": "Previous month",
-  "billsNextMonth": "Next month",
-  "billsDayLabel": "{day}, {count} due",
-  "@billsDayLabel": {
-    "placeholders": {
-      "day": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  }
+  "billsViewMonth": "Month"
 }

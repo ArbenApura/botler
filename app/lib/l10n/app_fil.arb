@@ -1275,23 +1275,6 @@
   "chatScriptFailed": "Hindi natapos ang script",
   "chatOutputShowAll": "Ipakita lahat",
   "chatOutputShowLess": "Ipakita nang kaunti",
-  "billsViewList": "Listahan",
   "billsViewWeek": "Linggo",
-  "billsViewMonth": "Buwan",
-  "billsDayEmpty": "Walang babayaran sa araw na ito.",
-  "billsPrevWeek": "Nakaraang linggo",
-  "billsNextWeek": "Susunod na linggo",
-  "billsPrevMonth": "Nakaraang buwan",
-  "billsNextMonth": "Susunod na buwan",
-  "billsDayLabel": "{day}, {count} babayaran",
-  "@billsDayLabel": {
-    "placeholders": {
-      "day": {
-        "type": "String"
-      },
-      "count": {
-        "type": "int"
-      }
-    }
-  }
+  "billsViewMonth": "Buwan"
 }

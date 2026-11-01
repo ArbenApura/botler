@@ -47,27 +47,27 @@ final FutureProvider<List<Json>> _dueProvider =
       return withoutBeforeAdded(results[0], results[1]);
     });
 
-/// The shape of the screen the person chose (list, week or month), kept on the phone.
-class _ViewNotifier extends Notifier<BillsView> {
-  static const String _key = 'bills.view';
+/// How the coming-up list is sectioned (by week or by month), kept on the phone.
+class _GroupNotifier extends Notifier<BillsGroup> {
+  static const String _key = 'bills.group';
 
   @override
-  BillsView build() {
+  BillsGroup build() {
     final saved = ref.watch(prefsProvider).getString(_key);
-    return BillsView.values.firstWhere(
+    return BillsGroup.values.firstWhere(
       (v) => v.name == saved,
-      orElse: () => BillsView.list,
+      orElse: () => BillsGroup.month,
     );
   }
 
-  void pick(BillsView v) {
+  void pick(BillsGroup v) {
     state = v;
     ref.read(prefsProvider).setString(_key, v.name);
   }
 }
 
-final NotifierProvider<_ViewNotifier, BillsView> _viewProvider =
-    NotifierProvider<_ViewNotifier, BillsView>(_ViewNotifier.new);
+final NotifierProvider<_GroupNotifier, BillsGroup> _groupProvider =
+    NotifierProvider<_GroupNotifier, BillsGroup>(_GroupNotifier.new);
 
 /// One key per switch of a bill (its intent names the target state), and no second call while one runs.
 final Once _switchOnce = Once();
@@ -96,90 +96,66 @@ class BillsScreen extends ConsumerWidget {
       for (final b in bills.value ?? const <Json>[])
         str(b['id']): billMarkOf(b, accountMarks),
     };
-    final view = ref.watch(_viewProvider);
+    final group = ref.watch(_groupProvider);
     final startsOn = ref.watch(settingsProvider.select((s) => s.weekStartsOn));
-    final range = billsRange(manilaToday());
     return Scaffold(
       appBar: AppBar(title: Text(context.t.billsTitle)),
       body: ListView(
         padding: pagePadding(context),
         children: <Widget>[
-          BillsViewSwitch(
-            value: view,
-            onChanged: ref.read(_viewProvider.notifier).pick,
+          SectionTitle(context.t.billsComingUp),
+          BillsGroupSwitch(
+            value: group,
+            onChanged: ref.read(_groupProvider.notifier).pick,
           ),
-          if (view != BillsView.list)
-            AsyncBody<List<Json>>(
-              value: due,
-              skeleton: const SkeletonRows(kind: SkeletonKind.tile),
-              onRetry: () => ref.invalidate(_dueProvider),
-              data: (list) => Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: BillsCalendar(
-                  // A new key when the shape changes, so a week and a month never share a picked day
-                  key: ValueKey<BillsView>(view),
-                  month: view == BillsView.month,
-                  dues: list,
-                  today: manilaToday(),
-                  from: range.from,
-                  to: range.to,
-                  startsOn: startsOn,
-                  rowBuilder: (d, overdue) => DueRow(
-                    due: d,
-                    mark: byBill[str(d['billId'])] ?? const Mark(),
-                    overdue: overdue,
-                    onEdit: () => _editDate(context, ref, d),
-                    onPay: () => _pay(context, ref, d),
-                  ),
-                ),
-              ),
-            ),
-          if (view == BillsView.list) ...<Widget>[
-            SectionTitle(context.t.billsComingUp),
-            AsyncBody<List<Json>>(
-              value: due,
-              skeleton: const SkeletonRows(kind: SkeletonKind.tile),
-              onRetry: () => ref.invalidate(_dueProvider),
-              data: (list) {
-                final groups = groupDue(list, manilaToday());
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (!anyUnpaid(groups)) Note(context.t.billsNothingDue),
-                    for (final g in groups) ...<Widget>[
-                      MonthHeader(month: g.month),
-                      for (final d in g.rows)
-                        DueRow(
-                          due: d,
-                          mark: byBill[str(d['billId'])] ?? const Mark(),
-                          overdue: g.isOverdue,
-                          onEdit: () => _editDate(context, ref, d),
-                          onPay: () => _pay(context, ref, d),
-                        ),
-                    ],
-                  ],
-                );
-              },
-            ),
-            SectionTitle(context.t.billsAll),
-            AsyncBody<List<Json>>(
-              value: bills,
-              skeleton: const SkeletonRows(kind: SkeletonKind.tile),
-              onRetry: () => ref.invalidate(_billsProvider),
-              data: (list) => Column(
+          AsyncBody<List<Json>>(
+            value: due,
+            skeleton: const SkeletonRows(kind: SkeletonKind.tile),
+            onRetry: () => ref.invalidate(_dueProvider),
+            data: (list) {
+              final groups = groupDue(
+                list,
+                manilaToday(),
+                weekly: group == BillsGroup.week,
+                startsOn: startsOn,
+              );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  if (list.isEmpty) Note(context.t.billsEmpty),
-                  for (final b in list)
-                    BillTile(
-                      bill: b,
-                      mark: billMarkOf(b, accountMarks),
-                      onEdit: () => _editBill(context, ref, b),
-                      onActive: (on) => _setActive(context, ref, b, on),
-                    ),
+                  if (!anyUnpaid(groups)) Note(context.t.billsNothingDue),
+                  for (final g in groups) ...<Widget>[
+                    MonthHeader(month: g.month),
+                    for (final d in g.rows)
+                      DueRow(
+                        due: d,
+                        mark: byBill[str(d['billId'])] ?? const Mark(),
+                        overdue: g.isOverdue,
+                        onEdit: () => _editDate(context, ref, d),
+                        onPay: () => _pay(context, ref, d),
+                      ),
+                  ],
                 ],
-              ),
+              );
+            },
+          ),
+          SectionTitle(context.t.billsAll),
+          AsyncBody<List<Json>>(
+            value: bills,
+            skeleton: const SkeletonRows(kind: SkeletonKind.tile),
+            onRetry: () => ref.invalidate(_billsProvider),
+            data: (list) => Column(
+              children: <Widget>[
+                if (list.isEmpty) Note(context.t.billsEmpty),
+                for (final b in list)
+                  BillTile(
+                    bill: b,
+                    mark: billMarkOf(b, accountMarks),
+                    onEdit: () => _editBill(context, ref, b),
+                    onActive: (on) => _setActive(context, ref, b, on),
+                  ),
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: () => _add(context, ref),

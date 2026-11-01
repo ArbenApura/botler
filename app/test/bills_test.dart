@@ -493,52 +493,56 @@ void main() {
     });
   });
 
-  group('the week and month views', () {
-    testWidgets('week shows the day strip and the bills of the picked day', (
-      tester,
-    ) async {
-      final stand = Stand(
-        due: <Json>[
-          dueRow('Meralco', today),
-          dueRow('WiFi', addDaysTo(today, 400)),
+  group('sectioned by week or by month', () {
+    test('a week is named by its first day and holds its bills together', () {
+      // 2026-10-22 is a Thursday; weeks start on Monday
+      final g = groupDue(
+        <Json>[
+          dueRow('A', '2026-10-23'),
+          dueRow('B', '2026-10-25'),
+          dueRow('C', '2026-10-26'),
+          dueRow('Late', '2026-10-20'),
+          dueRow('Done', '2026-10-12', paid: true),
         ],
-        bills: <Json>[billRow('Meralco'), billRow('WiFi')],
+        '2026-10-22',
+        weekly: true,
       );
-      await show(tester, stand);
-      await tester.tap(find.text('Week'));
-      await tester.pumpAndSettle();
-      // Today is picked: its bill is under the strip, the list sections are gone
-      expect(find.text('Meralco'), findsOneWidget);
-      expect(find.text('Coming up'), findsNothing);
-      expect(find.text('Mark paid'), findsOneWidget);
-      // A day with nothing says so
-      // The week starts on Monday: on a Sunday the day after is in the next week, so take the day before
-      final other = DateTime.parse(today).weekday == DateTime.sunday ? -1 : 1;
-      final tomorrow = DateTime.parse(addDaysTo(today, other)).day;
-      await tester.tap(find.text('$tomorrow').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Nothing due this day.'), findsOneWidget);
+      expect(g.map((x) => x.month), <String>['', '2026-10-19', '2026-10-26']);
+      expect(g[1].rows.map((r) => r['name']), <String>['A', 'B']);
+      expect(g[2].rows.map((r) => r['name']), <String>['C']);
     });
 
-    testWidgets('month shows the grid and remembers the choice', (
+    test('a week can start on Sunday', () {
+      final g = groupDue(
+        <Json>[dueRow('A', '2026-10-25'), dueRow('B', '2026-10-24')],
+        '2026-10-22',
+        weekly: true,
+        startsOn: 0,
+      );
+      expect(g.map((x) => x.month), <String>['2026-10-18', '2026-10-25']);
+    });
+
+    testWidgets('Week sections the same list by week and the choice sticks', (
       tester,
     ) async {
       final stand = Stand(
-        due: <Json>[dueRow('Meralco', today)],
+        due: <Json>[dueRow('Meralco', addDaysTo(today, 2))],
         bills: <Json>[billRow('Meralco')],
       );
       await show(tester, stand);
-      await tester.tap(find.text('Month'));
-      await tester.pumpAndSettle();
-      expect(find.text('Meralco'), findsOneWidget);
+      // Months by default
+      final month = DateFormat.yMMMM('en');
       expect(
-        find.text(DateFormat.yMMMM('en').format(DateTime.parse(today))),
-        findsOneWidget,
+        find.text(month.format(DateTime.parse(addDaysTo(today, 2)))),
+        findsWidgets,
       );
-      // Back to the list shows the sections again
-      await tester.tap(find.text('List'));
+      await tester.tap(find.text('Week'));
       await tester.pumpAndSettle();
-      expect(find.text('Coming up'), findsOneWidget);
+      expect(find.textContaining(' – '), findsOneWidget);
+      expect(find.text('Meralco'), findsWidgets);
+      expect(find.text('Mark paid'), findsOneWidget);
+      // Still a list: the all-bills section is there too
+      expect(find.text('All bills'), findsOneWidget);
     });
   });
 }

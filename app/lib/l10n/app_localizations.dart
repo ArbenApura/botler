@@ -7763,12 +7763,6 @@ abstract class AppLocalizations {
   /// **'Show less'**
   String get chatOutputShowLess;
 
-  /// No description provided for @billsViewList.
-  ///
-  /// In en, this message translates to:
-  /// **'List'**
-  String get billsViewList;
-
   /// No description provided for @billsViewWeek.
   ///
   /// In en, this message translates to:
@@ -7780,42 +7774,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Month'**
   String get billsViewMonth;
-
-  /// No description provided for @billsDayEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Nothing due this day.'**
-  String get billsDayEmpty;
-
-  /// No description provided for @billsPrevWeek.
-  ///
-  /// In en, this message translates to:
-  /// **'Previous week'**
-  String get billsPrevWeek;
-
-  /// No description provided for @billsNextWeek.
-  ///
-  /// In en, this message translates to:
-  /// **'Next week'**
-  String get billsNextWeek;
-
-  /// No description provided for @billsPrevMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'Previous month'**
-  String get billsPrevMonth;
-
-  /// No description provided for @billsNextMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'Next month'**
-  String get billsNextMonth;
-
-  /// No description provided for @billsDayLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'{day}, {count} due'**
-  String billsDayLabel(String day, int count);
 }
 
 class _AppLocalizationsDelegate

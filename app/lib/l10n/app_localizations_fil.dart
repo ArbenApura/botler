@@ -4642,31 +4642,8 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatOutputShowLess => 'Ipakita nang kaunti';
 
   @override
-  String get billsViewList => 'Listahan';
-
-  @override
   String get billsViewWeek => 'Linggo';
 
   @override
   String get billsViewMonth => 'Buwan';
-
-  @override
-  String get billsDayEmpty => 'Walang babayaran sa araw na ito.';
-
-  @override
-  String get billsPrevWeek => 'Nakaraang linggo';
-
-  @override
-  String get billsNextWeek => 'Susunod na linggo';
-
-  @override
-  String get billsPrevMonth => 'Nakaraang buwan';
-
-  @override
-  String get billsNextMonth => 'Susunod na buwan';
-
-  @override
-  String billsDayLabel(String day, int count) {
-    return '$day, $count babayaran';
-  }
 }

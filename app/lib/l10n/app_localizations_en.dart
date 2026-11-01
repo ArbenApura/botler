@@ -4615,31 +4615,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOutputShowLess => 'Show less';
 
   @override
-  String get billsViewList => 'List';
-
-  @override
   String get billsViewWeek => 'Week';
 
   @override
   String get billsViewMonth => 'Month';
-
-  @override
-  String get billsDayEmpty => 'Nothing due this day.';
-
-  @override
-  String get billsPrevWeek => 'Previous week';
-
-  @override
-  String get billsNextWeek => 'Next week';
-
-  @override
-  String get billsPrevMonth => 'Previous month';
-
-  @override
-  String get billsNextMonth => 'Next month';
-
-  @override
-  String billsDayLabel(String day, int count) {
-    return '$day, $count due';
-  }
 }

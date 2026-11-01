@@ -444,5 +444,15 @@
       "Ang Calendar ay bumubukas na sa Week, tapos Month, tapos Agenda.",
       "Hindi na lumalaki nang sobra ang text kapag napakalaki ng font ng phone mo, at mas maayos ang espasyo sa ilang screen."
     ]
+  },
+  {
+    "versionCode": 42,
+    "versionName": "1.4.1",
+    "en": [
+      "Bills is a list again: under Coming up, choose Week or Month and the same list is sectioned by week or by month. The calendar-style view from the last update is gone, since the Calendar screen already does that."
+    ],
+    "fil": [
+      "Listahan na ulit ang Bills: sa ilalim ng Coming up, piliin ang Week o Month at ang parehong listahan ay hahatiin sa bawat linggo o buwan. Wala na ang calendar-style na view mula sa huling update, dahil ginagawa na iyon ng Calendar screen."
+    ]
   }
 ]

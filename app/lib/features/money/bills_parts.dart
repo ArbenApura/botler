@@ -114,10 +114,15 @@ class MonthHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final late = month.isEmpty;
-    final day = late ? null : dayOf('$month-01');
+    // A month is yyyy-MM; a week is its first day, yyyy-MM-dd, and reads as "Oct 26 – Nov 1"
+    final week = month.length == 10;
+    final day = late ? null : dayOf(week ? month : '$month-01');
+    final loc = _locale(context);
     final label = late || day == null
         ? context.t.billsOverdue
-        : DateFormat.yMMMM(_locale(context)).format(day);
+        : week
+        ? '${DateFormat.MMMd(loc).format(day)} – ${DateFormat.MMMd(loc).format(DateTime(day.year, day.month, day.day + 6))}'
+        : DateFormat.yMMMM(loc).format(day);
     return Semantics(
       header: true,
       child: Padding(
