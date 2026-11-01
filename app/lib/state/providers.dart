@@ -68,7 +68,7 @@ class Settings {
   /// The language of the app: en or fil.
   final String language;
 
-  /// How the assistant replies: auto, en, fil or taglish.
+  /// How the assistant replies: auto, en, fil, taglish, or one of the fixed languages (es, fr, de, pt, zh, ja, ko, hi, id, ar).
   final String replyLanguage;
 
   /// The first day of the week: 0 is Sunday, 1 is Monday.

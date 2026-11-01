@@ -65,19 +65,23 @@ class _ReminderStatusRowState extends ConsumerState<ReminderStatusRow>
     } else {
       words = t.remBlockedFailed;
     }
-    return PaperCard(
-      child: Row(
-        children: <Widget>[
-          Icon(Icons.notifications_off_outlined, color: c.warning),
-          const SizedBox(width: 12),
-          Expanded(child: Text(words)),
-          const SizedBox(width: 12),
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
-            onPressed: () => unawaited(openReminderSettings()),
-            child: Text(t.remFix),
-          ),
-        ],
+    // Room below, so the field after it never touches the card
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: PaperCard(
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.notifications_off_outlined, color: c.warning),
+            const SizedBox(width: 12),
+            Expanded(child: Text(words)),
+            const SizedBox(width: 12),
+            FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+              onPressed: () => unawaited(openReminderSettings()),
+              child: Text(t.remFix),
+            ),
+          ],
+        ),
       ),
     );
   }

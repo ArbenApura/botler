@@ -25,12 +25,25 @@ import '../money/currency_picker.dart';
 import 'changelog_row.dart';
 import 'failed_writes_row.dart';
 import 'photo_mode_row.dart';
-import 'provider_row.dart';
 import 'rates_row.dart';
 import 'reminder_status_row.dart';
 import 'update_row.dart';
 
 // -- TYPES -- //
+
+/// The other languages the assistant can always reply in, by the id the server knows, each in its own name.
+const Map<String, String> _replyLanguages = <String, String>{
+  'es': 'Español',
+  'fr': 'Français',
+  'de': 'Deutsch',
+  'pt': 'Português',
+  'zh': '中文',
+  'ja': '日本語',
+  'ko': '한국어',
+  'hi': 'हिन्दी',
+  'id': 'Bahasa Indonesia',
+  'ar': 'العربية',
+};
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -87,9 +100,12 @@ class SettingsScreen extends ConsumerWidget {
 
           // -- LANGUAGE AND MONEY -- //
           SectionTitle(t.settingsSectionLanguageMoney),
+          // Room above, so the floating label never meets the title
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             // ignore: deprecated_member_use
             value: s.language,
+            isExpanded: true,
             decoration: InputDecoration(labelText: t.settingsAppLanguage),
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
@@ -104,12 +120,13 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (l) =>
                 l == null ? null : _save(context, ref, language: l),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           DropdownButtonFormField<String>(
             // ignore: deprecated_member_use
             value: s.replyLanguage,
             decoration: InputDecoration(labelText: t.settingsReplies),
             isExpanded: true,
+            menuMaxHeight: 360,
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
                 value: 'auto',
@@ -127,19 +144,19 @@ class SettingsScreen extends ConsumerWidget {
                 value: 'taglish',
                 child: Text(t.settingsRepliesTaglish),
               ),
+              // Other languages are shown in their own name, so a person finds theirs whatever the app language is
+              for (final e in _replyLanguages.entries)
+                DropdownMenuItem<String>(value: e.key, child: Text(e.value)),
             ],
             onChanged: (r) =>
                 r == null ? null : _save(context, ref, replyLanguage: r),
           ),
-          const SizedBox(height: 12),
-          ProviderRow(
-            settings: s,
-            onChanged: (p) => _save(context, ref, modelProvider: p),
-          ),
+          const SizedBox(height: 28),
           PhotoModeRow(
             settings: s,
             onChanged: (m) => _save(context, ref, photoMode: m),
           ),
+          const SizedBox(height: 24),
           PaperCard(
             onTap: () => _pickCurrency(context, ref, s.currency),
             child: Row(
@@ -241,7 +258,10 @@ class SettingsScreen extends ConsumerWidget {
           // -- REMINDERS -- //
           SectionTitle(t.settingsReminders),
           const ReminderStatusRow(),
+          // A little room above, so the floating label never meets the row before it
+          const SizedBox(height: 8),
           DropdownButtonFormField<int>(
+            isExpanded: true,
             // ignore: deprecated_member_use
             value: s.leadMinutes,
             decoration: InputDecoration(labelText: t.settingsLeadLabel),
@@ -267,7 +287,9 @@ class SettingsScreen extends ConsumerWidget {
 
           // -- VOICE -- //
           SectionTitle(t.settingsVoice),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             // ignore: deprecated_member_use
             value: s.speechLocale,
             decoration: InputDecoration(labelText: t.settingsListenFor),

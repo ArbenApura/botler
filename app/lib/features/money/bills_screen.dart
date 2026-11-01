@@ -110,7 +110,7 @@ class BillsScreen extends ConsumerWidget {
           ),
           AsyncBody<List<Json>>(
             value: due,
-            skeleton: const SkeletonRows(kind: SkeletonKind.tile),
+            skeleton: const DueSkeleton(),
             onRetry: () => ref.invalidate(_dueProvider),
             data: (list) {
               final groups = groupDue(

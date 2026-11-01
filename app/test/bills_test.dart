@@ -277,7 +277,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Water paid'), findsOneWidget);
       await tester.enterText(find.byType(TextField).last, '1200');
-      await tester.tap(find.widgetWithText(FilledButton, 'Mark paid'));
+      // The row's own tonal button is a FilledButton too, so the sheet's is the last one
+      await tester.tap(find.widgetWithText(FilledButton, 'Mark paid').last);
       await tester.pumpAndSettle();
       final call = stand.calls.lastWhere((c) => c.verb == 'bill_mark_paid');
       expect(call.args, <String, Object?>{

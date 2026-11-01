@@ -237,6 +237,22 @@ describe('reminders follow what needs action', () => {
 		);
 	});
 
+	it('still reminds an event made less than 30 minutes before it starts', async () => {
+		const f = await seedPerson(t);
+		const near = await createEvent(as(f.ctx), {
+			title: 'Call',
+			startsAt: new Date(Date.now() + 20 * 60_000).toISOString()
+		});
+		const [a] = await byPrefix(f, `event:${near.id}`);
+		expect(a?.remindAt.getTime()).toBe(Date.parse(near.startsAt) - 10 * 60_000);
+		const soon = await createEvent(as(f.ctx), {
+			title: 'Door',
+			startsAt: new Date(Date.now() + 5 * 60_000).toISOString()
+		});
+		const [b] = await byPrefix(f, `event:${soon.id}`);
+		expect(b?.remindAt.getTime()).toBe(Date.parse(soon.startsAt));
+	});
+
 	it('plans each occurrence of a routine ahead of its time, and cancels them when it is switched off', async () => {
 		const f = await seedPerson(t);
 		const r = await createRoutine(as(f.ctx), {

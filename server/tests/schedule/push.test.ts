@@ -121,7 +121,8 @@ describe('the Firebase sender', () => {
 		});
 		expect(JSON.parse(String(sends[1]?.init.body)).message).toMatchObject({
 			notification: { title: 'Rent is due tomorrow' },
-			data: { type: 'notice', key: 'bill:1' }
+			data: { type: 'notice', key: 'bill:1' },
+			android: { priority: 'high', notification: { channel_id: 'botler_reminders_v2' } }
 		});
 	});
 

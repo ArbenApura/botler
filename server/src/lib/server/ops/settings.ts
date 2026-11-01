@@ -7,7 +7,7 @@ import type { Tx } from '../db/client';
 import type { Ctx } from './context';
 import type { SettingsSetInput } from '../db/zod';
 import type { SelectableProvider } from '../../providers';
-import type { PhotoMode } from '../db/schema/settings';
+import type { PhotoMode, ReplyLanguage } from '../db/schema/settings';
 // -- DEP-MODULES -- //
 import { eq } from 'drizzle-orm';
 // -- MODULES -- //
@@ -24,7 +24,7 @@ import { mapped, parse, requirePerson } from './shared';
 export type SettingsView = {
 	currency: string;
 	language: 'en' | 'fil';
-	replyLanguage: 'auto' | 'en' | 'fil' | 'taglish';
+	replyLanguage: ReplyLanguage;
 	/** 0 is Sunday, 1 is Monday. */
 	weekStartsOn: number;
 	/** Balances lead with net (what is not owed to bills or goals) and show gross smaller. Display only: the server always works net out. */

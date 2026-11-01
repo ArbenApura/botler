@@ -81,7 +81,10 @@ void main() {
         ),
       );
       expect(find.text('Photos for the assistant'), findsOneWidget);
-      expect(find.textContaining('goes to DeepSeek as it is'), findsOneWidget);
+      expect(
+        find.textContaining('goes to AI service as it is'),
+        findsOneWidget,
+      );
       expect(find.textContaining('not hidden'), findsOneWidget);
     });
 
@@ -99,12 +102,12 @@ void main() {
         );
         expect(
           find.textContaining(
-            'DeepSeek cannot look at pictures, so otherai looks at them',
+            'AI service cannot look at pictures, so otherai looks at them',
           ),
           findsOneWidget,
         );
         expect(
-          find.textContaining('The rest of your chat stays on DeepSeek'),
+          find.textContaining('The rest of your chat stays on AI service'),
           findsOneWidget,
         );
       },
@@ -118,7 +121,7 @@ void main() {
         const Settings(photoMode: 'image', modelProvider: 'deepseek'),
       );
       expect(
-        find.textContaining('DeepSeek cannot look at pictures'),
+        find.textContaining('AI service cannot look at pictures'),
         findsOneWidget,
       );
       expect(find.textContaining('goes to'), findsNothing);
@@ -154,7 +157,7 @@ void main() {
         language: 'fil',
       );
       expect(find.text('Mga litrato para sa assistant'), findsOneWidget);
-      expect(find.textContaining('DeepSeek'), findsOneWidget);
+      expect(find.textContaining('AI service'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

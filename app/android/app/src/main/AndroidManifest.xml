@@ -4,6 +4,8 @@
     <!-- REMINDERS: NOTIFICATIONS, EXACT TIMES (AN ALARM AND CALENDAR STYLE APP MAY USE THE AUTOMATIC EXACT ALARM PERMISSION), BACK AFTER A REBOOT -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <!-- ANDROID 12 (API 31 AND 32) HAS NO USE_EXACT_ALARM: THERE THE OLDER PERMISSION IS GRANTED WITHOUT A PROMPT -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -92,7 +94,7 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
         </intent>
-        <!-- ALARMS AND TIMERS ARE HANDED TO THE PHONE'S CLOCK APP -->
+        <!-- ALARMS AND TIMERS RING FROM BOTLER ITSELF (LOUD CHANNEL); THESE TWO QUERIES ARE KEPT FROM THE OLD CLOCK APP HAND-OFF -->
         <intent>
             <action android:name="android.intent.action.SET_ALARM"/>
         </intent>

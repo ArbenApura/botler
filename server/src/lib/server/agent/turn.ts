@@ -21,6 +21,7 @@ import type {
 	ToolCall
 } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
+import type { ReplyLanguage } from '../db/schema/settings';
 import type { AgentTool, WebDeps } from './tools';
 import type { DeviceOutcome } from './device';
 import type { TranscriptMessage } from './transcript';
@@ -113,7 +114,7 @@ export type TurnParams = {
 	rewindNote?: string;
 	/** The person's currency and how the assistant replies, read from their settings. */
 	currency?: string;
-	replyLanguage?: 'auto' | 'en' | 'fil' | 'taglish';
+	replyLanguage?: ReplyLanguage;
 	signal?: AbortSignal;
 	now?: Date;
 	tools?: AgentTool[];

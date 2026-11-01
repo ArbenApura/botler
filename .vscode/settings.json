@@ -1,5 +1,5 @@
 {
 	// A saved Dart file hot reloads on the running preview at once
 	"dart.hotReloadOnSave": "all",
-	"dart.flutterSdkPath": "C:\Users\Admin\dev\flutter"
+	"dart.flutterSdkPath": "C:\\Users\\Admin\\dev\\flutter"
 }

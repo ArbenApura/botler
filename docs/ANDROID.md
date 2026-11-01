@@ -18,7 +18,7 @@ flutter run --dart-define=BOTLER_API=http://10.0.2.2:5280
 
 **Cleartext rules.** The main manifest (what every release build ships) has `usesCleartextTraffic="false"` and no network security config, so a release build refuses plain http everywhere. The debug source set (`app/android/app/src/debug/`) adds `res/xml/network_security_config.xml` through its own manifest overlay; it allows cleartext only for `10.0.2.2`, `localhost` and `127.0.0.1` and keeps everything else https only. Because it lives in the debug source set, it is not in a release APK. `powershell deploy/check-android-manifest.ps1` reads both files and fails if the main manifest ever allows cleartext or names a config, or if the debug config allows another host. The `botler://` link filter on `MainActivity` is limited to the host `quickadd` (the only link the app handles, from the home screen widget).
 
-**Permissions** (all in the main manifest, unchanged): `INTERNET`; `POST_NOTIFICATIONS`, `USE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `VIBRATE`, `WAKE_LOCK` for reminders; `USE_BIOMETRIC` for the app lock; `RECORD_AUDIO` for talking to Botler; `REQUEST_INSTALL_PACKAGES` for the in-app update.
+**Permissions** (all in the main manifest, unchanged): `INTERNET`; `POST_NOTIFICATIONS`, `USE_EXACT_ALARM` (and `SCHEDULE_EXACT_ALARM` up to Android 12L, where the first does not exist), `RECEIVE_BOOT_COMPLETED`, `VIBRATE`, `WAKE_LOCK` for reminders; `USE_BIOMETRIC` for the app lock; `RECORD_AUDIO` for talking to Botler; `REQUEST_INSTALL_PACKAGES` for the in-app update.
 
 A release build also needs the web client id from `server/.env` (`GOOGLE_CLIENT_ID`) as `--dart-define=GOOGLE_WEB_CLIENT_ID=...` (read it without printing it). R8 shrinking is off on purpose: it removed code `shared_preferences` needs and crashed the release app, so always run a release build on a device or emulator before shipping. Strings live in `app/lib/l10n/parts/*.en.arb` and `*.fil.arb`; after editing run `dart run tool/l10n.dart` then `flutter gen-l10n`.
 
@@ -50,6 +50,10 @@ The manifest asks for `USE_EXACT_ALARM`: it is granted automatically to apps who
 
 Some phones (Xiaomi, Oppo, Vivo, Samsung, Huawei) stop apps in the background. If a reminder did not ring: Settings, Apps, Botler, Battery, choose "Unrestricted" (or "No restrictions"), and on Xiaomi/Oppo also allow "Autostart". Botler also re-arms every alarm after a reboot and after an update (the plugin's boot receiver) and reconciles with the server every ~15 minutes and whenever the app opens.
 
+## Alarms and timers
+
+Alarms and timers ring from Botler itself, not from the clock app (a hand-off needs the `SET_ALARM` permission and a screen in front, and Android 10+ blocks it from the background sync). They are scheduled for the whole 14 day window as alarm-clock entries on the loud channel `botler_alarms_v1` (system alarm sound, repeats until tapped or swiped). Check: `adb shell dumpsys alarm | findstr botler` lists them, and `adb shell dumpsys notification | findstr botler_alarms_v1` shows the channel at importance 5.
+
 ## Doze test runbook (adb)
 
 A reminder must ring with the phone asleep. With the emulator or a phone connected (`adb devices`):
@@ -79,3 +83,7 @@ yarn dev:session
 ```
 
 Without VS Code: `cd app; flutter run -d emulator-5554 --dart-define-from-file=.dev/dev-session.json`, then `r` reloads and `R` restarts. The session script refuses any database but 127.0.0.1:5434. The dev database starts empty: add accounts and bills in the app (or through the chat) to see the screens with data.
+
+### Live preview against the VPS (the real data)
+
+The second launch config, "Botler (emulator, live server)", runs the same debug app against https://botler.arbenger.com with the real Google sign in, so the emulator shows your real accounts and bills. It needs nothing local: no Docker, no `yarn dev:emulator`. The web client id goes in `app/.dev/live.json` (git-ignored): `{"GOOGLE_WEB_CLIENT_ID": "<id>.apps.googleusercontent.com"}`, the same value as `GOOGLE_CLIENT_ID` in `server/.env`. Google sign in on a debug build needs the debug key's SHA-1 registered on the Android OAuth client (`keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android`). Every write in this preview is a real write to the live database, so use the local-server config when you are only trying screens.

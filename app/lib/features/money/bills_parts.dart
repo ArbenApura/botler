@@ -2,7 +2,6 @@
 // A due row keeps "Mark paid" as its own 48 dp button beside the tappable body, so paying and editing never compete for the same tap.
 
 // -- DEP-MODULES -- //
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +16,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/mark_badge.dart';
+import '../../ui/skeleton.dart';
 
 // -- CONSTANTS -- //
 
@@ -148,9 +148,8 @@ class MonthHeader extends StatelessWidget {
   }
 }
 
-/// One due date. A name that fits beside the amount and the button gets one slim line; a longer name takes the whole top line (two lines at
-/// most) with the amount, weekday and "Mark paid" on a second line under it, so it is never squeezed. The body opens the bill sheet; the
-/// text button pays it.
+/// One due date, always the same shape: the name (two lines at most) over the amount and weekday, with "Mark paid" or the paid tick at the
+/// end, all centred on the row. The body opens the bill sheet; the text button pays it.
 class DueRow extends StatelessWidget {
   const DueRow({
     required this.due,
@@ -170,17 +169,6 @@ class DueRow extends StatelessWidget {
   final Mark mark;
   final VoidCallback onEdit;
   final VoidCallback onPay;
-
-  /// The width of [text] on one line, at the phone's text size.
-  static double _measure(BuildContext context, String text, TextStyle? style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: ui.TextDirection.ltr,
-      textScaler: MediaQuery.textScalerOf(context),
-      maxLines: 1,
-    )..layout();
-    return painter.width;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,145 +209,74 @@ class DueRow extends StatelessWidget {
               ],
             ),
     );
-    final action = paid
-        ? Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.check, size: 16, color: c.success),
-                const SizedBox(width: 4),
-                Text(t.billsPaid, style: TextStyle(color: c.success)),
-              ],
-            ),
-          )
-        : Semantics(
-            button: true,
-            label: t.billsMarkPaidFor(name),
-            excludeSemantics: true,
-            child: TextButton(
-              style: TextButton.styleFrom(
-                minimumSize: _tap,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onPressed: onPay,
-              child: Text(t.billsMarkPaid),
-            ),
-          );
-    return LayoutBuilder(
-      builder: (context, box) {
-        // Room for the name in one line: the row minus the day, logo, gaps, the amount and the button
-        final actionWidth = paid
-            ? 90.0
-            : _measure(context, t.billsMarkPaid, text.labelLarge) + 24;
-        final room =
-            box.maxWidth -
-            (16 + 36 + 12 + 36 + 12) -
-            8 -
-            _measure(context, cost, costStyle) -
-            8 -
-            actionWidth.clamp(_tap.width, 200);
-        final oneLine =
-            _measure(context, name, text.titleMedium) <= room &&
-            _measure(context, when, text.bodySmall) <= room;
-        if (oneLine) {
-          return Row(
-            children: <Widget>[
-              Expanded(
+    // The action column has one width, so "Mark paid" and the paid tick end on the same edge in every row
+    final action = SizedBox(
+      width: 112,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: paid
+            ? Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.check, size: 16, color: c.success),
+                    const SizedBox(width: 4),
+                    Text(t.billsPaid, style: TextStyle(color: c.success)),
+                  ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.only(right: 12),
                 child: Semantics(
                   button: true,
-                  label: label,
-                  hint: t.billsEditHint,
+                  label: t.billsMarkPaidFor(name),
                   excludeSemantics: true,
-                  child: InkWell(
-                    onTap: onEdit,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: _tap.height),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-                        child: Row(
-                          children: <Widget>[
-                            dayCell,
-                            const SizedBox(width: 12),
-                            MarkBadge(name: name, mark: mark, size: 36),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                  Text(name, style: text.titleMedium),
-                                  Text(
-                                    when,
-                                    style: text.bodySmall?.copyWith(
-                                      color: c.muted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(cost, style: costStyle),
-                          ],
-                        ),
-                      ),
+                  child: FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                     ),
+                    onPressed: onPay,
+                    child: Text(t.billsMarkPaid),
                   ),
                 ),
               ),
-              action,
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Semantics(
-              button: true,
-              label: label,
-              hint: t.billsEditHint,
-              excludeSemantics: true,
-              child: InkWell(
-                onTap: onEdit,
+      ),
+    );
+    // One shape for every row: name over amount and weekday, the action at the end, all centred on the row
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Semantics(
+            button: true,
+            label: label,
+            hint: t.billsEditHint,
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: onEdit,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: _tap.height + 8),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       dayCell,
                       const SizedBox(width: 12),
                       MarkBadge(name: name, mark: mark, size: 36),
                       const SizedBox(width: 12),
-                      // The name has the whole rest of the line, and may take two
                       Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 1),
-                          child: Text(
-                            name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: text.titleMedium,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // The second line sits under the name (day 36 + logo 36 + gaps 24 + padding 16 = 112)
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: InkWell(
-                    onTap: onEdit,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: _tap.height),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(112, 0, 8, 0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: ExcludeSemantics(
-                            child: Wrap(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.titleMedium,
+                            ),
+                            const SizedBox(height: 2),
+                            Wrap(
                               spacing: 8,
                               runSpacing: 2,
                               crossAxisAlignment: WrapCrossAlignment.center,
@@ -373,18 +290,76 @@ class DueRow extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ),
+                          ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        action,
+      ],
+    );
+  }
+}
+
+/// The loading look of the due list: a group header and one card of rows shaped like [DueRow] (day, logo, name over amount, action), so
+/// nothing jumps when the bills arrive.
+class DueSkeleton extends StatelessWidget {
+  const DueSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 20, 4, 8),
+            child: Skeleton(width: 120, height: 12),
+          ),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: <Widget>[
+                for (var i = 0; i < 4; i++) ...<Widget>[
+                  if (i > 0) const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                    child: SizedBox(
+                      height: _tap.height + 8 - 20,
+                      child: const Row(
+                        children: <Widget>[
+                          SizedBox(width: 36, child: Skeleton(height: 28)),
+                          SizedBox(width: 12),
+                          Skeleton(width: 36, height: 36, radius: 10),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Skeleton(width: 150, height: 14),
+                                SizedBox(height: 6),
+                                Skeleton(width: 100, height: 12),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Skeleton(width: 80, height: 32, radius: 16),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                action,
+                ],
               ],
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }

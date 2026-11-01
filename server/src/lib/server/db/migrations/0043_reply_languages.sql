@@ -1,0 +1,2 @@
+ALTER TABLE "user_setting" DROP CONSTRAINT "user_setting_reply_language_chk";--> statement-breakpoint
+ALTER TABLE "user_setting" ADD CONSTRAINT "user_setting_reply_language_chk" CHECK ("user_setting"."reply_language" in ('auto', 'en', 'fil', 'taglish', 'es', 'fr', 'de', 'pt', 'zh', 'ja', 'ko', 'hi', 'id', 'ar'));

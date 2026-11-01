@@ -8,6 +8,7 @@
 // -- TYPES -- //
 import type { ChatMessage } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
+import type { ReplyLanguage } from '../db/schema/settings';
 import type { PromptOutlineBook } from '../ops/pageStore';
 // -- MODULES -- //
 import { currencyOf, DEFAULT_CURRENCY } from '../../finance/currency';
@@ -97,8 +98,25 @@ export function currencyLine(code: string): string {
 	return `The person's main currency is ${c.name} (${c.code}, written ${c.symbol.trim()}); ${unit}.`;
 }
 
+/** The English name of each fixed reply language that has no case of its own below. */
+const REPLY_LANGUAGE_NAMES: Partial<Record<ReplyLanguage, string>> = {
+	es: 'Spanish',
+	fr: 'French',
+	de: 'German',
+	pt: 'Portuguese',
+	zh: 'Mandarin Chinese (Simplified)',
+	ja: 'Japanese',
+	ko: 'Korean',
+	hi: 'Hindi',
+	id: 'Indonesian',
+	ar: 'Arabic'
+};
+
 /** One line for the reply language. Auto is English, mirroring Filipino or Taglish only when the person writes it. */
-export function languageLine(mode: 'auto' | 'en' | 'fil' | 'taglish'): string {
+export function languageLine(mode: ReplyLanguage): string {
+	const named = REPLY_LANGUAGE_NAMES[mode];
+	if (named)
+		return `Reply language: always ${named}. Keep amounts, dates and currency codes as the tools give them.`;
 	switch (mode) {
 		case 'en':
 			return 'Reply language: always English.';
@@ -277,7 +295,7 @@ export type PromptInput = {
 	/** The person's currency code. Left out, pesos. */
 	currency?: string;
 	/** How the assistant should reply. Left out, auto. */
-	replyLanguage?: 'auto' | 'en' | 'fil' | 'taglish';
+	replyLanguage?: ReplyLanguage;
 };
 
 /** The clock time in Manila with its offset, so "in 3 minutes" or "at 3:30pm" becomes a correct instant for reminder_create and alarm_create. */

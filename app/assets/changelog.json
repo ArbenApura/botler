@@ -506,5 +506,21 @@
     "fil": [
       "Manipis na ulit ang mga row sa Bills: ang bill na may maikling pangalan ay nasa isang linya, at ang mahabang pangalan lang ang gumagamit ng dalawang linya para makapag-wrap."
     ]
+  },
+  {
+    "versionCode": 48,
+    "versionName": "1.4.7",
+    "en": [
+      "The assistant can now reply in more languages: Spanish, French, German, Portuguese, Chinese, Japanese, Korean, Hindi, Indonesian and Arabic. Pick one in Settings, under Assistant replies.",
+      "Cleaner Settings: more room between the language, photo and currency fields, and the AI server line is gone.",
+      "Accounts and Bills line up better: every account shows its name and balance the same way, bill rows share one shape with a clear Mark paid button, and Bills shows a matching loading placeholder.",
+      "Alarms and timers now ring from Botler itself with the alarm sound, and an event made a few minutes before it starts still gets its reminder."
+    ],
+    "fil": [
+      "Mas maraming wika na ang magagamit ng assistant sa pagsagot: Spanish, French, German, Portuguese, Chinese, Japanese, Korean, Hindi, Indonesian at Arabic. Pumili sa Settings, sa ilalim ng Assistant replies.",
+      "Mas maayos na Settings: mas maluwag ang pagitan ng mga field ng wika, larawan at pera, at wala na ang linya ng AI server.",
+      "Mas pantay na ang Accounts at Bills: pareho ang pagpapakita ng pangalan at balanse ng bawat account, iisa ang hugis ng bawat bill row na may malinaw na Mark paid na button, at may katugmang loading placeholder ang Bills.",
+      "Sa Botler na mismo tumutunog ang mga alarm at timer gamit ang tunog ng alarm, at ang event na ginawa ilang minuto bago magsimula ay may paalala pa rin."
+    ]
   }
 ]

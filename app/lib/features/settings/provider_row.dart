@@ -11,9 +11,10 @@ import '../../theme/tokens.dart';
 
 // -- CONSTANTS -- //
 
-/// The names shown for the servers the app knows. A server it does not know is shown by its id.
+/// The names shown for the servers the app knows. A server it does not know is shown by its id. There is one host, so the person sees a plain
+/// "AI service" and not its brand.
 const Map<String, String> providerNames = <String, String>{
-  'deepseek': 'DeepSeek',
+  'deepseek': 'AI service',
 };
 
 // -- FUNCTIONS -- //

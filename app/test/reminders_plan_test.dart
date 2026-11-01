@@ -99,6 +99,56 @@ void main() {
     });
   });
 
+  group('planAlarms', () {
+    test('an alarm and a timer ring at their own time, with no lead', () {
+      final at = _now.add(const Duration(hours: 30));
+      final plan = planAlarms(
+        <Map<String, Object?>>[
+          _reminder('a', at, kind: 'alarm'),
+          _reminder('t', at, kind: 'timer'),
+        ],
+        _now,
+        <String>{},
+      );
+      expect(plan, hasLength(2));
+      expect(plan.every((n) => n.alarm && !n.showNow), isTrue);
+      expect(plan.first.fire, at.toLocal());
+    });
+
+    test('an alarm a minute late rings at once, once', () {
+      final at = _now.subtract(const Duration(minutes: 1));
+      final first = planAlarms(
+        <Map<String, Object?>>[_reminder('a', at, kind: 'alarm')],
+        _now,
+        <String>{},
+      );
+      expect(first.single.showNow, isTrue);
+      final again = planAlarms(
+        <Map<String, Object?>>[_reminder('a', at, kind: 'alarm')],
+        _now,
+        <String>{shownKeyOf('a', at.toLocal())},
+      );
+      expect(again, isEmpty);
+    });
+
+    test(
+      'one past the grace, an ordinary reminder and a bad time are left out',
+      () {
+        final late = _now.subtract(lateGrace + const Duration(minutes: 1));
+        final plan = planAlarms(
+          <Map<String, Object?>>[
+            _reminder('a', late, kind: 'alarm'),
+            _reminder('c', _now.add(const Duration(minutes: 3))),
+            <String, Object?>{'key': 'x', 'kind': 'alarm', 'at': 'not a time'},
+          ],
+          _now,
+          <String>{},
+        );
+        expect(plan, isEmpty);
+      },
+    );
+  });
+
   group('changesReminders', () {
     test('a reply that made a reminder asks the phone to sync', () {
       expect(changesReminders(<Object?>['reminder_create']), isTrue);

@@ -1,8 +1,11 @@
 // THE LANGUAGE AND CURRENCY LINES (BTL-20261022-0218, C.5): THE CACHED PREFIX NEVER CHANGES, THE PER-TURN CONTEXT CARRIES THE SETTING
 
+// -- TYPES -- //
+import type { ReplyLanguage } from '../../src/lib/server/db/schema/settings';
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
+import { REPLY_LANGUAGES } from '../../src/lib/server/db/schema/settings';
 import {
 	buildMessages,
 	currencyLine,
@@ -14,7 +17,7 @@ import {
 
 describe('the assistant context', () => {
 	const NOW = new Date('2026-10-22T04:00:00Z');
-	const build = (replyLanguage: 'auto' | 'en' | 'fil' | 'taglish', currency: string) =>
+	const build = (replyLanguage: ReplyLanguage, currency: string) =>
 		buildMessages({ now: NOW, history: [], userText: 'hi', replyLanguage, currency });
 
 	it('keeps the system prefix identical for every setting, so the model host can cache it', () => {
@@ -37,6 +40,12 @@ describe('the assistant context', () => {
 		const line = languageLine('auto');
 		expect(line).toMatch(/Reply language: English/);
 		expect(line).toMatch(/never start speaking it on your own/);
+	});
+
+	it('names every fixed reply language, so none falls back to the auto line', () => {
+		for (const mode of REPLY_LANGUAGES.filter((m) => !['auto', 'en', 'fil', 'taglish'].includes(m)))
+			expect(languageLine(mode)).toMatch(/^Reply language: always [A-Z]/);
+		expect(languageLine('ja')).toContain('Japanese');
 	});
 
 	it('explains the smallest unit for hundredths and for whole units', () => {

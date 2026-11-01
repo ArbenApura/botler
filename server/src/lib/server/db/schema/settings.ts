@@ -13,7 +13,24 @@ import { id, oneOf, stamps, userTable } from './helpers';
 
 export const APP_LANGUAGES = ['en', 'fil'] as const;
 /** auto is English and mirrors Filipino or Taglish only when the person writes it; the others are fixed. */
-export const REPLY_LANGUAGES = ['auto', 'en', 'fil', 'taglish'] as const;
+export const REPLY_LANGUAGES = [
+	'auto',
+	'en',
+	'fil',
+	'taglish',
+	'es',
+	'fr',
+	'de',
+	'pt',
+	'zh',
+	'ja',
+	'ko',
+	'hi',
+	'id',
+	'ar'
+] as const;
+
+export type ReplyLanguage = (typeof REPLY_LANGUAGES)[number];
 
 /** What the assistant gets from a photo: the picture itself, or only the text the phone read from it. */
 export const PHOTO_MODES = ['image', 'text'] as const;

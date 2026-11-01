@@ -69,7 +69,10 @@ class AccountsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        // One wallet: the name and the amount sit on the badge's middle; several: the name stays at the top
+                        crossAxisAlignment: walletsOf(a).length == 1
+                            ? CrossAxisAlignment.center
+                            : CrossAxisAlignment.start,
                         children: <Widget>[
                           MarkBadge(
                             name: str(a['name']),
@@ -78,6 +81,7 @@ class AccountsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
+                            flex: 3,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
@@ -95,12 +99,17 @@ class AccountsScreen extends ConsumerWidget {
                           ),
                           if (walletsOf(a).length == 1) ...<Widget>[
                             const SizedBox(width: 12),
-                            Flexible(
-                              child: _Wallets(
-                                account: a,
-                                subtotal: subtotals[str(a['id'])],
-                                main: context.currencyCode,
-                                net: net,
+                            // The amount block ends flush at the card's right edge on every account, whatever its width
+                            Expanded(
+                              flex: 2,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: _Wallets(
+                                  account: a,
+                                  subtotal: subtotals[str(a['id'])],
+                                  main: context.currencyCode,
+                                  net: net,
+                                ),
                               ),
                             ),
                           ],

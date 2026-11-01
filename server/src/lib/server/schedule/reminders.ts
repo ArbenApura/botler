@@ -40,6 +40,8 @@ const NUDGE_TIME = '09:00';
 const RESEND_AFTER_MS = 12 * HOUR;
 /** A dismissed reminder stays dismissed unless the thing it is about moved by more than this. */
 const DISMISS_STICKS_MS = 3 * 24 * HOUR;
+/** How long before an event it is reminded, tried in this order until one is still ahead. */
+const EVENT_LEADS_MIN = [30, 10, 0];
 const OVERDUE_BILL_DAYS = 7;
 const OVERDUE_TASK_DAYS = 30;
 
@@ -161,9 +163,12 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 			)
 		);
 	for (const e of events) {
+		// An event made close to its start still gets a reminder: 30 minutes before, else 10, else at the start
 		const at = e.allDay
 			? atManilaTime(toManilaDate(e.startsAt), '08:00')
-			: new Date(e.startsAt.getTime() - 30 * MINUTE);
+			: (EVENT_LEADS_MIN.map((m) => new Date(e.startsAt.getTime() - m * MINUTE)).find(
+					(t) => t.getTime() > now.getTime()
+				) ?? e.startsAt);
 		if (at.getTime() <= now.getTime() || at.getTime() > endInstant.getTime()) continue;
 		out.push({
 			kind: 'event',

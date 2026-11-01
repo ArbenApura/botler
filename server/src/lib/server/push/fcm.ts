@@ -108,7 +108,8 @@ export function createFcmPusher(config: FcmConfig): Pusher {
 								token: p.token,
 								notification: { title: p.title, ...(p.body ? { body: p.body } : {}) },
 								data: { type: 'notice', ...(p.key ? { key: p.key } : {}) },
-								android: { priority: 'high' }
+								// The phone's reminder channel (high importance); without an id Firebase uses its own quiet default channel
+								android: { priority: 'high', notification: { channel_id: 'botler_reminders_v2' } }
 							};
 				const res = await doFetch(
 					`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(config.projectId)}/messages:send`,

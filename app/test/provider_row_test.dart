@@ -81,7 +81,7 @@ void main() {
         expect(find.text('otherai'), findsOneWidget);
         await tester.tap(find.text('otherai'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('DeepSeek').last);
+        await tester.tap(find.text('AI service').last);
         await tester.pumpAndSettle();
         expect(picked, <String>['deepseek']);
       },
@@ -103,7 +103,7 @@ void main() {
           availableProviders: <String>['deepseek'],
         ),
       );
-      expect(find.text('DeepSeek'), findsOneWidget);
+      expect(find.text('AI service'), findsOneWidget);
       expect(find.byType(DropdownButtonFormField<String>), findsNothing);
     });
 
@@ -133,7 +133,10 @@ void main() {
           availableProviders: <String>['otherai', 'openai'],
         ),
       );
-      expect(find.textContaining('DeepSeek is not available'), findsOneWidget);
+      expect(
+        find.textContaining('AI service is not available'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows a server it has no name for by its id', (tester) async {
