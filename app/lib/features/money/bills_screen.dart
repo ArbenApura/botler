@@ -92,18 +92,14 @@ class BillsScreen extends ConsumerWidget {
     final due = ref.watch(_dueProvider);
     // A bill with no mark of its own shows the mark of the account it is paid from
     final accountMarks = ref.watch(accountMarksProvider);
-    final byBill = <String, Mark>{
-      for (final b in bills.value ?? const <Json>[])
-        str(b['id']): billMarkOf(b, accountMarks),
-    };
     final group = ref.watch(_groupProvider);
     final startsOn = ref.watch(settingsProvider.select((s) => s.weekStartsOn));
     return Scaffold(
       appBar: AppBar(title: Text(context.t.billsTitle)),
       body: ListView(
-        padding: pagePadding(context),
+        // The title row is itself 48 dp tall, so the page needs no gap above it
+        padding: pagePadding(context).copyWith(top: 0),
         children: <Widget>[
-          SectionTitle(context.t.billsComingUp),
           BillsGroupSwitch(
             value: group,
             onChanged: ref.read(_groupProvider.notifier).pick,
@@ -124,15 +120,24 @@ class BillsScreen extends ConsumerWidget {
                 children: <Widget>[
                   if (!anyUnpaid(groups)) Note(context.t.billsNothingDue),
                   for (final g in groups) ...<Widget>[
-                    MonthHeader(month: g.month),
-                    for (final d in g.rows)
-                      DueRow(
-                        due: d,
-                        mark: byBill[str(d['billId'])] ?? const Mark(),
-                        overdue: g.isOverdue,
-                        onEdit: () => _editDate(context, ref, d),
-                        onPay: () => _pay(context, ref, d),
+                    MonthHeader(month: g.month, count: g.rows.length),
+                    // One card per group, its rows divided by thin rules
+                    Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: <Widget>[
+                          for (var i = 0; i < g.rows.length; i++) ...<Widget>[
+                            if (i > 0) const Divider(),
+                            DueRow(
+                              due: g.rows[i],
+                              overdue: g.isOverdue,
+                              onEdit: () => _editDate(context, ref, g.rows[i]),
+                              onPay: () => _pay(context, ref, g.rows[i]),
+                            ),
+                          ],
+                        ],
                       ),
+                    ),
                   ],
                 ],
               );

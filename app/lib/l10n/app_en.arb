@@ -3288,5 +3288,7 @@
   "chatOutputShowAll": "Show all of it",
   "chatOutputShowLess": "Show less",
   "billsViewWeek": "Week",
-  "billsViewMonth": "Month"
+  "billsViewMonth": "Month",
+  "billsThisWeek": "This week",
+  "billsThisMonth": "This month"
 }

@@ -81,15 +81,18 @@ class PaperCard extends StatelessWidget {
 }
 
 class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.text, {this.trailing, super.key});
+  const SectionTitle(this.text, {this.trailing, this.first = false, super.key});
 
   final String text;
   final Widget? trailing;
 
+  /// The first title of a page sits right under the app bar, so it takes no gap above it.
+  final bool first;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+      padding: EdgeInsets.fromLTRB(4, first ? 0 : 20, 4, 8),
       child: Row(
         children: <Widget>[
           Expanded(

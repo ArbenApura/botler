@@ -15,7 +15,6 @@ import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/mark_badge.dart';
-import 'money_parts.dart';
 
 // -- CONSTANTS -- //
 
@@ -41,7 +40,11 @@ String _when(BuildContext context, Json d) {
           niceDate(context, start),
           niceDate(context, end),
         )
-      : niceDate(context, str(d['dueDate']));
+      // The date tile already shows the day and month, so a single day is just its weekday
+      : (dayOf(str(d['dueDate'])) == null
+            ? str(d['dueDate'])
+            : DateFormat.EEEE(_locale(context))
+                  .format(dayOf(str(d['dueDate']))!));
   return boolOf(d['overridden']) &&
           str(d['originalDueDate']) != str(d['dueDate'])
       ? '$text · ${context.t.billsMovedTag}'
@@ -103,18 +106,20 @@ String describeBill(BuildContext context, Json b) {
 
 // -- TYPES -- //
 
-/// "October 2026", or "Overdue" for the late bills, with a rule that runs to the edge.
+/// "October 2026", "Oct 26 – Nov 1" or "Overdue", with how many bills it holds: plain muted words, no rule.
 class MonthHeader extends StatelessWidget {
-  const MonthHeader({required this.month, super.key});
+  const MonthHeader({required this.month, this.count, super.key});
 
-  /// yyyy-MM, or an empty text for the late bills.
+  /// yyyy-MM for a month, yyyy-MM-dd (its first day) for a week, or an empty text for the late bills.
   final String month;
+
+  /// How many bills are under it, shown after the name when given.
+  final int? count;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final late = month.isEmpty;
-    // A month is yyyy-MM; a week is its first day, yyyy-MM-dd, and reads as "Oct 26 – Nov 1"
     final week = month.length == 10;
     final day = late ? null : dayOf(week ? month : '$month-01');
     final loc = _locale(context);
@@ -127,64 +132,13 @@ class MonthHeader extends StatelessWidget {
       header: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-        child: Row(
-          children: <Widget>[
-            if (late) ...<Widget>[
-              Icon(Icons.schedule, size: 18, color: c.warning),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: late ? c.warning : c.ink),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Divider()),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The day and month of a due date in a small tinted square: warning when late, success when paid, quiet otherwise.
-class _DateBlock extends StatelessWidget {
-  const _DateBlock({required this.iso, required this.tint});
-
-  final String iso;
-
-  /// The status colour, or null for an ordinary due date.
-  final Color? tint;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final d = dayOf(iso);
-    if (d == null) return const SizedBox(width: 8);
-    final ink = tint ?? c.ink;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 48),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: tint == null ? c.chip : tint!.withValues(alpha: tintAlpha),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                '${d.day}',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(color: ink, fontFeatures: tabular),
-              ),
-              Text(
-                DateFormat.MMM(_locale(context)).format(d),
-                style: Theme.of(context).textTheme.labelSmall
-                    ?.copyWith(color: tint ?? c.muted),
-              ),
-            ],
+        child: Text(
+          count == null ? label : '$label · $count',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: late ? c.warning : c.muted,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -192,21 +146,18 @@ class _DateBlock extends StatelessWidget {
   }
 }
 
-/// One due date: tap the body to change it, or the button to mark it paid.
+/// One due date as a slim row (it sits inside its group's card): the day, the name and weekday, the cost, and "Mark paid" or "Paid".
+/// Tap the body to change it, or the text button to mark it paid.
 class DueRow extends StatelessWidget {
   const DueRow({
     required this.due,
     required this.onEdit,
     required this.onPay,
-    this.mark = const Mark(),
     this.overdue = false,
     super.key,
   });
 
   final Json due;
-
-  /// The mark of the bill (its own, or its account's), drawn before the name.
-  final Mark mark;
 
   /// The row sits in the late group (from the grouping, not worked out again here).
   final bool overdue;
@@ -221,106 +172,116 @@ class DueRow extends StatelessWidget {
     final name = str(due['name']);
     final when = _when(context, due);
     final cost = _cost(context, due);
-    final tint = paid ? c.success : (overdue ? c.warning : null);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Semantics(
-                button: true,
-                label: overdue && !paid
-                    ? '$name, ${t.billsOverdue}, $when, $cost'
-                    : '$name, $when, $cost',
-                hint: t.billsEditHint,
-                excludeSemantics: true,
-                child: InkWell(
-                  onTap: onEdit,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: _tap.height),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          _DateBlock(iso: str(due['dueDate']), tint: tint),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    MarkBadge(name: name, mark: mark, size: 22),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium,
-                                      ),
+    final day = dayOf(str(due['dueDate']));
+    final tone = paid ? c.success : (overdue ? c.warning : c.ink);
+    final text = Theme.of(context).textTheme;
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Semantics(
+            button: true,
+            label: overdue && !paid
+                ? '$name, ${t.billsOverdue}, $when, $cost'
+                : '$name, $when, $cost',
+            hint: t.billsEditHint,
+            excludeSemantics: true,
+            child: InkWell(
+              onTap: onEdit,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: _tap.height),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      // The day and month, plain: warning when late, success when paid
+                      SizedBox(
+                        width: 36,
+                        child: day == null
+                            ? null
+                            : Column(
+                                children: <Widget>[
+                                  Text(
+                                    '${day.day}',
+                                    style: text.titleMedium?.copyWith(
+                                      color: tone,
+                                      fontFeatures: tabular,
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(when, style: TextStyle(color: c.muted)),
-                                const SizedBox(height: 2),
-                                Text(
-                                  cost,
-                                  style: const TextStyle(fontFeatures: tabular),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                                  ),
+                                  Text(
+                                    DateFormat.MMM(_locale(context))
+                                        .format(day),
+                                    style: text.labelSmall?.copyWith(
+                                      color: c.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              when,
+                              style: text.bodySmall?.copyWith(color: c.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          cost,
+                          textAlign: TextAlign.end,
+                          style: text.bodyMedium?.copyWith(
+                            fontFeatures: tabular,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            if (paid)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.check_circle, size: 18, color: c.success),
-                    const SizedBox(width: 4),
-                    Text(t.billsPaid, style: TextStyle(color: c.success)),
-                  ],
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Semantics(
-                  button: true,
-                  label: t.billsMarkPaidFor(name),
-                  excludeSemantics: true,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: _tap,
-                      backgroundColor: c.accentSoft,
-                      foregroundColor: c.accentText,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: onPay,
-                    child: Text(t.billsMarkPaid),
-                  ),
-                ),
-              ),
-          ],
+          ),
         ),
-      ),
+        if (paid)
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.check, size: 16, color: c.success),
+                const SizedBox(width: 4),
+                Text(t.billsPaid, style: TextStyle(color: c.success)),
+              ],
+            ),
+          )
+        else
+          Semantics(
+            button: true,
+            label: t.billsMarkPaidFor(name),
+            excludeSemantics: true,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: _tap,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onPressed: onPay,
+              child: Text(t.billsMarkPaid),
+            ),
+          ),
+      ],
     );
   }
 }

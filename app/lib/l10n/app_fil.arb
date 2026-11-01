@@ -1276,5 +1276,7 @@
   "chatOutputShowAll": "Ipakita lahat",
   "chatOutputShowLess": "Ipakita nang kaunti",
   "billsViewWeek": "Linggo",
-  "billsViewMonth": "Buwan"
+  "billsViewMonth": "Buwan",
+  "billsThisWeek": "Ngayong linggo",
+  "billsThisMonth": "Ngayong buwan"
 }

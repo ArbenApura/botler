@@ -234,14 +234,14 @@ void main() {
         bills: <Json>[billRow('Meralco'), billRow('WiFi'), billRow('Rent')],
       );
       await show(tester, stand);
-      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.textContaining('Overdue'), findsOneWidget);
       final month = DateFormat.yMMMM('en');
       final headers = <String>{
         month.format(DateTime.parse(addDaysTo(today, 2))),
         month.format(DateTime.parse(later)),
       };
       for (final h in headers) {
-        expect(find.text(h), findsWidgets);
+        expect(find.textContaining(h), findsWidgets);
       }
       expect(find.text('Meralco'), findsWidgets);
       expect(find.text('Mark paid'), findsNWidgets(3));
@@ -313,7 +313,7 @@ void main() {
       await show(tester, stand, locale: 'fil');
       final label = DateFormat.yMMMM('fil')
           .format(DateTime.parse(addDaysTo(today, 2)));
-      expect(find.text(label), findsOneWidget);
+      expect(find.textContaining(label), findsOneWidget);
       expect(find.text('Markahang bayad na'), findsOneWidget);
     });
   });
@@ -533,7 +533,7 @@ void main() {
       // Months by default
       final month = DateFormat.yMMMM('en');
       expect(
-        find.text(month.format(DateTime.parse(addDaysTo(today, 2)))),
+        find.textContaining(month.format(DateTime.parse(addDaysTo(today, 2)))),
         findsWidgets,
       );
       await tester.tap(find.text('Week'));

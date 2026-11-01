@@ -294,7 +294,7 @@ class PaydayScreen extends ConsumerWidget {
                       asJson(i['schedule']),
                     ) ??
                     context.t.schedUnknown,
-              ].join(' Â· '),
+              ].join(' · '),
               style: TextStyle(color: off ? c.warning : c.muted),
             ),
             trailing: Icon(Icons.chevron_right, color: c.muted),

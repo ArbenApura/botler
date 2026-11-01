@@ -4646,4 +4646,10 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get billsViewMonth => 'Buwan';
+
+  @override
+  String get billsThisWeek => 'Ngayong linggo';
+
+  @override
+  String get billsThisMonth => 'Ngayong buwan';
 }

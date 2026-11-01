@@ -464,5 +464,17 @@
     "fil": [
       "Ang pagpili ng Week at Month sa Bills ay tab bar na ngayon tulad ng sa Calendar: may guhit sa ilalim ng napiling tab."
     ]
+  },
+  {
+    "versionCode": 44,
+    "versionName": "1.4.3",
+    "en": [
+      "Bills is calmer: Week and Month are two tabs at the top, each group of bills sits in one card with thin dividers, and every row shows its day, name, weekday and amount with a plain Mark paid button. Each group's name shows how many bills it holds.",
+      "Fixed a stray \"Â\" that appeared on the Payday screen."
+    ],
+    "fil": [
+      "Mas payapa na ang Bills: ang Week at Month ay dalawang tab sa itaas, ang bawat grupo ng bills ay nasa iisang card na may manipis na hati, at bawat row ay may araw, pangalan, weekday at halaga na may simpleng Mark paid na button. Makikita sa pangalan ng bawat grupo kung ilan ang bills nito.",
+      "Naayos ang naligaw na \"Â\" na lumalabas sa Payday screen."
+    ]
   }
 ]

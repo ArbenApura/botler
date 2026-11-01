@@ -4619,4 +4619,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get billsViewMonth => 'Month';
+
+  @override
+  String get billsThisWeek => 'This week';
+
+  @override
+  String get billsThisMonth => 'This month';
 }

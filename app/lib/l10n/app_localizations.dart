@@ -7774,6 +7774,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Month'**
   String get billsViewMonth;
+
+  /// No description provided for @billsThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get billsThisWeek;
+
+  /// No description provided for @billsThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get billsThisMonth;
 }
 
 class _AppLocalizationsDelegate

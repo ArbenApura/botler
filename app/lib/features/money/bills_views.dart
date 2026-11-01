@@ -1,5 +1,5 @@
-// THE SWITCH ABOVE "COMING UP" ON THE BILLS SCREEN: THE SAME LIST, SECTIONED BY WEEK OR BY MONTH. IT IS NOT A CALENDAR (THE CALENDAR SCREEN HAS THOSE).
-// It looks like the Calendar's tab bar: plain words in a row, the chosen one underlined in the accent, a quiet rule under both.
+// THE SWITCH AT THE TOP OF THE BILLS SCREEN: THE SAME LIST, SECTIONED BY WEEK OR BY MONTH. IT IS NOT A CALENDAR (THE CALENDAR SCREEN HAS THOSE).
+// Two equal tabs like the Calendar's: plain words, the chosen one underlined in the accent, a quiet rule under both.
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
