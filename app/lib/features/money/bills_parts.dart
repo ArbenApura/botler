@@ -154,6 +154,7 @@ class DueRow extends StatelessWidget {
     required this.onEdit,
     required this.onPay,
     this.overdue = false,
+    this.mark = const Mark(),
     super.key,
   });
 
@@ -161,6 +162,9 @@ class DueRow extends StatelessWidget {
 
   /// The row sits in the late group (from the grouping, not worked out again here).
   final bool overdue;
+
+  /// The mark of the bill (its own, or its account's): its logo, icon or first letter, before the name.
+  final Mark mark;
   final VoidCallback onEdit;
   final VoidCallback onPay;
 
@@ -218,6 +222,8 @@ class DueRow extends StatelessWidget {
                                 ],
                               ),
                       ),
+                      const SizedBox(width: 12),
+                      MarkBadge(name: name, mark: mark, size: 36),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

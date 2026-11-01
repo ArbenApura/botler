@@ -92,6 +92,10 @@ class BillsScreen extends ConsumerWidget {
     final due = ref.watch(_dueProvider);
     // A bill with no mark of its own shows the mark of the account it is paid from
     final accountMarks = ref.watch(accountMarksProvider);
+    final byBill = <String, Mark>{
+      for (final b in bills.value ?? const <Json>[])
+        str(b['id']): billMarkOf(b, accountMarks),
+    };
     final group = ref.watch(_groupProvider);
     final startsOn = ref.watch(settingsProvider.select((s) => s.weekStartsOn));
     return Scaffold(
@@ -130,6 +134,9 @@ class BillsScreen extends ConsumerWidget {
                             if (i > 0) const Divider(),
                             DueRow(
                               due: g.rows[i],
+                              mark:
+                                  byBill[str(g.rows[i]['billId'])] ??
+                                  const Mark(),
                               overdue: g.isOverdue,
                               onEdit: () => _editDate(context, ref, g.rows[i]),
                               onPay: () => _pay(context, ref, g.rows[i]),

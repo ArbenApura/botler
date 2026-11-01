@@ -476,5 +476,15 @@
       "Mas payapa na ang Bills: ang Week at Month ay dalawang tab sa itaas, ang bawat grupo ng bills ay nasa iisang card na may manipis na hati, at bawat row ay may araw, pangalan, weekday at halaga na may simpleng Mark paid na button. Makikita sa pangalan ng bawat grupo kung ilan ang bills nito.",
       "Naayos ang naligaw na \"Â\" na lumalabas sa Payday screen."
     ]
+  },
+  {
+    "versionCode": 45,
+    "versionName": "1.4.4",
+    "en": [
+      "The logos and icons of your bills are back on the Bills list, next to each name."
+    ],
+    "fil": [
+      "Bumalik na ang mga logo at icon ng mga bill mo sa listahan ng Bills, sa tabi ng bawat pangalan."
+    ]
   }
 ]

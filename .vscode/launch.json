@@ -11,6 +11,17 @@
 			"program": "lib/main.dart",
 			"deviceId": "emulator-5554",
 			"args": ["--dart-define-from-file=.dev/dev-session.json"]
+		},
+		{
+			// Live server: F5 runs the debug app on the emulator against https://botler.arbenger.com with real Google sign in, so your real data shows.
+			// Writes in the app are real writes to the live database. Needs app/.dev/live.json (git-ignored, holds the web client id) and the debug SHA-1 registered in Google.
+			"name": "Botler (emulator, live server)",
+			"type": "dart",
+			"request": "launch",
+			"cwd": "app",
+			"program": "lib/main.dart",
+			"deviceId": "emulator-5554",
+			"args": ["--dart-define-from-file=.dev/live.json"]
 		}
 	]
 }
