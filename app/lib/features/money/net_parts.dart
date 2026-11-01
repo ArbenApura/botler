@@ -81,6 +81,7 @@ class NetAmount extends StatelessWidget {
     required this.wallet,
     required this.currency,
     this.style,
+    this.lead = true,
     super.key,
   });
 
@@ -88,27 +89,43 @@ class NetAmount extends StatelessWidget {
   final String currency;
   final TextStyle? style;
 
+  /// False when the person chose the balance as counted: only the balance shows, whatever net the server sent.
+  final bool lead;
+
   /// The shortfall line wraps inside this width, so it never squeezes the name next to it on a narrow phone.
   static const double _shortWidth = 150;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final net = netInt(wallet, 'netBalance');
+    final net = lead ? netInt(wallet, 'netBalance') : null;
+    // One line each, shrunk to the room it has: an amount never wraps onto a second line
+    Widget line(Widget child) => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: child,
+    );
     if (net == null) {
-      return Amount(intOf(wallet['balance']), currency: currency, style: style);
+      return line(
+        Amount(intOf(wallet['balance']), currency: currency, style: style),
+      );
     }
     final short = netInt(wallet, 'shortfall') ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
-        Amount(net, currency: currency, style: style),
-        Text(
-          context.t.netGross(
-            context.moneyIn(intOf(wallet['balance']), currency),
+        line(Amount(net, currency: currency, style: style)),
+        // The counted balance shows only when it differs from the net: the same number twice says nothing
+        if (net != intOf(wallet['balance']))
+          line(
+            Text(
+              context.t.netGross(
+                context.moneyIn(intOf(wallet['balance']), currency),
+              ),
+              maxLines: 1,
+              style: TextStyle(color: c.muted, fontFeatures: tabular),
+            ),
           ),
-          style: TextStyle(color: c.muted, fontFeatures: tabular),
-        ),
         if (short > 0)
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _shortWidth),

@@ -43,6 +43,12 @@ class AccountsScreen extends ConsumerWidget {
       for (final a in asJsonList(assets.value?['accounts']))
         str(a['accountId']): a,
     };
+    // What each wallet is worth in the main currency, for the "about" line of a currency that is not the main one
+    final walletValues = <String, int>{
+      for (final w in asJsonList(assets.value?['wallets']))
+        if (w['value'] is int)
+          '${str(w['accountId'])}|${str(w['currency'])}': w['value'] as int,
+    };
     return Scaffold(
       appBar: AppBar(title: Text(context.t.accountsTitle)),
       body: AsyncBody<List<Json>>(
@@ -69,10 +75,8 @@ class AccountsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
                       Row(
-                        // One wallet: the name and the amount sit on the badge's middle; several: the name stays at the top
-                        crossAxisAlignment: walletsOf(a).length == 1
-                            ? CrossAxisAlignment.center
-                            : CrossAxisAlignment.start,
+                        // The badge, the name and the amount block share one middle line on every account
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: <Widget>[
                           MarkBadge(
                             name: str(a['name']),
@@ -81,7 +85,6 @@ class AccountsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            flex: 3,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
@@ -97,33 +100,29 @@ class AccountsScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          if (walletsOf(a).length == 1) ...<Widget>[
-                            const SizedBox(width: 12),
-                            // The amount block ends flush at the card's right edge on every account, whatever its width
-                            Expanded(
-                              flex: 2,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: _Wallets(
-                                  account: a,
-                                  subtotal: subtotals[str(a['id'])],
-                                  main: context.currencyCode,
-                                  net: net,
-                                ),
-                              ),
+                          const SizedBox(width: 12),
+                          // One right block on every account, capped so a big amount shrinks instead of wrapping
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.sizeOf(context).width * 0.5,
                             ),
-                          ],
+                            child: _HeadAmount(
+                              account: a,
+                              subtotal: subtotals[str(a['id'])],
+                              main: context.currencyCode,
+                              net: net,
+                            ),
+                          ),
                         ],
                       ),
-                      // Several currencies: a ruled list of wallets under the name, then what the account comes to in all
+                      // Several currencies: a ruled list of the wallets under the header
                       if (walletsOf(a).length > 1) ...<Widget>[
                         const SizedBox(height: 12),
-                        const Divider(),
                         _Wallets(
                           account: a,
-                          subtotal: subtotals[str(a['id'])],
-                          main: context.currencyCode,
                           net: net,
+                          main: context.currencyCode,
+                          values: walletValues,
                         ),
                       ],
                       if (boolOf(a['belowMinimum']) ||
@@ -643,9 +642,11 @@ class _TotalCard extends ConsumerWidget {
 
 // -- WALLETS OF ONE ACCOUNT -- //
 
-/// The balance of an account's one wallet (right of its name), or every wallet in a ruled list with what the account comes to in all.
-class _Wallets extends StatelessWidget {
-  const _Wallets({
+/// The right block of an account's header, the same on every card: one amount on one line (it shrinks, never wraps) and one small muted
+/// line under it. One wallet: its balance (net first when the person chose that) and the gross under it. Several wallets: what the account
+/// comes to in the main currency, and under it the currency codes.
+class _HeadAmount extends StatelessWidget {
+  const _HeadAmount({
     required this.account,
     required this.subtotal,
     required this.main,
@@ -655,85 +656,159 @@ class _Wallets extends StatelessWidget {
   final Json account;
   final Json? subtotal;
   final String main;
-
-  /// Lead with each wallet's net where the server sent one.
   final bool net;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final wallets = walletsOf(account);
-    final own = str(account['currency'], defaultCurrency);
+    final big = Theme.of(context).textTheme.titleLarge
+        ?.copyWith(fontWeight: FontWeight.w400);
     if (wallets.length == 1) {
       final only = wallets.first;
-      final code = str(only['currency'], own);
-      final big = Theme.of(context).textTheme.titleLarge
-          ?.copyWith(fontWeight: FontWeight.w400);
-      if (net && netInt(only, 'netBalance') != null) {
-        return NetAmount(wallet: only, currency: code, style: big);
-      }
-      return FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerRight,
-        child: Amount(intOf(only['balance']), currency: code, style: big),
+      return NetAmount(
+        wallet: only,
+        currency: str(
+          only['currency'],
+          str(account['currency'], defaultCurrency),
+        ),
+        style: big,
+        lead: net,
       );
     }
     final sub = subtotal;
-    final c = context.colors;
+    if (sub == null) return const SizedBox.shrink();
+    final gross = intOf(sub['subtotal']);
+    final netTotal = net ? netInt(sub, 'netSubtotal') : null;
+    // The currencies it holds, so the total reads as "all of these"
+    final small = wallets.map((w) => str(w['currency'])).join(' · ');
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
-        for (final w in wallets)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    str(w['currency'], own),
-                    style: TextStyle(
-                      color: c.muted,
-                      fontWeight: FontWeight.w500,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Amount(netTotal ?? gross, currency: main, style: big),
+        ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Text(
+            small,
+            maxLines: 1,
+            style: TextStyle(color: c.muted, fontFeatures: tabular),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The wallets of an account that holds several currencies, in one calm panel under the header: a row per currency with its code, what it is
+/// worth in the main currency (for the others), and its balance on the right, all on one line so the rows read as a list.
+class _Wallets extends StatelessWidget {
+  const _Wallets({
+    required this.account,
+    required this.net,
+    required this.main,
+    required this.values,
+  });
+
+  final Json account;
+
+  /// Lead with each wallet's net where the server sent one.
+  final bool net;
+  final String main;
+
+  /// What each wallet is worth in the main currency, by "accountId|CODE" (a wallet without a rate is not in it).
+  final Map<String, int> values;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final text = Theme.of(context).textTheme;
+    final own = str(account['currency'], defaultCurrency);
+    final rows = <Widget>[];
+    for (final w in walletsOf(account)) {
+      final code = str(w['currency'], own);
+      final netBalance = net ? netInt(w, 'netBalance') : null;
+      final short = net ? (netInt(w, 'shortfall') ?? 0) : 0;
+      final worth = code == main ? null : values['${str(account['id'])}|$code'];
+      if (rows.isNotEmpty) rows.add(Divider(height: 1, color: c.line));
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.chip,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      code,
+                      style: text.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: net && netInt(w, 'netBalance') != null
-                        ? NetAmount(
-                            wallet: w,
-                            currency: str(w['currency'], own),
-                            style: Theme.of(context).textTheme.titleMedium,
-                          )
-                        : Amount(
-                            intOf(w['balance']),
-                            currency: str(w['currency'], own),
-                            style: Theme.of(context).textTheme.titleMedium,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: worth == null
+                        ? const SizedBox.shrink()
+                        : Text(
+                            '≈ ${context.moneyIn(worth, main)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: c.muted,
+                              fontFeatures: tabular,
+                            ),
                           ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        if (sub != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              context.t.accountsSubtotal(
-                context.moneyIn(
-                  (net ? netInt(sub, 'netSubtotal') : null) ??
-                      intOf(sub['subtotal']),
-                  main,
-                ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Amount(
+                        netBalance ?? intOf(w['balance']),
+                        currency: code,
+                        style: text.titleMedium,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.end,
-              style: TextStyle(color: c.muted, fontFeatures: tabular),
-            ),
+              if (short > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    context.t.netShortfall(context.moneyIn(short, code)),
+                    textAlign: TextAlign.end,
+                    style: TextStyle(color: c.warning, fontFeatures: tabular),
+                  ),
+                ),
+            ],
           ),
-      ],
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: c.paper,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(children: rows),
     );
   }
 }

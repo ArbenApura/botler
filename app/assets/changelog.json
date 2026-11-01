@@ -522,5 +522,17 @@
       "Mas pantay na ang Accounts at Bills: pareho ang pagpapakita ng pangalan at balanse ng bawat account, iisa ang hugis ng bawat bill row na may malinaw na Mark paid na button, at may katugmang loading placeholder ang Bills.",
       "Sa Botler na mismo tumutunog ang mga alarm at timer gamit ang tunog ng alarm, at ang event na ginawa ilang minuto bago magsimula ay may paalala pa rin."
     ]
+  },
+  {
+    "versionCode": 49,
+    "versionName": "1.4.8",
+    "en": [
+      "Accounts are laid out the same way on every card: the name on the left and one amount on the right that never breaks onto two lines. When the balance and the counted balance are the same, it is shown once.",
+      "An account with several currencies now shows its total in your main currency at the top, with each currency in a tidy list below and what it is worth in your main currency."
+    ],
+    "fil": [
+      "Pareho na ang ayos ng bawat account card: ang pangalan sa kaliwa at isang halaga sa kanan na hindi na napuputol sa dalawang linya. Kapag pareho ang balanse at ang balanseng nabilang, isang beses na lang ito ipinapakita.",
+      "Ang account na may ilang pera ay may kabuuan na sa pangunahing pera mo sa itaas, at nasa maayos na listahan sa ibaba ang bawat pera kasama ang halaga nito sa pangunahing pera mo."
+    ]
   }
 ]

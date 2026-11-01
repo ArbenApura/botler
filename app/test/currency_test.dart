@@ -249,7 +249,9 @@ void main() {
         // The Wise account lists both wallets, each in its own currency, and what it comes to in all
         expect(find.text('₱1,000.00'), findsOneWidget);
         expect(find.text(r'$50.00'), findsOneWidget);
-        expect(find.text('About ₱3,800.00 in all'), findsOneWidget);
+        // An account with several currencies shows what it comes to in the main currency, with its currencies under it
+        expect(find.text('₱3,800.00'), findsOneWidget);
+        expect(find.text('PHP · USD'), findsOneWidget);
         expect(find.textContaining('Exchange rates as of'), findsOneWidget);
       },
     );
