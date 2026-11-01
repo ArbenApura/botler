@@ -176,12 +176,6 @@ abstract class AppLocalizations {
   /// **'I counted {name}'**
   String accountsCountTitle(String name);
 
-  /// No description provided for @accountsCounted.
-  ///
-  /// In en, this message translates to:
-  /// **'Counted {when}'**
-  String accountsCounted(String when);
-
   /// No description provided for @accountsCurrencyLabel.
   ///
   /// In en, this message translates to:
@@ -193,12 +187,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What is in this account is counted in this currency unless you pick another when you enter something.'**
   String get accountsCurrencyNote;
-
-  /// No description provided for @accountsDaysAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, other{{count} days ago}}'**
-  String accountsDaysAgo(int count);
 
   /// No description provided for @accountsEmpty.
   ///
@@ -253,12 +241,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get accountsNameLabel;
-
-  /// No description provided for @accountsNeverCounted.
-  ///
-  /// In en, this message translates to:
-  /// **'Never counted'**
-  String get accountsNeverCounted;
 
   /// No description provided for @accountsNoMainWallet.
   ///
@@ -356,12 +338,6 @@ abstract class AppLocalizations {
   /// **'Accounts'**
   String get accountsTitle;
 
-  /// No description provided for @accountsToday.
-  ///
-  /// In en, this message translates to:
-  /// **'today'**
-  String get accountsToday;
-
   /// No description provided for @accountsTotalTitle.
   ///
   /// In en, this message translates to:
@@ -391,12 +367,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Currencies in this account'**
   String get accountsWalletsTitle;
-
-  /// No description provided for @accountsYesterday.
-  ///
-  /// In en, this message translates to:
-  /// **'yesterday'**
-  String get accountsYesterday;
 
   /// No description provided for @acctBalanceNow.
   ///
@@ -7774,6 +7744,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yes'**
   String get yes;
+
+  /// No description provided for @chatScriptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The script did not finish'**
+  String get chatScriptFailed;
+
+  /// No description provided for @chatOutputShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all of it'**
+  String get chatOutputShowAll;
+
+  /// No description provided for @chatOutputShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get chatOutputShowLess;
+
+  /// No description provided for @billsViewList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get billsViewList;
+
+  /// No description provided for @billsViewWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get billsViewWeek;
+
+  /// No description provided for @billsViewMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get billsViewMonth;
+
+  /// No description provided for @billsDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing due this day.'**
+  String get billsDayEmpty;
+
+  /// No description provided for @billsPrevWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous week'**
+  String get billsPrevWeek;
+
+  /// No description provided for @billsNextWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get billsNextWeek;
+
+  /// No description provided for @billsPrevMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous month'**
+  String get billsPrevMonth;
+
+  /// No description provided for @billsNextMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Next month'**
+  String get billsNextMonth;
+
+  /// No description provided for @billsDayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}, {count} due'**
+  String billsDayLabel(String day, int count);
 }
 
 class _AppLocalizationsDelegate

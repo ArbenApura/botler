@@ -112,6 +112,7 @@ Future<bool> editMark(
             current: markOf(row),
             onChanged: (c) => choice = c,
           ),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: s.once.running()
                 ? null

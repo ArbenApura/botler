@@ -63,26 +63,11 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
-  String accountsCounted(String when) {
-    return 'Nabilang $when';
-  }
-
-  @override
   String get accountsCurrencyLabel => 'Pera';
 
   @override
   String get accountsCurrencyNote =>
       'Sa perang ito binibilang ang laman ng account na ito maliban kung pumili ka ng iba kapag may inilagay ka.';
-
-  @override
-  String accountsDaysAgo(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count araw na ang nakalipas',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get accountsEmpty =>
@@ -115,9 +100,6 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get accountsNameLabel => 'Pangalan';
-
-  @override
-  String get accountsNeverCounted => 'Hindi pa nabibilang';
 
   @override
   String accountsNoMainWallet(String currency) {
@@ -183,9 +165,6 @@ class AppLocalizationsFil extends AppLocalizations {
   String get accountsTitle => 'Mga account';
 
   @override
-  String get accountsToday => 'ngayon';
-
-  @override
   String get accountsTotalTitle => 'Lahat ng meron ka';
 
   @override
@@ -202,9 +181,6 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get accountsWalletsTitle => 'Mga pera sa account na ito';
-
-  @override
-  String get accountsYesterday => 'kahapon';
 
   @override
   String get acctBalanceNow => 'Balanse ngayon';
@@ -4655,4 +4631,42 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get yes => 'Oo';
+
+  @override
+  String get chatScriptFailed => 'Hindi natapos ang script';
+
+  @override
+  String get chatOutputShowAll => 'Ipakita lahat';
+
+  @override
+  String get chatOutputShowLess => 'Ipakita nang kaunti';
+
+  @override
+  String get billsViewList => 'Listahan';
+
+  @override
+  String get billsViewWeek => 'Linggo';
+
+  @override
+  String get billsViewMonth => 'Buwan';
+
+  @override
+  String get billsDayEmpty => 'Walang babayaran sa araw na ito.';
+
+  @override
+  String get billsPrevWeek => 'Nakaraang linggo';
+
+  @override
+  String get billsNextWeek => 'Susunod na linggo';
+
+  @override
+  String get billsPrevMonth => 'Nakaraang buwan';
+
+  @override
+  String get billsNextMonth => 'Susunod na buwan';
+
+  @override
+  String billsDayLabel(String day, int count) {
+    return '$day, $count babayaran';
+  }
 }

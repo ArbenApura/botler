@@ -313,6 +313,7 @@ class _MoveFormState extends ConsumerState<_MoveForm> {
           label: t.transferFeeLabel(widget.fromCurrency),
           keyboard: const TextInputType.numberWithOptions(decimal: true),
         ),
+        const SizedBox(height: 4),
         FilledButton(
           onPressed: _busy ? null : _send,
           child: Text(t.transferMove),

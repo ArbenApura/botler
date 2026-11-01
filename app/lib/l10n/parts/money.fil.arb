@@ -1,8 +1,6 @@
 {
   "accountsTitle": "Mga account",
   "accountsEmpty": "Wala pang account. Idagdag ang RCBC, GCash, Maya o cash.",
-  "accountsNeverCounted": "Hindi pa nabibilang",
-  "accountsCounted": "Nabilang {when}",
   "accountsBelowMinimum": "Mas mababa sa minimum na itinakda mo",
   "accountsAdd": "Magdagdag ng account",
   "accountsNameLabel": "Pangalan",
@@ -26,9 +24,6 @@
   "accountsNotSaved": "Hindi na-save.",
   "accountsSavedUntracked": "Na-save. {amount} ang hindi nasubaybayan mula sa huling bilang.",
   "accountsSaved": "Na-save.",
-  "accountsToday": "ngayon",
-  "accountsYesterday": "kahapon",
-  "accountsDaysAgo": "{count, plural, other{{count} araw na ang nakalipas}}",
   "billsTitle": "Mga bill",
   "billsComingUp": "Paparating",
   "billsNothingDue": "Walang due sa susunod na 4 na buwan.",

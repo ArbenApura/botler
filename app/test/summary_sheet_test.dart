@@ -35,6 +35,8 @@ Future<void> openSheet(WidgetTester tester, Future<Object?> sync) async {
     ProviderScope(
       overrides: [
         prefsProvider.overrideWithValue(prefs),
+        // No accounts: the sheet is then its card alone
+        balancesProvider.overrideWith((ref) async => <Map<String, Object?>>[]),
         syncProvider.overrideWith(
           (ref) => sync.then((v) => v! as Map<String, Object?>),
         ),
@@ -82,7 +84,8 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(Skeleton), findsWidgets);
     final loading = sheetHeight(tester);
-    expect(loading, lessThan(400));
+    // The card, and three quiet rows for the accounts that are coming
+    expect(loading, lessThan(520));
   });
 
   testWidgets('a refresh keeps the last answer on screen, not a skeleton', (

@@ -63,26 +63,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String accountsCounted(String when) {
-    return 'Counted $when';
-  }
-
-  @override
   String get accountsCurrencyLabel => 'Currency';
 
   @override
   String get accountsCurrencyNote =>
       'What is in this account is counted in this currency unless you pick another when you enter something.';
-
-  @override
-  String accountsDaysAgo(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count days ago',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get accountsEmpty => 'No accounts yet. Add RCBC, GCash, Maya or cash.';
@@ -114,9 +99,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountsNameLabel => 'Name';
-
-  @override
-  String get accountsNeverCounted => 'Never counted';
 
   @override
   String accountsNoMainWallet(String currency) {
@@ -180,9 +162,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountsTitle => 'Accounts';
 
   @override
-  String get accountsToday => 'today';
-
-  @override
   String get accountsTotalTitle => 'Everything you have';
 
   @override
@@ -199,9 +178,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountsWalletsTitle => 'Currencies in this account';
-
-  @override
-  String get accountsYesterday => 'yesterday';
 
   @override
   String get acctBalanceNow => 'Balance now';
@@ -4628,4 +4604,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yes => 'Yes';
+
+  @override
+  String get chatScriptFailed => 'The script did not finish';
+
+  @override
+  String get chatOutputShowAll => 'Show all of it';
+
+  @override
+  String get chatOutputShowLess => 'Show less';
+
+  @override
+  String get billsViewList => 'List';
+
+  @override
+  String get billsViewWeek => 'Week';
+
+  @override
+  String get billsViewMonth => 'Month';
+
+  @override
+  String get billsDayEmpty => 'Nothing due this day.';
+
+  @override
+  String get billsPrevWeek => 'Previous week';
+
+  @override
+  String get billsNextWeek => 'Next week';
+
+  @override
+  String get billsPrevMonth => 'Previous month';
+
+  @override
+  String get billsNextMonth => 'Next month';
+
+  @override
+  String billsDayLabel(String day, int count) {
+    return '$day, $count due';
+  }
 }

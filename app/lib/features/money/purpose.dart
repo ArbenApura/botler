@@ -90,6 +90,7 @@ Future<void> editPurpose(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           PurposeField(value: value, onChanged: (v) => value = v),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: s.once.running()
                 ? null

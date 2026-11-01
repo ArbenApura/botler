@@ -26,6 +26,11 @@ const int photoDecodeWidth = 2048;
 /// A swipe down longer than this closes the viewer.
 const double _dismissDistance = 110;
 
+// -- TYPES -- //
+
+/// What a bar button does with the photo on screen (its path).
+typedef PhotoAction = Future<void> Function(String path);
+
 // -- FUNCTIONS -- //
 
 /// Opens the viewer over everything (the root navigator) at photo [initial] of [paths].
@@ -33,6 +38,8 @@ Future<void> showPhotoViewer(
   BuildContext context, {
   required List<String> paths,
   int initial = 0,
+  PhotoAction? onSave,
+  PhotoAction? onShare,
 }) {
   if (paths.isEmpty) return Future<void>.value();
   final still = MediaQuery.disableAnimationsOf(context);
@@ -48,6 +55,8 @@ Future<void> showPhotoViewer(
       pageBuilder: (_, _, _) => PhotoViewer(
         paths: paths,
         initial: initial.clamp(0, paths.length - 1),
+        onSave: onSave,
+        onShare: onShare,
       ),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
@@ -67,10 +76,20 @@ Matrix4 zoomAbout(Offset at, double scale, Size size) {
 // -- TYPES -- //
 
 class PhotoViewer extends StatefulWidget {
-  const PhotoViewer({required this.paths, this.initial = 0, super.key});
+  const PhotoViewer({
+    required this.paths,
+    this.initial = 0,
+    this.onSave,
+    this.onShare,
+    super.key,
+  });
 
   final List<String> paths;
   final int initial;
+
+  /// Save and Share buttons in a bar at the bottom, the same two everywhere. Left out, the viewer has no bottom bar (chat photos).
+  final PhotoAction? onSave;
+  final PhotoAction? onShare;
 
   @override
   State<PhotoViewer> createState() => _PhotoViewerState();
@@ -268,6 +287,70 @@ class _PhotoViewerState extends State<PhotoViewer> {
                   ),
                 ),
               ),
+              if (widget.onSave != null || widget.onShare != null)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _bar,
+                    builder: (context, shown, child) => ExcludeSemantics(
+                      excluding: !shown,
+                      child: IgnorePointer(
+                        ignoring: !shown,
+                        child: AnimatedOpacity(
+                          opacity: shown ? 1 : 0,
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 150),
+                          child: child,
+                        ),
+                      ),
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: <Color>[
+                            c.scrim.withValues(alpha: 0.7),
+                            c.scrim.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                          child: Row(
+                            children: <Widget>[
+                              if (widget.onSave != null)
+                                Expanded(
+                                  child: _BarButton(
+                                    icon: Icons.download_outlined,
+                                    label: t.fileSave,
+                                    onTap: () =>
+                                        widget.onSave!(widget.paths[_page]),
+                                  ),
+                                ),
+                              if (widget.onSave != null &&
+                                  widget.onShare != null)
+                                const SizedBox(width: 12),
+                              if (widget.onShare != null)
+                                Expanded(
+                                  child: _BarButton(
+                                    icon: Icons.ios_share,
+                                    label: t.fileShare,
+                                    onTap: () =>
+                                        widget.onShare!(widget.paths[_page]),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -442,6 +525,61 @@ class _ZoomPageState extends State<_ZoomPage>
           ),
         );
       },
+    );
+  }
+}
+
+/// A bar button: an icon and its words in one soft pill, the same size for Save and Share. Colours over the dark scrim come from the tokens.
+class _BarButton extends StatelessWidget {
+  const _BarButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: c.onScrim.withValues(alpha: 0.16),
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Icon(icon, size: 20, color: c.onScrim),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: c.onScrim),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

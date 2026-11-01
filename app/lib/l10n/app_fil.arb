@@ -13,10 +13,8 @@
   "accountsCountInvalid": "I-type ang halaga sa {currency}.",
   "accountsCountLabel": "Magkano talaga ang nandoon? ({currency})",
   "accountsCountTitle": "Binilang ko ang {name}",
-  "accountsCounted": "Nabilang {when}",
   "accountsCurrencyLabel": "Pera",
   "accountsCurrencyNote": "Sa perang ito binibilang ang laman ng account na ito maliban kung pumili ka ng iba kapag may inilagay ka.",
-  "accountsDaysAgo": "{count, plural, other{{count} araw na ang nakalipas}}",
   "accountsEmpty": "Wala pang account. Idagdag ang RCBC, GCash, Maya o cash.",
   "accountsKindBank": "Bangko",
   "accountsKindCash": "Cash",
@@ -26,7 +24,6 @@
   "accountsMissingRate": "Wala pang palitan para sa {currencies}. Wala ito sa kabuuan.",
   "accountsNameHint": "GCash",
   "accountsNameLabel": "Pangalan",
-  "accountsNeverCounted": "Hindi pa nabibilang",
   "accountsNoMainWallet": "Walang {currency} dito, kaya hindi sinusuri ang minimum.",
   "accountsNotSaved": "Hindi na-save.",
   "accountsRateLine": "1 {from} = {rate} {main}",
@@ -43,13 +40,11 @@
   "accountsSavedUntracked": "Na-save. {amount} ang hindi nasubaybayan mula sa huling bilang.",
   "accountsSubtotal": "Mga {amount} lahat",
   "accountsTitle": "Mga account",
-  "accountsToday": "ngayon",
   "accountsTotalTitle": "Lahat ng meron ka",
   "accountsTotalUnavailable": "Kailangan ng palitan ng pera ang kabuuan, at wala pa nito.",
   "accountsWalletAdd": "Magdagdag ng pera",
   "accountsWalletAdded": "Nadagdag ang {currency}.",
   "accountsWalletsTitle": "Mga pera sa account na ito",
-  "accountsYesterday": "kahapon",
   "acctBalanceNow": "Balanse ngayon",
   "acctByAnyone": "Kahit sino",
   "acctByBotler": "Botler",
@@ -1276,5 +1271,27 @@
   "webMarkNone": "Walang nagamit na logo mula sa web. Hilingin mong subukan ang ibang site, o magpadala ng litrato.",
   "webMarkNote": "Nakita sa web at ginupit sa phone mo. Piliin ang gusto mo; ang maliit na ginupit na larawan lang ang sine-save.",
   "webMarkOption": "Pagpipiliang logo {n}",
-  "yes": "Oo"
+  "yes": "Oo",
+  "chatScriptFailed": "Hindi natapos ang script",
+  "chatOutputShowAll": "Ipakita lahat",
+  "chatOutputShowLess": "Ipakita nang kaunti",
+  "billsViewList": "Listahan",
+  "billsViewWeek": "Linggo",
+  "billsViewMonth": "Buwan",
+  "billsDayEmpty": "Walang babayaran sa araw na ito.",
+  "billsPrevWeek": "Nakaraang linggo",
+  "billsNextWeek": "Susunod na linggo",
+  "billsPrevMonth": "Nakaraang buwan",
+  "billsNextMonth": "Susunod na buwan",
+  "billsDayLabel": "{day}, {count} babayaran",
+  "@billsDayLabel": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

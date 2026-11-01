@@ -19,7 +19,6 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
-import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'currency_picker.dart';
 import 'mark_picker.dart';
@@ -118,39 +117,32 @@ class AccountsScreen extends ConsumerWidget {
                           net: net,
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: <Widget>[
-                          InfoPill(
-                            text: a['countedAt'] == null
-                                ? context.t.accountsNeverCounted
-                                : context.t.accountsCounted(
-                                    _ago(context, str(a['countedAt'])),
-                                  ),
-                            color: c.muted,
-                            icon: a['countedAt'] == null
-                                ? Icons.edit_note_outlined
-                                : Icons.check_circle_outline,
-                          ),
-                          if (boolOf(a['belowMinimum']))
-                            InfoPill(
-                              text: context.t.accountsBelowMinimum,
-                              color: c.warning,
-                              icon: Icons.warning_amber_rounded,
-                            ),
-                          if (!hasWalletIn(a, context.currencyCode) &&
-                              intOf(a['minBalance']) > 0)
-                            InfoPill(
-                              text: context.t.accountsNoMainWallet(
-                                context.currencyCode,
+                      if (boolOf(a['belowMinimum']) ||
+                          (!hasWalletIn(a, context.currencyCode) &&
+                              intOf(a['minBalance']) > 0)) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: <Widget>[
+                            if (boolOf(a['belowMinimum']))
+                              InfoPill(
+                                text: context.t.accountsBelowMinimum,
+                                color: c.warning,
+                                icon: Icons.warning_amber_rounded,
                               ),
-                              color: c.muted,
-                              icon: Icons.info_outline,
-                            ),
-                        ],
-                      ),
+                            if (!hasWalletIn(a, context.currencyCode) &&
+                                intOf(a['minBalance']) > 0)
+                              InfoPill(
+                                text: context.t.accountsNoMainWallet(
+                                  context.currencyCode,
+                                ),
+                                color: c.muted,
+                                icon: Icons.info_outline,
+                              ),
+                          ],
+                        ),
+                      ],
                       // What consumed the net: the first few bills, rules and goals (only with the net on and sent)
                       if (net) NetHoldLines(account: a),
                     ],
@@ -738,14 +730,3 @@ class _Wallets extends StatelessWidget {
 }
 
 // -- FUNCTIONS -- //
-
-String _ago(BuildContext context, String iso) {
-  final d = DateTime.tryParse(iso);
-  if (d == null) return '';
-  final days = calendarDaysBetween(manilaWall(d), manilaNow());
-  return days <= 0
-      ? context.t.accountsToday
-      : days == 1
-      ? context.t.accountsYesterday
-      : context.t.accountsDaysAgo(days);
-}

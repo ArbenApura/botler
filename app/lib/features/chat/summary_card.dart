@@ -10,14 +10,15 @@ import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
-import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import '../money/accounts_screen.dart' show walletsOf;
+import '../money/money_parts.dart';
 import '../money/net_parts.dart';
 
 // -- TYPES -- //
@@ -71,38 +72,56 @@ class SummaryCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              // The same light figure as every other balance in the app
-              Amount(
-                netTotal ?? intOf(summary['total']),
-                currency: str(summary['currency'], context.currencyCode),
+              // The same light figure as every other balance in the app, shrunk to fit rather than wrapped
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Amount(
+                  netTotal ?? intOf(summary['total']),
+                  currency: str(summary['currency'], context.currencyCode),
+                ),
               ),
-              // The balance counted, smaller, and what the bills due before payday still lack
-              if (netTotal != null) ...<Widget>[
-                Text(
-                  context.t.netGross(
-                    context.moneyIn(
-                      intOf(summary['total']),
-                      str(summary['currency'], context.currencyCode),
-                    ),
-                  ),
-                  style: TextStyle(color: c.muted, fontFeatures: tabular),
-                ),
-                if (shortTotal > 0)
-                  Text(
-                    context.t.netShortfall(
-                      context.moneyIn(
-                        shortTotal,
-                        str(summary['currency'], context.currencyCode),
+              // The balance counted, smaller, what the bills due before payday still lack, and any currency left out: small badges
+              if (netTotal != null ||
+                  intOf(summary['totalMissing']) > 0) ...<Widget>[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: <Widget>[
+                    if (netTotal != null) ...<Widget>[
+                      InfoPill(
+                        text: context.t.netGross(
+                          context.moneyIn(
+                            intOf(summary['total']),
+                            str(summary['currency'], context.currencyCode),
+                          ),
+                        ),
+                        color: c.muted,
                       ),
-                    ),
-                    style: TextStyle(color: c.warning, fontFeatures: tabular),
-                  ),
-              ],
-              if (intOf(summary['totalMissing']) > 0)
-                Text(
-                  context.t.summaryMissingRates(intOf(summary['totalMissing'])),
-                  style: TextStyle(color: context.colors.warning),
+                      if (shortTotal > 0)
+                        InfoPill(
+                          text: context.t.netShortfall(
+                            context.moneyIn(
+                              shortTotal,
+                              str(summary['currency'], context.currencyCode),
+                            ),
+                          ),
+                          color: c.warning,
+                          icon: Icons.warning_amber_rounded,
+                        ),
+                    ],
+                    if (intOf(summary['totalMissing']) > 0)
+                      InfoPill(
+                        text: context.t.summaryMissingRates(
+                          intOf(summary['totalMissing']),
+                        ),
+                        color: c.warning,
+                        icon: Icons.warning_amber_rounded,
+                      ),
+                  ],
                 ),
+              ],
               const SizedBox(height: 14),
               _Line(
                 icon: Icons.receipt_long_outlined,
@@ -144,10 +163,11 @@ class _SummarySkeleton extends StatelessWidget {
         const SizedBox(height: 2),
         const SkeletonLine(widthFactor: 0.55, height: 36),
         if (net) ...<Widget>[
-          const SizedBox(height: 2),
-          const SkeletonLine(widthFactor: 0.35, height: 22),
-          const SizedBox(height: 2),
-          const SkeletonLine(widthFactor: 0.6, height: 22),
+          // The badges under the figure: two rows at most
+          const SizedBox(height: 8),
+          const SkeletonLine(widthFactor: 0.45, height: 28),
+          const SizedBox(height: 6),
+          const SkeletonLine(widthFactor: 0.6, height: 28),
         ],
         const SizedBox(height: 14),
         const SkeletonLine(widthFactor: 0.75, height: 20),
@@ -207,16 +227,15 @@ class _SheetAccounts extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
-    // Only with the net on: the sheet is the summary as it always was for a person who leads with the balance counted
+    // The net lines come only with the net on; the accounts themselves are always listed, each with its mark
     final net = ref.watch(settingsProvider.select((s) => s.showNetBalance));
-    if (!net) return const SizedBox.shrink();
     final balances = ref.watch(balancesProvider);
     // While they load, rows of the same kind hold the place, so the sheet does not jump up when they arrive
     if (balances.isLoading && !balances.hasValue) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(context.t.drawerAccounts, style: TextStyle(color: c.muted)),
           const SkeletonRows(count: 3),
         ],
@@ -228,9 +247,26 @@ class _SheetAccounts extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         // The gap is here, so a sheet with no accounts is exactly as tall as its card
-        const SizedBox(height: 12),
-        Text(context.t.drawerAccounts, style: TextStyle(color: c.muted)),
-        for (final a in accounts) _SheetRow(account: a, net: net),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
+          child: Text(
+            context.t.drawerAccounts,
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: c.muted),
+          ),
+        ),
+        PaperCard(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Column(
+            children: <Widget>[
+              for (var i = 0; i < accounts.length; i++) ...<Widget>[
+                if (i > 0) const Divider(),
+                _SheetRow(account: accounts[i], net: net),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -266,11 +302,23 @@ class _SheetRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    // The account's own logo, icon or first letter, like the Accounts screen
+                    MarkBadge(
+                      name: str(account['name']),
+                      mark: markOf(account),
+                      size: 36,
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        str(account['name']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 7),
+                        child: Text(
+                          str(account['name']),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),

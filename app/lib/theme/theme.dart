@@ -11,6 +11,9 @@ import 'tokens.dart';
 /// Tap targets are at least this big, in logical pixels (48 dp).
 const double minTap = 48;
 
+/// The largest the phone's text size setting is followed to, so a huge system font cannot bloat the screens.
+const double maxTextScale = 1.3;
+
 const List<FontFeature> tabular = <FontFeature>[FontFeature.tabularFigures()];
 
 // -- FUNCTIONS -- //

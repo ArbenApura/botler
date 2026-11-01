@@ -58,24 +58,8 @@
       }
     }
   },
-  "accountsCounted": "Counted {when}",
-  "@accountsCounted": {
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
   "accountsCurrencyLabel": "Currency",
   "accountsCurrencyNote": "What is in this account is counted in this currency unless you pick another when you enter something.",
-  "accountsDaysAgo": "{count, plural, other{{count} days ago}}",
-  "@accountsDaysAgo": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "accountsEmpty": "No accounts yet. Add RCBC, GCash, Maya or cash.",
   "accountsKindBank": "Bank",
   "accountsKindCash": "Cash",
@@ -99,7 +83,6 @@
   },
   "accountsNameHint": "GCash",
   "accountsNameLabel": "Name",
-  "accountsNeverCounted": "Never counted",
   "accountsNoMainWallet": "Nothing in {currency} here, so the minimum is not checked.",
   "@accountsNoMainWallet": {
     "placeholders": {
@@ -164,7 +147,6 @@
     }
   },
   "accountsTitle": "Accounts",
-  "accountsToday": "today",
   "accountsTotalTitle": "Everything you have",
   "accountsTotalUnavailable": "The total needs exchange rates, and there are none yet.",
   "accountsWalletAdd": "Add a currency",
@@ -177,7 +159,6 @@
     }
   },
   "accountsWalletsTitle": "Currencies in this account",
-  "accountsYesterday": "yesterday",
   "acctBalanceNow": "Balance now",
   "acctByAnyone": "Anyone",
   "acctByBotler": "Botler",
@@ -3302,5 +3283,27 @@
       }
     }
   },
-  "yes": "Yes"
+  "yes": "Yes",
+  "chatScriptFailed": "The script did not finish",
+  "chatOutputShowAll": "Show all of it",
+  "chatOutputShowLess": "Show less",
+  "billsViewList": "List",
+  "billsViewWeek": "Week",
+  "billsViewMonth": "Month",
+  "billsDayEmpty": "Nothing due this day.",
+  "billsPrevWeek": "Previous week",
+  "billsNextWeek": "Next week",
+  "billsPrevMonth": "Previous month",
+  "billsNextMonth": "Next month",
+  "billsDayLabel": "{day}, {count} due",
+  "@billsDayLabel": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

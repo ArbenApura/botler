@@ -13,6 +13,7 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
+import 'agenda_parts.dart';
 
 // -- CONSTANTS -- //
 
@@ -128,7 +129,6 @@ class _TasksTabState extends ConsumerState<_TasksTab> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return ListView(
       padding: pagePadding(context),
       children: <Widget>[
@@ -140,27 +140,28 @@ class _TasksTabState extends ConsumerState<_TasksTab> {
             children: <Widget>[
               if (list.isEmpty) Note(context.t.agendaTasksEmpty),
               for (final t in list)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: false,
-                  title: Text(str(t['title'])),
+                AgendaRow(
+                  title: str(t['title']),
                   subtitle: t['dueAt'] == null
                       ? null
-                      : Text(
-                          context.t.agendaDue(
-                            _stamp(context, _moment(t['dueAt'])),
-                          ),
-                          style: TextStyle(color: c.muted),
+                      : context.t.agendaDue(
+                          _stamp(context, _moment(t['dueAt'])),
                         ),
-                  onChanged: _once.running('done:${str(t['id'])}')
+                  leading: Checkbox(
+                    value: false,
+                    onChanged: _once.running('done:${str(t['id'])}')
+                        ? null
+                        : (_) => _finish(str(t['id'])),
+                  ),
+                  onTap: _once.running('done:${str(t['id'])}')
                       ? null
-                      : (_) => _finish(str(t['id'])),
+                      : () => _finish(str(t['id'])),
                 ),
             ],
           ),
         ),
-        OutlinedButton.icon(
+        const SizedBox(height: addGap),
+        FilledButton.icon(
           onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddTask),
@@ -281,21 +282,18 @@ class _EventsTabState extends ConsumerState<_EventsTab> {
             children: <Widget>[
               if (list.isEmpty) Note(context.t.agendaEventsEmpty),
               for (final e in list)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(str(e['title'])),
-                  subtitle: Text(
-                    boolOf(e['allDay'])
-                        ? DateFormat(
-                            'EEE, MMM d',
-                            Localizations.localeOf(context).toString(),
-                          ).format(manilaWall(_moment(e['startsAt'])))
-                        : _stamp(context, _moment(e['startsAt'])),
-                    style: TextStyle(color: c.muted),
-                  ),
+                AgendaRow(
+                  title: str(e['title']),
+                  leading: const RowBadge(Icons.event_outlined),
+                  subtitle: boolOf(e['allDay'])
+                      ? DateFormat(
+                          'EEE, MMM d',
+                          Localizations.localeOf(context).toString(),
+                        ).format(manilaWall(_moment(e['startsAt'])))
+                      : _stamp(context, _moment(e['startsAt'])),
                   trailing: IconButton(
                     tooltip: context.t.agendaRemove,
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: c.muted),
                     onPressed: _once.running('del:${str(e['id'])}')
                         ? null
                         : () => _remove(str(e['id'])),
@@ -304,7 +302,8 @@ class _EventsTabState extends ConsumerState<_EventsTab> {
             ],
           ),
         ),
-        OutlinedButton.icon(
+        const SizedBox(height: addGap),
+        FilledButton.icon(
           onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddEvent),
@@ -409,7 +408,6 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     return ListView(
       padding: pagePadding(context),
       children: <Widget>[
@@ -421,22 +419,23 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
             children: <Widget>[
               if (list.isEmpty) Note(context.t.agendaRoutinesEmpty),
               for (final r in list)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(str(r['title'])),
-                  subtitle: Text(
-                    _describe(context, asJson(r['recurrence'])),
-                    style: TextStyle(color: c.muted),
+                AgendaRow(
+                  title: str(r['title']),
+                  struck: !boolOf(r['active']),
+                  leading: const RowBadge(Icons.repeat),
+                  subtitle: _describe(context, asJson(r['recurrence'])),
+                  trailing: Switch(
+                    value: boolOf(r['active']),
+                    onChanged: _once.running('toggle:${str(r['id'])}')
+                        ? null
+                        : (on) => _toggle(str(r['id']), on),
                   ),
-                  value: boolOf(r['active']),
-                  onChanged: _once.running('toggle:${str(r['id'])}')
-                      ? null
-                      : (on) => _toggle(str(r['id']), on),
                 ),
             ],
           ),
         ),
-        OutlinedButton.icon(
+        const SizedBox(height: addGap),
+        FilledButton.icon(
           onPressed: () => _add(context),
           icon: const Icon(Icons.add),
           label: Text(context.t.agendaAddRoutine),
@@ -497,6 +496,7 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
               ),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: <Widget>[
                   for (final (k, label) in <(String, String)>[
                     ('daily', sheet.t.agendaFreqDaily),
@@ -509,9 +509,11 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
                     ),
                 ],
               ),
+              const SizedBox(height: 12),
               if (freq == 'weekly')
                 Wrap(
                   spacing: 6,
+                  runSpacing: 6,
                   children: <Widget>[
                     for (var d = 0; d < 7; d++)
                       FilterChip(
@@ -522,6 +524,7 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
                       ),
                   ],
                 ),
+              if (freq == 'weekly') const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () async {
                   final t = await showTimePicker(
@@ -614,21 +617,17 @@ class _RemindersTabState extends ConsumerState<_RemindersTab> {
             children: <Widget>[
               if (list.isEmpty) Note(context.t.agendaRemindersEmpty),
               for (final r in list)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(switch (str(r['kind'])) {
+                AgendaRow(
+                  title: str(r['title']),
+                  leading: RowBadge(switch (str(r['kind'])) {
                     'alarm' => Icons.alarm,
                     'timer' => Icons.timer_outlined,
                     _ => Icons.notifications_none,
-                  }, color: c.muted),
-                  title: Text(str(r['title'])),
-                  subtitle: Text(
-                    _stamp(context, _moment(r['remindAt'])),
-                    style: TextStyle(color: c.muted),
-                  ),
+                  }),
+                  subtitle: _stamp(context, _moment(r['remindAt'])),
                   trailing: IconButton(
                     tooltip: context.t.cancel,
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: c.muted),
                     onPressed: _once.running('cancel:${str(r['id'])}')
                         ? null
                         : () => _cancel(str(r['id'])),
@@ -637,10 +636,12 @@ class _RemindersTabState extends ConsumerState<_RemindersTab> {
             ],
           ),
         ),
+        const SizedBox(height: addGap),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: <Widget>[
-            OutlinedButton(
+            FilledButton(
               onPressed: () =>
                   _add(context, 'reminder_create', context.t.agendaRemindMe),
               child: Text(context.t.agendaRemindMe),

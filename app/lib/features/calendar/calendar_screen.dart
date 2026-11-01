@@ -72,12 +72,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               final view = tab.index;
               final DateTime from;
               final int span;
+              // Week first (it opens there), then month, then agenda
               if (view == 0) {
-                from = _gridStart(startsOn);
-                span = 42;
-              } else if (view == 1) {
                 from = weekStart(_focus, startsOn);
                 span = 7;
+              } else if (view == 1) {
+                from = _gridStart(startsOn);
+                span = 42;
               } else {
                 from = _today();
                 span = _agendaDays;
@@ -95,8 +96,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ],
                   bottom: TabBar(
                     tabs: <Tab>[
-                      Tab(text: t.calViewMonth),
                       Tab(text: t.calViewWeek),
+                      Tab(text: t.calViewMonth),
                       Tab(text: t.calViewAgenda),
                     ],
                   ),
@@ -126,7 +127,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             if (data.offline) _OfflineBand(text: t.calOffline),
                             Expanded(
                               child: switch (view) {
-                                0 => _MonthView(
+                                0 => _WeekView(
+                                  start: from,
+                                  focus: _focus,
+                                  range: data.range,
+                                  onPrev: () => _shiftWeek(-1),
+                                  onNext: () => _shiftWeek(1),
+                                  onChanged: () => _refresh(key),
+                                ),
+                                1 => _MonthView(
                                   focus: _focus,
                                   start: from,
                                   range: data.range,
@@ -134,14 +143,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   onPrev: () => _shiftMonth(-1),
                                   onNext: () => _shiftMonth(1),
                                   onPick: (d) => setState(() => _focus = d),
-                                  onChanged: () => _refresh(key),
-                                ),
-                                1 => _WeekView(
-                                  start: from,
-                                  focus: _focus,
-                                  range: data.range,
-                                  onPrev: () => _shiftWeek(-1),
-                                  onNext: () => _shiftWeek(1),
                                   onChanged: () => _refresh(key),
                                 ),
                                 _ => _AgendaView(

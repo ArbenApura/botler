@@ -113,6 +113,7 @@ class PaydayScreen extends ConsumerWidget {
               children: <Widget>[
                 if (list.isEmpty) Note(context.t.paydayEmpty),
                 for (final i in list) _incomeTile(context, ref, i, c),
+                const SizedBox(height: 4),
                 OutlinedButton.icon(
                   onPressed: () async {
                     if (await incomeSheet(context, ref)) _refresh(ref);
@@ -137,6 +138,7 @@ class PaydayScreen extends ConsumerWidget {
                   ...list.where((r) => str(r['status']) == 'retired'),
                 ])
                   _ruleCard(context, ref, r, bills, c),
+                const SizedBox(height: 4),
                 OutlinedButton.icon(
                   onPressed: () => _addRule(context, ref),
                   icon: const Icon(Icons.add),
@@ -269,32 +271,38 @@ class PaydayScreen extends ConsumerWidget {
     return Semantics(
       button: true,
       label: context.t.paydayEditMenu,
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        minTileHeight: 56,
-        title: Text(str(i['label'])),
-        subtitle: Text(
-          [
-            if (off) context.t.paydayOff,
-            if (i['expectedAmount'] == null)
-              context.t.paydayDifferent
-            else
-              context.t.paydayUsually(
-                context.moneyMain(intOf(i['expectedAmount'])),
-              ),
-            describeSchedule(
-                  context.t,
-                  Localizations.localeOf(context).toString(),
-                  asJson(i['schedule']),
-                ) ??
-                context.t.schedUnknown,
-          ].join(' Â· '),
-          style: TextStyle(color: off ? c.warning : c.muted),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+            minTileHeight: 56,
+            title: Text(str(i['label'])),
+            subtitle: Text(
+              [
+                if (off) context.t.paydayOff,
+                if (i['expectedAmount'] == null)
+                  context.t.paydayDifferent
+                else
+                  context.t.paydayUsually(
+                    context.moneyMain(intOf(i['expectedAmount'])),
+                  ),
+                describeSchedule(
+                      context.t,
+                      Localizations.localeOf(context).toString(),
+                      asJson(i['schedule']),
+                    ) ??
+                    context.t.schedUnknown,
+              ].join(' Â· '),
+              style: TextStyle(color: off ? c.warning : c.muted),
+            ),
+            trailing: Icon(Icons.chevron_right, color: c.muted),
+            onTap: () async {
+              if (await incomeSheet(context, ref, existing: i)) _refresh(ref);
+            },
+          ),
         ),
-        trailing: Icon(Icons.chevron_right, color: c.muted),
-        onTap: () async {
-          if (await incomeSheet(context, ref, existing: i)) _refresh(ref);
-        },
       ),
     );
   }

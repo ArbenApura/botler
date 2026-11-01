@@ -136,7 +136,7 @@ class Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(24),
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
     child: Center(
       child: Text(
         text,
@@ -242,7 +242,9 @@ Future<T?> showFormSheet<T>(
         20,
         0,
         20,
-        20 + MediaQuery.of(sheet).viewInsets.bottom,
+        20 +
+            MediaQuery.of(sheet).viewInsets.bottom +
+            MediaQuery.viewPaddingOf(sheet).bottom,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -250,7 +252,7 @@ Future<T?> showFormSheet<T>(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(title, style: Theme.of(sheet).textTheme.titleLarge),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             builder(sheet, (r) => Navigator.of(sheet).pop(r)),
           ],
         ),

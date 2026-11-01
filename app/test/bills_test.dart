@@ -8,6 +8,7 @@ import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
 import 'package:botler/core/manila.dart';
 import 'package:botler/features/money/bills_logic.dart';
+import 'package:botler/features/money/bills_parts.dart';
 import 'package:botler/features/money/bills_screen.dart';
 import 'package:botler/l10n/l10n.dart';
 import 'package:botler/state/providers.dart';
@@ -326,7 +327,11 @@ void main() {
         bills: <Json>[billRow('Meralco')],
       );
       await show(tester, stand);
-      await tester.tap(find.byType(InkWell).first);
+      await tester.tap(
+        find
+            .descendant(of: find.byType(DueRow), matching: find.byType(InkWell))
+            .first,
+      );
       await tester.pumpAndSettle();
       return stand;
     }
@@ -430,7 +435,14 @@ void main() {
           ],
         );
         await show(tester, stand);
-        await tester.tap(find.byType(InkWell).first);
+        await tester.tap(
+          find
+              .descendant(
+                of: find.byType(DueRow),
+                matching: find.byType(InkWell),
+              )
+              .first,
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.text('The amount is different every time'));
         await tester.pumpAndSettle();
@@ -478,6 +490,55 @@ void main() {
         'billId': 'bill-Meralco',
         'dueDate': date,
       });
+    });
+  });
+
+  group('the week and month views', () {
+    testWidgets('week shows the day strip and the bills of the picked day', (
+      tester,
+    ) async {
+      final stand = Stand(
+        due: <Json>[
+          dueRow('Meralco', today),
+          dueRow('WiFi', addDaysTo(today, 400)),
+        ],
+        bills: <Json>[billRow('Meralco'), billRow('WiFi')],
+      );
+      await show(tester, stand);
+      await tester.tap(find.text('Week'));
+      await tester.pumpAndSettle();
+      // Today is picked: its bill is under the strip, the list sections are gone
+      expect(find.text('Meralco'), findsOneWidget);
+      expect(find.text('Coming up'), findsNothing);
+      expect(find.text('Mark paid'), findsOneWidget);
+      // A day with nothing says so
+      // The week starts on Monday: on a Sunday the day after is in the next week, so take the day before
+      final other = DateTime.parse(today).weekday == DateTime.sunday ? -1 : 1;
+      final tomorrow = DateTime.parse(addDaysTo(today, other)).day;
+      await tester.tap(find.text('$tomorrow').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing due this day.'), findsOneWidget);
+    });
+
+    testWidgets('month shows the grid and remembers the choice', (
+      tester,
+    ) async {
+      final stand = Stand(
+        due: <Json>[dueRow('Meralco', today)],
+        bills: <Json>[billRow('Meralco')],
+      );
+      await show(tester, stand);
+      await tester.tap(find.text('Month'));
+      await tester.pumpAndSettle();
+      expect(find.text('Meralco'), findsOneWidget);
+      expect(
+        find.text(DateFormat.yMMMM('en').format(DateTime.parse(today))),
+        findsOneWidget,
+      );
+      // Back to the list shows the sections again
+      await tester.tap(find.text('List'));
+      await tester.pumpAndSettle();
+      expect(find.text('Coming up'), findsOneWidget);
     });
   });
 }

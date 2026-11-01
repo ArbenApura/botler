@@ -151,6 +151,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // The screen opens on Week; these tests are about the month grid
+      await tester.tap(find.text('Month'));
+      await tester.pumpAndSettle();
     }
 
     testWidgets(

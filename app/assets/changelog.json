@@ -424,5 +424,25 @@
       "Bago na ang itsura ng mga screen ng Accounts at Bills. Accounts: mas malaki ang total sa itaas, ang mga paalala ay maliliit na badge, at ang rates, time travel at net view ay maayos na mga row; makikita agad sa bawat account ang balanse, kung kailan huling binilang at anumang babala, at ang mga account na may maraming currency ay nakalista nang malinis.",
       "Bills: bawat petsa ng bayad ay may date tile (may kulay kapag lampas na, berde kapag bayad na), ang pangalan ng bill, kailan at magkano, at malinaw na Mark paid na button. Cards na ang listahan ng lahat ng bills, at mas tahimik ang itsura ng bill na naka-off."
     ]
+  },
+  {
+    "versionCode": 41,
+    "versionName": "1.4.0",
+    "en": [
+      "The wallet button at the top of the chat now lists your accounts with their logos and icons, with a calmer total above them.",
+      "Pictures that Botler makes open in the same viewer as your photos, with Save and Share as two matching buttons at the bottom.",
+      "When Botler runs a script or opens your toolbox, the chat shows a card: it is working, done with the first lines of what it printed (tap to see all), or why it did not finish.",
+      "Bills has a List, Week and Month view. Pick a day to see what is due, and pay it from there.",
+      "Calendar now opens on Week, then Month, then Agenda.",
+      "Text no longer grows past a comfortable size when your phone uses a very large font, and a few screens have tidier spacing."
+    ],
+    "fil": [
+      "Ang wallet button sa itaas ng chat ay nagpapakita na ng mga account mo kasama ang kanilang logo at icon, na may mas payapang total sa ibabaw.",
+      "Ang mga larawang ginagawa ni Botler ay bumubukas sa parehong viewer ng mga photo mo, na may Save at Share bilang dalawang magkaparehong button sa ibaba.",
+      "Kapag nagpatakbo si Botler ng script o binuksan ang toolbox mo, may card na sa chat: tumatakbo pa, tapos na kasama ang unang mga linya ng na-print (i-tap para makita lahat), o kung bakit hindi ito natapos.",
+      "May List, Week at Month view na ang Bills. Pumili ng araw para makita ang babayaran at bayaran doon mismo.",
+      "Ang Calendar ay bumubukas na sa Week, tapos Month, tapos Agenda.",
+      "Hindi na lumalaki nang sobra ang text kapag napakalaki ng font ng phone mo, at mas maayos ang espasyo sa ilang screen."
+    ]
   }
 ]

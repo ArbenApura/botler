@@ -28,6 +28,7 @@ import 'message_actions.dart';
 import 'photo_mark_card.dart';
 import 'shown_files.dart';
 import 'photo_widgets.dart';
+import 'script_card.dart';
 
 // -- FUNCTIONS -- //
 
@@ -196,11 +197,26 @@ class _ToolView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     // Started and not answered yet: a spinner and what it is doing, never the "failed" words below
-    if (item.running) return RunningToolRow(item.name);
+    if (item.running) {
+      if (item.name == 'script_run' || item.name == 'toolbox') {
+        return ScriptCard(
+          stage: ScriptStage.running,
+          toolbox: item.name == 'toolbox',
+        );
+      }
+      return RunningToolRow(item.name);
+    }
     // From an earlier session: one quiet read-only line, never a chip or Undo
     if (item.restored) return _RestoredToolLine(item, more: more);
     if (item.status == 'needs_approval') return const SizedBox.shrink();
     if (item.status != 'ok') {
+      if (item.name == 'script_run' || item.name == 'toolbox') {
+        return ScriptCard(
+          stage: ScriptStage.failed,
+          toolbox: item.name == 'toolbox',
+          message: item.message,
+        );
+      }
       return Text(
         item.message ?? context.t.chatToolFailed,
         style: TextStyle(color: c.muted),
@@ -332,38 +348,15 @@ class _ToolView extends ConsumerWidget {
           style: TextStyle(color: c.muted),
         );
       case 'script_run' || 'toolbox':
-        // A script the phone ran for the assistant (or the toolbox it opened): one quiet line, with the first line of what it printed
-        final quiet =
-            Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted) ??
-            TextStyle(color: c.muted);
-        if (item.name == 'toolbox') {
-          return _QuietRow(
-            icon: Icons.build_outlined,
-            text: context.t.chatUsedToolbox,
-            style: quiet,
-            more: more,
-          );
-        }
-        final first = str(data['output']).trim().split('\n').first;
-        final row = _QuietRow(
-          icon: Icons.code,
-          text: first.isEmpty
-              ? context.t.chatRanScriptQuiet
-              : context.t.chatRanScript(
-                  first.length > 80 ? '${first.substring(0, 80)}…' : first,
-                ),
-          style: quiet,
-          more: more,
-        );
+        // A script the phone ran for the assistant (or the toolbox it opened): a card with the start of what it printed and the files it showed
         final shown = shownOf(data);
-        if (shown.isEmpty) return row;
-        // What the script showed: pictures in place, other files as lines that save or share
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            row,
-            ShownFiles(files: shown, chatId: ref.read(chatProvider).chatId),
-          ],
+        return ScriptCard(
+          stage: ScriptStage.done,
+          toolbox: item.name == 'toolbox',
+          output: item.name == 'toolbox' ? '' : str(data['output']),
+          files: shown.isEmpty
+              ? null
+              : ShownFiles(files: shown, chatId: ref.read(chatProvider).chatId),
         );
       default:
         // A read the assistant did: one small quiet line, never a block

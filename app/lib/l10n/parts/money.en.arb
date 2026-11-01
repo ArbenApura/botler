@@ -1,15 +1,6 @@
 {
   "accountsTitle": "Accounts",
   "accountsEmpty": "No accounts yet. Add RCBC, GCash, Maya or cash.",
-  "accountsNeverCounted": "Never counted",
-  "accountsCounted": "Counted {when}",
-  "@accountsCounted": {
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
   "accountsBelowMinimum": "Below the minimum you set",
   "accountsAdd": "Add an account",
   "accountsNameLabel": "Name",
@@ -92,16 +83,6 @@
     }
   },
   "accountsSaved": "Saved.",
-  "accountsToday": "today",
-  "accountsYesterday": "yesterday",
-  "accountsDaysAgo": "{count, plural, other{{count} days ago}}",
-  "@accountsDaysAgo": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "billsTitle": "Bills",
   "billsComingUp": "Coming up",
   "billsNothingDue": "Nothing is due in the next 4 months.",

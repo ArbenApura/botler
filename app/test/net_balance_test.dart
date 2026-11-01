@@ -548,9 +548,10 @@ void main() {
       (tester) async {
         await openSheet(tester, await withSync(net: false));
         expect(find.text('Across your accounts'), findsOneWidget);
-        expect(find.text('₱1,000.00'), findsOneWidget);
+        // The accounts are listed (with their marks) whether the net leads or not; the hold lines come only with the net
+        expect(find.text('₱1,000.00'), findsWidgets);
         expect(find.text('Taken from this by'), findsNothing);
-        expect(find.text('GCash'), findsNothing);
+        expect(find.text('GCash'), findsOneWidget);
       },
     );
 

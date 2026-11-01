@@ -101,6 +101,7 @@ class GoalsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+            const SizedBox(height: 4),
             OutlinedButton.icon(
               onPressed: () => _add(context, ref),
               icon: const Icon(Icons.add),

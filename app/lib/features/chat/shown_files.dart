@@ -13,6 +13,7 @@ import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../../ui/photo_viewer.dart';
 import '../../ui/ui.dart';
 
 // -- CONSTANTS -- //
@@ -152,39 +153,13 @@ class _ShownFile extends ConsumerWidget {
     );
   }
 
+  /// The picture large, in the same viewer as the chat photos, with the same Save and Share buttons at its foot.
   Future<void> _viewPicture(BuildContext context, WidgetRef ref) {
-    final t = context.t;
-    return showDialog<void>(
-      context: context,
-      builder: (d) => Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(name, overflow: TextOverflow.ellipsis),
-            actions: <Widget>[
-              IconButton(
-                tooltip: t.fileSave,
-                icon: const Icon(Icons.download_outlined),
-                onPressed: () => _save(context, ref),
-              ),
-              IconButton(
-                tooltip: t.fileShare,
-                icon: const Icon(Icons.ios_share),
-                onPressed: () => _share(context, ref),
-              ),
-            ],
-          ),
-          body: InteractiveViewer(
-            maxScale: 6,
-            child: Center(
-              child: Image.file(
-                File(path),
-                semanticLabel: t.filePicture(name),
-                errorBuilder: (_, _, _) => Text(t.fileGone),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return showPhotoViewer(
+      context,
+      paths: <String>[path],
+      onSave: (_) => _save(context, ref),
+      onShare: (_) => _share(context, ref),
     );
   }
 

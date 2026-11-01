@@ -218,10 +218,17 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: _router,
-      builder: (context, child) => MoneyScope(
-        currency: settings.currency,
-        child: LockGate(
-          child: UpdateGate(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => MediaQuery(
+        // A very large system font would bloat every screen: text follows the phone's setting up to this much and no further
+        data: MediaQuery.of(context).copyWith(
+          textScaler: MediaQuery.textScalerOf(context)
+              .clamp(minScaleFactor: 1, maxScaleFactor: maxTextScale),
+        ),
+        child: MoneyScope(
+          currency: settings.currency,
+          child: LockGate(
+            child: UpdateGate(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
     );
