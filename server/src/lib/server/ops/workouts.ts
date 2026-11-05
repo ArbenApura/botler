@@ -39,9 +39,11 @@ import {
 // -- MODULES -- //
 import { addDays, toManilaDate, weekday } from '../../finance/dates';
 import { weekKeyOf } from '../../health/energy';
+import { routinesBetween } from './availability';
 import { moveSuggestion, planWeek, stillFits } from '../../health/planner';
 import {
 	exerciseAt,
+	looksLikeExercise,
 	MINUTES_GOAL,
 	movementOf,
 	MOVEMENTS,
@@ -171,14 +173,25 @@ export async function startProgram(ctx: Ctx, raw: ProgramKeyInput) {
 	const { templateKey } = parse(programKeyInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'program.start', { templateKey }, async (tx, userId) => {
-			const running = (await activePrograms(tx, userId)).find((p) => p.templateKey === templateKey);
+			const all = await activePrograms(tx, userId);
+			const running = all.find((p) => p.templateKey === templateKey);
 			if (running) return { program: programView(running), readiness: READINESS };
+			// A second program adds its sessions to the week: it starts, and the answer says so
+			const alsoRunning = all.map((p) => programView(p).name);
 			const [row] = await tx
 				.insert(program)
 				.values({ userId, templateKey, startedOn: toManilaDate(new Date()) })
 				.returning();
 			if (!row) throw new OpsError('INVALID', 'The program could not be started.');
-			return { program: programView(row), readiness: READINESS };
+			return {
+				program: programView(row),
+				readiness: READINESS,
+				...(alsoRunning.length
+					? {
+							warning: `${alsoRunning.join(', ')} is already running. Two programs together add up their sessions every week.`
+						}
+					: {})
+			};
 		})
 	);
 }
@@ -953,10 +966,64 @@ export async function readTrain(tx: Tx, userId: string, today: string) {
 		};
 	});
 	const programs = await activePrograms(tx, userId);
+	// Routines that name exercise and fire this week: the screen must not say rest on a day the person has one
+	const routineRows = (await routinesBetween(tx, userId, monday, sunday)).filter((r) =>
+		looksLikeExercise(r.title)
+	);
+	const routineView = (r: (typeof routineRows)[number]) => ({
+		id: r.id,
+		title: r.title,
+		day: toManilaDate(r.at),
+		time: new Intl.DateTimeFormat('en-GB', {
+			hour: '2-digit',
+			minute: '2-digit',
+			timeZone: 'Asia/Manila'
+		}).format(r.at)
+	});
+	const todayRoutines = routineRows
+		.filter((r) => toManilaDate(r.at) === today)
+		.sort((a, b) => a.at.getTime() - b.at.getTime())
+		.map(routineView);
+	// What each running program still asks of this week: its sessions minus the ones already placed or finished
+	const programsDue = programs.map((p) => {
+		const asked = wantedFor([p]).filter((w) => w.programId === p.id).length;
+		const placed = planned.filter(
+			(x) => x.programId === p.id && x.day <= sunday && x.status !== 'skipped'
+		).length;
+		const finished = sessions.filter((x) => x.programId === p.id).length;
+		return { ...programView(p), asked, toPlace: Math.max(0, asked - Math.max(placed, finished)) };
+	});
+	const todayDone = sessions
+		.filter((s) => s.day === today)
+		.map((s) => ({
+			id: s.id,
+			title: s.title,
+			minutes: s.minutes
+		}));
+	const todayPlanned = open.filter((p) => p.day === today).map(view)[0] ?? null;
+	// One answer for the Today card, so the card and the week dots cannot disagree
+	const todayState = running
+		? 'running'
+		: todayPlanned
+			? 'planned'
+			: todayDone.length
+				? 'done'
+				: todayRoutines.length
+					? 'routine'
+					: programsDue.some((p) => p.toPlace > 0)
+						? 'program'
+						: 'rest';
 	return {
 		today,
-		days,
-		todayPlanned: open.filter((p) => p.day === today).map(view)[0] ?? null,
+		days: days.map((d) => ({
+			...d,
+			routineDay: routineRows.some((r) => toManilaDate(r.at) === d.day)
+		})),
+		todayState,
+		todayDone,
+		todayRoutines,
+		programsDue,
+		todayPlanned,
 		next: open.map(view)[0] ?? null,
 		minutes: sessions.reduce((a, s) => a + (s.minutes ?? 0), 0),
 		minutesGoal: MINUTES_GOAL,

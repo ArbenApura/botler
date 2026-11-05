@@ -317,6 +317,13 @@ export type PromptInput = {
 };
 
 /** The clock time in Manila with its offset, so "in 3 minutes" or "at 3:30pm" becomes a correct instant for reminder_create and alarm_create. */
+/** The day name of a Manila date, worked out in code so the model never counts weekdays itself. */
+function weekdayName(date: string): string {
+	return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(
+		new Date(`${date}T00:00:00Z`)
+	);
+}
+
 export function nowLine(now: Date): string {
 	// Manila has no daylight saving, so a fixed +08:00 shift is exact and needs no locale data
 	const local = new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(0, 19);
@@ -327,7 +334,7 @@ export function nowLine(now: Date): string {
 export function buildMessages(p: PromptInput): ChatMessage[] {
 	const manila = toManilaDate(p.now);
 	const context = [
-		`Today is ${manila} in Asia/Manila.`,
+		`Today is ${weekdayName(manila)} ${manila} in Asia/Manila.`,
 		nowLine(p.now),
 		currencyLine(p.currency ?? DEFAULT_CURRENCY),
 		languageLine(p.replyLanguage ?? 'auto'),

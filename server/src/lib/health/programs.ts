@@ -213,3 +213,8 @@ export function workoutTitle(sessionKey: string, kind: string): string {
 	if (kind === 'run') return 'Run';
 	return 'Workout';
 }
+
+/** A routine counts as exercise on the Train screen when its title names it. Routines have no kind, so the words decide. */
+const EXERCISE_WORDS =
+	/\b(exercise|workout|work out|jog|jogging|run|running|walk|walking|stretch|abs|yoga|strength|training|train|cardio|bike|cycling|hiit|video)\b/i;
+export const looksLikeExercise = (title: string): boolean => EXERCISE_WORDS.test(title);

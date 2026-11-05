@@ -19,6 +19,8 @@ import type {
 import { and, eq, gte, gt, inArray, isNull, lt } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { recurrenceOccurrences } from '../../schedule/recurrence';
+import type { Recurrence } from '../../schedule/recurrence';
 import {
 	blocksProblem,
 	DEFAULT_AVAILABILITY,
@@ -30,6 +32,7 @@ import {
 	availabilityOverride,
 	availabilitySetting,
 	calendarEvent,
+	routine,
 	weeklyBlock
 } from '../db/schema';
 import {
@@ -81,6 +84,27 @@ function checkBlocks(blocks: readonly Block[]) {
 	if (problem) throw new OpsError('INVALID', problem);
 }
 
+/** A routine has a time and no length, so planning treats it as this long (plus its lead time). */
+export const ROUTINE_SPAN_MINUTES = 30;
+
+/** The active routines that fire in a range of Manila days, as dated rows. Read in the caller's transaction. */
+export async function routinesBetween(tx: Tx, userId: string, from: string, to: string) {
+	const rows = await tx
+		.select()
+		.from(routine)
+		.where(and(eq(routine.userId, userId), eq(routine.active, true)));
+	const start = manilaStart(from);
+	const end = new Date(manilaStart(addDays(to, 1)).getTime() - 1);
+	return rows.flatMap((r) =>
+		recurrenceOccurrences(r.recurrence as Recurrence, start, end).map((at) => ({
+			id: r.id,
+			title: r.title,
+			leadMinutes: r.leadMinutes,
+			at
+		}))
+	);
+}
+
 /** Everything the planner needs for a range of days, read in the caller's transaction. */
 export async function readAvailability(
 	tx: Tx,
@@ -115,6 +139,11 @@ export async function readAvailability(
 				gt(calendarEvent.endsAt, manilaStart(from))
 			)
 		);
+	// Routines hold their time too, so a week is never planned over one
+	const routineSpans = (await routinesBetween(tx, userId, from, to)).map((r) => ({
+		startsAt: new Date(r.at.getTime() - r.leadMinutes * 60_000),
+		endsAt: new Date(r.at.getTime() + ROUTINE_SPAN_MINUTES * 60_000)
+	}));
 	return {
 		weekly: blocks.map((b): WeeklyBlock => ({
 			weekday: b.weekday,
@@ -131,7 +160,7 @@ export async function readAvailability(
 					travelMinutes: s.travelMinutes
 				}
 			: DEFAULT_AVAILABILITY,
-		events
+		events: [...events, ...routineSpans]
 	};
 }
 

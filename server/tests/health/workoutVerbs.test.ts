@@ -50,10 +50,14 @@ type Session = {
 type Train = {
 	minutes: number;
 	strengthDays: number;
-	days: { day: string; state: string }[];
 	needsMove: { id: string; suggestion: string | null }[];
 	programs: { templateKey: string; week: number }[];
 	next: { id: string; time: string } | null;
+	todayState: string;
+	todayRoutines: { title: string; time: string }[];
+	todayDone: { title: string }[];
+	programsDue: { templateKey: string; asked: number; toPlace: number }[];
+	days: { day: string; state: string; routineDay: boolean }[];
 };
 
 // -- CONSTANTS -- //
@@ -97,7 +101,7 @@ async function acceptNextWeek(id: string) {
 beforeAll(async () => {
 	t = await createTestDb();
 	await t.handle.db.insert(user).values(
-		[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+		[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
 			id: `user_wrk_0000${n}`,
 			name: 'P',
 			email: `w${n}@example.com`
@@ -452,5 +456,54 @@ describe('logging by chat', () => {
 
 	it('the weekly job handler is there', () => {
 		expect(jobHandlers['health.weekly']).toBeTypeOf('function');
+	});
+});
+
+describe('the Train screen tells the truth', () => {
+	const id = 'user_wrk_00009';
+	const everyDay = { freq: 'daily', time: '19:00' };
+
+	it('says rest only when nothing is due', async () => {
+		const train = (await invokeVerb(ctxFor(id), 'train_get', {})) as Train;
+		expect(train.todayState).toBe('rest');
+	});
+
+	it('shows a program with sessions still to place instead of rest', async () => {
+		await invokeVerb(ctxFor(id), 'program_start', { templateKey: 'walk_to_run' });
+		const train = (await invokeVerb(ctxFor(id), 'train_get', {})) as Train;
+		expect(train.todayState).toBe('program');
+		expect(train.programsDue[0]).toMatchObject({
+			templateKey: 'walk_to_run',
+			asked: 3,
+			toPlace: 3
+		});
+	});
+
+	it('warns when a second program starts, and still starts it', async () => {
+		const r = (await invokeVerb(ctxFor(id), 'program_start', { templateKey: 'home_strength' })) as {
+			warning?: string;
+		};
+		expect(r.warning).toContain('already running');
+		await invokeVerb(ctxFor(id), 'program_stop', { templateKey: 'home_strength' });
+		await invokeVerb(ctxFor(id), 'program_stop', { templateKey: 'walk_to_run' });
+	});
+
+	it('shows an exercise routine due today, and ignores one that is not exercise', async () => {
+		await invokeVerb(ctxFor(id), 'routine_create', { title: 'Brush teeth', recurrence: everyDay });
+		expect(((await invokeVerb(ctxFor(id), 'train_get', {})) as Train).todayState).toBe('rest');
+		await invokeVerb(ctxFor(id), 'routine_create', { title: 'Night jog', recurrence: everyDay });
+		const train = (await invokeVerb(ctxFor(id), 'train_get', {})) as Train;
+		expect(train.todayState).toBe('routine');
+		expect(train.todayRoutines).toEqual([
+			expect.objectContaining({ title: 'Night jog', time: '19:00' })
+		]);
+		expect(train.days.every((d) => d.routineDay)).toBe(true);
+	});
+
+	it('shows a finished session as done, not rest', async () => {
+		await invokeVerb(ctxFor(id), 'workout_log', { kind: 'walk', minutes: 20 });
+		const train = (await invokeVerb(ctxFor(id), 'train_get', {})) as Train;
+		expect(train.todayState).toBe('done');
+		expect(train.todayDone).toHaveLength(1);
 	});
 });
