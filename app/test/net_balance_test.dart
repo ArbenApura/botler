@@ -395,10 +395,10 @@ void main() {
       await tester.pumpWidget(_app(c, const AccountsScreen()));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Taken from this by'), 200);
-      expect(find.text('Rent, due Nov 5'), findsOneWidget);
-      expect(find.text('Meralco, due Nov 5'), findsOneWidget);
-      expect(find.text('Wifi, due Nov 5'), findsOneWidget);
-      expect(find.text('Water, due Nov 5'), findsNothing);
+      expect(find.text('Rent, due 5 Nov'), findsOneWidget);
+      expect(find.text('Meralco, due 5 Nov'), findsOneWidget);
+      expect(find.text('Wifi, due 5 Nov'), findsOneWidget);
+      expect(find.text('Water, due 5 Nov'), findsNothing);
       expect(find.text('+1 more, open the account to see all'), findsOneWidget);
       expect(find.text('-₱100.00'), findsNWidgets(3));
     });
@@ -512,7 +512,7 @@ void main() {
         expect(find.text('Net, after bills and goals'), findsOneWidget);
         expect(find.text('Balance ₱1,000.00'), findsWidgets);
         expect(find.text('Taken from this by'), findsOneWidget);
-        expect(find.text('Rent, due Nov 5'), findsOneWidget);
+        expect(find.text('Rent, due 5 Nov'), findsOneWidget);
         expect(find.textContaining('Short by ₱500.00'), findsWidgets);
       },
     );
@@ -671,10 +671,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Net now'), findsOneWidget);
       // Closed until the person opens it
-      expect(find.text('Rent, due Nov 5'), findsNothing);
+      expect(find.text('Rent, due 5 Nov'), findsNothing);
       await tester.tap(find.text('Net now'));
       await tester.pumpAndSettle();
-      expect(find.text('Rent, due Nov 5'), findsOneWidget);
+      expect(find.text('Rent, due 5 Nov'), findsOneWidget);
       expect(find.text('₱1,500.00'), findsOneWidget);
     });
   });

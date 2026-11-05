@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
@@ -21,6 +20,7 @@ import '../../ui/ui.dart';
 import 'food_sheets.dart';
 import 'health_charts.dart';
 import 'health_parts.dart';
+import '../../core/clock.dart';
 
 // -- TYPES -- //
 
@@ -349,9 +349,10 @@ class _EntriesCard extends ConsumerWidget {
                         style: TextStyle(fontFeatures: tabular),
                       ),
                       Text(
-                        DateFormat.MMMd(
-                          Localizations.localeOf(context).toString(),
-                        ).format(DateTime.parse(str(e['day']))),
+                        fmtDate(
+                          DateTime.parse(str(e['day'])),
+                          DateKind.monthDay,
+                        ),
                         style: TextStyle(color: c.muted, fontSize: 13),
                       ),
                       if (boolOf(e['byAgent'])) const ByBotlerMark(),
@@ -419,8 +420,7 @@ class _ForecastCard extends StatelessWidget {
       'reached' => t.healthForecastReached,
       _ => t.healthForecastAround(
         kgText(goalG),
-        DateFormat.yMMMM(Localizations.localeOf(context).toString())
-            .format(DateTime.parse(reachOn)),
+        fmtDate(DateTime.parse(reachOn), DateKind.monthYear),
       ),
     };
     final line = reachOn.isEmpty && reason != 'reached'

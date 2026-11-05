@@ -592,5 +592,19 @@
       "Ipinapakita at iniingatan ng My week ang bawat oras ng trabaho at abala sa isang araw, at hindi na nawawala ang mga dagdag kapag nag-save.",
       "Iginagalang na ang mga routine kapag nagpaplano si Botler ng linggo mo, may babala kapag nagsimula ng pangalawang programa, at nagtatanong muna bago magtanggal ng timbang o magtapon ng kainan."
     ]
+  },
+  {
+    "versionCode": 54,
+    "versionName": "1.6.0",
+    "en": [
+      "New in Settings: Date and time. Pick your time zone, a 12 or 24 hour clock, and the order dates are written in. Every screen follows them.",
+      "Today now follows your time zone, so the calendar, bills, meals, weight and sleep change day at your midnight, and reminders and the assistant use your clock.",
+      "Times and dates are written the same way everywhere. Before, some screens used a 12 hour clock and others 24 hour, and a few were fixed to Manila."
+    ],
+    "fil": [
+      "Bago sa Settings: Petsa at oras. Piliin ang time zone, ang 12 o 24 oras na orasan, at ang ayos ng petsa. Susundin ito ng bawat screen.",
+      "Sumusunod na ang Ngayon sa time zone mo, kaya nagpapalit ng araw ang kalendaryo, mga bayarin, pagkain, timbang at tulog sa hatinggabi mo, at ang mga paalala at ang assistant ay gumagamit ng orasan mo.",
+      "Pare-pareho na ang sulat ng oras at petsa sa lahat ng screen. Dati, may 12 oras ang ilan at 24 oras ang iba, at ang ilan ay naka-Manila lang."
+    ]
   }
 ]

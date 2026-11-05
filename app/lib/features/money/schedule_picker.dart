@@ -18,6 +18,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
+import '../../core/clock.dart';
 
 // -- TYPES -- //
 
@@ -211,22 +212,19 @@ class ScheduleValue {
           'days': days,
           if (everyWeeks > 1) ...<String, Object?>{
             'everyWeeks': everyWeeks,
-            'anchor': DateFormat('yyyy-MM-dd').format(anchor),
+            'anchor': isoOf(anchor),
           },
         };
       case SchedulePattern.everyNDays:
         return <String, Object?>{
           'kind': 'every_n_days',
-          'anchor': DateFormat('yyyy-MM-dd').format(anchor),
+          'anchor': isoOf(anchor),
           'n': n,
         };
       case SchedulePattern.yearly:
         return <String, Object?>{'kind': 'yearly', 'month': month, 'day': day};
       case SchedulePattern.once:
-        return <String, Object?>{
-          'kind': 'once',
-          'date': DateFormat('yyyy-MM-dd').format(anchor),
-        };
+        return <String, Object?>{'kind': 'once', 'date': isoOf(anchor)};
     }
   }
 }
@@ -627,9 +625,7 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
 
   Widget _datePicker(String locale, {String? label}) => OutlinedButton.icon(
     icon: const Icon(Icons.event),
-    label: Text(
-      '${label ?? context.t.schedStartingOn} ${DateFormat.yMMMd(locale).format(v.anchor)}',
-    ),
+    label: Text('${label ?? context.t.schedStartingOn} ${fmtDate(v.anchor)}'),
     onPressed: () async {
       final picked = await showDatePicker(
         context: context,
@@ -688,10 +684,10 @@ class _SchedulePickerState extends ConsumerState<SchedulePicker> {
     final start = DateTime.tryParse(str(w['start']));
     final end = DateTime.tryParse(str(w['end']));
     if (start == null || end == null) return str(w['end']);
-    final f = DateFormat('EEE, MMM d', locale);
+    String f(DateTime d) => fmtDate(d, DateKind.monthDayWeekday);
     return start == end
-        ? f.format(end)
-        : context.t.schedPreviewWindow(f.format(start), f.format(end));
+        ? f(end)
+        : context.t.schedPreviewWindow(f(start), f(end));
   }
 
   @override

@@ -7,7 +7,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../l10n/l10n.dart';
@@ -17,6 +16,8 @@ import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'chat_state.dart';
 import 'chats_state.dart';
+import '../../core/clock.dart'
+    show DateKind, fmtDate, fmtTime, fmtWeekday, zoneWall;
 
 // -- CONSTANTS -- //
 
@@ -34,15 +35,14 @@ String _groupName(BuildContext context, ChatGroup g) => switch (g) {
   ChatGroup.older => context.t.chatsGroupOlder,
 };
 
-/// When a chat was last used, short: the time today, the weekday this week, the date after that. In Manila time.
+/// When a chat was last used, short: the time today, the weekday this week, the date after that. On the person's clock.
 String whenLabel(BuildContext context, ChatSummary c, {DateTime? now}) {
-  final locale = Localizations.localeOf(context).toString();
-  final manila = c.lastActive.toUtc().add(const Duration(hours: 8));
+  final manila = zoneWall(c.lastActive);
   return switch (timeGroupOf(c.lastActive, now: now)) {
-    ChatGroup.today => DateFormat.jm(locale).format(manila),
+    ChatGroup.today => fmtTime(manila),
     ChatGroup.yesterday => context.t.chatsGroupYesterday,
-    ChatGroup.week => DateFormat.E(locale).format(manila),
-    _ => DateFormat.MMMd(locale).format(manila),
+    ChatGroup.week => fmtWeekday(manila),
+    _ => fmtDate(manila, DateKind.monthDay),
   };
 }
 

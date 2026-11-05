@@ -7,7 +7,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -24,10 +23,12 @@ import '../money/account_detail_screen.dart';
 import '../money/currency_picker.dart';
 import 'changelog_row.dart';
 import 'failed_writes_row.dart';
+import 'date_time_rows.dart';
 import 'photo_mode_row.dart';
 import 'rates_row.dart';
 import 'reminder_status_row.dart';
 import 'update_row.dart';
+import '../../core/clock.dart' show DateKind, fmtDateTime;
 
 // -- TYPES -- //
 
@@ -200,16 +201,17 @@ class SettingsScreen extends ConsumerWidget {
           const RatesRow(),
           const FailedWritesRow(),
           const SizedBox(height: 12),
-          Text(t.settingsWeekStarts, style: TextStyle(color: c.muted)),
-          const SizedBox(height: 6),
-          SegmentedButton<int>(
-            segments: <ButtonSegment<int>>[
-              ButtonSegment<int>(value: 1, label: Text(t.settingsMonday)),
-              ButtonSegment<int>(value: 0, label: Text(t.settingsSunday)),
-            ],
-            selected: <int>{s.weekStartsOn},
-            onSelectionChanged: (w) =>
-                _save(context, ref, weekStartsOn: w.first),
+          // Date and time: the zone, the clock, the order of a date and the first day of the week
+          DateTimeRows(
+            settings: s,
+            onSave: ({timeZone, timeFormat, dateStyle, weekStartsOn}) => _save(
+              context,
+              ref,
+              timeZone: timeZone,
+              timeFormat: timeFormat,
+              dateStyle: dateStyle,
+              weekStartsOn: weekStartsOn,
+            ),
           ),
           // Net balance (BTL-20261030-0546): the same setting as the line on the accounts screen
           SwitchListTile(
@@ -356,6 +358,9 @@ class SettingsScreen extends ConsumerWidget {
     int? weekStartsOn,
     bool? showNetBalance,
     String? photoMode,
+    String? timeZone,
+    String? timeFormat,
+    String? dateStyle,
     String? modelProvider,
   }) async {
     try {
@@ -368,6 +373,9 @@ class SettingsScreen extends ConsumerWidget {
             weekStartsOn: weekStartsOn,
             showNetBalance: showNetBalance,
             photoMode: photoMode,
+            timeZone: timeZone,
+            timeFormat: timeFormat,
+            dateStyle: dateStyle,
             modelProvider: modelProvider,
           );
       // The notice is the server's English sentence; the screen's own words carry the meaning in the person's language
@@ -423,9 +431,7 @@ class _AuditRow extends ConsumerWidget {
           );
           return t.auditSettingsOk(
             intOf(v['checked']),
-            DateFormat.MMMd(Localizations.localeOf(context).toString())
-                .add_jm()
-                .format(at),
+            fmtDateTime(at, DateKind.monthDay),
           );
         }
         final p = asJson(v['problem']);

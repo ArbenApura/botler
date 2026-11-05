@@ -8,7 +8,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/manila.dart' show manilaToday;
@@ -20,6 +19,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
 import 'simulate_data.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -31,24 +31,19 @@ const double gapXL = 16;
 
 // -- FUNCTIONS -- //
 
-String _locale(BuildContext context) =>
-    Localizations.localeOf(context).toString();
-
 /// A short day, such as "Mar 5, 2027".
-String shortDay(BuildContext context, String day) =>
-    DateFormat.yMMMd(_locale(context)).format(parseDay(day));
+String shortDay(BuildContext context, String day) => fmtDate(parseDay(day));
 
 /// The words for a period: a day, a month, a year, or "from to".
 String periodWords(BuildContext context, SimPeriod p, Zoom zoom) {
-  final locale = _locale(context);
   final from = parseDay(p.from);
   return switch (zoom) {
-    Zoom.day => DateFormat.yMMMEd(locale).format(from),
-    Zoom.month => DateFormat.yMMMM(locale).format(from),
-    Zoom.year => DateFormat.y(locale).format(from),
+    Zoom.day => fmtDate(from, DateKind.dateLongWeekday),
+    Zoom.month => fmtDate(from, DateKind.monthYear),
+    Zoom.year => '${from.year}',
     Zoom.week => context.t.simPeriod(
-      DateFormat.MMMd(locale).format(from),
-      DateFormat.yMMMd(locale).format(parseDay(p.to)),
+      fmtDate(from, DateKind.monthDay),
+      fmtDate(parseDay(p.to)),
     ),
   };
 }
@@ -179,9 +174,7 @@ class ModeBand extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    t.simBandOffline(
-                      DateFormat.yMMMd(_locale(context)).add_jm().format(saved),
-                    ),
+                    t.simBandOffline(fmtDateTime(zoneWall(saved))),
                     style: TextStyle(color: c.muted),
                   ),
                 ),

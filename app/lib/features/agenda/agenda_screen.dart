@@ -3,7 +3,6 @@
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -14,6 +13,7 @@ import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'agenda_parts.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -40,10 +40,8 @@ final FutureProvider<List<Json>> _events =
     });
 
 /// Short weekday name for 0 = Sunday ... 6 = Saturday, in the app's language (1 January 2023 was a Sunday).
-String _dayName(BuildContext context, int d) => DateFormat(
-  'EEE',
-  Localizations.localeOf(context).toString(),
-).format(DateTime(2023, 1, 1 + d));
+String _dayName(BuildContext context, int d) =>
+    fmtWeekday(DateTime(2023, 1, 1 + d));
 
 // -- TYPES -- //
 
@@ -100,10 +98,8 @@ Future<DateTime?> pickMoment(BuildContext context, {DateTime? initial}) async {
 }
 
 /// A Manila wall reading as text, in the app's language.
-String _stampWall(BuildContext context, DateTime wall) => DateFormat(
-  'EEE, MMM d · h:mm a',
-  Localizations.localeOf(context).toString(),
-).format(wall);
+String _stampWall(BuildContext context, DateTime wall) =>
+    '${fmtDate(wall, DateKind.monthDayWeekday)} · ${fmtTime(wall)}';
 
 /// A real moment as Manila wall time.
 String _stamp(BuildContext context, DateTime instant) =>
@@ -286,10 +282,10 @@ class _EventsTabState extends ConsumerState<_EventsTab> {
                   title: str(e['title']),
                   leading: const RowBadge(Icons.event_outlined),
                   subtitle: boolOf(e['allDay'])
-                      ? DateFormat(
-                          'EEE, MMM d',
-                          Localizations.localeOf(context).toString(),
-                        ).format(manilaWall(_moment(e['startsAt'])))
+                      ? fmtDate(
+                          manilaWall(_moment(e['startsAt'])),
+                          DateKind.monthDayWeekday,
+                        )
                       : _stamp(context, _moment(e['startsAt'])),
                   trailing: IconButton(
                     tooltip: context.t.agendaRemove,
@@ -533,7 +529,7 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
                   );
                   if (t != null) setState(() => time = t);
                 },
-                child: Text(sheet.t.agendaAtTime(time.format(sheet))),
+                child: Text(sheet.t.agendaAtTime(fmtTimeOfDay(time))),
               ),
               const SizedBox(height: 12),
               FilledButton(
@@ -545,8 +541,7 @@ class _RoutinesTabState extends ConsumerState<_RoutinesTab> {
                             (freq == 'weekly' && days.isEmpty)) {
                           return say(sheet, sheet.t.agendaRoutineNeeds);
                         }
-                        final hhmm =
-                            '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                        final hhmm = hhmmOf(time);
                         try {
                           if (!await s.once.ok((key) async {
                             await ref.read(apiProvider).verb(

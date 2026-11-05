@@ -1,0 +1,16 @@
+{
+  "settingsTimeTitle": "Petsa at oras",
+  "settingsTimeNow": "Ngayon: {now}",
+  "settingsTimeZone": "Time zone",
+  "settingsTimeZoneHelp": "Dito nakabatay kung anong araw ngayon at ang mga oras na nakikita mo. Hindi ito binabago ng sariling zone ng telepono mo.",
+  "settingsTimeZoneSearch": "Maghanap ng lungsod o zone",
+  "settingsTimeZoneNone": "Walang time zone na tugma diyan.",
+  "settingsClockTitle": "Orasan",
+  "settingsClockAuto": "Telepono",
+  "settingsClock12": "12 oras",
+  "settingsClock24": "24 oras",
+  "settingsDateOrderTitle": "Ayos ng petsa",
+  "settingsDateOrderDmy": "A B T",
+  "settingsDateOrderMdy": "B A T",
+  "settingsDateOrderYmd": "T B A"
+}

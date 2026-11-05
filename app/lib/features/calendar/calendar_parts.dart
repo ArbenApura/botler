@@ -9,7 +9,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
@@ -22,6 +21,7 @@ import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'calendar_data.dart';
+import '../../core/clock.dart' show DateKind, fmtDate, fmtTime, fmtTimeOfDay;
 
 // -- CONSTANTS -- //
 
@@ -30,9 +30,6 @@ import 'calendar_data.dart';
 final Set<String> _paidWhileOffline = <String>{};
 
 // -- FUNCTIONS -- //
-
-String _locale(BuildContext context) =>
-    Localizations.localeOf(context).toString();
 
 /// The words for the things on a day, such as "2 bills, 1 event", or "nothing planned".
 String dayParts(BuildContext context, List<CalItem> items) {
@@ -205,19 +202,17 @@ class CashflowStrip extends StatelessWidget {
         if (d.low.isNotEmpty) d,
     ];
     final first = lows.isEmpty ? null : lows.first;
-    final locale = _locale(context);
-    final fmt = DateFormat.MMMd(locale);
     final lowText = first == null
         ? t.calForecastOk
-        : t.calForecastLowDay(fmt.format(parseDay(first.date)));
+        : t.calForecastLowDay(fmtDate(parseDay(first.date), DateKind.monthDay));
     final paydays = <String>{
       for (final i in range.items)
         if (i.kind == 'payday') i.date,
     };
     return Semantics(
       label: t.calForecastSemantics(
-        fmt.format(parseDay(days.first.date)),
-        fmt.format(parseDay(days.last.date)),
+        fmtDate(parseDay(days.first.date), DateKind.monthDay),
+        fmtDate(parseDay(days.last.date), DateKind.monthDay),
         lowText,
       ),
       child: PaperCard(
@@ -425,14 +420,12 @@ class _ItemRowState extends ConsumerState<ItemRow> {
 
   String _detail(BuildContext context) {
     final t = context.t;
-    final locale = _locale(context);
     final time = item.at.isEmpty || item.allDay
         ? null
-        : DateFormat.jm(locale)
-              .format(manilaWall(dateOf(item.at) ?? DateTime.now().toUtc()));
+        : fmtTime(manilaWall(dateOf(item.at) ?? DateTime.now().toUtc()));
     switch (item.kind) {
       case 'bill':
-        final due = DateFormat.MMMd(locale).format(parseDay(item.endDate));
+        final due = fmtDate(parseDay(item.endDate), DateKind.monthDay);
         final amount = item.amount == null || item.unknownAmount
             ? t.calAmountUnknown
             : item.currency.isEmpty
@@ -444,7 +437,7 @@ class _ItemRowState extends ConsumerState<ItemRow> {
             ? t.calBillOverdue
             : item.isWindow
             ? t.calBillWindow(
-                DateFormat.MMMd(locale).format(parseDay(item.date)),
+                fmtDate(parseDay(item.date), DateKind.monthDay),
                 due,
               )
             : t.calBillDue(due);
@@ -573,7 +566,6 @@ Future<void> showDaySheet(
   required List<CalItem> items,
   required VoidCallback onChanged,
 }) {
-  final locale = _locale(context);
   final key = dayOf(day);
   final allDay = <CalItem>[
     for (final i in items)
@@ -598,7 +590,7 @@ Future<void> showDaySheet(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: <Widget>[
           Text(
-            DateFormat.yMMMMEEEEd(locale).format(day),
+            fmtDate(day, DateKind.dateLongWeekday),
             style: Theme.of(sheet).textTheme.titleLarge,
           ),
           Text(
@@ -651,10 +643,9 @@ Future<void> showQuickAdd(
   required VoidCallback onChanged,
 }) async {
   final t = context.t;
-  final locale = _locale(context);
   final kind = await showFormSheet<String>(
     context,
-    title: t.calAddTitle(DateFormat.MMMd(locale).format(day)),
+    title: t.calAddTitle(fmtDate(day, DateKind.monthDay)),
     builder: (sheet, close) => Column(
       children: <Widget>[
         for (final (k, label, icon) in <(String, String, IconData)>[
@@ -711,7 +702,7 @@ Future<void> showQuickAdd(
                 contentPadding: EdgeInsets.zero,
                 minTileHeight: 48,
                 title: Text(t.calTimeLabel),
-                trailing: Text(time.format(sheet)),
+                trailing: Text(fmtTimeOfDay(time)),
                 onTap: () async {
                   final picked = await showTimePicker(
                     context: sheet,

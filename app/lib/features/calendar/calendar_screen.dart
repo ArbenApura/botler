@@ -17,6 +17,7 @@ import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import 'calendar_data.dart';
 import 'calendar_parts.dart';
+import '../../core/clock.dart' show DateKind, fmtDate, fmtWeekday;
 
 // -- CONSTANTS -- //
 
@@ -271,7 +272,7 @@ class _MonthView extends ConsumerWidget {
             ),
             Expanded(
               child: Text(
-                DateFormat.yMMMM(locale).format(focus),
+                fmtDate(focus, DateKind.monthYear),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -394,7 +395,6 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final key = dayOf(day);
-    final locale = Localizations.localeOf(context).toString();
     // A payment window shows as a band across its days; the single-day things show as marks
     final windows = <CalItem>[
       for (final i in items)
@@ -412,7 +412,7 @@ class _DayCell extends StatelessWidget {
     ];
     final extra = shown.length - _maxMarks;
     final label = context.t.calDaySemantics(
-      DateFormat.MMMMd(locale).format(day),
+      fmtDate(day, DateKind.monthDayLong),
       dayParts(context, items),
     );
     final text = Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -497,7 +497,6 @@ class _WeekView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.t;
     final c = context.colors;
-    final locale = Localizations.localeOf(context).toString();
     final on = ref.watch(calLayersProvider);
     final today = manilaToday();
     return ListView(
@@ -512,7 +511,7 @@ class _WeekView extends ConsumerWidget {
             ),
             Expanded(
               child: Text(
-                t.calWeekOf(DateFormat.MMMd(locale).format(start)),
+                t.calWeekOf(fmtDate(start, DateKind.monthDay)),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
@@ -552,7 +551,7 @@ class _WeekView extends ConsumerWidget {
                         child: Column(
                           children: <Widget>[
                             Text(
-                              DateFormat.E(locale).format(d),
+                              fmtWeekday(d),
                               style: TextStyle(color: c.muted),
                             ),
                             Container(
@@ -623,7 +622,6 @@ class _AgendaView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.t;
-    final locale = Localizations.localeOf(context).toString();
     final on = ref.watch(calLayersProvider);
     final start = parseDay(range.from);
     final end = parseDay(range.to);
@@ -647,7 +645,7 @@ class _AgendaView extends ConsumerWidget {
       ];
       if (items.isEmpty) continue;
       rows
-        ..add(SectionTitle(DateFormat.MMMEd(locale).format(d)))
+        ..add(SectionTitle(fmtDate(d, DateKind.monthDayWeekday)))
         ..addAll(<Widget>[
           for (final i in items)
             ItemRow(i, day: dayOf(d), onChanged: onChanged),

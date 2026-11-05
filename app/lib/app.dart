@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 // -- MODULES -- //
+import 'core/clock.dart';
+import 'core/clock_picker_l10n.dart';
 import 'core/money_scope.dart';
 import 'l10n/l10n.dart';
 import 'core/reminders.dart';
@@ -335,6 +337,28 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    // A change of zone, clock or date order must reach screens that are already built: they read the clock choices from one place and do not watch them
+    ref.listen<ClockPrefs>(
+      settingsProvider.select(
+        (s) => ClockPrefs(
+          zone: s.timeZone,
+          timeFormat: s.timeFormat,
+          dateStyle: s.dateStyle,
+          language: s.language,
+        ),
+      ),
+      (prev, next) {
+        if (prev == null || prev == next) return;
+        void rebuild(Element el) {
+          el.markNeedsBuild();
+          el.visitChildren(rebuild);
+        }
+
+        (context as Element).visitChildren(rebuild);
+        // The reminders and the day's data are worked out again for the new day
+        ref.invalidate(syncProvider);
+      },
+    );
     // A different person signing in must never see the last person's conversation, nor skip loading their own
     ref.listen<String?>(sessionProvider.select((s) => s.value?.email), (
       prev,
@@ -349,7 +373,18 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       darkTheme: buildTheme(Brightness.dark),
       themeMode: settings.themeMode,
       locale: Locale(settings.language),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      // The date pickers come first, so they write a date in the person's order and not the language's
+      localizationsDelegates: <LocalizationsDelegate<dynamic>>[
+        ClockMaterialDelegate(
+          ClockPrefs(
+            zone: settings.timeZone,
+            timeFormat: settings.timeFormat,
+            dateStyle: settings.dateStyle,
+            language: settings.language,
+          ),
+        ),
+        ...AppLocalizations.localizationsDelegates,
+      ],
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: _router,
       builder: (context, child) => MediaQuery(
@@ -357,6 +392,12 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
         data: MediaQuery.of(context).copyWith(
           textScaler: MediaQuery.textScalerOf(context)
               .clamp(minScaleFactor: 1, maxScaleFactor: maxTextScale),
+          // The time pickers follow the person's 12 or 24 hour choice; on auto they follow the phone
+          alwaysUse24HourFormat: switch (settings.timeFormat) {
+            '24' => true,
+            '12' => false,
+            _ => MediaQuery.of(context).alwaysUse24HourFormat,
+          },
         ),
         child: MoneyScope(
           currency: settings.currency,

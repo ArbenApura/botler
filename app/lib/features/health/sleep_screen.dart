@@ -20,6 +20,7 @@ import 'food_sheets.dart';
 import 'health_charts.dart';
 import 'health_parts.dart';
 import 'train_screen.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -28,20 +29,17 @@ const int _chartStartMinute = 21 * 60;
 
 // -- FUNCTIONS -- //
 
-/// An instant as minutes after 21:00 on the evening before its Manila wake day. Manila has one offset and no clock changes.
+/// An instant as minutes after 21:00 on the evening before its wake day, on the person's clock.
 int _chartMinute(String iso) {
-  final m = DateTime.parse(iso).toUtc().add(const Duration(hours: 8));
+  final m = zoneWall(DateTime.parse(iso));
   final minute = m.hour * 60 + m.minute;
   return minute >= _chartStartMinute
       ? minute - _chartStartMinute
       : minute + 24 * 60 - _chartStartMinute;
 }
 
-String _clockOfIso(BuildContext context, String iso) {
-  final m = DateTime.parse(iso).toUtc().add(const Duration(hours: 8));
-  return MaterialLocalizations.of(context)
-      .formatTimeOfDay(TimeOfDay(hour: m.hour, minute: m.minute));
-}
+String _clockOfIso(BuildContext context, String iso) =>
+    fmtTime(zoneWall(DateTime.parse(iso)));
 
 // -- TYPES -- //
 
@@ -137,10 +135,7 @@ class SleepScreen extends ConsumerWidget {
                               dayName(context, str(n['day'])),
                           ],
                           hourLabels: <String>[
-                            for (final h in <int>[21, 0, 3, 6, 9])
-                              MaterialLocalizations.of(
-                                context,
-                              ).formatTimeOfDay(TimeOfDay(hour: h, minute: 0)),
+                            for (final h in <int>[21, 0, 3, 6, 9]) fmtHour(h),
                           ],
                           label: t.healthSleepChart,
                         ),
@@ -343,8 +338,7 @@ class _AddSleepSheetState extends ConsumerState<_AddSleepSheet> {
 
   // -- FUNCTIONS -- //
 
-  String _text(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  String _text(TimeOfDay t) => hhmmOf(t);
 
   Future<void> _pick(bool from) async {
     final picked = await showTimePicker(
@@ -397,14 +391,14 @@ class _AddSleepSheetState extends ConsumerState<_AddSleepSheet> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.bedtime_outlined),
               title: Text(t.healthSleepFrom),
-              trailing: Text(_from.format(context)),
+              trailing: Text(fmtTimeOfDay(_from)),
               onTap: () => unawaited(_pick(true)),
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.wb_sunny_outlined),
               title: Text(t.healthSleepTo),
-              trailing: Text(_to.format(context)),
+              trailing: Text(fmtTimeOfDay(_to)),
               onTap: () => unawaited(_pick(false)),
             ),
             if (_error != null)

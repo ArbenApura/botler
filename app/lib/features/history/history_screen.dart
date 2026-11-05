@@ -7,7 +7,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/money.dart' show defaultCurrency;
@@ -20,6 +19,7 @@ import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
 import '../chat/chat_items.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -176,9 +176,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       for (final a in ref.watch(balancesProvider).value ?? <Json>[])
         str(a['id']): str(a['name']),
     };
-    // One date format for every row, in the app's language
-    final format = DateFormat.yMMMd(Localizations.localeOf(context).toString())
-        .add_jm();
     final entries = ref.watch(_entriesProvider);
     final first = entries.value;
     final held = first == null
@@ -260,7 +257,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           final e = list[n];
           return _Row(
             entry: e,
-            format: format,
             account:
                 names[str(e['accountId'])] ?? context.t.historyAccountFallback,
             accountId: str(e['accountId']),
@@ -345,7 +341,6 @@ String _currencyOf(Json e) => str(e['currency'], defaultCurrency);
 class _Row extends StatelessWidget {
   const _Row({
     required this.entry,
-    required this.format,
     required this.account,
     required this.accountId,
     required this.to,
@@ -355,8 +350,6 @@ class _Row extends StatelessWidget {
 
   final Json entry;
 
-  /// The date format of the whole list, made once by the screen.
-  final DateFormat format;
   final String account;
   final String accountId;
   final String? to;
@@ -396,7 +389,7 @@ class _Row extends StatelessWidget {
         style: style,
       ),
       subtitle: Text(
-        '${type == 'transfer' ? '' : '$account · '}${when == null ? '' : format.format(when)}${voided ? ' · ${context.t.historyUndoneTag}' : ''}',
+        '${type == 'transfer' ? '' : '$account · '}${when == null ? '' : fmtDateTime(when)}${voided ? ' · ${context.t.historyUndoneTag}' : ''}',
         style: TextStyle(color: c.muted),
       ),
       trailing: Row(

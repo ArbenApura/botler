@@ -14,11 +14,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 
 // -- MODULES -- //
+import 'clock.dart' show ensureTimeZones;
 import '../l10n/l10n.dart';
 import '../state/library.dart';
 import '../state/providers.dart';
@@ -57,7 +57,8 @@ Future<void> _syncTail = Future<void>.value();
 // -- FUNCTIONS -- //
 
 Future<void> _initNotifications() async {
-  tzdata.initializeTimeZones();
+  // The one place that loads the zone database is the clock, so a later load can never reset the phone's zone set below
+  ensureTimeZones();
   try {
     final zone = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(zone.identifier));

@@ -226,8 +226,7 @@ class _WeekPlanScreenState extends ConsumerState<WeekPlanScreen> {
   }
 }
 
-String _dayText(DateTime d) =>
-    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+String _dayText(DateTime d) => isoOf(d);
 
 class _Stat extends StatelessWidget {
   const _Stat({required this.value, required this.line});

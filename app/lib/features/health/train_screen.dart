@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
@@ -21,6 +20,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'food_sheets.dart';
 import 'health_parts.dart';
+import '../../core/clock.dart';
 
 // -- FUNCTIONS -- //
 
@@ -29,14 +29,12 @@ String clockText(BuildContext context, String time) {
   final parts = time.split(':');
   final h = int.tryParse(parts.first) ?? 0;
   final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
-  return MaterialLocalizations.of(context)
-      .formatTimeOfDay(TimeOfDay(hour: h, minute: m));
+  return fmtTimeOfDay(TimeOfDay(hour: h, minute: m));
 }
 
 /// The short name of a day: "Sat".
 String dayName(BuildContext context, String day) =>
-    DateFormat.E(Localizations.localeOf(context).toString())
-        .format(DateTime.parse(day));
+    fmtWeekday(DateTime.parse(day));
 
 /// Runs a verb that changes the week, then shows the answer on the screens that read it.
 void refreshTrain(WidgetRef ref) {

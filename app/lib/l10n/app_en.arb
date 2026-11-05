@@ -3436,6 +3436,10 @@
     }
   },
   "settingsAppLanguage": "App language",
+  "settingsClock12": "12 hour",
+  "settingsClock24": "24 hour",
+  "settingsClockAuto": "Phone",
+  "settingsClockTitle": "Clock",
   "settingsCurrency": "Currency",
   "settingsCurrencyChange": "Change",
   "settingsCurrencyConfirmBody": "Your total will be shown in {name}. Your accounts keep the currencies they hold. Your income, goals, rules and minimum balances keep the same numbers, now read in {name}: nothing in them is converted. Your bills keep their own currency.",
@@ -3464,6 +3468,10 @@
   },
   "settingsCurrencyNone": "No currency matches that.",
   "settingsCurrencySearch": "Search currencies",
+  "settingsDateOrderDmy": "D M Y",
+  "settingsDateOrderMdy": "M D Y",
+  "settingsDateOrderTitle": "Date order",
+  "settingsDateOrderYmd": "Y M D",
   "settingsHideBody": "A reminder says only “Botler”, so nobody sees it on your lock screen.",
   "settingsHideTitle": "Hide the details in notifications",
   "settingsLanguageEn": "English",
@@ -3544,6 +3552,19 @@
   "settingsSignOutTitle": "Sign out?",
   "settingsSignedIn": "Signed in",
   "settingsSunday": "Sunday",
+  "settingsTimeNow": "Now: {now}",
+  "@settingsTimeNow": {
+    "placeholders": {
+      "now": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsTimeTitle": "Date and time",
+  "settingsTimeZone": "Time zone",
+  "settingsTimeZoneHelp": "Decides what today is and the hours you see. Your phone's own zone does not change it.",
+  "settingsTimeZoneNone": "No time zone matches that.",
+  "settingsTimeZoneSearch": "Search a city or a zone",
   "settingsTitle": "Settings",
   "settingsToolbox": "Toolbox",
   "settingsToolboxBody": "Scripts Botler saved on this phone",

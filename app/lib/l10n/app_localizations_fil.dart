@@ -4782,6 +4782,18 @@ class AppLocalizationsFil extends AppLocalizations {
   String get settingsAppLanguage => 'Wika ng app';
 
   @override
+  String get settingsClock12 => '12 oras';
+
+  @override
+  String get settingsClock24 => '24 oras';
+
+  @override
+  String get settingsClockAuto => 'Telepono';
+
+  @override
+  String get settingsClockTitle => 'Orasan';
+
+  @override
   String get settingsCurrency => 'Pera';
 
   @override
@@ -4807,6 +4819,18 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get settingsCurrencySearch => 'Maghanap ng pera';
+
+  @override
+  String get settingsDateOrderDmy => 'A B T';
+
+  @override
+  String get settingsDateOrderMdy => 'B A T';
+
+  @override
+  String get settingsDateOrderTitle => 'Ayos ng petsa';
+
+  @override
+  String get settingsDateOrderYmd => 'T B A';
 
   @override
   String get settingsHideBody =>
@@ -4960,6 +4984,27 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get settingsSunday => 'Linggo';
+
+  @override
+  String settingsTimeNow(String now) {
+    return 'Ngayon: $now';
+  }
+
+  @override
+  String get settingsTimeTitle => 'Petsa at oras';
+
+  @override
+  String get settingsTimeZone => 'Time zone';
+
+  @override
+  String get settingsTimeZoneHelp =>
+      'Dito nakabatay kung anong araw ngayon at ang mga oras na nakikita mo. Hindi ito binabago ng sariling zone ng telepono mo.';
+
+  @override
+  String get settingsTimeZoneNone => 'Walang time zone na tugma diyan.';
+
+  @override
+  String get settingsTimeZoneSearch => 'Maghanap ng lungsod o zone';
 
   @override
   String get settingsTitle => 'Mga setting';

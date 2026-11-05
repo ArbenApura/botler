@@ -6,7 +6,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -20,6 +19,7 @@ import '../../ui/ui.dart';
 import '../money/accounts_screen.dart' show walletsOf;
 import '../money/money_parts.dart';
 import '../money/net_parts.dart';
+import '../../core/clock.dart';
 
 // -- TYPES -- //
 
@@ -373,20 +373,10 @@ class _Line extends StatelessWidget {
 
 String _day(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
-  return d == null
-      ? iso
-      : DateFormat(
-          'MMM d',
-          Localizations.localeOf(context).toString(),
-        ).format(d);
+  return d == null ? iso : fmtDate(d, DateKind.monthDay);
 }
 
 String _time(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
-  return d == null
-      ? ''
-      : DateFormat(
-          'h:mm a',
-          Localizations.localeOf(context).toString(),
-        ).format(manilaWall(d));
+  return d == null ? '' : fmtTime(manilaWall(d));
 }

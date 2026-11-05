@@ -161,7 +161,7 @@ void main() {
       (tester) async {
         await open(tester);
         expect(
-          find.bySemanticsLabel(RegExp(r'5, 1 bill, 1 event')),
+          find.bySemanticsLabel(RegExp(r'5 [A-Za-z]+, 1 bill, 1 event')),
           findsOneWidget,
         );
         await tester.scrollUntilVisible(
@@ -178,12 +178,15 @@ void main() {
       await open(tester);
       await tester.tap(find.text('Bills'));
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel(RegExp(r'5, 1 event')), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp(r'5 [A-Za-z]+, 1 event')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('every day cell is at least 48 dp tall', (tester) async {
       await open(tester);
-      final cell = find.bySemanticsLabel(RegExp(r'5, 1 bill'));
+      final cell = find.bySemanticsLabel(RegExp(r'5 [A-Za-z]+, 1 bill'));
       expect(tester.getSize(cell).height, greaterThanOrEqualTo(48));
     });
 

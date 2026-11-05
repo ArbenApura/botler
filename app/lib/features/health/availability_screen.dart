@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -16,19 +15,13 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'health_parts.dart';
+import '../../core/clock.dart';
 
 // -- FUNCTIONS -- //
 
-TimeOfDay _time(String hhmm) {
-  final p = hhmm.split(':');
-  return TimeOfDay(
-    hour: p.isNotEmpty ? int.tryParse(p[0]) ?? 0 : 0,
-    minute: p.length > 1 ? int.tryParse(p[1]) ?? 0 : 0,
-  );
-}
+TimeOfDay _time(String hhmm) => timeOfHm(hhmm);
 
-String _hhmm(TimeOfDay t) =>
-    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+String _hhmm(TimeOfDay t) => hhmmOf(t);
 
 int _minutes(String hhmm) {
   final t = _time(hhmm);
@@ -63,11 +56,10 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
 
   String _dayName(int weekday) {
     // 2023-01-01 was a Sunday, so the weekday numbers line up with the server's
-    final locale = Localizations.localeOf(context).languageCode;
-    return DateFormat.EEEE(locale).format(DateTime.utc(2023, 1, 1 + weekday));
+    return fmtWeekday(DateTime.utc(2023, 1, 1 + weekday), long: true);
   }
 
-  String _clock(String hhmm) => _time(hhmm).format(context);
+  String _clock(String hhmm) => fmtHm(hhmm);
 
   /// Every block of the day in words: the work times, then the busy ones. Free blocks are the default and need no words.
   String _workLine(List<Json> blocks) {
@@ -156,7 +148,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       lastDate: DateTime.parse(addDaysTo(today, 365)),
     );
     if (picked == null || !mounted) return;
-    final day = DateFormat('yyyy-MM-dd').format(picked);
+    final day = isoOf(picked);
     final result = await showModalBottomSheet<_DayEdit>(
       context: context,
       isScrollControlled: true,
@@ -236,8 +228,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
   }
 
   String _shortDate(String day) =>
-      DateFormat.MMMEd(Localizations.localeOf(context).languageCode)
-          .format(DateTime.parse(day));
+      fmtDate(DateTime.parse(day), DateKind.monthDayWeekday);
 
   // -- WIDGETS -- //
 
@@ -625,7 +616,7 @@ class _DaySheetState extends State<_DaySheet> {
                     child: OutlinedButton(
                       onPressed: () => _pick(b, true),
                       child: Text(
-                        '${t.healthWeekFrom} ${_time(str(b['start'])).format(context)}',
+                        '${t.healthWeekFrom} ${fmtHm(str(b['start']))}',
                       ),
                     ),
                   ),
@@ -633,9 +624,7 @@ class _DaySheetState extends State<_DaySheet> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => _pick(b, false),
-                      child: Text(
-                        '${t.healthWeekTo} ${_time(str(b['end'])).format(context)}',
-                      ),
+                      child: Text('${t.healthWeekTo} ${fmtHm(str(b['end']))}'),
                     ),
                   ),
                   IconButton(

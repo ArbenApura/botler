@@ -3,7 +3,6 @@
 
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/library.dart';
@@ -13,6 +12,7 @@ import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -22,11 +22,8 @@ const double libraryRowHeight = 56;
 // -- FUNCTIONS -- //
 
 /// A time as the library writes it ("Nov 3, 10:20", in the app's language and Manila time). The format is made here, not once for the app.
-String libraryWhen(BuildContext context, DateTime? at) => at == null
-    ? ''
-    : DateFormat.MMMd(Localizations.localeOf(context).toString())
-          .add_Hm()
-          .format(manilaWall(at));
+String libraryWhen(BuildContext context, DateTime? at) =>
+    at == null ? '' : fmtDateTime(manilaWall(at), DateKind.monthDay);
 
 // -- WIDGETS -- //
 

@@ -5,7 +5,6 @@
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
@@ -14,6 +13,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../ui/manila_clock.dart';
 import '../../ui/ui.dart';
+import '../../core/clock.dart' show DateKind, fmtDate;
 
 // -- FUNCTIONS -- //
 
@@ -21,8 +21,7 @@ import '../../ui/ui.dart';
 String ratesDate(BuildContext context, String? iso) {
   final at = dateOf(iso);
   if (at == null) return '';
-  return DateFormat.MMMd(Localizations.localeOf(context).toString())
-      .format(manilaWall(at));
+  return fmtDate(manilaWall(at), DateKind.monthDay);
 }
 
 /// How old the rates are, in whole days, or null when there are none.

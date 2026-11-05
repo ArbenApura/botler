@@ -6,7 +6,6 @@
 // -- DEP-MODULES -- //
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -17,6 +16,7 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'money_parts.dart';
+import '../../core/clock.dart' show DateKind, fmtDate;
 
 // -- FUNCTIONS -- //
 
@@ -38,7 +38,7 @@ Json? walletIn(Json account, String currency) {
 String _day(BuildContext context, String iso) {
   final d = DateTime.tryParse(iso);
   if (d == null) return iso;
-  return DateFormat.MMMd(Localizations.localeOf(context).toString()).format(d);
+  return fmtDate(d, DateKind.monthDay);
 }
 
 /// Saves the choice on the server, then here. A failure says so in words and the old value stays; settings are not queued, so offline it is refused.

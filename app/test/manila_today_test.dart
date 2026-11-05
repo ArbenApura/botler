@@ -31,6 +31,10 @@ const Map<String, (int, String)> allowedNow = <String, (int, String)>{
     2,
     'a missing timestamp reads as a moment, shown in Manila',
   ),
+  'features/settings/zone_picker.dart': (
+    1,
+    'the offset of each zone at this moment, shown beside its name',
+  ),
   'features/notebooks/activity_feed.dart': (
     1,
     'minutes and hours ago, an elapsed time',

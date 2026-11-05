@@ -242,7 +242,7 @@ void main() {
       final back = ScheduleValue.fromJson(once.toJson());
       expect(back?.pattern, SchedulePattern.once);
       expect(back?.anchor, DateTime(2026, 11, 5));
-      expect(say('en', once.toJson()), 'One time only, on Nov 5, 2026');
+      expect(say('en', once.toJson()), 'One time only, on 5 Nov 2026');
       expect(say('fil', once.toJson()), startsWith('Isang beses lang'));
     });
 
@@ -360,8 +360,8 @@ void main() {
       // The preview waits a moment after the last change, then asks the server
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pump();
-      expect(find.text('Wed, Nov 4'), findsOneWidget);
-      expect(find.text('Tue, Dec 1 to Mon, Dec 7'), findsOneWidget);
+      expect(find.text('Wed, 4 Nov'), findsOneWidget);
+      expect(find.text('Tue, 1 Dec to Mon, 7 Dec'), findsOneWidget);
     });
 
     testWidgets('says plainly when the dates cannot be fetched', (

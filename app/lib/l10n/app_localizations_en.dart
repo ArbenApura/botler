@@ -4753,6 +4753,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppLanguage => 'App language';
 
   @override
+  String get settingsClock12 => '12 hour';
+
+  @override
+  String get settingsClock24 => '24 hour';
+
+  @override
+  String get settingsClockAuto => 'Phone';
+
+  @override
+  String get settingsClockTitle => 'Clock';
+
+  @override
   String get settingsCurrency => 'Currency';
 
   @override
@@ -4778,6 +4790,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsCurrencySearch => 'Search currencies';
+
+  @override
+  String get settingsDateOrderDmy => 'D M Y';
+
+  @override
+  String get settingsDateOrderMdy => 'M D Y';
+
+  @override
+  String get settingsDateOrderTitle => 'Date order';
+
+  @override
+  String get settingsDateOrderYmd => 'Y M D';
 
   @override
   String get settingsHideBody =>
@@ -4931,6 +4955,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsSunday => 'Sunday';
+
+  @override
+  String settingsTimeNow(String now) {
+    return 'Now: $now';
+  }
+
+  @override
+  String get settingsTimeTitle => 'Date and time';
+
+  @override
+  String get settingsTimeZone => 'Time zone';
+
+  @override
+  String get settingsTimeZoneHelp =>
+      'Decides what today is and the hours you see. Your phone\'s own zone does not change it.';
+
+  @override
+  String get settingsTimeZoneNone => 'No time zone matches that.';
+
+  @override
+  String get settingsTimeZoneSearch => 'Search a city or a zone';
 
   @override
   String get settingsTitle => 'Settings';

@@ -118,7 +118,10 @@ Future<void> show(
   String locale = 'en',
   double scale = 1,
 }) async {
-  SharedPreferences.setMockInitialValues(<String, Object>{});
+  // The language of the screen's dates is the app's language setting, so the test saves it the way the app does
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    'settings.language': locale,
+  });
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [

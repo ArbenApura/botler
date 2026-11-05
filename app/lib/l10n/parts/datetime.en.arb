@@ -1,0 +1,17 @@
+{
+  "settingsTimeTitle": "Date and time",
+  "settingsTimeNow": "Now: {now}",
+  "@settingsTimeNow": {"placeholders": {"now": {"type": "String"}}},
+  "settingsTimeZone": "Time zone",
+  "settingsTimeZoneHelp": "Decides what today is and the hours you see. Your phone's own zone does not change it.",
+  "settingsTimeZoneSearch": "Search a city or a zone",
+  "settingsTimeZoneNone": "No time zone matches that.",
+  "settingsClockTitle": "Clock",
+  "settingsClockAuto": "Phone",
+  "settingsClock12": "12 hour",
+  "settingsClock24": "24 hour",
+  "settingsDateOrderTitle": "Date order",
+  "settingsDateOrderDmy": "D M Y",
+  "settingsDateOrderMdy": "M D Y",
+  "settingsDateOrderYmd": "Y M D"
+}

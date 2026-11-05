@@ -4,11 +4,9 @@
 // -- DEP-MODULES -- //
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
-import '../../core/manila.dart';
 import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../core/schedule_text.dart';
@@ -17,6 +15,7 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/mark_badge.dart';
 import '../../ui/skeleton.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -30,7 +29,7 @@ String _locale(BuildContext context) =>
 /// A date as "Sun, Oct 25" in the app's language. Text that is not a date is shown as it is.
 String niceDate(BuildContext context, String iso) {
   final d = dayOf(iso);
-  return d == null ? iso : DateFormat('EEE, MMM d', _locale(context)).format(d);
+  return d == null ? iso : fmtDate(d, DateKind.monthDayWeekday);
 }
 
 /// What a due row says about when: the window when a bill can be paid over several days, else the day.
@@ -45,8 +44,7 @@ String _when(BuildContext context, Json d) {
       // The date tile already shows the day and month, so a single day is just its weekday
       : (dayOf(str(d['dueDate'])) == null
             ? str(d['dueDate'])
-            : DateFormat.EEEE(_locale(context))
-                  .format(dayOf(str(d['dueDate']))!));
+            : fmtWeekday(dayOf(str(d['dueDate']))!, long: true));
   return boolOf(d['overridden']) &&
           str(d['originalDueDate']) != str(d['dueDate'])
       ? '$text · ${context.t.billsMovedTag}'
@@ -124,12 +122,11 @@ class MonthHeader extends StatelessWidget {
     final late = month.isEmpty;
     final week = month.length == 10;
     final day = late ? null : dayOf(week ? month : '$month-01');
-    final loc = _locale(context);
     final label = late || day == null
         ? context.t.billsOverdue
         : week
-        ? '${DateFormat.MMMd(loc).format(day)} – ${DateFormat.MMMd(loc).format(DateTime(day.year, day.month, day.day + 6))}'
-        : DateFormat.yMMMM(loc).format(day);
+        ? '${fmtDate(day, DateKind.monthDay)} – ${fmtDate(DateTime(day.year, day.month, day.day + 6), DateKind.monthDay)}'
+        : fmtDate(day, DateKind.monthYear);
     return Semantics(
       header: true,
       child: Padding(
@@ -203,7 +200,7 @@ class DueRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  DateFormat.MMM(_locale(context)).format(day),
+                  fmtMonth(day),
                   style: text.labelSmall?.copyWith(color: c.muted),
                 ),
               ],

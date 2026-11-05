@@ -8,7 +8,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
@@ -24,6 +23,7 @@ import '../auth/lock_gate.dart';
 import 'notebook_editor.dart';
 import 'notebook_list.dart';
 import 'notebook_text.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -473,11 +473,8 @@ class _Changes extends ConsumerWidget {
 }
 
 /// A change time in the app's language, as the Manila clock reads. The format is made here, in the build, never once for the whole app.
-String _formatWhen(BuildContext context, DateTime? at) => at == null
-    ? ''
-    : DateFormat.MMMd(Localizations.localeOf(context).toString())
-          .add_Hm()
-          .format(manilaWall(at));
+String _formatWhen(BuildContext context, DateTime? at) =>
+    at == null ? '' : fmtDateTime(manilaWall(at), DateKind.monthDay);
 
 /// The private names: chips with a way to add one and to take one away. Saved as the whole list.
 class _Names extends ConsumerStatefulWidget {

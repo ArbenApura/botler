@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/chat_photos.dart';
+import '../core/clock.dart';
 import '../core/config.dart';
 import '../core/file_actions.dart';
 import '../core/json.dart';
@@ -42,6 +43,9 @@ class Settings {
     this.weekStartsOn = 1,
     this.showNetBalance = false,
     this.photoMode = 'text',
+    this.timeZone = defaultZone,
+    this.timeFormat = 'auto',
+    this.dateStyle = 'auto',
     this.photoVision = false,
     this.photoHost,
     this.modelProvider,
@@ -82,6 +86,15 @@ class Settings {
   /// Until the server has said, it is 'text': nothing leaves the phone as a picture on a guess.
   final String photoMode;
 
+  /// The IANA time zone that decides what day it is and how clock times read. Kept on the server too.
+  final String timeZone;
+
+  /// How clock times read: auto (the phone's choice), 12 or 24. Kept on the server too.
+  final String timeFormat;
+
+  /// How dates are ordered: auto (the app's language), dmy, mdy or ymd. Kept on the server too.
+  final String dateStyle;
+
   /// The server says whether the AI server that will answer reads pictures. False until it says true (an older server never does), and never
   /// kept on the phone as a fact: a stale copy could upload pictures nobody will read.
   final bool photoVision;
@@ -115,6 +128,9 @@ class Settings {
     int? weekStartsOn,
     bool? showNetBalance,
     String? photoMode,
+    String? timeZone,
+    String? timeFormat,
+    String? dateStyle,
     bool? photoVision,
     Object? photoHost = _keep,
     Object? modelProvider = _keep,
@@ -132,6 +148,9 @@ class Settings {
     weekStartsOn: weekStartsOn ?? this.weekStartsOn,
     showNetBalance: showNetBalance ?? this.showNetBalance,
     photoMode: photoMode ?? this.photoMode,
+    timeZone: timeZone ?? this.timeZone,
+    timeFormat: timeFormat ?? this.timeFormat,
+    dateStyle: dateStyle ?? this.dateStyle,
     photoVision: photoVision ?? this.photoVision,
     photoHost: identical(photoHost, _keep)
         ? this.photoHost
@@ -340,6 +359,9 @@ const String _reply = 'settings.reply';
 const String _week = 'settings.week';
 const String _showNet = 'settings.showNet';
 const String _photoMode = 'settings.photoMode';
+const String _timeZone = 'settings.timeZone';
+const String _timeFormat = 'settings.timeFormat';
+const String _dateStyle = 'settings.dateStyle';
 const String _provider = 'settings.provider';
 const String _providerChoice = 'settings.providerChoice';
 const String _providers = 'settings.providers';
@@ -350,6 +372,23 @@ String? _providerId(Object? v) => v is String && v.isNotEmpty ? v : null;
 /// 'image' or 'text'; anything else (an older server sends nothing) keeps what the phone has.
 String _photoModeId(Object? v, String keep) =>
     v is String && (v == 'image' || v == 'text') ? v : keep;
+
+/// One of the allowed words, or what the phone has (an older server sends nothing).
+String _oneOf(Object? v, List<String> allowed, String keep) =>
+    v is String && allowed.contains(v) ? v : keep;
+
+const List<String> timeFormats = <String>['auto', '12', '24'];
+const List<String> dateStyles = <String>['auto', 'dmy', 'mdy', 'ymd'];
+
+/// The clock choices the screens read, taken from the settings. Called whenever the settings are read or changed.
+void applyClock(Settings s) {
+  clockPrefs = ClockPrefs(
+    zone: s.timeZone,
+    timeFormat: s.timeFormat,
+    dateStyle: s.dateStyle,
+    language: s.language,
+  );
+}
 
 /// The server ids from the answer. A missing field or a wrong type is an empty list, so an older server cannot break the screen.
 List<String> _providerIds(Object? v) => <String>[
@@ -373,6 +412,9 @@ Settings readSettings(SharedPreferences p) => Settings(
   weekStartsOn: p.getInt(_week) ?? 1,
   showNetBalance: p.getBool(_showNet) ?? false,
   photoMode: p.getString(_photoMode) == 'image' ? 'image' : 'text',
+  timeZone: p.getString(_timeZone) ?? defaultZone,
+  timeFormat: _oneOf(p.getString(_timeFormat), timeFormats, 'auto'),
+  dateStyle: _oneOf(p.getString(_dateStyle), dateStyles, 'auto'),
   modelProvider: p.getString(_provider),
   modelProviderChoice: p.getString(_providerChoice),
   availableProviders: p.getStringList(_providers) ?? const <String>[],
@@ -380,11 +422,17 @@ Settings readSettings(SharedPreferences p) => Settings(
 
 class SettingsNotifier extends Notifier<Settings> {
   @override
-  Settings build() => readSettings(ref.watch(prefsProvider));
+  Settings build() {
+    final s = readSettings(ref.watch(prefsProvider));
+    // The screens read the clock choices from one place, so the stored copy is in force from the first paint
+    applyClock(s);
+    return s;
+  }
 
   Future<void> update(Settings next) async {
     final p = ref.read(prefsProvider);
     state = next;
+    applyClock(next);
     await p.setString(_theme, next.themeMode.name);
     await p.setBool(_lock, next.lockOn);
     await p.setBool(_hide, next.hideDetails);
@@ -396,6 +444,9 @@ class SettingsNotifier extends Notifier<Settings> {
     await p.setInt(_week, next.weekStartsOn);
     await p.setBool(_showNet, next.showNetBalance);
     await p.setString(_photoMode, next.photoMode);
+    await p.setString(_timeZone, next.timeZone);
+    await p.setString(_timeFormat, next.timeFormat);
+    await p.setString(_dateStyle, next.dateStyle);
     await _setOrRemove(p, _provider, next.modelProvider);
     await _setOrRemove(p, _providerChoice, next.modelProviderChoice);
     await p.setStringList(_providers, next.availableProviders);
@@ -417,6 +468,9 @@ class SettingsNotifier extends Notifier<Settings> {
           // An older server has no such field: keep what the phone has
           showNetBalance: boolOf(s['showNetBalance'], state.showNetBalance),
           photoMode: _photoModeId(s['photoMode'], state.photoMode),
+          timeZone: str(s['timeZone'], state.timeZone),
+          timeFormat: _oneOf(s['timeFormat'], timeFormats, state.timeFormat),
+          dateStyle: _oneOf(s['dateStyle'], dateStyles, state.dateStyle),
           // An older server has no such field: nothing is read as pictures
           photoVision: boolOf(s['photoVision'], false),
           photoHost: _providerId(s['photoHost']),
@@ -439,6 +493,9 @@ class SettingsNotifier extends Notifier<Settings> {
     int? weekStartsOn,
     bool? showNetBalance,
     String? photoMode,
+    String? timeZone,
+    String? timeFormat,
+    String? dateStyle,
     String? modelProvider,
   }) async {
     final changes = <String, Object?>{
@@ -448,6 +505,9 @@ class SettingsNotifier extends Notifier<Settings> {
       'weekStartsOn': ?weekStartsOn,
       'showNetBalance': ?showNetBalance,
       'photoMode': ?photoMode,
+      'timeZone': ?timeZone,
+      'timeFormat': ?timeFormat,
+      'dateStyle': ?dateStyle,
       'modelProvider': ?modelProvider,
     };
     final answer = await ref
@@ -462,6 +522,9 @@ class SettingsNotifier extends Notifier<Settings> {
         weekStartsOn: intOf(saved['weekStartsOn'], state.weekStartsOn),
         showNetBalance: boolOf(saved['showNetBalance'], state.showNetBalance),
         photoMode: _photoModeId(saved['photoMode'], state.photoMode),
+        timeZone: str(saved['timeZone'], state.timeZone),
+        timeFormat: _oneOf(saved['timeFormat'], timeFormats, state.timeFormat),
+        dateStyle: _oneOf(saved['dateStyle'], dateStyles, state.dateStyle),
         photoVision: boolOf(saved['photoVision'], state.photoVision),
         photoHost: _providerId(saved['photoHost']),
         modelProvider: _providerId(saved['modelProvider']),

@@ -8076,6 +8076,30 @@ abstract class AppLocalizations {
   /// **'App language'**
   String get settingsAppLanguage;
 
+  /// No description provided for @settingsClock12.
+  ///
+  /// In en, this message translates to:
+  /// **'12 hour'**
+  String get settingsClock12;
+
+  /// No description provided for @settingsClock24.
+  ///
+  /// In en, this message translates to:
+  /// **'24 hour'**
+  String get settingsClock24;
+
+  /// No description provided for @settingsClockAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get settingsClockAuto;
+
+  /// No description provided for @settingsClockTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock'**
+  String get settingsClockTitle;
+
   /// No description provided for @settingsCurrency.
   ///
   /// In en, this message translates to:
@@ -8117,6 +8141,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search currencies'**
   String get settingsCurrencySearch;
+
+  /// No description provided for @settingsDateOrderDmy.
+  ///
+  /// In en, this message translates to:
+  /// **'D M Y'**
+  String get settingsDateOrderDmy;
+
+  /// No description provided for @settingsDateOrderMdy.
+  ///
+  /// In en, this message translates to:
+  /// **'M D Y'**
+  String get settingsDateOrderMdy;
+
+  /// No description provided for @settingsDateOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Date order'**
+  String get settingsDateOrderTitle;
+
+  /// No description provided for @settingsDateOrderYmd.
+  ///
+  /// In en, this message translates to:
+  /// **'Y M D'**
+  String get settingsDateOrderYmd;
 
   /// No description provided for @settingsHideBody.
   ///
@@ -8393,6 +8441,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sunday'**
   String get settingsSunday;
+
+  /// No description provided for @settingsTimeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {now}'**
+  String settingsTimeNow(String now);
+
+  /// No description provided for @settingsTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time'**
+  String get settingsTimeTitle;
+
+  /// No description provided for @settingsTimeZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Time zone'**
+  String get settingsTimeZone;
+
+  /// No description provided for @settingsTimeZoneHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Decides what today is and the hours you see. Your phone\'s own zone does not change it.'**
+  String get settingsTimeZoneHelp;
+
+  /// No description provided for @settingsTimeZoneNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No time zone matches that.'**
+  String get settingsTimeZoneNone;
+
+  /// No description provided for @settingsTimeZoneSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search a city or a zone'**
+  String get settingsTimeZoneSearch;
 
   /// No description provided for @settingsTitle.
   ///

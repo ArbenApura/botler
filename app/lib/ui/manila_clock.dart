@@ -1,49 +1,25 @@
-// THE MANILA CLOCK FOR SCREENS. A DAY IS A MANILA CALENDAR DATE AND A TIME THE PERSON SEES IS MANILA WALL TIME, WHATEVER ZONE THE PHONE IS IN.
-// A "wall" value here is a DateTime whose year, month, day, hour and minute fields are the Manila clock reading; it is only for showing and picking.
+// THE CLOCK FOR SCREENS. A DAY IS A DATE IN THE PERSON'S ZONE AND A TIME THE PERSON SEES IS THAT ZONE'S WALL TIME, WHATEVER ZONE THE PHONE IS IN.
+// A "wall" value here is a DateTime whose year, month, day, hour and minute fields are the clock reading in the person's zone; it is only for
+// showing and picking. The names keep "Manila" from when the zone was fixed; the work is in core/clock.dart.
 
 // -- MODULES -- //
-import '../core/manila.dart';
+import '../core/clock.dart' as clock;
 
-// -- CONSTANTS -- //
-
-const Duration _manilaOffset = Duration(hours: 8);
+export '../core/clock.dart' show addCalendarDays, calendarDaysBetween;
 
 // -- FUNCTIONS -- //
 
-/// Now as a Manila wall reading. [now] is for tests.
-DateTime manilaNow([DateTime? now]) =>
-    (now ?? DateTime.now()).toUtc().add(_manilaOffset);
+/// Now as a wall reading. [now] is for tests.
+DateTime manilaNow([DateTime? now]) => clock.zoneNow(now);
 
-/// The Manila wall reading of a real moment (for showing it).
-DateTime manilaWall(DateTime instant) => instant.toUtc().add(_manilaOffset);
+/// The wall reading of a real moment (for showing it).
+DateTime manilaWall(DateTime instant) => clock.zoneWall(instant);
 
-/// The real moment (UTC) at which the Manila clock reads [wall]'s fields (for sending it).
-DateTime manilaInstant(DateTime wall) => DateTime.utc(
-  wall.year,
-  wall.month,
-  wall.day,
-  wall.hour,
-  wall.minute,
-  wall.second,
-).subtract(_manilaOffset);
+/// The real moment (UTC) at which the person's clock reads [wall]'s fields (for sending it).
+DateTime manilaInstant(DateTime wall) => clock.zoneInstant(wall);
 
-/// The real moment at which Manila's day [iso] begins.
-DateTime manilaDayStart(String iso) {
-  final d = DateTime.parse('${iso}T00:00:00Z');
-  return d.subtract(_manilaOffset);
-}
+/// The real moment at which the day [iso] begins.
+DateTime manilaDayStart(String iso) => clock.zoneDayStart(iso);
 
-/// Today's Manila date as the plain local-midnight DateTime a date picker wants.
-DateTime manilaTodayPicker([DateTime? now]) =>
-    dayOf(manilaToday(now)) ?? DateTime(2000);
-
-/// [n] calendar days after [d], at local midnight. Calendar arithmetic, not 24 hour steps, so a daylight saving change cannot skip or repeat a day.
-DateTime addCalendarDays(DateTime d, int n) =>
-    DateTime(d.year, d.month, d.day + n);
-
-/// Whole calendar days from [a] to [b] (negative when [b] is earlier), counted on the dates alone, so a 23 or 25 hour day cannot change the count.
-int calendarDaysBetween(DateTime a, DateTime b) => DateTime.utc(
-  b.year,
-  b.month,
-  b.day,
-).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
+/// Today's date as the plain local-midnight DateTime a date picker wants.
+DateTime manilaTodayPicker([DateTime? now]) => clock.zoneTodayPicker(now);

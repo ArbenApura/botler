@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 // -- MODULES -- //
 import '../l10n/l10n.dart';
 import 'json.dart';
+import 'clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -131,9 +132,7 @@ String? _describeRule(AppLocalizations t, String locale, Json s) {
       );
     case 'once':
       final date = DateTime.tryParse(str(s['date']));
-      return date == null
-          ? null
-          : t.schedSayOnce(DateFormat.yMMMd(locale).format(date));
+      return date == null ? null : t.schedSayOnce(fmtDate(date));
   }
   return null;
 }

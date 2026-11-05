@@ -8,12 +8,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/json.dart';
-import '../../core/manila.dart';
 import '../../core/marks.dart';
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
@@ -28,6 +26,7 @@ import 'mark_picker.dart';
 import 'net_parts.dart';
 import 'purpose.dart';
 import 'transfer_sheet.dart';
+import '../../core/clock.dart';
 
 // -- CONSTANTS -- //
 
@@ -587,9 +586,6 @@ class _State extends ConsumerState<AccountDetailScreen> {
         child: SkeletonRows(count: 7),
       );
     }
-    // One formatter for the whole list, not one per row
-    final format = DateFormat.MMMd(Localizations.localeOf(context).toString())
-        .add_jm();
     final code = _currency();
     final lead = rows.isEmpty ? 1 : 0;
     final tail = _more ? 1 : 0;
@@ -600,7 +596,7 @@ class _State extends ConsumerState<AccountDetailScreen> {
         if (i < lead) return Note(t.acctEmpty);
         final n = i - lead;
         if (n < rows.length) {
-          return _EntryRow(entry: rows[n], currency: code, format: format);
+          return _EntryRow(entry: rows[n], currency: code);
         }
         return TextButton(
           onPressed: _loading ? null : () => _load(),
@@ -631,10 +627,9 @@ class _Filters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final locale = Localizations.localeOf(context).toString();
     final dates = filter.from == null || filter.to == null
         ? t.acctDateRange
-        : '${DateFormat.MMMd(locale).format(filter.from ?? DateTime(0))} - ${DateFormat.MMMd(locale).format(filter.to ?? DateTime(0))}';
+        : '${fmtDate(filter.from ?? DateTime(0), DateKind.monthDay)} - ${fmtDate(filter.to ?? DateTime(0), DateKind.monthDay)}';
     return Column(
       children: <Widget>[
         SizedBox(
@@ -709,16 +704,9 @@ class _Filters extends StatelessWidget {
 // -- ROWS -- //
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({
-    required this.entry,
-    required this.currency,
-    required this.format,
-  });
+  const _EntryRow({required this.entry, required this.currency});
 
   final Json entry;
-
-  /// The date format of the whole list, made once by the list.
-  final DateFormat format;
 
   /// The wallet the list shows: every amount of a row is in it.
   final String currency;
@@ -728,7 +716,7 @@ class _EntryRow extends StatelessWidget {
     final t = context.t;
     final c = context.colors;
     final at = manilaWall(dateOf(entry['at']) ?? DateTime.now().toUtc());
-    final when = format.format(at);
+    final when = fmtDateTime(at, DateKind.monthDay);
     final delta = intOf(entry['delta']);
     final what = entryTitle(t, entry);
     final who = actorWords(t, entry);
@@ -795,7 +783,6 @@ Future<void> showEntrySheet(
   final t = context.t;
   // The amounts of an entry are in the wallet it belongs to; a row of the trail that is not about money has no currency of its own
   final code = currency ?? str(entry['currency'], context.currencyCode);
-  final locale = Localizations.localeOf(context).toString();
   final at = manilaWall(dateOf(entry['at']) ?? DateTime.now().toUtc());
   final before = asJson(entry['before']);
   final after = asJson(entry['after']);
@@ -845,7 +832,7 @@ Future<void> showEntrySheet(
       children: <Widget>[
         line(t.auditWho, actorWords(t, entry)),
         line(t.auditWhere, channelWords(t, str(entry['channel']))),
-        line(t.auditWhen, DateFormat.yMMMMd(locale).add_jm().format(at)),
+        line(t.auditWhen, fmtDateTime(at, DateKind.dateLong)),
         line(
           t.auditBalanceAfter,
           sheet.moneyIn(intOf(entry['balanceAfter']), code),
