@@ -2,6 +2,14 @@
 
 Botler is a personal AI butler for finance and scheduling: a Flutter Android app (`app/`) and a SvelteKit backend (`server/`, Svelte 5 runes, TypeScript strict, Drizzle, Better Auth, Tailwind 4 for the few server pages) on its own PostgreSQL with pgvector. The agent runs on the DeepSeek API through a proxy in `server/`. One operations layer behind the HTTP API and the agent tools. Plans live on Agent Flow Board (project BTL, https://afb.arbenger.com/arbenger/BTL) and are read and written through its MCP by the `/flow` skills. The first plan is BTL-20261021-0458. This file is the working rulebook.
 
+## At a glance
+
+- Never push, commit, or reach the VPS, Cloudflare or a Google console without being asked (and confirm anything live right before). Never touch AFB's containers, databases, volumes or ports (5433, 5173, 5180, 5190). Never reset a database that holds data to keep.
+- Money is integer minor units, never floats; amounts of different currencies are never added; every write verb takes a `requestId`.
+- Every query runs in the tenant context as the non-owning role; the agent never gets `user_id`, account numbers or an approval it can mint.
+- Gates are two-speed (see The gates): nothing in active engagement unless asked; the fast gate per change; the full type check once per phase and before a commit.
+- Edit files with the edit tool, pass explicit file lists, give every gate call a timeout.
+
 ## Git and safety
 
 - Never run `git push` unless the user asks. Never commit unless the user asks. All work stays in the local working tree.
@@ -20,7 +28,7 @@ Botler is a personal AI butler for finance and scheduling: a Flutter Android app
 - A claimed item shows a "running" badge until released or 120 minutes pass without a heartbeat. Call `work_stop` after the last step, when you hand the work back and before moving to another item. Never end a session with a claim held.
 - Work that belongs to no item is not claimed. Before asking for sign-off run `/flow-audit`.
 - No UI CHANGES tables, mockup files in the repo, Playwright or browser automation in plans (the owner looks at the built screens himself).
-- Design mockups are always shown to the owner as a Claude artifact, so the new design is easy to understand and approve (owner decision of 2026-11-05). Send the link and wait for approval before building a new or redesigned screen. Mockups use the real tokens and rules of `docs/DESIGN.md`, in light and dark. The approved artifact is linked in the plan's `references` section.
+- Design mockups are always shown to the owner as a Claude artifact, so the new design is easy to understand and approve (owner decision of 2026-11-05). Send the link and wait for approval before building a new or redesigned screen. Mockups use the real tokens and rules of `docs/DESIGN.md`, in light and dark. The approved artifact is linked in the plan's `references` section. A tweak to a screen he already approved (a spacing, wording, colour, size or order change) is made directly with one sentence saying what changed; a mockup is for a new screen, a new pattern, or a change of structure or behaviour he has not seen.
 
 ## Local development
 
@@ -29,15 +37,22 @@ Botler is a personal AI butler for finance and scheduling: a Flutter Android app
 
 ## The gates
 
-After each finished change, from the repo root:
+Two speeds (owner, 2026-11-05, after measuring HAPR: a whole-project type check takes minutes, and sessions ran it 17 to 28 times each, up to 45 percent of a session). The fast gate runs after each change; the full gates run once per phase and before a commit.
 
-1. `server/`: `yarn check`, then `yarn eslint <files>` and `yarn prettier --check <files>` on the files you changed (`yarn prettier --write <file>` for your own files only), then `yarn vitest run <path>`. Full `yarn test` at the end of a phase.
-2. `app/`: `flutter analyze`, `dart format --set-exit-if-changed <files>`, `flutter test <path>`. Full `flutter test` at the end of a phase.
-3. Checks run against a build or preview, never a dev server. Every phase ends with a counted gate step.
+| Case | Gates, from the repo root |
+|---|---|
+| Active engagement (the owner is testing the app and asking for fixes one after another) | none unless he asks. Make the fix, say what changed, stop |
+| Autonomous, a tweak (a text, literal or colour-token edit; no script logic, props or imports) | `server/`: `yarn prettier --check <file>` and `yarn eslint --cache <file>`. `app/`: `dart format --set-exit-if-changed <file>` |
+| Autonomous, each change in a phase | the tweak gates, plus `server/`: `yarn vitest related --run <files>`; `app/`: `flutter analyze <files>` and `flutter test <path>` |
+| End of each phase, right after a change to a prop, snippet signature, shared type, exported signature or a Dart public API, and before any commit or merge | full `server/` `yarn check` and `yarn test`; full `app/` `flutter analyze` and `flutter test`. Start them with `run_in_background` and carry on while they run |
+
+- Fix every error in the files you touched. The full type check covers the whole project: read only the lines for your files, and report (do not fix) errors that were already there. Format only your own files (`yarn prettier --write <file>`).
+- Checks run against a build or preview, never a dev server. Every phase ends with a counted gate step.
+- Command hygiene: edit files with the edit tool, never with node, python or sed one-liners that rewrite them (quoting and line endings break). Never run a gate on a file list that can be empty; pass explicit files. Give every gate call an explicit timeout, and run anything that can pass 60 seconds in the background. Remove a junction with `cmd /c rmdir`, never `rm -rf` through it.
 
 ## Money, time and data rules
 
-- Each person has a MAIN currency (`user_setting`, default PHP, any of the ~155 ISO currencies in `finance/currency.ts`) and time zone Asia/Manila. An account holds one WALLET per currency (`account_wallet`; `ledger_txn` and `balance_snapshot` carry a `currency`), and a bill has its own currency. Amounts are integer minor units of their own currency (centavos for PHP, whole yen for JPY, fils for KWD) everywhere (database as 64 bit, API, Dart). Format and parse only through `finance/currency.ts` and `core/money.dart`. Never floats for money. Dates that mean "a day" are Manila calendar dates.
+- Each person has a MAIN currency (`user_setting`, default PHP, any of the ~155 ISO currencies in `finance/currency.ts`) and a TIME ZONE (`user_setting.time_zone`, default Asia/Manila, any name in the shared list `server/src/lib/finance/timeZones.ts`), a 12 or 24 hour clock (`time_format`, default the phone's) and a date order (`date_style`, default day-month-year). An account holds one WALLET per currency (`account_wallet`; `ledger_txn` and `balance_snapshot` carry a `currency`), and a bill has its own currency. Amounts are integer minor units of their own currency (centavos for PHP, whole yen for JPY, fils for KWD) everywhere (database as 64 bit, API, Dart). Format and parse only through `finance/currency.ts` and `core/money.dart`. Never floats for money. Dates that mean "a day" are calendar dates in the person's time zone, written `YYYY-MM-DD`; an instant is UTC. The only places that turn an instant into a day, or a day into an instant, are `finance/dates.ts` (the zone of the running verb or job comes from `ops/zone.ts`, set in `run()` and the job runner) and `app/lib/core/clock.dart`; the only file in the app that formats a date or a time is `clock.dart` (a test fails otherwise), and the server writes times through `finance/clockText.ts`. Never write a fixed offset or `Asia/Manila` in code (a test fails), except the default and the monthly model-call cap.
 - Amounts of different currencies are never added. A total converts each wallet with the stored exchange rates (`finance/fx.ts`, integer maths, rates as decimal text in `fx_rate`, fetched from the fixed https `FX_RATES_URL`); a wallet with no rate is named and left out, never counted as zero. The money plan (income, goals, rules, minimum balance, the split) is in the main currency and uses an account's main currency wallet; a bill in another currency is counted in the split at the stored rate, rounded up, and the rate is kept with the plan. Changing the main currency relabels the plan amounts and converts nothing but totals.
 - A split always sums exactly to the pay. Percent splits put the remainder on the "rest" target or the first rule, deterministically.
 - Balance = latest snapshot plus signed transactions since it. A transfer between own accounts is never spending.

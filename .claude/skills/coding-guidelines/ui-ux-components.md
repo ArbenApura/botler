@@ -40,4 +40,4 @@ Every list or data view specifies loading (a placeholder of the final shape, so 
 
 ## 7. Dates and times
 
-Use one shared picker per platform; do not hand-roll one. Dates that mean "a day" are Manila (Asia/Manila) calendar dates, and a time shown to the user is shown in Manila time.
+Use one shared picker per platform; do not hand-roll one. Dates that mean "a day" are calendar dates in the person's time zone (Asia/Manila by default), and a time shown to the user is shown on the person's clock (zone, 12 or 24 hour) through `core/clock.dart`.

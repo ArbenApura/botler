@@ -73,7 +73,7 @@ After each finished change run, from the repo root:
 - Every write verb takes a client `requestId` (unique per user); a replay returns the first result. A gated verb (anything that changes the money plan) needs an `approvalId` minted only by a user-authenticated HTTP call; the model can never mint one.
 - Every query runs inside the transaction-local tenant context (`set_config(..., true)` with the user id), connected as the non-owning `app_runtime` role. Never query with the owner role from request code. Every table registers with the tenant registry so forced RLS is generated.
 - Every background job carries its user id and sets the tenant context before its first query. Jobs are rows with a unique key, retry with backoff, and count against the model-call budget.
-- Money is integer centavos everywhere (PHP); never floats. Time zone is Asia/Manila; "a day" is a Manila calendar date.
+- Money is integer centavos everywhere (PHP); never floats. Time zone is the person's (default Asia/Manila); "a day" is a calendar date in it, worked out only in `finance/dates.ts`.
 - DeepSeek gets amounts and labels, never account numbers; family names are masked; the filter runs on the final assembled prompt.
 - Text from the web, other people's calendars, OCR or anything fetched is untrusted: write verbs in that turn are disabled or forced through approval. Pages are read by DeepSeek's Fetch API; the server first refuses private, loopback, link-local and metadata addresses, local names and non-standard ports, and never connects to an address the model picked.
 - Secrets are never returned by an API, a tool or an export, and never logged. Logs never hold message text.
@@ -237,7 +237,7 @@ Botler's server has only a few pages, so the component library is small and live
 2. **Form sync from props.** Inside an `$effect` that syncs a form from props (`open`, `editing`), wrap internal writes in `untrack()` and guard with a previous-value tracker (`prevOpen`). Without it, the effect re-runs on its own writes and wipes keystrokes while the person types.
 3. **SSR safety.** Never fetch a relative URL eagerly during SSR (a module-level `fetch('/x.json')` has no origin on the server). Load client data inside `onMount`, or guard with `if (typeof window === 'undefined') return`.
 4. **Popovers, dropdowns and outside clicks.** Options inside a dropdown use `onmousedown={(e) => e.preventDefault()}` to keep focus and run the handler in `onclick` (plus keyboard). Never run a toggle on both mousedown and click: it fires twice and undoes the choice.
-5. **Dates and times.** Use one shared picker; do not hand-roll one. Dates that mean "a day" are Manila calendar dates.
+5. **Dates and times.** Use one shared picker; do not hand-roll one. Dates that mean "a day" are calendar dates in the person's time zone (`finance/dates.ts` on the server, `core/clock.dart` in the app, the only file that formats a date or time).
 6. **Collapsible panels.** The toggle is a real `<button type="button">` with `aria-expanded` and `aria-controls` pointing at the body `id` (build it from `const uid = $props.id();` on its own line). It carries `cursor-pointer`. Start collapsed until `onMount` decides, so server render and first paint agree. Respect reduced motion (`motion-reduce:`).
 
 ### F. Validation with Zod
@@ -251,7 +251,7 @@ Same spirit as the Svelte and TypeScript rules; `CLAUDE.md` "Dart style" is the 
 - **Section comments.** The same UPPERCASE section headers (`// -- STATES -- //`, `// -- FUNCTIONS -- //`, `// -- LIFECYCLES -- //`) and sentence-case notes. Never remove existing comments.
 - **Colours are tokens.** Read colours from the `BotlerColors` theme extension (`Theme.of(context).extension<BotlerColors>()`); never `Color(0xFF...)` or `Colors.xxx` in a widget. Hex values live only in the token file. Light and dark both exist; one soft sage accent; status colours fixed.
 - **Tap targets and semantics.** Every tappable widget is at least 48 by 48 dp and has a semantic label (`Semantics`, `tooltip` or `semanticLabel`). One primary action per screen. Numbers use tabular figures (`FontFeature.tabularFigures()`).
-- **Money and time.** Amounts are `int` centavos end to end; never `double` for money, never parse user input into a float. Format pesos only at the display edge. Dates that mean "a day" are Manila calendar dates.
+- **Money and time.** Amounts are `int` centavos end to end; never `double` for money, never parse user input into a float. Format pesos only at the display edge. Dates that mean "a day" are calendar dates in the person's time zone, and every date or time shown goes through `core/clock.dart`.
 - **Outbox and `requestId`.** Offline writes go through the outbox. Generate the `requestId` once when the user acts, store it with the queued write and reuse it on every retry, so a replay returns the first result.
 - **Secrets.** Tokens and keys only in secure storage; never in source, assets, `SharedPreferences`, logs or crash reports. Logs never hold message text. The app never auto-approves a gated action: the `approvalId` comes from the user's own confirmation.
 - **Lifecycle.** Dispose controllers, focus nodes and stream subscriptions; check `mounted` before using a `BuildContext` after an `await`; lists are lazy (`ListView.builder`).

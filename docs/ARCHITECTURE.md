@@ -19,7 +19,7 @@ Flutter app (Android) <--HTTPS--> SvelteKit server (botler.arbenger.com) --> Pos
 
 ## Money
 
-Integer minor units of each amount's own currency (PHP centavos by default), Asia/Manila dates. Ledger types: income, expense, transfer (with fee), refund, adjustment. Balance = latest snapshot + signed transactions since it. The payday split is proposed by the agent and approved by the user; a shortfall is shown and the user chooses what to cut. Allocation rules: fixed peso, percentage or the rest, in forms or plain words (parsed, shown, approved). A split always sums exactly to the pay.
+Integer minor units of each amount's own currency (PHP centavos by default), dates in the person's own time zone (Asia/Manila by default; `user_setting.time_zone`, with a 12 or 24 hour clock and a date order beside it). A day is a `YYYY-MM-DD` text, an instant is UTC, and `finance/dates.ts` turns one into the other for the zone of the verb or job running (`ops/zone.ts`); the app does the same in `core/clock.dart`, the only file that formats a date or a time. Ledger types: income, expense, transfer (with fee), refund, adjustment. Balance = latest snapshot + signed transactions since it. The payday split is proposed by the agent and approved by the user; a shortfall is shown and the user chooses what to cut. Allocation rules: fixed peso, percentage or the rest, in forms or plain words (parsed, shown, approved). A split always sums exactly to the pay.
 
 ### Currency, schedules, calendar and audit
 
@@ -94,7 +94,7 @@ Health is one more part of the operations layer: the HTTP API, the agent tools a
 
 - **Pure rules** in `server/src/lib/health/` and `lib/schedule/availability.ts` hold no database and no clock.
 - **The burn** is read from logged food on complete days plus the slope of the weight over 28 days (at least 14 complete days and 8 weigh-ins), so steady under-logging comes out in the burn and the target still gives the result the person wants.
-- **The weekly job** (`health.weekly`, keyed by Manila ISO week, no backfill, no model call) moves programs on, works out the burn, and may write a target and a review proposal. It never changes a target. A numberless push follows.
+- **The weekly job** (`health.weekly`, keyed by the Manila ISO week; the handler works on the person's own today, no backfill, no model call) moves programs on, works out the burn, and may write a target and a review proposal. It never changes a target. A numberless push follows.
 - **Proposals** (`health_proposal`): one open per kind. The target's fingerprint covers the data up to its own date, so a new weigh-in leaves it valid and a corrected past day refuses it.
 - **Weeks and workouts**: `planner.ts` lays sessions over `free_slots` and `ops/workouts.ts` writes them when accepted. Planned workouts are a calendar layer and a reminder source. A later change to work hours flags "needs a move" when the week is read; it never moves a session by itself.
 - **Food camera**: the phone reads the photos and sends them to the assistant in the Food chat with the `foodCamera` flag. The result is an approval card the phone shows as the review screen. The server does not store the photo.
