@@ -1,16 +1,16 @@
 ---
 name: flow-verify
 description: Use when the user types /flow-verify or asks to check, test, lint, format or typecheck the changes, right before any commit, and in autonomous execution (/flow phases, handed-off tasks) where the gate is required. Works out which files are in scope, picks only the gates those files need from the repo rulebook or package scripts, runs them scoped to those files, and reports pass or fail per gate. Reports "no gates found" and asks when the repo names none. Never runs during active engagement unless the user asks.
-afb-bundle: 1.1.6
-afb-version: 1.1.0
-afb-source-sha256: 08ec310d8ae4ab77c6acefacf91088bea2dd885ed85cc68b3860fa94b61fb66f
+afb-bundle: 1.1.13
+afb-version: 1.1.1
+afb-source-sha256: f8afde699facd7f4945e0b124e0ee22fe6a90ca50eec7f018ebfb4eef3e85749
 ---
 
 # Verify
 
 Run the right checks for what changed, and nothing more. A stylesheet tweak needs the formatter, not the test suite. A server change needs its related tests, not every test file. This is the one place that decides which gates apply, so `/flow`, the commit step and the pre-commit step can all lean on it.
 
-**Source of truth:** the repo rulebook. Read `CLAUDE.md`, `AGENTS.md`, the README and the package scripts (`package.json`, `Makefile` or the repo's equivalent) and take the gates from them. The rulebook overrides project facts and optional steps here. It never overrides the safety rules and the method of this skill. **Never invent a command.** If no file names the gates and no script offers them, report "no gates found", say what you looked at, and ask the user which commands to run. Do not guess from the language or framework.
+**Source of truth:** the repo rulebook. Read `CLAUDE.md`, `AGENTS.md`, the README and the package scripts (`package.json`, `Makefile` or the repo's equivalent) and take the gates from them. The rulebook overrides project facts and optional steps here. It never overrides the safety rules of the `/flow` safety rules (section 5 point 4 and section 6) or the method of this skill. **Never invent a command.** If no file names the gates and no script offers them, report "no gates found", say what you looked at, and ask the user which commands to run. Do not guess from the language or framework.
 
 ## When it runs
 
@@ -91,10 +91,8 @@ Run independent gates in parallel.
 - Never run a push, a deploy, or anything that reaches a live site. Never run a check against a live site.
 - Never run a repo-wide format, lint-fix or write-all command, and never format, lint-fix or restore a file outside the scope.
 - Never delete `node_modules`, `.git` or another dependency folder to "fix" a failure.
-- Never reset, drop or empty a database the user keeps, and never suggest or plan it. Stop and ask before touching a shared database, a local server you did not start, or a live site.
 - Never switch the package manager from the one the repo uses, and never commit another manager's lockfile.
-- Never create or switch a branch unless told.
-- Never print or read tokens, auth headers or `.env` values.
+- Every other safety rule (databases, tokens, `.env`, branches, commits) is in the `/flow` safety rules (section 5 point 4 and section 6).
 
 ## 4. Fix or report
 
