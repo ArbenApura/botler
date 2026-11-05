@@ -8,7 +8,9 @@
 import type { ManilaDate } from '../finance/dates';
 import type { Schedule } from '../finance/schedule';
 // -- MODULES -- //
-import { addDays, manilaStart, toManilaDate, weekday } from '../finance/dates';
+import { addDays, atLocalTime, toLocalDate, weekday } from '../finance/dates';
+// The clock-time helper lives with the zone maths; callers of the recurrence module keep importing it from here
+export { atLocalTime };
 import { occurrencesBetween, validateSchedule, windowsBetween } from '../finance/schedule';
 
 // -- TYPES -- //
@@ -24,7 +26,6 @@ export type Recurrence =
 // -- CONSTANTS -- //
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const MINUTE_MS = 60_000;
 
 // -- FUNCTIONS -- //
 
@@ -51,20 +52,13 @@ export function validateRecurrence(r: Recurrence): string | null {
 	}
 }
 
-/** The instant of a Manila date at a clock time. */
-export function atManilaTime(date: ManilaDate, time: string): Date {
-	const m = TIME_RE.exec(time);
-	if (!m) throw new RangeError('Not a time');
-	return new Date(manilaStart(date).getTime() + (Number(m[1]) * 60 + Number(m[2])) * MINUTE_MS);
-}
-
 /** Every moment the rule fires between two instants, inclusive, earliest first. */
 export function recurrenceOccurrences(r: Recurrence, from: Date, to: Date): Date[] {
 	const problem = validateRecurrence(r);
 	if (problem) throw new RangeError(problem);
 	// A day either side, so an instant near midnight is not lost to the day it falls in
-	const first = addDays(toManilaDate(from), -1);
-	const last = addDays(toManilaDate(to), 1);
+	const first = addDays(toLocalDate(from), -1);
+	const last = addDays(toLocalDate(to), 1);
 	let dates: ManilaDate[] = [];
 	switch (r.freq) {
 		case 'daily':
@@ -88,7 +82,7 @@ export function recurrenceOccurrences(r: Recurrence, from: Date, to: Date): Date
 			break;
 	}
 	return dates
-		.map((d) => atManilaTime(d, r.time))
+		.map((d) => atLocalTime(d, r.time))
 		.filter((t) => t.getTime() >= from.getTime() && t.getTime() <= to.getTime());
 }
 

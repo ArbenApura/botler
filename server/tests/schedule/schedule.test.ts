@@ -7,8 +7,8 @@ import type { TestDb } from '../support/testDb';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
-import { atManilaTime } from '../../src/lib/schedule/recurrence';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
+import { atLocalTime } from '../../src/lib/schedule/recurrence';
 import { job, reminder } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { markBillPaid } from '../../src/lib/server/ops/bills';
@@ -32,6 +32,7 @@ import {
 	updateRoutine
 } from '../../src/lib/server/ops/schedule';
 import { approveSplit, proposeSplitPlan } from '../../src/lib/server/ops/split';
+import { setSettings } from '../../src/lib/server/ops/settings';
 import { syncGet } from '../../src/lib/server/ops/sync';
 import { reconcileReminders } from '../../src/lib/server/schedule/reminders';
 import { createTestDb } from '../support/testDb';
@@ -46,7 +47,7 @@ let n = 0;
 
 const rid = () => `req-sch-${String(++n).padStart(6, '0')}`;
 const as = (c: Ctx): Ctx => ({ ...c, requestId: rid() });
-const today = () => toManilaDate(new Date());
+const today = () => toLocalDate(new Date());
 const inDays = (d: number) => addDays(today(), d);
 const hours = (h: number) => new Date(Date.now() + h * 3_600_000);
 
@@ -98,7 +99,7 @@ describe('reminders follow what needs action', () => {
 			origin: 'system',
 			title: 'Water is due tomorrow'
 		});
-		expect(r?.remindAt.toISOString()).toBe(atManilaTime(addDays(due, -1), '18:00').toISOString());
+		expect(r?.remindAt.toISOString()).toBe(atLocalTime(addDays(due, -1), '18:00').toISOString());
 		expect(r?.title).not.toMatch(/\d{3}|₱/);
 
 		await markBillPaid(as(f.ctx), { billId: bill.id, dueDate: due });
@@ -125,9 +126,9 @@ describe('reminders follow what needs action', () => {
 		const all = await byPrefix(f, `bill:${bill.id}`);
 		const open = all.find((r) => r.refKey.endsWith(':open'));
 		const soon = all.find((r) => r.refKey.endsWith(':soon'));
-		expect(open?.remindAt.toISOString()).toBe(atManilaTime('2030-03-05', '08:00').toISOString());
+		expect(open?.remindAt.toISOString()).toBe(atLocalTime('2030-03-05', '08:00').toISOString());
 		expect(open?.title).toBe('Internet can be paid from today until 2030-03-11');
-		expect(soon?.remindAt.toISOString()).toBe(atManilaTime('2030-03-09', '09:00').toISOString());
+		expect(soon?.remindAt.toISOString()).toBe(atLocalTime('2030-03-09', '09:00').toISOString());
 		expect(soon?.title).toBe('Internet is due in 2 days');
 		// No amount in the words (the date is fine)
 		for (const r of all) expect(r.title).not.toMatch(/1200|1,200|120000|₱/);
@@ -148,7 +149,7 @@ describe('reminders follow what needs action', () => {
 		await reconcile(f);
 		const [r] = await byPrefix(f, `bill:${bill.id}:${overdue}`);
 		expect(r?.title).toBe('Gas is overdue');
-		expect(toManilaDate(r?.remindAt ?? new Date(0)) >= today()).toBe(true);
+		expect(toLocalDate(r?.remindAt ?? new Date(0)) >= today()).toBe(true);
 		const hourInManila = Number(
 			new Intl.DateTimeFormat('en-GB', {
 				hour: '2-digit',
@@ -172,7 +173,7 @@ describe('reminders follow what needs action', () => {
 		await reconcile(f);
 		const [r] = await byPrefix(f, `payday:${income.id}`);
 		expect(r).toMatchObject({ kind: 'payday', status: 'scheduled' });
-		expect(r?.remindAt.toISOString()).toBe(atManilaTime(d, '08:00').toISOString());
+		expect(r?.remindAt.toISOString()).toBe(atLocalTime(d, '08:00').toISOString());
 
 		const plan = await proposeSplitPlan(as(f.ctx), {
 			incomeScheduleId: income.id,
@@ -229,11 +230,11 @@ describe('reminders follow what needs action', () => {
 		const tomorrow = inDays(1);
 		const allDay = await createEvent(as(f.ctx), {
 			title: 'Holiday',
-			startsAt: atManilaTime(tomorrow, '00:00').toISOString(),
+			startsAt: atLocalTime(tomorrow, '00:00').toISOString(),
 			allDay: true
 		});
 		expect((await byPrefix(f, `event:${allDay.id}`))[0]?.remindAt.toISOString()).toBe(
-			atManilaTime(tomorrow, '08:00').toISOString()
+			atLocalTime(tomorrow, '08:00').toISOString()
 		);
 	});
 
@@ -300,6 +301,24 @@ describe('reminders follow what needs action', () => {
 		await closeReminder(as(f.ctx), { reminderId: r?.id }, 'dismissed');
 		await reconcile(f, new Date(Date.now() + 3_600_000));
 		expect((await byPrefix(f, `task:${task.id}`))[0]?.status).toBe('dismissed');
+	});
+});
+
+describe('a change of time zone', () => {
+	it('moves the hours of the reminders at once, in the settings write, with no copy left behind', async () => {
+		const f = await seedPerson(t);
+		await billDue(f, inDays(6), 'Zone water');
+		await reconcile(f);
+		const before = (await byPrefix(f, 'bill:')).filter((r) => r.title.includes('Zone water'));
+		expect(before.length).toBeGreaterThan(0);
+		await setSettings(as(f.ctx), { timeZone: 'Asia/Tokyo' });
+		const after = (await byPrefix(f, 'bill:')).filter((r) => r.title.includes('Zone water'));
+		// Same reminders, no duplicate; Tokyo is an hour ahead of Manila, so 8 in the morning there comes an hour sooner
+		expect(after.map((r) => r.refKey).sort()).toEqual(before.map((r) => r.refKey).sort());
+		for (const r of after) {
+			const was = before.find((b) => b.refKey === r.refKey);
+			expect((was?.remindAt.getTime() ?? 0) - r.remindAt.getTime()).toBe(3_600_000);
+		}
 	});
 });
 

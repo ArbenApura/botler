@@ -15,7 +15,7 @@ import type { Forecast, ForecastFlow, ForecastWallet } from '../../finance/forec
 import type { BrokenLink } from '../../finance/funding';
 import type { PaydayFunding, PlanNote } from '../../finance/planFlows';
 // -- MODULES -- //
-import { diffDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { diffDays, dayStart, toLocalDate } from '../../finance/dates';
 import { forecast, MAX_FORECAST_DAYS } from '../../finance/forecast';
 import { placeBills, planFlows } from '../../finance/planFlows';
 import { cashflowForecastInput } from '../db/zod';
@@ -115,7 +115,7 @@ export function fundingNotes(funding: readonly PaydayFunding[], broken: readonly
 export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<ForecastView> {
 	const input = parse(cashflowForecastInput, raw);
 	const now = new Date();
-	const today = toManilaDate(now);
+	const today = toLocalDate(now);
 	if (input.to < today) throw new OpsError('INVALID', 'The end date is before today.');
 	if (diffDays(input.to, today) + 1 > MAX_FORECAST_DAYS)
 		throw new OpsError('INVALID', `A forecast covers at most ${MAX_FORECAST_DAYS} days.`);
@@ -125,7 +125,7 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 		// The plan once, in memory: the bill dates of every payday come from it, not from a query each (ops/planData.ts)
 		const { settings, status, plan, accounts } = await loadPlan(tx, userId, {
 			now,
-			incomeSince: manilaStart(today)
+			incomeSince: dayStart(today)
 		});
 		const notes: string[] = [];
 

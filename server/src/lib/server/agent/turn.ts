@@ -115,6 +115,8 @@ export type TurnParams = {
 	/** The person's currency and how the assistant replies, read from their settings. */
 	currency?: string;
 	replyLanguage?: ReplyLanguage;
+	/** The person's IANA time zone, for tests that skip the settings read. */
+	timeZone?: string;
 	signal?: AbortSignal;
 	now?: Date;
 	tools?: AgentTool[];
@@ -711,7 +713,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	// The person's currency and reply language. A settings read that fails never stops a chat: it falls back to the defaults
 	const settings =
 		p.currency && p.replyLanguage
-			? { currency: p.currency, replyLanguage: p.replyLanguage }
+			? { currency: p.currency, replyLanguage: p.replyLanguage, timeZone: p.timeZone }
 			: await getSettings(p.ctx).catch(() => defaultSettingsView());
 	const messages = buildMessages({
 		now: p.now ?? new Date(),
@@ -726,7 +728,8 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		ocrTexts: p.ocrTexts,
 		images: p.images,
 		currency: settings.currency,
-		replyLanguage: settings.replyLanguage
+		replyLanguage: settings.replyLanguage,
+		timeZone: settings.timeZone
 	});
 	// The system message and the history: the part of the request that is the same from one call to the next
 	// The extra system messages sit inside it, so the host's history breakpoint lands on the real end of the history

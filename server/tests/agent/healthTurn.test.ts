@@ -7,7 +7,7 @@ import type { Fixture, Step } from './support';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { chat, chatTurn } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { purgeOld } from '../../src/lib/server/jobs/handlers';
@@ -144,7 +144,7 @@ describe('the check-in in a turn', () => {
 describe('food beside money and the calendar', () => {
 	it('reads calories and spending, and the total comes from calc', async () => {
 		f = await seedPerson(t);
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const model = stubModel([
 			call('health_money', { from: addDays(today, -6), to: today }),
 			call('calc', { lines: [{ expr: '1200 + 1500' }] }),

@@ -22,7 +22,7 @@ import type { UnlinkedRule } from './rules';
 import { and, desc, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { billOccurrences } from '../../finance/billWindows';
-import { addDays, diffDays, toManilaDate } from '../../finance/dates';
+import { addDays, diffDays, toLocalDate } from '../../finance/dates';
 import { estimateBill } from '../../finance/estimator';
 import {
 	effectiveOccurrences,
@@ -106,7 +106,7 @@ export async function createBill(ctx: Ctx, raw: BillCreateInput): Promise<BillVi
 					...rest,
 					...plan.set,
 					currency,
-					startsOn: input.startsOn ?? toManilaDate(new Date()),
+					startsOn: input.startsOn ?? toLocalDate(new Date()),
 					userId
 				})
 				.returning();
@@ -181,7 +181,7 @@ async function clearFutureOverrides(
 	billId: string,
 	changes: Omit<BillUpdateInput, 'billId' | 'expectVersion'>
 ): Promise<number> {
-	const today = toManilaDate(new Date());
+	const today = toLocalDate(new Date());
 	const mine = and(
 		eq(billOverride.userId, userId),
 		eq(billOverride.billId, billId),

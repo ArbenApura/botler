@@ -5,7 +5,8 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { device, job, user } from '../../src/lib/server/db/schema';
+import { device, job, user, userSetting } from '../../src/lib/server/db/schema';
+import { toLocalDate } from '../../src/lib/finance/dates';
 import { withUser } from '../../src/lib/server/db/tenant';
 import {
 	backoffMs,
@@ -89,6 +90,32 @@ describe('job queue', () => {
 		const [done] = await rows();
 		expect(done?.status).toBe('done');
 		expect(await withUser(t.handle, BEN, (tx) => tx.select().from(device))).toHaveLength(1);
+	});
+
+	it("runs a handler in its owner's time zone, so the job's today is the person's day", async () => {
+		await withUser(t.handle, ANNA, (tx) =>
+			tx.insert(userSetting).values({ userId: ANNA, timeZone: 'Pacific/Kiritimati' })
+		);
+		await add(ANNA, 'test.zone', 'a');
+		await add(BEN, 'test.zone', 'b');
+		const seen: Record<string, string> = {};
+		const instant = new Date('2026-11-05T20:00:00Z');
+		const handlers: Record<string, JobHandler> = {
+			'test.zone': async (row) => {
+				seen[row.userId] = toLocalDate(instant);
+			}
+		};
+		await runBatch(t.handle, handlers, { now: T0 });
+		await runBatch(t.handle, handlers, { now: T0 });
+		// Kiritimati is 14 hours ahead and Ben has no choice, so he is on Manila
+		expect(seen[ANNA]).toBe('2026-11-06');
+		expect(seen[BEN]).toBe('2026-11-06');
+		await withUser(t.handle, ANNA, (tx) =>
+			tx.update(userSetting).set({ timeZone: 'America/New_York' })
+		);
+		await add(ANNA, 'test.zone', 'c');
+		await runBatch(t.handle, handlers, { now: T0 });
+		expect(seen[ANNA]).toBe('2026-11-05');
 	});
 
 	it("refuses to write another person's row from a job", async () => {

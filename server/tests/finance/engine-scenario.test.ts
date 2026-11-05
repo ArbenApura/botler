@@ -9,7 +9,7 @@ import type { TestDb } from '../support/testDb';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, manilaStart, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, dayStart, toLocalDate } from '../../src/lib/finance/dates';
 import { forecast } from '../../src/lib/finance/forecast';
 import { recordedPays } from '../../src/lib/finance/planFlows';
 import { ruleWarnings, validateRules } from '../../src/lib/finance/rules';
@@ -62,7 +62,7 @@ let users = 0;
 
 const person = (id: string): Ctx => ({ handle: t.handle, actor: { userId: id, kind: 'person' } });
 const as = (c: Ctx): Ctx => ({ ...c, requestId: `req-eng-${String(++counter).padStart(6, '0')}` });
-const today = () => toManilaDate(new Date());
+const today = () => toLocalDate(new Date());
 const inDays = (n: number) => addDays(today(), n);
 const newUser = async () => {
 	const id = `user_eng_${String(++users).padStart(4, '0')}`;
@@ -404,7 +404,7 @@ describe('the payday split', () => {
 				.where(and(eq(ledgerTxn.userId, id), eq(ledgerTxn.type, 'income')))
 		);
 		expect(rows).toHaveLength(1);
-		expect(toManilaDate(rows[0]?.occurredAt ?? new Date())).toBe(inDays(-3));
+		expect(toLocalDate(rows[0]?.occurredAt ?? new Date())).toBe(inDays(-3));
 	});
 });
 
@@ -588,9 +588,9 @@ describe('the simulation', () => {
 		expect(loaded.snapshots.map((s) => s.amount)).toEqual([90_000]);
 		expect(loaded.txns.map((x) => x.amount)).toEqual([2_000, 3_000]);
 		// The very first record is still known
-		expect(loaded.firstRecordAt && toManilaDate(loaded.firstRecordAt)).toBe(toManilaDate(ago(40)));
+		expect(loaded.firstRecordAt && toLocalDate(loaded.firstRecordAt)).toBe(toLocalDate(ago(40)));
 		const sim = await balanceSimulate(c, { from: inDays(-5), to: inDays(-1), group: 'day' });
-		expect(sim.firstRecord).toBe(toManilaDate(ago(40)));
+		expect(sim.firstRecord).toBe(toLocalDate(ago(40)));
 		expect(sim.periods.at(-1)?.recordedEnd).toBe(90_000 - 2_000 - 3_000);
 	});
 });
@@ -652,8 +652,8 @@ describe('ranges end before the first instant of the next day', () => {
 		const id = await newUser();
 		const c = person(id);
 		const day = inDays(2);
-		const nextMidnight = manilaStart(addDays(day, 1)).toISOString();
-		const thisMidnight = manilaStart(day).toISOString();
+		const nextMidnight = dayStart(addDays(day, 1)).toISOString();
+		const thisMidnight = dayStart(day).toISOString();
 		await createTask(as(c), { title: 'edge task', dueAt: nextMidnight });
 		await createTask(as(c), { title: 'start task', dueAt: thisMidnight });
 		await createReminder(as(c), { title: 'edge reminder', at: nextMidnight });

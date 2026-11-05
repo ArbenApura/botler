@@ -8,7 +8,7 @@ import type { TestDb } from '../support/testDb';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import {
 	healthProposal,
 	job,
@@ -62,7 +62,7 @@ type Train = {
 
 // -- CONSTANTS -- //
 
-const TODAY = toManilaDate(new Date());
+const TODAY = toLocalDate(new Date());
 const WORK_WEEK = {
 	days: [
 		{

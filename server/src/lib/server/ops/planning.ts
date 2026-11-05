@@ -14,7 +14,7 @@ import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
 import { and, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
+import { addDays, toLocalDate } from '../../finance/dates';
 import { describeSchedule, occurrencesBetween, previewOccurrences } from '../../finance/schedule';
 import { allocationRule, goal, incomeSchedule, ledgerTxn, splitPlan } from '../db/schema';
 import {
@@ -164,7 +164,7 @@ export async function listIncome(ctx: Ctx): Promise<IncomeView[]> {
 /** The next paydays of an income, starting today (Manila). */
 export async function nextPaydays(ctx: Ctx, incomeId: string, count = 4): Promise<string[]> {
 	const row = await run(ctx, (tx, userId) => requireIncome(tx, userId, incomeId));
-	const today = toManilaDate(new Date());
+	const today = toLocalDate(new Date());
 	const found = occurrencesBetween(row.schedule as Schedule, today, addDays(today, 800), {
 		weekend: row.weekendRule
 	});
@@ -176,7 +176,7 @@ export async function schedulePreview(ctx: Ctx, raw: SchedulePreviewInput) {
 	assertUserId(ctx.actor.userId);
 	const input = parse(schedulePreviewInput, raw);
 	const schedule = input.schedule as Schedule;
-	const from = input.from ?? toManilaDate(new Date());
+	const from = input.from ?? toLocalDate(new Date());
 	const sentence = describeSchedule(schedule);
 	return {
 		key: sentence.key,

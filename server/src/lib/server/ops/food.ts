@@ -24,7 +24,7 @@ import type { Ctx } from './context';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { toManilaDate } from '../../finance/dates';
+import { toLocalDate } from '../../finance/dates';
 import { englishTerm, filipinoById, searchFilipino } from '../../health/filipino';
 import {
 	addUp,
@@ -657,7 +657,7 @@ export async function logMeal(ctx: Ctx, raw: MealLogInput) {
 	return mapped(() =>
 		runWrite(ctx, 'food.meal_log', input, async (tx, userId) => {
 			const now = new Date();
-			const day = input.day ?? toManilaDate(now);
+			const day = input.day ?? toLocalDate(now);
 			const meal = input.meal ?? mealForHour(manilaHour(now));
 			const mealGroup = randomUUID();
 			const made = [];
@@ -734,7 +734,7 @@ export async function readDay(tx: Tx, userId: string, day: string) {
 
 export async function getFoodDay(ctx: Ctx, raw: FoodDayInput) {
 	const { day } = parse(foodDayInput, raw);
-	return run(ctx, (tx, userId) => readDay(tx, userId, day ?? toManilaDate(new Date())));
+	return run(ctx, (tx, userId) => readDay(tx, userId, day ?? toLocalDate(new Date())));
 }
 
 /** Changes an entry. New grams scale its own stored numbers; a manual or rough entry may have its calories set. */
@@ -807,7 +807,7 @@ export async function markDay(ctx: Ctx, raw: DayMarkInput) {
 	const input = parse(dayMarkInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'food.day_mark', input, async (tx, userId) => {
-			const day = input.day ?? toManilaDate(new Date());
+			const day = input.day ?? toLocalDate(new Date());
 			await tx
 				.insert(dayStatus)
 				.values({ userId, day, complete: input.complete })

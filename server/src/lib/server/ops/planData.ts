@@ -14,7 +14,7 @@ import type { SettingsView } from './settings';
 // -- DEP-MODULES -- //
 import { and, eq, gte, inArray, isNull } from 'drizzle-orm';
 // -- MODULES -- //
-import { toManilaDate } from '../../finance/dates';
+import { toLocalDate } from '../../finance/dates';
 import { ruleTargetIsLive } from '../../finance/rules';
 import {
 	account,
@@ -144,7 +144,7 @@ export async function loadPlan(
 					).map((p) => [p.id, p.incomeScheduleId] as const)
 		);
 		for (const r of recorded) {
-			const date = toManilaDate(r.occurredAt);
+			const date = toLocalDate(r.occurredAt);
 			incomeDays.add(`${r.accountId}|${date}`);
 			incomeRecords.push({
 				accountId: r.accountId,
@@ -156,7 +156,7 @@ export async function loadPlan(
 		}
 	}
 
-	const day = (d: Date) => toManilaDate(d);
+	const day = (d: Date) => toLocalDate(d);
 	const plan: PlanData = {
 		main: settings.currency,
 		rates: status.rates,

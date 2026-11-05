@@ -6,7 +6,7 @@
 // -- TYPES -- //
 import type { ManilaDate } from '../finance/dates';
 // -- MODULES -- //
-import { addDays, manilaStart, weekday } from '../finance/dates';
+import { addDays, atLocalMinute, localMinuteOf, weekday } from '../finance/dates';
 
 // -- TYPES -- //
 
@@ -47,7 +47,6 @@ type Span = readonly [number, number];
 // -- CONSTANTS -- //
 
 const DAY_MINUTES = 1440;
-const MINUTE_MS = 60_000;
 const WIND_DOWN_LEAD_MINUTES = 540;
 /** A first commitment at or after 10 am is not an early start. */
 const WIND_DOWN_ONLY_BEFORE = 600;
@@ -144,17 +143,13 @@ function busyOn(day: ManilaDate, input: AvailabilityInput): Span[] {
 
 /** The parts of the calendar's timed events that fall on a date. */
 function eventsOn(day: ManilaDate, events: readonly BusyInstant[]): Span[] {
-	const start = manilaStart(day).getTime();
-	const end = start + DAY_MINUTES * MINUTE_MS;
 	const spans: Span[] = [];
 	for (const e of events) {
-		const s = e.startsAt.getTime();
-		const f = e.endsAt.getTime();
-		if (f <= start || s >= end) continue;
-		spans.push([
-			Math.max(0, Math.floor((s - start) / MINUTE_MS)),
-			Math.min(DAY_MINUTES, Math.ceil((f - start) / MINUTE_MS))
-		]);
+		// The clock's minutes on this date, so a day with a clock change keeps every event at the hour it shows
+		const s = localMinuteOf(e.startsAt, day);
+		const f = localMinuteOf(e.endsAt, day);
+		if (f <= 0 || s >= DAY_MINUTES) continue;
+		spans.push([Math.max(0, s), Math.min(DAY_MINUTES, f)]);
 	}
 	return spans;
 }
@@ -171,7 +166,6 @@ export function freeSlotsOn(day: ManilaDate, input: AvailabilityInput): FreeSlot
 		? named
 		: [[input.settings.wakeStartMinute, input.settings.wakeEndMinute]];
 	const left = subtract(base, [...busyOn(day, input), ...eventsOn(day, input.events)]);
-	const dayStart = manilaStart(day).getTime();
 	return left
 		.filter(([s, e]) => e > s)
 		.sort((a, b) => a[0] - b[0])
@@ -180,8 +174,8 @@ export function freeSlotsOn(day: ManilaDate, input: AvailabilityInput): FreeSlot
 			startMinute: s,
 			endMinute: e,
 			minutes: e - s,
-			startsAt: new Date(dayStart + s * MINUTE_MS).toISOString(),
-			endsAt: new Date(dayStart + e * MINUTE_MS).toISOString()
+			startsAt: atLocalMinute(day, s).toISOString(),
+			endsAt: atLocalMinute(day, e).toISOString()
 		}));
 }
 
@@ -191,9 +185,8 @@ export function firstCommitment(day: ManilaDate, input: AvailabilityInput): numb
 		.filter((b) => b.kind === 'work')
 		.map((b) => b.startMinute);
 	// An event that began the day before is not something to get up for
-	const dayStart = manilaStart(day).getTime();
 	const events = input.events
-		.map((e) => (e.startsAt.getTime() - dayStart) / MINUTE_MS)
+		.map((e) => localMinuteOf(e.startsAt, day))
 		.filter((m) => m >= 0 && m < DAY_MINUTES)
 		.map((m) => Math.floor(m));
 	const all = [...work, ...events];
@@ -210,7 +203,7 @@ export function windDownFor(
 ): { at: string; time: string; firstAt: string } | null {
 	const first = firstCommitment(day, input);
 	if (first === null || first >= WIND_DOWN_ONLY_BEFORE) return null;
-	const at = new Date(manilaStart(day).getTime() + (first - WIND_DOWN_LEAD_MINUTES) * MINUTE_MS);
+	const at = atLocalMinute(day, first - WIND_DOWN_LEAD_MINUTES);
 	return {
 		at: at.toISOString(),
 		time: timeOf(first - WIND_DOWN_LEAD_MINUTES + DAY_MINUTES),

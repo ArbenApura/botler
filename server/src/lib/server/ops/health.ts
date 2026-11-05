@@ -9,7 +9,7 @@ import type { Ctx } from './context';
 // -- DEP-MODULES -- //
 import { and, desc, eq, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, parseDate, toManilaDate } from '../../finance/dates';
+import { addDays, parseDate, toLocalDate } from '../../finance/dates';
 import {
 	dailyBurn,
 	DEFAULT_PACE_BP,
@@ -145,7 +145,7 @@ function factsOf(
 export async function previewHealthGoal(ctx: Ctx, raw: HealthGoalSetInput) {
 	const input = parse(healthGoalSetInput, raw);
 	return run(ctx, async (tx, userId) => {
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const now = await readHealth(tx, userId, today);
 		const choice: GoalChoice = {
 			kind: input.kind ?? now.goal.kind,
@@ -177,7 +177,7 @@ export async function previewHealthGoal(ctx: Ctx, raw: HealthGoalSetInput) {
 }
 
 export async function getHealth(ctx: Ctx): Promise<HealthView> {
-	return run(ctx, (tx, userId) => readHealth(tx, userId, toManilaDate(new Date())));
+	return run(ctx, (tx, userId) => readHealth(tx, userId, toLocalDate(new Date())));
 }
 
 /** Saves the facts given and keeps the rest. A weight is today's weigh-in. Setup can stop halfway and carry on later. */
@@ -185,7 +185,7 @@ export async function saveHealthProfile(ctx: Ctx, raw: HealthProfileSaveInput) {
 	const input = parse(healthProfileSaveInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'health.profile_save', input, async (tx, userId) => {
-			const today = toManilaDate(new Date());
+			const today = toLocalDate(new Date());
 			const { weightG, setupDone, ...facts } = input;
 			const setupDoneAt =
 				setupDone === undefined ? {} : { setupDoneAt: setupDone ? new Date() : null };
@@ -222,7 +222,7 @@ export async function setHealthGoal(ctx: Ctx, raw: HealthGoalSetInput) {
 	const input = parse(healthGoalSetInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'health.goal_set', input, async (tx, userId) => {
-			const today = toManilaDate(new Date());
+			const today = toLocalDate(new Date());
 			const now = await readHealth(tx, userId, today);
 			const choice: GoalChoice = {
 				kind: input.kind ?? now.goal.kind,

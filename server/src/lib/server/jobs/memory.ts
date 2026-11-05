@@ -15,7 +15,7 @@ import type { JobHandler } from './queue';
 import { and, asc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
-import { addDays, isDate, manilaStart, toManilaDate, weekday } from '../../finance/dates';
+import { addDays, isDate, dayStart, toLocalDate, weekday } from '../../finance/dates';
 import { chatTurn, memoryFact, memoryProfile, memorySummary } from '../db/schema';
 import {
 	FADE_AFTER_DAYS,
@@ -231,7 +231,7 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 
 	const dayOf = (payload: Record<string, unknown>): string => {
 		const d = typeof payload.day === 'string' ? payload.day : '';
-		return isDate(d) ? d : addDays(toManilaDate(clock()), -1);
+		return isDate(d) ? d : addDays(toLocalDate(clock()), -1);
 	};
 
 	const digest: JobHandler = async (job, tx, ctx) => {
@@ -248,8 +248,8 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 					eq(chatTurn.userId, job.userId),
 					eq(chatTurn.status, 'done'),
 					isNull(chatTurn.copiedFromTurnId),
-					gte(chatTurn.createdAt, manilaStart(day)),
-					lt(chatTurn.createdAt, manilaStart(addDays(day, 1)))
+					gte(chatTurn.createdAt, dayStart(day)),
+					lt(chatTurn.createdAt, dayStart(addDays(day, 1)))
 				)
 			)
 			.orderBy(asc(chatTurn.createdAt))
@@ -382,8 +382,8 @@ export function createMemoryHandlers(deps: MemoryDeps): Record<string, JobHandle
 				and(
 					eq(chatTurn.userId, userId),
 					isNull(chatTurn.copiedFromTurnId),
-					gte(chatTurn.createdAt, manilaStart(day)),
-					lt(chatTurn.createdAt, manilaStart(addDays(day, 1)))
+					gte(chatTurn.createdAt, dayStart(day)),
+					lt(chatTurn.createdAt, dayStart(addDays(day, 1)))
 				)
 			);
 		if (p || (chatted?.n ?? 0) > 0)

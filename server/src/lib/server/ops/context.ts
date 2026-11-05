@@ -11,6 +11,7 @@ import { and, eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { requestLog, undoJournal } from '../db/schema';
 import { assertUserId, lockPerson, setAuditContext, withUser } from '../db/tenant';
+import { inPersonZone } from './zone';
 import type { AuditContext } from '../db/tenant';
 
 // -- TYPES -- //
@@ -76,7 +77,8 @@ export function run<T>(ctx: Ctx, fn: (tx: Tx, userId: string) => Promise<T>): Pr
 	const userId = assertUserId(ctx.actor.userId);
 	return withUser(ctx.handle, userId, async (tx) => {
 		await setAuditContext(tx, auditOf(ctx));
-		return fn(tx, userId);
+		// The body's dates are the person's days, in the zone they chose
+		return inPersonZone(tx, userId, () => fn(tx, userId));
 	});
 }
 

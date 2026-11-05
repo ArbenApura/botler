@@ -7,6 +7,7 @@ import { z } from 'zod';
 // -- MODULES -- //
 import { CURRENCY_CODES, isCurrencyCode } from '../../finance/currency';
 import { isDate } from '../../finance/dates';
+import { isListedZone } from '../../finance/timeZones';
 import { validateRecurrence } from '../../schedule/recurrence';
 import { MAX_CENTAVOS } from '../../finance/money';
 import { MAX_SKIP_DATES, validateSchedule, type Schedule } from '../../finance/schedule';
@@ -422,7 +423,14 @@ export const dataResetInput = z.object({
 /** The settings a person can change. Left out, a field keeps its value; defaults live on the database columns. */
 export const settingsSetInput = createInsertSchema(userSetting, {
 	currency: z.enum(CURRENCY_CODES as [string, ...string[]]),
-	weekStartsOn: z.number().int().min(0).max(1)
+	weekStartsOn: z.number().int().min(0).max(1),
+	// A real IANA zone name; the column only bounds the length, so the list of real zones is checked here
+	timeZone: z
+		.string()
+		.trim()
+		.min(1)
+		.max(64)
+		.refine(isListedZone, 'That is not a time zone in the list')
 })
 	.pick({
 		currency: true,
@@ -432,7 +440,10 @@ export const settingsSetInput = createInsertSchema(userSetting, {
 		// Null puts the person back on the server default; whether the key exists is checked in the ops layer
 		modelProvider: true,
 		showNetBalance: true,
-		photoMode: true
+		photoMode: true,
+		timeZone: true,
+		timeFormat: true,
+		dateStyle: true
 	})
 	.partial();
 

@@ -9,7 +9,7 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate, weekday } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate, weekday } from '../../src/lib/finance/dates';
 import { occurrencesBetween } from '../../src/lib/finance/schedule';
 import { bestEffortTransfers } from '../../src/lib/finance/split';
 import { user } from '../../src/lib/server/db/schema';
@@ -41,7 +41,7 @@ afterAll(async () => {
 
 // -- FUNCTIONS -- //
 
-const today = toManilaDate(new Date());
+const today = toLocalDate(new Date());
 /** The next Monday from today, today included: the first payday. */
 const monday =
 	occurrencesBetween({ kind: 'weekly', days: [1] }, today, addDays(today, 7), {

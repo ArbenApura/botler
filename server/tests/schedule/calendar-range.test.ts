@@ -6,7 +6,7 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { user } from '../../src/lib/server/db/schema';
 import { createAccount } from '../../src/lib/server/ops/accounts';
 import { createBill, markBillPaid } from '../../src/lib/server/ops/bills';
@@ -35,7 +35,7 @@ const agent = (id: string): Ctx => ({
 	actor: { userId: id, kind: 'agent', tool: 'test' }
 });
 const as = (c: Ctx): Ctx => ({ ...c, requestId: `req-cal-${String(++counter).padStart(6, '0')}` });
-const today = () => toManilaDate(new Date());
+const today = () => toLocalDate(new Date());
 const inDays = (n: number) => addDays(today(), n);
 
 // -- LIFECYCLES -- //

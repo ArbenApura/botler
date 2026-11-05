@@ -17,7 +17,7 @@ import type { RecordedSnapshot, RecordedTxn, Simulation } from '../../finance/si
 // -- DEP-MODULES -- //
 import { and, asc, desc, eq, gt, gte, isNull, lt, lte } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, diffDays, dayStart, toLocalDate } from '../../finance/dates';
 import { applyScenario } from '../../finance/scenario';
 import { simulate } from '../../finance/simulate';
 import { accountWallet, balanceSnapshot, bill, ledgerTxn } from '../db/schema';
@@ -172,7 +172,7 @@ export async function loadRecorded(
 	firstRecordAt: Date | null;
 }> {
 	const { now } = opts;
-	const windowStart = new Date(Math.min(manilaStart(opts.from).getTime(), now.getTime()));
+	const windowStart = new Date(Math.min(dayStart(opts.from).getTime(), now.getTime()));
 	const mine = eq(balanceSnapshot.userId, userId);
 	const earlier = await tx
 		.selectDistinctOn([balanceSnapshot.accountId, balanceSnapshot.currency])
@@ -258,7 +258,7 @@ const labelOf = (r: typeof ledgerTxn.$inferSelect) =>
 export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<SimulationView> {
 	const input = parse(balanceSimulateInput, raw);
 	const now = new Date();
-	const today = toManilaDate(now);
+	const today = toLocalDate(now);
 	const group = input.group ?? 'month';
 	const view = input.view ?? 'overview';
 	if (input.from < addDays(today, -REACH_DAYS) || input.to > addDays(today, REACH_DAYS))
@@ -290,9 +290,7 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 		// (a range that starts in the future still plans from today, so a pay recorded today must be in the set)
 		const loaded = await loadPlan(tx, userId, {
 			now,
-			incomeSince: new Date(
-				Math.min(manilaStart(input.from).getTime(), manilaStart(today).getTime())
-			)
+			incomeSince: new Date(Math.min(dayStart(input.from).getTime(), dayStart(today).getTime()))
 		});
 		const walletRows = await tx
 			.select({ accountId: accountWallet.accountId, currency: accountWallet.currency })

@@ -7,9 +7,9 @@ import {
 	addDays,
 	diffDays,
 	isDate,
-	manilaNoon,
-	manilaStart,
-	toManilaDate,
+	dayNoon,
+	dayStart,
+	toLocalDate,
 	weekday
 } from '../../src/lib/finance/dates';
 import {
@@ -39,10 +39,10 @@ describe('manila dates', () => {
 	});
 
 	it('moves the day at Manila midnight, which is 16:00 UTC', () => {
-		expect(toManilaDate(new Date('2026-10-21T15:59:59Z'))).toBe('2026-10-21');
-		expect(toManilaDate(new Date('2026-10-21T16:00:00Z'))).toBe('2026-10-22');
-		expect(manilaStart('2026-10-22').toISOString()).toBe('2026-10-21T16:00:00.000Z');
-		expect(toManilaDate(manilaNoon('2026-10-22'))).toBe('2026-10-22');
+		expect(toLocalDate(new Date('2026-10-21T15:59:59Z'))).toBe('2026-10-21');
+		expect(toLocalDate(new Date('2026-10-21T16:00:00Z'))).toBe('2026-10-22');
+		expect(dayStart('2026-10-22').toISOString()).toBe('2026-10-21T16:00:00.000Z');
+		expect(toLocalDate(dayNoon('2026-10-22'))).toBe('2026-10-22');
 	});
 });
 

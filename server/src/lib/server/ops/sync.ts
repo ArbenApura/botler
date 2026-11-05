@@ -9,7 +9,7 @@ import type { Ctx } from './context';
 // -- DEP-MODULES -- //
 import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, dayStart, toLocalDate } from '../../finance/dates';
 import { calendarEvent, reminder } from '../db/schema';
 import { syncInput } from '../db/zod';
 import { reconcileReminders } from '../schedule/reminders';
@@ -111,7 +111,7 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 		// The summary card: the total, the next bill, the first event today
 		// The total is every wallet converted to the main currency (a wallet with no known rate is left out and counted in totalMissing)
 		const { view: assets } = await computeAssets(tx, userId, now);
-		const today = toManilaDate(now);
+		const today = toLocalDate(now);
 		const next = (await dueBills(tx, userId, today, addDays(today, 60))).find((b) => !b.paid);
 		const [first] = await tx
 			.select()
@@ -120,8 +120,8 @@ export async function syncGet(ctx: Ctx, raw: unknown = {}): Promise<SyncAnswer> 
 				and(
 					eq(calendarEvent.userId, userId),
 					isNull(calendarEvent.deletedAt),
-					gte(calendarEvent.startsAt, manilaStart(today)),
-					lt(calendarEvent.startsAt, manilaStart(addDays(today, 1)))
+					gte(calendarEvent.startsAt, dayStart(today)),
+					lt(calendarEvent.startsAt, dayStart(addDays(today, 1)))
 				)
 			)
 			.orderBy(asc(calendarEvent.startsAt))

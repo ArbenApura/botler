@@ -7,7 +7,7 @@ import type { HealthDayInput, HealthMoneyInput } from '../db/zod';
 // -- DEP-MODULES -- //
 import { and, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, diffDays, dayStart, toLocalDate } from '../../finance/dates';
 import { freeSlotsOn, timeOf } from '../../schedule/availability';
 import { calendarEvent, foodEntry, healthProposal, ledgerTxn } from '../db/schema';
 import { healthDayInput, healthMoneyInput } from '../db/zod';
@@ -31,7 +31,7 @@ const MONEY_DAYS_MAX = 62;
 
 export async function healthHome(ctx: Ctx) {
 	return run(ctx, async (tx, userId) => {
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const health = await readHealth(tx, userId, today);
 		const food = await readDay(tx, userId, today);
 		const trend = await readTrend(tx, userId, today, TILE_WEIGHT_DAYS);
@@ -81,7 +81,7 @@ export async function healthHome(ctx: Ctx) {
 export async function healthDay(ctx: Ctx, raw: HealthDayInput) {
 	const input = parse(healthDayInput, raw);
 	return run(ctx, async (tx, userId) => {
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const day = input.day ?? today;
 		const food = await readDay(tx, userId, day);
 		const availability = await readAvailability(tx, userId, day, day);
@@ -98,8 +98,8 @@ export async function healthDay(ctx: Ctx, raw: HealthDayInput) {
 				and(
 					eq(calendarEvent.userId, userId),
 					isNull(calendarEvent.deletedAt),
-					lt(calendarEvent.startsAt, manilaStart(addDays(day, 1))),
-					gte(calendarEvent.endsAt, manilaStart(day))
+					lt(calendarEvent.startsAt, dayStart(addDays(day, 1))),
+					gte(calendarEvent.endsAt, dayStart(day))
 				)
 			);
 		const train = await readTrain(tx, userId, day);
@@ -152,8 +152,8 @@ export async function healthMoney(ctx: Ctx, raw: HealthMoneyInput) {
 				and(
 					eq(ledgerTxn.userId, userId),
 					isNull(ledgerTxn.voidedAt),
-					gte(ledgerTxn.occurredAt, manilaStart(from)),
-					lt(ledgerTxn.occurredAt, manilaStart(addDays(to, 1))),
+					gte(ledgerTxn.occurredAt, dayStart(from)),
+					lt(ledgerTxn.occurredAt, dayStart(addDays(to, 1))),
 					eq(ledgerTxn.type, 'expense')
 				)
 			);
@@ -164,7 +164,7 @@ export async function healthMoney(ctx: Ctx, raw: HealthMoneyInput) {
 				others.add(t.currency);
 				continue;
 			}
-			const d = toManilaDate(t.occurredAt);
+			const d = toLocalDate(t.occurredAt);
 			spent.set(d, (spent.get(d) ?? 0) + t.amount);
 		}
 		const kcal = new Map(food.map((f) => [f.day, Number(f.kcal)]));

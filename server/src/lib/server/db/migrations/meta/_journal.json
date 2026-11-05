@@ -330,6 +330,13 @@
       "when": 1793851163832,
       "tag": "0046_chat_hidden",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793857216735,
+      "tag": "0047_time_settings",
+      "breakpoints": true
     }
   ]
 }

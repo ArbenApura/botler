@@ -8,7 +8,7 @@ import type { TestDb } from '../support/testDb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { buildTools } from '../../src/lib/server/agent/tools';
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { occurrencesBetween } from '../../src/lib/finance/schedule';
 import {
 	createBill,
@@ -31,7 +31,7 @@ let f: Fixture;
 let other: Fixture;
 let rids = 0;
 
-const today = toManilaDate(new Date());
+const today = toLocalDate(new Date());
 const to = addDays(today, 120);
 
 // -- LIFECYCLES -- //

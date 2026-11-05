@@ -8,7 +8,7 @@ import type { TestDb } from '../support/testDb';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { toManilaDate } from '../../src/lib/finance/dates';
+import { toLocalDate } from '../../src/lib/finance/dates';
 import { accountWallet, billPayment, user } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import {
@@ -302,7 +302,7 @@ describe('the money plan stays in the main currency', () => {
 		if (!acc) throw new Error('no account');
 		await logExpense(as(person(id)), { accountId: acc.id, amount: 20_000, category: 'food' });
 		await logExpense(as(person(id)), { accountId: acc.id, amount: 999, currency: 'USD' });
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const summary = await spendingSummary(person(id), { from: '2020-01-01', to: today });
 		expect(summary.currency).toBe('PHP');
 		expect(summary.spending).toBe(20_000);

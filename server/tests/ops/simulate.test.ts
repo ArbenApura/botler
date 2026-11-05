@@ -9,7 +9,7 @@ import type { SimulationView } from '../../src/lib/server/ops/simulate';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, manilaNoon, manilaStart, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, dayNoon, dayStart, toLocalDate } from '../../src/lib/finance/dates';
 import { run } from '../../src/lib/server/ops/context';
 import { cashflowForecast } from '../../src/lib/server/ops/forecast';
 import {
@@ -32,8 +32,8 @@ let f: Fixture;
 let other: Fixture;
 let rids = 0;
 
-const today = toManilaDate(new Date());
-const daysAgo = (n: number) => manilaNoon(addDays(today, -n)).toISOString();
+const today = toLocalDate(new Date());
+const daysAgo = (n: number) => dayNoon(addDays(today, -n)).toISOString();
 
 // -- LIFECYCLES -- //
 
@@ -107,7 +107,7 @@ describe('the timeline of a person', () => {
 		const end = addDays(today, -30);
 		const out = await sim({ from: addDays(end, -10), to: end, group: 'day' });
 		const last = out.periods.at(-1);
-		const at = new Date(manilaStart(addDays(end, 1)).getTime() - 1);
+		const at = new Date(dayStart(addDays(end, 1)).getTime() - 1);
 		const ledger = await run(f.ctx, async (tx, userId) => {
 			let sum = 0;
 			for (const id of [f.rcbc, f.gcash, f.maya])
@@ -331,7 +331,7 @@ describe('spent per period and entries a page at a time', () => {
 				amount: 1_000 + i,
 				note: `Snack ${i}`,
 				category: i % 2 === 0 ? 'Food' : 'Fun',
-				occurredAt: manilaNoon(day).toISOString()
+				occurredAt: dayNoon(day).toISOString()
 			});
 	}, 60_000);
 

@@ -12,7 +12,7 @@ import type { ReplyLanguage } from '../db/schema/settings';
 import type { PromptOutlineBook } from '../ops/pageStore';
 // -- MODULES -- //
 import { currencyOf, DEFAULT_CURRENCY } from '../../finance/currency';
-import { toManilaDate } from '../../finance/dates';
+import { DEFAULT_ZONE, isZone, toLocalDate, zoneOffsetMinutes } from '../../finance/dates';
 
 // -- CONSTANTS -- //
 
@@ -23,7 +23,7 @@ LANGUAGE AND TONE
 - You may use light Markdown: **bold**, short bullet lists and numbered lists. No tables, no headings, no pictures.
 - The person has a main currency, named in the context below, and an account can hold several currencies (wallets, like a Wise account with pesos and dollars). Amounts the person says are in the currency they name ("5 usd"), otherwise the currency of the account. Tools take and return integers in the smallest unit of a currency (for pesos, centavos: PHP 180 is 18000, PHP 1,250.50 is 125050; for yen the yen itself; for Kuwaiti dinars the fils: 1.5 KWD is 1500). Pass currency only when the person names one. Show every amount with its own currency symbol when you talk.
 - Never add or compare amounts of different currencies yourself. For a total of everything use assets_summary (it converts to the main currency at the stored rates and says which currency has no rate). For "how much is 50 dollars in pesos" use fx_convert and mention the date of the rates. Moving money from one currency to another (a conversion) needs the amount that really arrived (toAmount): ask for it. A bill can be in another currency; its value in the main currency follows the latest rate. accounts_balances and assets_summary also give a net figure per wallet and in total (netBalance, netTotal): what is left after bills due before the next payday and money kept for goals. When asked what the person has to spend, quote the net figure, say it is net and name what is held (the holds list); the minimum balance is separate (belowMinimum). If a net field is null (netNotice says why), say the net could not be worked out and give the balance as counted. Never work the net out by hand.
-- Dates are calendar dates in Asia/Manila written YYYY-MM-DD. "Today" is given below.
+- Dates are calendar dates in the person's own time zone (given below) written YYYY-MM-DD. "Today" is given below.
 
 HOW YOU WORK
 - Use the tools to read the real data. Never guess an account, bill, goal or id: list them first. Never invent a balance or a number.
@@ -312,30 +312,43 @@ export type PromptInput = {
 	rewindNote?: string;
 	/** The person's currency code. Left out, pesos. */
 	currency?: string;
+	/** The person's IANA time zone. Left out, Asia/Manila. */
+	timeZone?: string;
 	/** How the assistant should reply. Left out, auto. */
 	replyLanguage?: ReplyLanguage;
 };
 
 /** The clock time in Manila with its offset, so "in 3 minutes" or "at 3:30pm" becomes a correct instant for reminder_create and alarm_create. */
-/** The day name of a Manila date, worked out in code so the model never counts weekdays itself. */
+/** The day name of a calendar date, worked out in code so the model never counts weekdays itself. */
 function weekdayName(date: string): string {
 	return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: 'UTC' }).format(
 		new Date(`${date}T00:00:00Z`)
 	);
 }
 
-export function nowLine(now: Date): string {
-	// Manila has no daylight saving, so a fixed +08:00 shift is exact and needs no locale data
-	const local = new Date(now.getTime() + 8 * 3_600_000).toISOString().slice(0, 19);
-	return `Now is ${local}+08:00 (Asia/Manila). For a reminder or alarm at a time, give "at" as a full ISO instant with the +08:00 offset (never Z), counted from this moment; for "in N minutes" use timer_create or add N minutes to this moment.`;
+/** The offset of a zone at an instant as +HH:mm or -HH:mm. */
+function offsetText(now: Date, zone: string): string {
+	const minutes = zoneOffsetMinutes(now.getTime(), zone);
+	const abs = Math.abs(minutes);
+	return `${minutes < 0 ? '-' : '+'}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+}
+
+export function nowLine(now: Date, zone: string = DEFAULT_ZONE): string {
+	const z = isZone(zone) ? zone : DEFAULT_ZONE;
+	const offset = offsetText(now, z);
+	const local = new Date(now.getTime() + zoneOffsetMinutes(now.getTime(), z) * 60_000)
+		.toISOString()
+		.slice(0, 19);
+	return `Now is ${local}${offset} (${z}). For a reminder or alarm at a time, give "at" as a full ISO instant with the ${offset} offset (never Z), counted from this moment; for "in N minutes" use timer_create or add N minutes to this moment.`;
 }
 
 /** The messages for one model call: stable prefix, history, then ONE user message: the turn context block and the person's words. */
 export function buildMessages(p: PromptInput): ChatMessage[] {
-	const manila = toManilaDate(p.now);
+	const zone = p.timeZone && isZone(p.timeZone) ? p.timeZone : DEFAULT_ZONE;
+	const today = toLocalDate(p.now, zone);
 	const context = [
-		`Today is ${weekdayName(manila)} ${manila} in Asia/Manila.`,
-		nowLine(p.now),
+		`Today is ${weekdayName(today)} ${today} in ${zone}.`,
+		nowLine(p.now, zone),
 		currencyLine(p.currency ?? DEFAULT_CURRENCY),
 		languageLine(p.replyLanguage ?? 'auto'),
 		p.cards?.length

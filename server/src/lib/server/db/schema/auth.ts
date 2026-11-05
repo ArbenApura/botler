@@ -14,6 +14,7 @@ export const user = plainTable('user', {
 	emailVerified: boolean('email_verified').notNull().default(false),
 	image: text('image'),
 	/** The time zone dates are shown and bucketed in. Dates that mean a day are calendar dates in this zone. */
+	// Unused: the zone a person chose lives in user_setting.time_zone, which is the only source
 	timezone: text('timezone').notNull().default('Asia/Manila'),
 	...stamps()
 });

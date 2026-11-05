@@ -8,7 +8,7 @@ import type { TestDb } from '../support/testDb';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { auditEvent, reminder } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { createBill, markBillPaid } from '../../src/lib/server/ops/bills';
@@ -27,7 +27,7 @@ let n = 0;
 
 const rid = () => `req-syn-${String(++n).padStart(6, '0')}`;
 const as = (c: Ctx): Ctx => ({ ...c, requestId: rid() });
-const inDays = (d: number) => addDays(toManilaDate(new Date()), d);
+const inDays = (d: number) => addDays(toLocalDate(new Date()), d);
 const rows = (f: Fixture) =>
 	withUser(t.handle, f.userId, (tx) =>
 		tx.select().from(reminder).where(eq(reminder.userId, f.userId))

@@ -7,7 +7,7 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { job, user } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { jobHandlers } from '../../src/lib/server/jobs/handlers';
@@ -34,7 +34,7 @@ type HealthGet = { goal: { targetKcal: number } };
 // -- CONSTANTS -- //
 
 const ME = 'user_wgt_00001';
-const TODAY = toManilaDate(new Date());
+const TODAY = toLocalDate(new Date());
 const NOISE = [120, -240, 310, -90, 160, -350, 30, 280, -110, 150];
 
 // -- STATES -- //

@@ -18,7 +18,7 @@ import type {
 // -- DEP-MODULES -- //
 import { and, eq, gte, gt, inArray, isNull, lt } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, dayStart, toLocalDate } from '../../finance/dates';
 import { recurrenceOccurrences } from '../../schedule/recurrence';
 import type { Recurrence } from '../../schedule/recurrence';
 import {
@@ -93,8 +93,8 @@ export async function routinesBetween(tx: Tx, userId: string, from: string, to: 
 		.select()
 		.from(routine)
 		.where(and(eq(routine.userId, userId), eq(routine.active, true)));
-	const start = manilaStart(from);
-	const end = new Date(manilaStart(addDays(to, 1)).getTime() - 1);
+	const start = dayStart(from);
+	const end = new Date(dayStart(addDays(to, 1)).getTime() - 1);
 	return rows.flatMap((r) =>
 		recurrenceOccurrences(r.recurrence as Recurrence, start, end).map((at) => ({
 			id: r.id,
@@ -135,8 +135,8 @@ export async function readAvailability(
 				eq(calendarEvent.userId, userId),
 				isNull(calendarEvent.deletedAt),
 				eq(calendarEvent.allDay, false),
-				lt(calendarEvent.startsAt, manilaStart(addDays(to, 1))),
-				gt(calendarEvent.endsAt, manilaStart(from))
+				lt(calendarEvent.startsAt, dayStart(addDays(to, 1))),
+				gt(calendarEvent.endsAt, dayStart(from))
 			)
 		);
 	// Routines hold their time too, so a week is never planned over one
@@ -167,7 +167,7 @@ export async function readAvailability(
 /** The week as a person reads it: clock times per weekday, the changes still to come, and the settings. */
 export async function getAvailability(ctx: Ctx) {
 	return run(ctx, async (tx, userId) => {
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const blocks = await tx.select().from(weeklyBlock).where(eq(weeklyBlock.userId, userId));
 		const overrides = await tx
 			.select()

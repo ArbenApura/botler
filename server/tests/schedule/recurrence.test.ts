@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
-	atManilaTime,
+	atLocalTime,
 	nextOccurrence,
 	recurrenceOccurrences,
 	validateRecurrence
@@ -19,9 +19,9 @@ const iso = (ds: Date[]) => ds.map((d) => d.toISOString());
 
 describe('clock times in Manila', () => {
 	it('puts 06:30 Manila at 22:30 UTC the evening before', () => {
-		expect(atManilaTime('2026-10-22', '06:30').toISOString()).toBe('2026-10-21T22:30:00.000Z');
-		expect(atManilaTime('2026-10-22', '00:00').toISOString()).toBe('2026-10-21T16:00:00.000Z');
-		expect(atManilaTime('2026-10-22', '23:59').toISOString()).toBe('2026-10-22T15:59:00.000Z');
+		expect(atLocalTime('2026-10-22', '06:30').toISOString()).toBe('2026-10-21T22:30:00.000Z');
+		expect(atLocalTime('2026-10-22', '00:00').toISOString()).toBe('2026-10-21T16:00:00.000Z');
+		expect(atLocalTime('2026-10-22', '23:59').toISOString()).toBe('2026-10-22T15:59:00.000Z');
 	});
 
 	it('refuses a time that is not a clock time', () => {
@@ -95,7 +95,7 @@ describe('monthly and every n days', () => {
 describe('windows and next', () => {
 	it('includes both ends of the window and nothing outside', () => {
 		const rule = { freq: 'daily', time: '12:00' } as const;
-		const noon = atManilaTime('2026-10-21', '12:00');
+		const noon = atLocalTime('2026-10-21', '12:00');
 		expect(recurrenceOccurrences(rule, noon, noon)).toHaveLength(1);
 		expect(
 			recurrenceOccurrences(
@@ -109,9 +109,9 @@ describe('windows and next', () => {
 	it('finds the next moment strictly after now', () => {
 		const rule = { freq: 'weekly', days: [3], time: '09:00' } as const;
 		// 2026-10-21 is a Wednesday. At 09:00 Manila sharp the next is a week later
-		const now = atManilaTime('2026-10-21', '09:00');
+		const now = atLocalTime('2026-10-21', '09:00');
 		expect(nextOccurrence(rule, now)?.toISOString()).toBe(
-			atManilaTime('2026-10-28', '09:00').toISOString()
+			atLocalTime('2026-10-28', '09:00').toISOString()
 		);
 		expect(nextOccurrence(rule, new Date(now.getTime() - 1))?.toISOString()).toBe(
 			now.toISOString()

@@ -9,7 +9,7 @@ import type { Recurrence } from '../../schedule/recurrence';
 // -- DEP-MODULES -- //
 import { and, asc, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, manilaStart } from '../../finance/dates';
+import { addDays, currentZone, dayStart, zoneOffsetMinutes } from '../../finance/dates';
 import { calendarEvent, reminder, routine, task } from '../db/schema';
 import {
 	eventCreateInput,
@@ -259,8 +259,8 @@ export async function listEvents(ctx: Ctx, raw: unknown): Promise<EventView[]> {
 				and(
 					eq(calendarEvent.userId, userId),
 					isNull(calendarEvent.deletedAt),
-					gte(calendarEvent.startsAt, manilaStart(from)),
-					lt(calendarEvent.startsAt, manilaStart(addDays(to, 1)))
+					gte(calendarEvent.startsAt, dayStart(from)),
+					lt(calendarEvent.startsAt, dayStart(addDays(to, 1)))
 				)
 			)
 			.orderBy(asc(calendarEvent.startsAt))
@@ -346,7 +346,7 @@ async function addReminder(
 	if (at.getTime() < Date.now() - 60_000)
 		throw new OpsError(
 			'INVALID',
-			`That time has already passed. It is now ${new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 19)}+08:00; give a later instant.`
+			`That time has already passed. It is now ${new Date(Date.now() + zoneOffsetMinutes(Date.now()) * 60_000).toISOString().slice(0, 19)} in ${currentZone()}; give a later instant.`
 		);
 	return mapped(() =>
 		runWrite(ctx, verb, input, async (tx, userId) => {

@@ -9,6 +9,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { user } from '../../src/lib/server/db/schema';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
 import { getSettings, setSettings } from '../../src/lib/server/ops/settings';
+import { run } from '../../src/lib/server/ops/context';
+import { toLocalDate } from '../../src/lib/finance/dates';
 import { configureProviders } from '../../src/lib/server/proxy/provider';
 import { PROVIDER_VISION, pictureProviderFor, visionOf } from '../../src/lib/providers';
 import { createTestDb } from '../support/testDb';
@@ -83,6 +85,47 @@ describe('settings', () => {
 		expect(await getSettings(a)).toEqual(second.settings);
 		// Another person is untouched
 		expect((await getSettings(person('user_set_b_001'))).currency).toBe('PHP');
+	});
+
+	it('keeps the time zone, clock and date order: Manila and auto by default, saved, partial updates keep them, a bad zone is refused', async () => {
+		const a = person('user_set_c_001');
+		expect(await getSettings(a)).toMatchObject({
+			timeZone: 'Asia/Manila',
+			timeFormat: 'auto',
+			dateStyle: 'auto'
+		});
+		const set = await setSettings(as(a), { timeZone: 'America/New_York', timeFormat: '24' });
+		expect(set.settings).toMatchObject({
+			timeZone: 'America/New_York',
+			timeFormat: '24',
+			dateStyle: 'auto'
+		});
+		// Another field changes: the zone and clock stay
+		const later = await setSettings(as(a), { dateStyle: 'ymd' });
+		expect(later.settings).toMatchObject({
+			timeZone: 'America/New_York',
+			timeFormat: '24',
+			dateStyle: 'ymd'
+		});
+		expect(await getSettings(a)).toEqual(later.settings);
+		await expect(setSettings(as(a), { timeZone: 'Not/AZone' })).rejects.toMatchObject({
+			code: 'INVALID'
+		});
+		// The assistant may read the zone but never change it
+		await expect(
+			invokeVerb(as(agent('user_set_c_001')), 'settings_set', { timeZone: 'Asia/Tokyo' })
+		).rejects.toBeDefined();
+		expect(await invokeVerb(agent('user_set_c_001'), 'settings_get', {})).toMatchObject({
+			timeZone: 'America/New_York'
+		});
+	});
+
+	it('runs a verb body in the person zone, so today follows it', async () => {
+		const instant = new Date('2026-11-05T20:00:00Z');
+		const manila = await run(person('user_set_a_001'), async () => toLocalDate(instant));
+		expect(manila).toBe('2026-11-06');
+		const newYork = await run(person('user_set_c_001'), async () => toLocalDate(instant));
+		expect(newYork).toBe('2026-11-05');
 	});
 
 	it('keeps the net balance choice: off by default, saved on and off, kept when another field changes (BTL-20261030-0546)', async () => {

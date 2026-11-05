@@ -17,7 +17,7 @@ import type { Ctx } from './context';
 import { createHash } from 'node:crypto';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
+import { addDays, toLocalDate } from '../../finance/dates';
 import {
 	estimateBurn,
 	forecastGoal,
@@ -119,7 +119,7 @@ export async function logWeight(ctx: Ctx, raw: WeightLogInput) {
 	const input = parse(weightLogInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'weight.log', input, async (tx, userId) => {
-			const day = input.day ?? toManilaDate(new Date());
+			const day = input.day ?? toLocalDate(new Date());
 			await tx
 				.insert(weightEntry)
 				.values({
@@ -136,7 +136,7 @@ export async function logWeight(ctx: Ctx, raw: WeightLogInput) {
 						updatedAt: new Date()
 					}
 				});
-			return readTrend(tx, userId, toManilaDate(new Date()), 28);
+			return readTrend(tx, userId, toLocalDate(new Date()), 28);
 		})
 	);
 }
@@ -197,13 +197,13 @@ export async function readTrend(tx: Tx, userId: string, today: string, days: num
 
 export async function getWeightTrend(ctx: Ctx, raw: WeightTrendInput) {
 	const { days } = parse(weightTrendInput, raw);
-	return run(ctx, (tx, userId) => readTrend(tx, userId, toManilaDate(new Date()), days ?? 28));
+	return run(ctx, (tx, userId) => readTrend(tx, userId, toLocalDate(new Date()), days ?? 28));
 }
 
 /** About when the goal is reached at the pace of the last weeks. The model quotes this and never works it out. */
 export async function getForecast(ctx: Ctx) {
 	return run(ctx, async (tx, userId) => {
-		const trend = await readTrend(tx, userId, toManilaDate(new Date()), WINDOW_DAYS);
+		const trend = await readTrend(tx, userId, toLocalDate(new Date()), WINDOW_DAYS);
 		return { trendG: trend.trendG, forecast: trend.forecast };
 	});
 }
@@ -380,7 +380,7 @@ export async function answerProposal(ctx: Ctx, raw: ProposalAnswerInput) {
 						'CONFLICT',
 						`This check-in proposes ${payload.toKcal} kcal, not ${input.value ?? 'that'}. Look at it again.`
 					);
-				const asOf = payload.asOf ?? toManilaDate(new Date());
+				const asOf = payload.asOf ?? toLocalDate(new Date());
 				const from = addDays(asOf, -(WINDOW_DAYS - 1));
 				const basis = fingerprint(
 					await weightsBetween(tx, userId, from, asOf),
@@ -391,7 +391,7 @@ export async function answerProposal(ctx: Ctx, raw: ProposalAnswerInput) {
 						'CONFLICT',
 						'Your food or weight changed after this was worked out. The next check-in will use the new numbers.'
 					);
-				const health = await readHealth(tx, userId, toManilaDate(new Date()));
+				const health = await readHealth(tx, userId, toLocalDate(new Date()));
 				if (health.goal.kind === 'track' || health.goal.targetKcal !== payload.fromKcal)
 					throw new OpsError(
 						'CONFLICT',

@@ -11,7 +11,7 @@ import type { Plain } from './shared';
 // -- DEP-MODULES -- //
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { toManilaDate } from '../../finance/dates';
+import { toLocalDate } from '../../finance/dates';
 import { DEFAULT_CURRENCY, formatMoney } from '../../finance/currency';
 import { ruleWarnings, validateRules } from '../../finance/rules';
 import { parseRuleText } from '../../finance/text';
@@ -266,7 +266,7 @@ export async function proposeRule(
 					targetAccountId: input.targetAccountId ?? null,
 					targetGoalId: input.targetGoalId ?? null,
 					fundsBillId: input.fundsBillId ?? null,
-					effectiveFrom: input.effectiveFrom ?? toManilaDate(new Date()),
+					effectiveFrom: input.effectiveFrom ?? toLocalDate(new Date()),
 					position,
 					status: 'proposed',
 					sourceText: sourceText ?? null

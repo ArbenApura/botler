@@ -7,7 +7,7 @@ import type { TestDb } from '../support/testDb';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { addDays, toLocalDate } from '../../src/lib/finance/dates';
 import { reminder, user } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
@@ -36,7 +36,7 @@ type Summary = {
 
 // -- CONSTANTS -- //
 
-const TODAY = toManilaDate(new Date());
+const TODAY = toLocalDate(new Date());
 
 // -- STATES -- //
 
@@ -142,6 +142,28 @@ describe('the pattern', () => {
 		await log(14, false);
 		const after = (await invokeVerb(ctxFor(id), 'sleep_summary', {})) as Summary;
 		expect(after.pattern?.shortNightExtraKcal).toBe(400);
+	});
+});
+
+describe('a change of time zone', () => {
+	const id = 'user_slp_00004';
+
+	it('does not make the bedtime spread jump: nights are read from the moment, in the zone now', async () => {
+		for (const back of [1, 2, 3])
+			await invokeVerb(ctxFor(id), 'sleep_log', {
+				from: '23:00',
+				to: '06:00',
+				day: addDays(TODAY, -back)
+			});
+		const spread = async () =>
+			((await invokeVerb(ctxFor(id), 'sleep_summary', {})) as Summary).bedtimeSpreadMinutes;
+		expect(await spread()).toBe(0);
+		// Tokyo is an hour ahead of Manila: every night moves with it, so they still agree with each other
+		await invokeVerb(ctxFor(id), 'settings_set', { timeZone: 'Asia/Tokyo' });
+		expect(await spread()).toBe(0);
+		// A night logged now is 23:00 in Tokyo, an hour before the others read there (they are 00:00): the spread is that hour
+		await invokeVerb(ctxFor(id), 'sleep_log', { from: '23:00', to: '06:00', day: TODAY });
+		expect(await spread()).toBe(60);
 	});
 });
 

@@ -6,7 +6,7 @@ import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
 import { and, eq, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { toManilaDate } from '../../finance/dates';
+import { toLocalDate } from '../../finance/dates';
 import {
 	chat,
 	notebook,
@@ -76,7 +76,7 @@ export const jobHandlers: Record<string, JobHandler> = {
 	'maintenance.purge': purgeOld,
 	// The weekly Health sums make no model call, and only ever propose
 	'health.weekly': async (job, tx) => {
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		await advancePrograms(tx, job.userId, today);
 		const target = await runWeekly(tx, job.userId, today);
 		const review = await runWeeklyReview(tx, job.userId, today);

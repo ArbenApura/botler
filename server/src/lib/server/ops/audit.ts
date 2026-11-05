@@ -9,7 +9,7 @@ import type { Snapshot, Txn } from '../../finance/ledger';
 // -- DEP-MODULES -- //
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays } from '../../finance/dates';
+import { addDays, dayStart } from '../../finance/dates';
 import { balanceOf } from '../../finance/ledger';
 import { accountHistoryInput, auditExportInput } from '../db/zod';
 import { run } from './context';
@@ -246,9 +246,9 @@ export async function accountHistory(ctx: Ctx, raw: AccountHistoryInput) {
 		const all = replayed.map((e) => ({ ...e, balanceAfter: e.balanceAfter + gap }));
 		const partial = gap !== 0 || rowsOf(found).length >= REPLAY_LIMIT;
 		const needle = input.search?.toLowerCase();
-		const fromMs = input.from ? new Date(`${input.from}T00:00:00+08:00`).getTime() : null;
+		const fromMs = input.from ? dayStart(input.from).getTime() : null;
 		// The end day is inclusive: the range ends before the first instant of the day after it
-		const toMs = input.to ? new Date(`${addDays(input.to, 1)}T00:00:00+08:00`).getTime() : null;
+		const toMs = input.to ? dayStart(addDays(input.to, 1)).getTime() : null;
 		const kept = all
 			.filter((e) => (input.by ? e.actor === input.by || e.onBehalf === input.by : true))
 			.filter((e) => (input.action ? e.action === input.action : true))
@@ -287,9 +287,11 @@ export async function exportAudit(ctx: Ctx, raw: AuditExportInput) {
 		const account = input.accountId
 			? sql`and (account_id = ${input.accountId} or before ->> 'to_account_id' = ${input.accountId} or after ->> 'to_account_id' = ${input.accountId})`
 			: sql``;
-		const from = input.from ? sql`and at >= ${`${input.from}T00:00:00+08:00`}::timestamptz` : sql``;
+		const from = input.from
+			? sql`and at >= ${dayStart(input.from).toISOString()}::timestamptz`
+			: sql``;
 		const to = input.to
-			? sql`and at < ${`${addDays(input.to, 1)}T00:00:00+08:00`}::timestamptz`
+			? sql`and at < ${dayStart(addDays(input.to, 1)).toISOString()}::timestamptz`
 			: sql``;
 		const found = await tx.execute(sql`
 			select ${sql.raw(COLUMNS)}

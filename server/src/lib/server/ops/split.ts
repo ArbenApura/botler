@@ -14,7 +14,7 @@ import type { SplitProposeInput } from '../db/zod';
 // -- DEP-MODULES -- //
 import { and, desc, eq, gte, inArray, isNull, lt, ne, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, dayStart, toLocalDate } from '../../finance/dates';
 import { canConvert, convertUp, showRate } from '../../finance/fx';
 import { occurrencesBetween } from '../../finance/schedule';
 import { fundingAt, planFlows, recordedPays } from '../../finance/planFlows';
@@ -86,7 +86,7 @@ export async function proposeSplitPlan(
 		if (!inc.active) throw new OpsError('INVALID', `"${inc.label}" is switched off.`);
 		const schedule = inc.schedule as Schedule;
 		const opts = { weekend: inc.weekendRule };
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const payday =
 			input.payday ?? occurrencesBetween(schedule, today, addDays(today, 800), opts)[0];
 		if (!payday) throw new OpsError('INVALID', 'There is no payday ahead for that income.');
@@ -132,7 +132,7 @@ export async function proposeSplitPlan(
 		// What the split may take from money already in the accounts, and the rules that save for bills: the plan's own flows from today to
 		// the day before this payday give each account's balance at its start, as the forecast does
 		const now = new Date();
-		const loaded = await loadPlan(tx, userId, { now, incomeSince: manilaStart(today) });
+		const loaded = await loadPlan(tx, userId, { now, incomeSince: dayStart(today) });
 		const balances = new Map<string, number>();
 		for (const a of loaded.accounts)
 			if (a.archivedAt === null)
@@ -392,7 +392,7 @@ export async function approveSplit(
 					);
 			}
 			const stored = plan.result as StoredSplit;
-			const today = toManilaDate(new Date());
+			const today = toLocalDate(new Date());
 			const [done] = await tx
 				.update(splitPlan)
 				.set({
@@ -425,8 +425,8 @@ export async function approveSplit(
 							eq(ledgerTxn.amount, plan.pay),
 							isNull(ledgerTxn.voidedAt),
 							ne(ledgerTxn.source, 'split'),
-							gte(ledgerTxn.occurredAt, manilaStart(plan.payday)),
-							lt(ledgerTxn.occurredAt, manilaStart(addDays(plan.payday, 1)))
+							gte(ledgerTxn.occurredAt, dayStart(plan.payday)),
+							lt(ledgerTxn.occurredAt, dayStart(addDays(plan.payday, 1)))
 						)
 					)
 					.limit(1);
@@ -446,7 +446,7 @@ export async function approveSplit(
 							splitId: plan.id,
 							// A split for a day gone by records its pay on that day (midday in Manila), not now
 							...(plan.payday < today
-								? { occurredAt: new Date(manilaStart(plan.payday).getTime() + 12 * 3_600_000) }
+								? { occurredAt: new Date(dayStart(plan.payday).getTime() + 12 * 3_600_000) }
 								: {})
 						},
 						{ journal: false }
@@ -604,7 +604,7 @@ export async function upcomingPaydays(ctx: Ctx, count = 3) {
 			.select()
 			.from(incomeSchedule)
 			.where(and(eq(incomeSchedule.userId, userId), eq(incomeSchedule.active, true)));
-		const today = toManilaDate(new Date());
+		const today = toLocalDate(new Date());
 		const out: { incomeId: string; label: string; payday: string }[] = [];
 		for (const inc of incomes)
 			for (const d of occurrencesBetween(inc.schedule as Schedule, today, addDays(today, 800), {

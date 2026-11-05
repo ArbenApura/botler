@@ -17,7 +17,7 @@ import type { Txn } from './ledger';
 import type { PlanData, PlanFlow, PlanNote } from './planFlows';
 // -- MODULES -- //
 import { billOccurrences } from './billWindows';
-import { addDays, manilaStart, toManilaDate } from './dates';
+import { addDays, dayStart, toLocalDate } from './dates';
 import { checkRange, periodEnd, SIMULATE_LIMITS } from './forecast';
 import { canConvert, convert } from './fx';
 import { balanceOf, effectOn } from './ledger';
@@ -247,10 +247,10 @@ const ORDER = { in: 0, move: 1, out: 2 } as const;
 const key = (accountId: string, currency: string) => `${accountId}|${currency}`;
 
 /** The last instant of a Manila day. */
-const endOf = (d: ManilaDate) => new Date(manilaStart(addDays(d, 1)).getTime() - 1);
+const endOf = (d: ManilaDate) => new Date(dayStart(addDays(d, 1)).getTime() - 1);
 
 /** The instant just before a Manila day starts. */
-const before = (d: ManilaDate) => new Date(manilaStart(d).getTime() - 1);
+const before = (d: ManilaDate) => new Date(dayStart(d).getTime() - 1);
 
 /** Works out the timeline. Throws a RangeError for a range that is backwards or too long for its grouping. */
 export function simulate(input: SimulateInput): Simulation {
@@ -309,7 +309,7 @@ export function simulate(input: SimulateInput): Simulation {
 	let first: Date | null = input.firstRecordAt ?? null;
 	for (const s of input.snapshots) if (!first || s.takenAt < first) first = s.takenAt;
 	for (const t of input.txns) if (!first || t.occurredAt < first) first = t.occurredAt;
-	const firstRecord = first ? toManilaDate(first) : null;
+	const firstRecord = first ? toLocalDate(first) : null;
 
 	/** Every wallet's recorded balance at an instant; null for a wallet with nothing recorded by then. */
 	const recordedAt = (at: Date): Map<string, number | null> => {
@@ -597,7 +597,7 @@ export function simulate(input: SimulateInput): Simulation {
 	};
 	/** A recorded row as its entries: a transfer between own accounts is a move and spends nothing, but its fee is spending of its own. */
 	const recordedEntries = (t: RecordedTxn): SimEntry[] => {
-		const date = toManilaDate(t.occurredAt);
+		const date = toLocalDate(t.occurredAt);
 		const base = {
 			id: t.id,
 			source: 'recorded' as const,
@@ -695,7 +695,7 @@ export function simulate(input: SimulateInput): Simulation {
 	// Up to today even when the window ends earlier: the span totals of a past period run to today (a period reads its own days only)
 	const lastRecordedDay = today;
 	for (const t of input.txns) {
-		const d = toManilaDate(t.occurredAt);
+		const d = toLocalDate(t.occurredAt);
 		if (d < from || d > lastRecordedDay) continue;
 		const list = recordedByDate.get(d) ?? [];
 		list.push(...recordedEntries(t));

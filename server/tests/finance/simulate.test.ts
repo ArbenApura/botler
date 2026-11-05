@@ -7,7 +7,7 @@ import type { SimulationView } from '../../src/lib/server/ops/simulate';
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { manilaNoon, toManilaDate } from '../../src/lib/finance/dates';
+import { dayNoon, toLocalDate } from '../../src/lib/finance/dates';
 import { convert } from '../../src/lib/finance/fx';
 import { planFlows } from '../../src/lib/finance/planFlows';
 import { applyScenario } from '../../src/lib/finance/scenario';
@@ -18,11 +18,11 @@ import { GOAL_PER_PAY, NET, PAY, plan, RENT } from './planFixture';
 // -- CONSTANTS -- //
 
 const TODAY = '2026-06-10';
-const NOW = manilaNoon(TODAY);
+const NOW = dayNoon(TODAY);
 
 const SNAPSHOTS: RecordedSnapshot[] = [
-	{ accountId: 'rcbc', currency: 'PHP', amount: 1_000_000, takenAt: manilaNoon('2026-01-02') },
-	{ accountId: 'gcash', currency: 'PHP', amount: 300_000, takenAt: manilaNoon('2026-01-02') }
+	{ accountId: 'rcbc', currency: 'PHP', amount: 1_000_000, takenAt: dayNoon('2026-01-02') },
+	{ accountId: 'gcash', currency: 'PHP', amount: 300_000, takenAt: dayNoon('2026-01-02') }
 ];
 
 /** The pay was logged on these days: 13 March came in on the 16th, and 15 April never did. */
@@ -57,7 +57,7 @@ const TXNS: RecordedTxn[] = [
 			type: 'income',
 			accountId: 'rcbc',
 			amount: PAY,
-			occurredAt: manilaNoon(d),
+			occurredAt: dayNoon(d),
 			label: 'Salary'
 		})
 	),
@@ -66,7 +66,7 @@ const TXNS: RecordedTxn[] = [
 			type: 'expense',
 			accountId: 'gcash',
 			amount: RENT,
-			occurredAt: manilaNoon(d),
+			occurredAt: dayNoon(d),
 			label: 'Rent'
 		})
 	),
@@ -76,7 +76,7 @@ const TXNS: RecordedTxn[] = [
 			accountId: 'rcbc',
 			toAccountId: 'gcash',
 			amount: 2_000_000,
-			occurredAt: manilaNoon(d),
+			occurredAt: dayNoon(d),
 			label: 'Split'
 		})
 	)
@@ -91,7 +91,7 @@ function realPlan(over: Partial<PlanData> = {}): PlanData {
 	return plan({
 		incomeDays: new Set(
 			TXNS.filter((t) => t.type === 'income').map(
-				(t) => `${t.accountId}|${toManilaDate(t.occurredAt)}`
+				(t) => `${t.accountId}|${toLocalDate(t.occurredAt)}`
 			)
 		),
 		settled: new Map([['rent', RENT_DUE.map((d) => ({ start: d, end: d }))]]),
@@ -242,7 +242,7 @@ describe('recorded and replayed past', () => {
 		};
 		const snapshots = [
 			...SNAPSHOTS,
-			{ accountId: 'old', currency: 'PHP', amount: 77_700, takenAt: manilaNoon('2026-01-02') }
+			{ accountId: 'old', currency: 'PHP', amount: 77_700, takenAt: dayNoon('2026-01-02') }
 		];
 		const out = sim({ snapshots, wallets: [...WALLETS, { accountId: 'old', currency: 'PHP' }] }, p);
 		const withOld = month(out, '2026-02');
@@ -372,7 +372,7 @@ describe('the period that holds today and the future', () => {
 			{
 				snapshots: [
 					...SNAPSHOTS,
-					{ accountId: 'save', currency: 'EUR', amount: 5_000, takenAt: manilaNoon('2026-01-02') }
+					{ accountId: 'save', currency: 'EUR', amount: 5_000, takenAt: dayNoon('2026-01-02') }
 				],
 				wallets: [...WALLETS, { accountId: 'save', currency: 'EUR' }]
 			},
@@ -389,8 +389,8 @@ describe('the period that holds today and the future', () => {
 		const out = sim({
 			snapshots: [
 				...SNAPSHOTS,
-				{ accountId: 'save', currency: 'USD', amount: 5_000, takenAt: manilaNoon('2026-01-02') },
-				{ accountId: 'jar', currency: 'EUR', amount: 5_000, takenAt: manilaNoon('2026-01-02') }
+				{ accountId: 'save', currency: 'USD', amount: 5_000, takenAt: dayNoon('2026-01-02') },
+				{ accountId: 'jar', currency: 'EUR', amount: 5_000, takenAt: dayNoon('2026-01-02') }
 			],
 			wallets: [
 				...WALLETS,
@@ -497,7 +497,7 @@ describe('spent and received per period', () => {
 			type: 'expense',
 			accountId: 'gcash',
 			amount: 100_000,
-			occurredAt: manilaNoon('2026-03-04'),
+			occurredAt: dayNoon('2026-03-04'),
 			label: 'Lunch',
 			category: 'Food'
 		}),
@@ -505,7 +505,7 @@ describe('spent and received per period', () => {
 			type: 'expense',
 			accountId: 'gcash',
 			amount: 40_000,
-			occurredAt: manilaNoon('2026-03-06'),
+			occurredAt: dayNoon('2026-03-06'),
 			label: 'Dinner',
 			category: ' food '
 		}),
@@ -513,7 +513,7 @@ describe('spent and received per period', () => {
 			type: 'refund',
 			accountId: 'gcash',
 			amount: 20_000,
-			occurredAt: manilaNoon('2026-03-07'),
+			occurredAt: dayNoon('2026-03-07'),
 			label: 'Refund',
 			category: 'Food'
 		}),
@@ -521,7 +521,7 @@ describe('spent and received per period', () => {
 			type: 'income',
 			accountId: 'rcbc',
 			amount: 500_000,
-			occurredAt: manilaNoon('2026-03-10'),
+			occurredAt: dayNoon('2026-03-10'),
 			label: 'Salary'
 		}),
 		txn({
@@ -530,21 +530,21 @@ describe('spent and received per period', () => {
 			toAccountId: 'gcash',
 			amount: 300_000,
 			fee: 5_000,
-			occurredAt: manilaNoon('2026-03-11'),
+			occurredAt: dayNoon('2026-03-11'),
 			label: 'Top up'
 		}),
 		txn({
 			type: 'adjustment',
 			accountId: 'gcash',
 			amount: -30_000,
-			occurredAt: manilaNoon('2026-03-12'),
+			occurredAt: dayNoon('2026-03-12'),
 			label: 'Balance count'
 		}),
 		txn({
 			type: 'adjustment',
 			accountId: 'gcash',
 			amount: 10_000,
-			occurredAt: manilaNoon('2026-03-13'),
+			occurredAt: dayNoon('2026-03-13'),
 			label: 'Balance count'
 		})
 	];
@@ -565,7 +565,7 @@ describe('spent and received per period', () => {
 			type: 'adjustment',
 			accountId: 'gcash',
 			amount: -80_000,
-			occurredAt: manilaNoon('2026-03-20'),
+			occurredAt: dayNoon('2026-03-20'),
 			label: 'Balance reset: lost the wallet',
 			category: 'reset'
 		});
@@ -605,7 +605,7 @@ describe('spent and received per period', () => {
 			type: 'expense',
 			accountId: 'gcash',
 			amount: RENT,
-			occurredAt: manilaNoon('2026-03-05'),
+			occurredAt: dayNoon('2026-03-05'),
 			label: 'Rent paid',
 			billId: 'rent'
 		});
@@ -613,7 +613,7 @@ describe('spent and received per period', () => {
 			type: 'expense',
 			accountId: 'gcash',
 			amount: 70_000,
-			occurredAt: manilaNoon('2026-03-08'),
+			occurredAt: dayNoon('2026-03-08'),
 			label: 'Old gym',
 			billId: 'old-gym'
 		});
@@ -643,7 +643,7 @@ describe('spent and received per period', () => {
 			accountId: 'gcash',
 			amount: 1_500,
 			currency: 'USD',
-			occurredAt: manilaNoon('2026-03-14'),
+			occurredAt: dayNoon('2026-03-14'),
 			label: 'Hosting'
 		});
 		const eur = txn({
@@ -651,7 +651,7 @@ describe('spent and received per period', () => {
 			accountId: 'gcash',
 			amount: 900,
 			currency: 'EUR',
-			occurredAt: manilaNoon('2026-03-15'),
+			occurredAt: dayNoon('2026-03-15'),
 			label: 'Coffee'
 		});
 		const rates = realPlan().rates;
@@ -745,19 +745,19 @@ describe('the running total from a period to today', () => {
 				type: 'expense',
 				accountId: 'gcash',
 				amount: 100_000,
-				occurredAt: manilaNoon('2026-03-04')
+				occurredAt: dayNoon('2026-03-04')
 			}),
 			txn({
 				type: 'refund',
 				accountId: 'gcash',
 				amount: 20_000,
-				occurredAt: manilaNoon('2026-03-07')
+				occurredAt: dayNoon('2026-03-07')
 			}),
 			txn({
 				type: 'income',
 				accountId: 'rcbc',
 				amount: 500_000,
-				occurredAt: manilaNoon('2026-03-10')
+				occurredAt: dayNoon('2026-03-10')
 			}),
 			txn({
 				type: 'transfer',
@@ -765,19 +765,19 @@ describe('the running total from a period to today', () => {
 				toAccountId: 'gcash',
 				amount: 300_000,
 				fee: 5_000,
-				occurredAt: manilaNoon('2026-03-11')
+				occurredAt: dayNoon('2026-03-11')
 			}),
 			txn({
 				type: 'adjustment',
 				accountId: 'gcash',
 				amount: -30_000,
-				occurredAt: manilaNoon('2026-03-12')
+				occurredAt: dayNoon('2026-03-12')
 			}),
 			txn({
 				type: 'adjustment',
 				accountId: 'gcash',
 				amount: -80_000,
-				occurredAt: manilaNoon('2026-03-20'),
+				occurredAt: dayNoon('2026-03-20'),
 				category: 'reset'
 			})
 		];
@@ -816,7 +816,7 @@ describe('the running total from a period to today', () => {
 			accountId: 'gcash',
 			amount: 900,
 			currency: 'EUR',
-			occurredAt: manilaNoon('2026-04-15'),
+			occurredAt: dayNoon('2026-04-15'),
 			label: 'Coffee'
 		});
 		const out = sim({ from: '2026-03-01', to: '2026-03-31', txns: [...TXNS, eur] });
@@ -853,7 +853,7 @@ describe('entries in one order, and in bulk', () => {
 				type: 'expense',
 				accountId: 'gcash',
 				amount: 100 + (i % 37),
-				occurredAt: manilaNoon(`2026-03-${String(1 + (i % 28)).padStart(2, '0')}`),
+				occurredAt: dayNoon(`2026-03-${String(1 + (i % 28)).padStart(2, '0')}`),
 				label: `Row ${i}`,
 				category: i % 3 === 0 ? 'Food' : i % 3 === 1 ? 'Fun' : null
 			})

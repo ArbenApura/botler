@@ -11,7 +11,7 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { toManilaDate } from '../../src/lib/finance/dates';
+import { toLocalDate } from '../../src/lib/finance/dates';
 import { listAccounts } from '../../src/lib/server/ops/accounts';
 import { listActions } from '../../src/lib/server/ops/actions';
 import { listBills } from '../../src/lib/server/ops/bills';
@@ -55,7 +55,7 @@ let t: TestDb;
 
 /** The whole of next month, so the case does not go stale as bills fall behind the clock. */
 function nextMonth() {
-	const [y, m] = toManilaDate(new Date()).split('-').map(Number) as [number, number];
+	const [y, m] = toLocalDate(new Date()).split('-').map(Number) as [number, number];
 	const day = (month: number, date: number) =>
 		new Date(Date.UTC(y, month, date)).toISOString().slice(0, 10);
 	return { from: day(m, 1), to: day(m + 1, 0) };

@@ -7,17 +7,20 @@ import type { Tx } from '../db/client';
 import type { Ctx } from './context';
 import type { SettingsSetInput } from '../db/zod';
 import type { SelectableProvider } from '../../providers';
-import type { PhotoMode, ReplyLanguage } from '../db/schema/settings';
+import type { DateStyle, PhotoMode, ReplyLanguage, TimeFormat } from '../db/schema/settings';
 // -- DEP-MODULES -- //
 import { eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY } from '../../finance/currency';
+import { DEFAULT_ZONE } from '../../finance/dates';
 import { pictureProviderFor } from '../../providers';
 import { userSetting } from '../db/schema';
 import { settingsSetInput } from '../db/zod';
 import { effectiveProvider, providerSetup } from '../proxy/provider';
+import { reconcileReminders } from '../schedule/reminders';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, requirePerson } from './shared';
+import { withClock } from './zone';
 
 // -- TYPES -- //
 
@@ -31,6 +34,12 @@ export type SettingsView = {
 	showNetBalance: boolean;
 	/** What the assistant gets from a photo: the picture itself, or only the text the phone read from it. */
 	photoMode: PhotoMode;
+	/** The IANA zone that decides what today is and how clock times read. */
+	timeZone: string;
+	/** auto follows the phone's 12 or 24 hour clock. */
+	timeFormat: TimeFormat;
+	/** auto follows the app language. */
+	dateStyle: DateStyle;
 	/** The host that will read this person's pictures: their own when it can, else another host that has a key and can. Null when none can. Worked out, never stored. */
 	photoHost: SelectableProvider | null;
 	/** Whether a picture can be looked at at all (a host was found). Worked out, never stored. */
@@ -52,6 +61,9 @@ type StoredSettings = Pick<
 	| 'weekStartsOn'
 	| 'showNetBalance'
 	| 'photoMode'
+	| 'timeZone'
+	| 'timeFormat'
+	| 'dateStyle'
 	| 'modelProviderChoice'
 >;
 
@@ -64,6 +76,9 @@ export const SETTING_DEFAULTS: StoredSettings = {
 	weekStartsOn: 1,
 	showNetBalance: false,
 	photoMode: 'image',
+	timeZone: DEFAULT_ZONE,
+	timeFormat: 'auto',
+	dateStyle: 'auto',
 	modelProviderChoice: null
 };
 
@@ -102,6 +117,9 @@ export async function readSettings(tx: Tx, userId: string): Promise<SettingsView
 					weekStartsOn: row.weekStartsOn,
 					showNetBalance: row.showNetBalance,
 					photoMode: row.photoMode,
+					timeZone: row.timeZone,
+					timeFormat: row.timeFormat,
+					dateStyle: row.dateStyle,
 					modelProviderChoice: row.modelProvider
 				}
 			: { ...SETTING_DEFAULTS }
@@ -130,6 +148,9 @@ export async function setSettings(
 			if (input.weekStartsOn !== undefined) changes.weekStartsOn = input.weekStartsOn;
 			if (input.showNetBalance !== undefined) changes.showNetBalance = input.showNetBalance;
 			if (input.photoMode !== undefined) changes.photoMode = input.photoMode;
+			if (input.timeZone !== undefined) changes.timeZone = input.timeZone;
+			if (input.timeFormat !== undefined) changes.timeFormat = input.timeFormat;
+			if (input.dateStyle !== undefined) changes.dateStyle = input.dateStyle;
 			// Undefined keeps the choice; null puts the person back on the server default
 			if (input.modelProvider !== undefined) {
 				if (
@@ -158,9 +179,17 @@ export async function setSettings(
 				weekStartsOn: before.weekStartsOn,
 				showNetBalance: before.showNetBalance,
 				photoMode: before.photoMode,
+				timeZone: before.timeZone,
+				timeFormat: before.timeFormat,
+				dateStyle: before.dateStyle,
 				modelProviderChoice: before.modelProviderChoice,
 				...changes
 			});
+			// A new zone or clock moves the hours of the reminders and what they say: the server's list is right now, before the phone asks
+			if (settings.timeZone !== before.timeZone || settings.timeFormat !== before.timeFormat)
+				await withClock({ zone: settings.timeZone, timeFormat: settings.timeFormat }, () =>
+					reconcileReminders(tx, userId)
+				);
 			const notice =
 				settings.currency !== before.currency
 					? `Your main currency is now ${settings.currency}. Your accounts keep the currencies they hold, and the total is shown in ${settings.currency}. Your income, goals, rules and minimum balances are the same numbers, now read in ${settings.currency}: nothing in the money plan was converted. Your bills keep their own currency.`

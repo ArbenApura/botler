@@ -37,6 +37,19 @@ export const PHOTO_MODES = ['image', 'text'] as const;
 
 export type PhotoMode = (typeof PHOTO_MODES)[number];
 
+/** How a clock reads: auto follows the phone, the others are fixed. */
+export const TIME_FORMATS = ['auto', '12', '24'] as const;
+
+export type TimeFormat = (typeof TIME_FORMATS)[number];
+
+/** How a date is ordered: auto follows the app language, the others are fixed. */
+export const DATE_STYLES = ['auto', 'dmy', 'mdy', 'ymd'] as const;
+
+export type DateStyle = (typeof DATE_STYLES)[number];
+
+/** The zone of a person who has not chosen one. */
+export const DEFAULT_TIME_ZONE = 'Asia/Manila';
+
 // -- SETTINGS -- //
 
 /**
@@ -59,6 +72,12 @@ export const userSetting = userTable(
 		showNetBalance: boolean('show_net_balance').notNull().default(false),
 		/** image sends the picture to a host that can read it; text sends only what the phone read from it. */
 		photoMode: text('photo_mode', { enum: PHOTO_MODES }).notNull().default('image'),
+		/** The IANA zone that decides what "today" is and how clock times are shown. Checked against the real zone list when it is written; the column only bounds its length. */
+		timeZone: text('time_zone').notNull().default(DEFAULT_TIME_ZONE),
+		/** auto follows the phone's 12 or 24 hour choice. */
+		timeFormat: text('time_format', { enum: TIME_FORMATS }).notNull().default('auto'),
+		/** auto follows the app language. */
+		dateStyle: text('date_style', { enum: DATE_STYLES }).notNull().default('auto'),
 		...stamps()
 	},
 	(t) => [
@@ -67,6 +86,9 @@ export const userSetting = userTable(
 		oneOf('user_setting_language_chk', t.language, APP_LANGUAGES),
 		oneOf('user_setting_reply_language_chk', t.replyLanguage, REPLY_LANGUAGES),
 		oneOf('user_setting_photo_mode_chk', t.photoMode, PHOTO_MODES),
+		oneOf('user_setting_time_format_chk', t.timeFormat, TIME_FORMATS),
+		oneOf('user_setting_date_style_chk', t.dateStyle, DATE_STYLES),
+		check('user_setting_time_zone_chk', sql`char_length(${t.timeZone}) between 1 and 64`),
 		check('user_setting_week_chk', sql`${t.weekStartsOn} in (0, 1)`),
 		// A null passes a CHECK, so "use the server default" needs no special case
 		oneOf('user_setting_model_provider_chk', t.modelProvider, SELECTABLE_PROVIDERS)

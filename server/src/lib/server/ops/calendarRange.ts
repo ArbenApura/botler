@@ -15,7 +15,7 @@ import type { ForecastFlow, ForecastWallet } from '../../finance/forecast';
 // -- DEP-MODULES -- //
 import { and, eq, gt, gte, isNull, lt, ne, or } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, diffDays, manilaStart, toManilaDate } from '../../finance/dates';
+import { addDays, diffDays, dayStart, toLocalDate } from '../../finance/dates';
 import { forecast } from '../../finance/forecast';
 import { placeBills, planFlows } from '../../finance/planFlows';
 import { occurrencesBetween } from '../../finance/schedule';
@@ -126,7 +126,7 @@ export const MAX_RANGE_DAYS = 92;
 
 // -- FUNCTIONS -- //
 
-const day = (instant: Date) => toManilaDate(instant);
+const day = (instant: Date) => toLocalDate(instant);
 
 /** Everything dated between two Manila days, with the forecast of the balances over the days from today on. */
 export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<CalendarRange> {
@@ -138,10 +138,10 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 		throw new OpsError('INVALID', `Ask for at most ${MAX_RANGE_DAYS} days at a time.`);
 	return run(ctx, async (tx, userId) => {
 		const now = new Date();
-		const today = toManilaDate(now);
+		const today = toLocalDate(now);
 		const items: CalendarItem[] = [];
-		const startInstant = manilaStart(from);
-		const endInstant = manilaStart(addDays(to, 1));
+		const startInstant = dayStart(from);
+		const endInstant = dayStart(addDays(to, 1));
 		const marks = await marksOf(tx, userId);
 		const none = { icon: null, imageId: null };
 
@@ -348,7 +348,7 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 		// The same engine as cashflow_forecast and the simulation: the plan's flows (finance/planFlows.ts, future mode) over today's wallets, with
 		// every rule that rests on a hidden account or a switched-off goal already left out (ops/planData.ts). Wallets of other currencies are
 		// forecast in their own currency and converted at the stored rates for the total; a currency with no rate is named, never counted as zero.
-		const loaded = await loadPlan(tx, userId, { now, incomeSince: manilaStart(today) });
+		const loaded = await loadPlan(tx, userId, { now, incomeSince: dayStart(today) });
 		const main = loaded.settings.currency;
 		const activeAccounts = loaded.accounts.filter((a) => a.archivedAt === null);
 		const { order, balances: walletNow } = await walletBalances(tx, userId, activeAccounts, now);

@@ -11,9 +11,9 @@ import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
+import { addDays, toLocalDate } from '../../finance/dates';
 import { occurrencesBetween } from '../../finance/schedule';
-import { atManilaTime, recurrenceOccurrences } from '../../schedule/recurrence';
+import { atLocalTime, recurrenceOccurrences } from '../../schedule/recurrence';
 import { workoutTitle } from '../../health/programs';
 import { windDownFor } from '../../schedule/availability';
 import {
@@ -27,6 +27,7 @@ import {
 	task
 } from '../db/schema';
 import { lockPerson } from '../db/tenant';
+import { clockNow } from '../ops/zone';
 import { readAvailability } from '../ops/availability';
 import { dueBills } from '../ops/bills';
 
@@ -60,25 +61,20 @@ const OVERDUE_TASK_DAYS = 30;
 
 // -- FUNCTIONS -- //
 
-/** The next 09:00 in Manila after `now`. */
+/** The next 09:00 in the person's zone after `now`. */
 function nextNudge(now: Date): Date {
-	const today = toManilaDate(now);
-	const t = atManilaTime(today, NUDGE_TIME);
-	return t.getTime() > now.getTime() ? t : atManilaTime(addDays(today, 1), NUDGE_TIME);
+	const today = toLocalDate(now);
+	const t = atLocalTime(today, NUDGE_TIME);
+	return t.getTime() > now.getTime() ? t : atLocalTime(addDays(today, 1), NUDGE_TIME);
 }
 
-const clock = (d: Date) =>
-	new Intl.DateTimeFormat('en-PH', {
-		hour: 'numeric',
-		minute: '2-digit',
-		hour12: true,
-		timeZone: 'Asia/Manila'
-	}).format(d);
+// A clock time in the person's zone and 12 or 24 hour choice
+const clock = (d: Date) => clockNow(d);
 
 /** Everything that should be on the phone now, from the rest of the data. Reads only. */
 export async function desiredReminders(tx: Tx, userId: string, now: Date): Promise<Desired[]> {
 	const out: Desired[] = [];
-	const today = toManilaDate(now);
+	const today = toLocalDate(now);
 	const end = addDays(today, HORIZON_DAYS);
 	const endInstant = new Date(now.getTime() + HORIZON_DAYS * 24 * HOUR);
 
@@ -93,7 +89,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 		}
 		// A payment window gets a heads-up when it opens and another two days before it closes, while it is still unpaid
 		if (b.windowStart < b.windowEnd) {
-			const opens = atManilaTime(b.windowStart, '08:00');
+			const opens = atLocalTime(b.windowStart, '08:00');
 			if (opens.getTime() > now.getTime())
 				out.push({
 					kind: 'bill',
@@ -101,7 +97,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 					title: `${b.name} can be paid from today until ${b.windowEnd}`,
 					remindAt: opens
 				});
-			const soon = atManilaTime(addDays(b.windowEnd, -2), '09:00');
+			const soon = atLocalTime(addDays(b.windowEnd, -2), '09:00');
 			if (addDays(b.windowEnd, -2) > b.windowStart && soon.getTime() > now.getTime())
 				out.push({
 					kind: 'bill',
@@ -110,8 +106,8 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 					remindAt: soon
 				});
 		}
-		const eve = atManilaTime(addDays(b.dueDate, -1), '18:00');
-		const morning = atManilaTime(b.dueDate, '08:00');
+		const eve = atLocalTime(addDays(b.dueDate, -1), '18:00');
+		const morning = atLocalTime(b.dueDate, '08:00');
 		if (eve.getTime() > now.getTime())
 			out.push({ kind: 'bill', refKey, title: `${b.name} is due tomorrow`, remindAt: eve });
 		else if (morning.getTime() > now.getTime())
@@ -133,7 +129,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 			weekend: inc.weekendRule
 		})) {
 			if (done.has(`${inc.id}|${d}`)) continue;
-			const at = atManilaTime(d, '08:00');
+			const at = atLocalTime(d, '08:00');
 			if (at.getTime() > now.getTime())
 				out.push({
 					kind: 'payday',
@@ -178,7 +174,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 	for (const e of events) {
 		// An event made close to its start still gets a reminder: 30 minutes before, else 10, else at the start
 		const at = e.allDay
-			? atManilaTime(toManilaDate(e.startsAt), '08:00')
+			? atLocalTime(toLocalDate(e.startsAt), '08:00')
 			: (EVENT_LEADS_MIN.map((m) => new Date(e.startsAt.getTime() - m * MINUTE)).find(
 					(t) => t.getTime() > now.getTime()
 				) ?? e.startsAt);

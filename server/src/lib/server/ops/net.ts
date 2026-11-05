@@ -11,7 +11,7 @@ import type { Ctx } from './context';
 import type { NetHold, NetNote, NetResult, NetUnmatched } from '../../finance/net';
 import type { AssetsView } from './assets';
 // -- MODULES -- //
-import { manilaStart, toManilaDate } from '../../finance/dates';
+import { dayStart, toLocalDate } from '../../finance/dates';
 import { computeNet } from '../../finance/net';
 import { computeAssets, valueInMain } from './assets';
 import { refreshInBackground } from '../fx/store';
@@ -78,9 +78,9 @@ async function netOf(
 	now: Date,
 	wallets: readonly Flat[]
 ): Promise<NetResult | null> {
-	const today = toManilaDate(now);
+	const today = toLocalDate(now);
 	try {
-		const { plan } = await loadPlan(tx, userId, { now, incomeSince: manilaStart(today) });
+		const { plan } = await loadPlan(tx, userId, { now, incomeSince: dayStart(today) });
 		return computeNet(plan, wallets, today);
 	} catch (e) {
 		// A bad stored schedule is a RangeError from the pure rules; a failed query is not ours to hide

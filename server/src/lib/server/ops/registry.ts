@@ -521,7 +521,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'settings_get',
 		kind: 'read',
-		description: 'The currency, language and week start the person has chosen.',
+		description:
+			'The currency, language, week start, time zone, clock format and date order the person has chosen.',
 		input: emptyInput,
 		run: (ctx) => getSettings(ctx)
 	}),
@@ -784,7 +785,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'task_create',
 		kind: 'free',
 		description:
-			'Add a task or follow-up. dueAt and followUpAt are instants like 2026-10-22T09:00:00+08:00.',
+			'Add a task or follow-up. dueAt and followUpAt are full ISO instants with the offset of the time zone given in the Now line.',
 		input: taskCreateInput,
 		run: (ctx, a) => createTask(ctx, a)
 	}),
@@ -1437,7 +1438,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'settings_set',
 		kind: 'person',
-		description: 'Change the currency, the languages or the first day of the week.',
+		description:
+			'Change the currency, the languages, the first day of the week, the time zone, the clock (12 or 24 hour) or the date order.',
 		input: settingsSetInput,
 		run: (ctx, a) => setSettings(ctx, a)
 	}),

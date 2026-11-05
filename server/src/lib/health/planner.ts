@@ -6,7 +6,7 @@
 import type { ManilaDate } from '../finance/dates';
 import type { FreeSlot } from '../schedule/availability';
 // -- MODULES -- //
-import { addDays, manilaStart } from '../finance/dates';
+import { addDays, atLocalMinute } from '../finance/dates';
 import { timeOf } from '../schedule/availability';
 
 // -- TYPES -- //
@@ -86,7 +86,7 @@ export function placeOn(
 function placed(day: ManilaDate, minute: number, minutes: number, w: WantedSession): PlacedSession {
 	return {
 		day,
-		startsAt: new Date(manilaStart(day).getTime() + minute * MINUTE_MS).toISOString(),
+		startsAt: atLocalMinute(day, minute).toISOString(),
 		time: timeOf(minute),
 		minutes,
 		kind: w.kind,

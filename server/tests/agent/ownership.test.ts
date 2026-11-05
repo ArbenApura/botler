@@ -143,10 +143,16 @@ describe('a running message keeps its claim', () => {
 		const f = await seedPerson(t);
 		const id = newId('take');
 		let aborted = false;
+		// Resolves when the first run has reached its model, so the takeover never races a slow start
+		let reached: () => void = () => undefined;
+		const started = new Promise<void>((resolve) => {
+			reached = resolve;
+		});
 		// A model that never answers until its request is cancelled
 		const stuck: TurnModel = {
 			// eslint-disable-next-line require-yield -- this stand-in model never answers: it waits to be cancelled and then fails
 			async *stream(_ctx, req) {
+				reached();
 				await new Promise<void>((resolve) => {
 					if (req.signal?.aborted) resolve();
 					req.signal?.addEventListener('abort', () => resolve(), { once: true });
@@ -156,7 +162,7 @@ describe('a running message keeps its claim', () => {
 			}
 		};
 		const zombie = drain(f, id, stuck, { heartbeatMs: 40 });
-		await sleep(100);
+		await started;
 		// The takeover: stale at once (staleMs 0), so the second request claims it and runs
 		const second = await drain(f, id, slowModel(5, 'second run'), { staleMs: 0 });
 		expect(doneEvent(second)?.reply).toBe('second run');

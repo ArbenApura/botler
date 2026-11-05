@@ -8,10 +8,11 @@ import type { Ctx } from '../ops/context';
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { job, user } from '../db/schema';
-import { toManilaDate } from '../../finance/dates';
+import { toLocalDate } from '../../finance/dates';
 import { weekKeyOf } from '../../health/energy';
 import { lockPerson, setAuditContext, withUser } from '../db/tenant';
 import { auditOf } from '../ops/context';
+import { inPersonZone } from '../ops/zone';
 
 // -- TYPES -- //
 
@@ -224,7 +225,8 @@ export async function runBatch(
 					await withUser(handle, row.userId, async (tx) => {
 						if (!UNLOCKED_JOBS.has(row.kind)) await lockPerson(tx, row.userId);
 						await setAuditContext(tx, { ...auditOf(ctx) });
-						return handler(row, tx, ctx);
+						// The job's dates are the person's days, in the zone they chose
+						return inPersonZone(tx, row.userId, async () => handler(row, tx, ctx));
 					});
 				outcome = 'done';
 			} catch (e) {
@@ -266,10 +268,10 @@ export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date
 			.insert(job)
 			.values({ userId: p.id, kind: 'fx.refresh', key: day })
 			.onConflictDoNothing();
-		// The Health check-in, once a week. Only the week it is now: a server that was off makes one job, not one for each week it missed
+		// The Health check-in, once a week (the week of Manila; the handler works on the person's own today). Only the week it is now: a server that was off makes one job, not one for each week it missed
 		await handle.db
 			.insert(job)
-			.values({ userId: p.id, kind: 'health.weekly', key: weekKeyOf(toManilaDate(now)) })
+			.values({ userId: p.id, kind: 'health.weekly', key: weekKeyOf(toLocalDate(now)) })
 			.onConflictDoNothing();
 	}
 }

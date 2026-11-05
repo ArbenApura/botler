@@ -17,7 +17,7 @@ import type {
 // -- DEP-MODULES -- //
 import { and, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate, manilaStart } from '../../finance/dates';
+import { addDays, toLocalDate, dayStart } from '../../finance/dates';
 import { checkBalanceChange, needsAmountConfirmation } from '../../finance/confirm';
 import { balanceOf, spendingOf, untrackedSpendingOf } from '../../finance/ledger';
 import { parseExpenseText } from '../../finance/text';
@@ -224,7 +224,7 @@ export async function logExpense(ctx: Ctx, raw: ExpenseLogInput): Promise<Expens
 				accountName: acc.name,
 				amount: input.amount,
 				currency: input.currency ?? acc.currency,
-				date: toManilaDate(occurredAt),
+				date: toLocalDate(occurredAt),
 				note: input.note ?? ''
 			}
 		};
@@ -314,7 +314,7 @@ export async function logExpenseFromText(
 				accountName: acc?.name ?? '',
 				amount: parsed.amount,
 				currency: spentIn,
-				date: toManilaDate(new Date()),
+				date: toLocalDate(new Date()),
 				note: parsed.note
 			}
 		};
@@ -471,7 +471,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				accountName: state.acc.name,
 				amount: input.amount,
 				currency: state.currency,
-				date: toManilaDate(takenAt),
+				date: toLocalDate(takenAt),
 				note: '',
 				expected,
 				severity: check === 'confirm_large' ? 'large' : 'normal'
@@ -485,7 +485,7 @@ export async function recordSnapshot(ctx: Ctx, raw: SnapshotRecordInput): Promis
 				accountName: state.acc.name,
 				amount: input.amount,
 				currency: state.currency,
-				date: toManilaDate(takenAt),
+				date: toLocalDate(takenAt),
 				note: '',
 				expected,
 				severity: 'large'
@@ -726,8 +726,8 @@ export async function listTransactions(
 			.where(
 				and(
 					eq(ledgerTxn.userId, userId),
-					opts.from ? gte(ledgerTxn.occurredAt, manilaStart(opts.from)) : undefined,
-					opts.to ? lt(ledgerTxn.occurredAt, manilaStart(addDays(opts.to, 1))) : undefined,
+					opts.from ? gte(ledgerTxn.occurredAt, dayStart(opts.from)) : undefined,
+					opts.to ? lt(ledgerTxn.occurredAt, dayStart(addDays(opts.to, 1))) : undefined,
 					opts.accountId
 						? or(eq(ledgerTxn.accountId, opts.accountId), eq(ledgerTxn.toAccountId, opts.accountId))
 						: undefined
@@ -750,8 +750,8 @@ export async function spendingSummary(ctx: Ctx, raw: { from: string; to: string 
 				and(
 					eq(ledgerTxn.userId, userId),
 					isNull(ledgerTxn.voidedAt),
-					gte(ledgerTxn.occurredAt, manilaStart(from)),
-					lt(ledgerTxn.occurredAt, manilaStart(addDays(to, 1)))
+					gte(ledgerTxn.occurredAt, dayStart(from)),
+					lt(ledgerTxn.occurredAt, dayStart(addDays(to, 1)))
 				)
 			),
 		currency: (await readSettings(tx, userId)).currency

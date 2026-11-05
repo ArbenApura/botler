@@ -8,9 +8,9 @@ import type { SleepDeleteInput, SleepEditInput, SleepLogInput, SleepSummaryInput
 // -- DEP-MODULES -- //
 import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate } from '../../finance/dates';
+import { addDays, toLocalDate, localHm } from '../../finance/dates';
 import { minuteOf, windDownFor } from '../../schedule/availability';
-import { atManilaTime } from '../../schedule/recurrence';
+import { atLocalTime } from '../../schedule/recurrence';
 import { availabilitySetting, foodEntry, sleepEntry } from '../db/schema';
 import { sleepDeleteInput, sleepEditInput, sleepLogInput, sleepSummaryInput } from '../db/zod';
 import { readAvailability } from './availability';
@@ -37,9 +37,9 @@ const minutesOf = (s: { startsAt: Date; endsAt: Date }) =>
 
 /** The instants of "slept 11 to 6, waking on this day". A start later than the end was the evening before. */
 export function sleepTimes(day: string, from: string, to: string) {
-	const endsAt = atManilaTime(day, to);
+	const endsAt = atLocalTime(day, to);
 	const startDay = minuteOf(from) >= minuteOf(to) ? addDays(day, -1) : day;
-	return { startsAt: atManilaTime(startDay, from), endsAt };
+	return { startsAt: atLocalTime(startDay, from), endsAt };
 }
 
 function checkLength(minutes: number) {
@@ -62,7 +62,7 @@ export async function logSleep(ctx: Ctx, raw: SleepLogInput) {
 	const input = parse(sleepLogInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'sleep.log', input, async (tx, userId) => {
-			const day = input.day ?? toManilaDate(new Date());
+			const day = input.day ?? toLocalDate(new Date());
 			const { startsAt, endsAt } = sleepTimes(day, input.from, input.to);
 			const minutes = minutesOf({ startsAt, endsAt });
 			checkLength(minutes);
@@ -93,12 +93,7 @@ export async function editSleep(ctx: Ctx, raw: SleepEditInput) {
 				.from(sleepEntry)
 				.where(and(eq(sleepEntry.userId, userId), eq(sleepEntry.id, input.id)));
 			if (!s) throw new OpsError('NOT_FOUND', 'That sleep is not there.');
-			const clock = (d: Date) =>
-				new Intl.DateTimeFormat('en-GB', {
-					hour: '2-digit',
-					minute: '2-digit',
-					timeZone: 'Asia/Manila'
-				}).format(d);
+			const clock = (d: Date) => localHm(d);
 			const day = input.day ?? s.day;
 			const { startsAt, endsAt } = sleepTimes(
 				day,
@@ -187,9 +182,11 @@ export async function readSleep(tx: Tx, userId: string, today: string, days: num
 	const shown = nightsAll.filter((n) => n.day >= addDays(today, -(days - 1)));
 	const last = nightsAll.at(-1) ?? null;
 	const bedtimes = week.map((n) => {
-		const at = new Date(n.startsAt);
-		const m = Math.floor((at.getTime() - atManilaTime(n.day, '00:00').getTime()) / MINUTE_MS);
-		return m;
+		// Read from the instant in the person's zone now, so nights logged before a zone change line up with the rest
+		const [h, mi] = localHm(new Date(n.startsAt)).split(':').map(Number);
+		const minute = (h ?? 0) * 60 + (mi ?? 0);
+		// An evening bedtime counts as minutes before midnight, so 23:00 and 01:00 are two hours apart
+		return minute >= 12 * 60 ? minute - 24 * 60 : minute;
 	});
 	const [setting] = await tx
 		.select({ windDown: availabilitySetting.windDown })
@@ -214,7 +211,7 @@ export async function readSleep(tx: Tx, userId: string, today: string, days: num
 
 export async function getSleepSummary(ctx: Ctx, raw: SleepSummaryInput) {
 	const { days } = parse(sleepSummaryInput, raw);
-	return run(ctx, (tx, userId) => readSleep(tx, userId, toManilaDate(new Date()), days ?? 7));
+	return run(ctx, (tx, userId) => readSleep(tx, userId, toLocalDate(new Date()), days ?? 7));
 }
 
 /** The latest sleep rows, for the home tile's small bars. */

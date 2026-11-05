@@ -37,7 +37,7 @@ import {
 	sql
 } from 'drizzle-orm';
 // -- MODULES -- //
-import { addDays, toManilaDate, weekday } from '../../finance/dates';
+import { addDays, toLocalDate, weekday, localHm } from '../../finance/dates';
 import { weekKeyOf } from '../../health/energy';
 import { routinesBetween } from './availability';
 import { moveSuggestion, planWeek, stillFits } from '../../health/planner';
@@ -61,7 +61,7 @@ import {
 } from '../../health/programs';
 import { nextAim, nextLevels, nextRunWeek, nextStrengthWeek } from '../../health/progress';
 import { blocksOn, freeSlots, timeOf } from '../../schedule/availability';
-import { atManilaTime } from '../../schedule/recurrence';
+import { atLocalTime } from '../../schedule/recurrence';
 import { plannedWorkout, program, workoutSession, workoutSet } from '../db/schema';
 import {
 	programKeyInput,
@@ -180,7 +180,7 @@ export async function startProgram(ctx: Ctx, raw: ProgramKeyInput) {
 			const alsoRunning = all.map((p) => programView(p).name);
 			const [row] = await tx
 				.insert(program)
-				.values({ userId, templateKey, startedOn: toManilaDate(new Date()) })
+				.values({ userId, templateKey, startedOn: toLocalDate(new Date()) })
 				.returning();
 			if (!row) throw new OpsError('INVALID', 'The program could not be started.');
 			return {
@@ -271,7 +271,7 @@ export async function proposeWeek(ctx: Ctx, raw: WeekProposeInput) {
 	const input = parse(weekProposeInput, raw);
 	return mapped(() =>
 		runWrite(ctx, 'workout.week_propose', input, async (tx, userId) => {
-			const today = toManilaDate(new Date());
+			const today = toLocalDate(new Date());
 			const thisMonday = mondayOf(today);
 			const monday = input.monday ? mondayOf(input.monday) : addDays(thisMonday, 7);
 			if (monday < thisMonday || monday > addDays(thisMonday, WEEKS_AHEAD_MAX * 7))
@@ -513,7 +513,7 @@ export async function startWorkout(ctx: Ctx, raw: WorkoutStartInput) {
 						isNull(workoutSession.finishedAt)
 					)
 				);
-			const today = toManilaDate(new Date());
+			const today = toLocalDate(new Date());
 			if (running && running.day >= today) return sessionView(tx, userId, running);
 			if (running) await closeForgotten(tx, userId, running);
 			const planned = input.plannedId ? await plannedById(tx, userId, input.plannedId) : null;
@@ -533,7 +533,7 @@ export async function startWorkout(ctx: Ctx, raw: WorkoutStartInput) {
 					userId,
 					plannedId: planned?.id ?? null,
 					programId: p?.id ?? null,
-					day: toManilaDate(now),
+					day: toLocalDate(now),
 					kind,
 					title: workoutTitle(sessionKey, kind),
 					startedAt: now,
@@ -730,7 +730,7 @@ export async function logWorkout(ctx: Ctx, raw: WorkoutLogInput) {
 	return mapped(() =>
 		runWrite(ctx, 'workout.log', input, async (tx, userId) => {
 			const now = new Date();
-			const day = input.day ?? toManilaDate(now);
+			const day = input.day ?? toLocalDate(now);
 			const plannedId = await closePlanned(tx, userId, null, day, input.kind);
 			const templateKey = PROGRAM_OF_KIND[input.kind];
 			const counted = (await activePrograms(tx, userId)).find((p) => p.templateKey === templateKey);
@@ -820,7 +820,7 @@ export async function moveWorkout(ctx: Ctx, raw: WorkoutMoveInput) {
 			if (p.status !== 'planned')
 				throw new OpsError('CONFLICT', 'That workout is already done or skipped.');
 			const day = input.day ?? p.day;
-			const at = atManilaTime(day, input.time);
+			const at = atLocalTime(day, input.time);
 			const availability = await readAvailability(tx, userId, day, day);
 			const slots = freeSlots(day, day, availability, SLOT_MIN_MINUTES);
 			if (!stillFits(slots, day, at, p.minutes)) {
@@ -916,11 +916,7 @@ export async function readTrain(tx: Tx, userId: string, today: string) {
 	const view = (p: typeof plannedWorkout.$inferSelect) => ({
 		id: p.id,
 		day: p.day,
-		time: new Intl.DateTimeFormat('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit',
-			timeZone: 'Asia/Manila'
-		}).format(p.startsAt),
+		time: localHm(p.startsAt),
 		startsAt: p.startsAt.toISOString(),
 		minutes: p.minutes,
 		kind: p.kind,
@@ -973,15 +969,11 @@ export async function readTrain(tx: Tx, userId: string, today: string) {
 	const routineView = (r: (typeof routineRows)[number]) => ({
 		id: r.id,
 		title: r.title,
-		day: toManilaDate(r.at),
-		time: new Intl.DateTimeFormat('en-GB', {
-			hour: '2-digit',
-			minute: '2-digit',
-			timeZone: 'Asia/Manila'
-		}).format(r.at)
+		day: toLocalDate(r.at),
+		time: localHm(r.at)
 	});
 	const todayRoutines = routineRows
-		.filter((r) => toManilaDate(r.at) === today)
+		.filter((r) => toLocalDate(r.at) === today)
 		.sort((a, b) => a.at.getTime() - b.at.getTime())
 		.map(routineView);
 	// What each running program still asks of this week: its sessions minus the ones already placed or finished
@@ -1017,7 +1009,7 @@ export async function readTrain(tx: Tx, userId: string, today: string) {
 		today,
 		days: days.map((d) => ({
 			...d,
-			routineDay: routineRows.some((r) => toManilaDate(r.at) === d.day)
+			routineDay: routineRows.some((r) => toLocalDate(r.at) === d.day)
 		})),
 		todayState,
 		todayDone,
@@ -1047,7 +1039,7 @@ export async function readTrain(tx: Tx, userId: string, today: string) {
 }
 
 export async function getTrain(ctx: Ctx) {
-	return run(ctx, (tx, userId) => readTrain(tx, userId, toManilaDate(new Date())));
+	return run(ctx, (tx, userId) => readTrain(tx, userId, toLocalDate(new Date())));
 }
 
 /**
