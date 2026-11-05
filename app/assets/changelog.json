@@ -552,5 +552,15 @@
       "Mga ehersisyo sa bahay na walang kailangang gamit at programang lakad-hanggang-takbo, ayon sa oras ng trabaho at libreng oras mo.",
       "Magagawa mo ang lahat ng ito sa pagsabi kay Botler sa chat."
     ]
+  },
+  {
+    "versionCode": 51,
+    "versionName": "1.5.1",
+    "en": [
+      "The Enter key in the chat box now starts a new line, so you can indent and space your text. Use the arrow button to send."
+    ],
+    "fil": [
+      "Ang Enter key sa chat box ay magsisimula na ng bagong linya, kaya maaari ka nang mag-indent at maglagay ng espasyo. Gamitin ang arrow button para magpadala."
+    ]
   }
 ]

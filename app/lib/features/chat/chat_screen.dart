@@ -1135,8 +1135,9 @@ class _Composer extends StatelessWidget {
                   minLines: 1,
                   maxLines: 5,
                   textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
+                  // Enter adds a new line; the send button is the only way to send
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
                   // A picture offered by the keyboard goes the same way as a pasted one
                   contentInsertionConfiguration: ContentInsertionConfiguration(
                     allowedMimeTypes: pastableMimeTypes,
