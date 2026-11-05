@@ -11,6 +11,23 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The verbs of the server registry that change something (classes free, gated and person) plus the app-only ones.
 const Set<String> writeVerbs = <String>{
+  'weight_log',
+  'weight_delete',
+  'proposal_answer',
+  'program_start',
+  'program_stop',
+  'workout_log',
+  'workout_start',
+  'workout_set_log',
+  'workout_swap',
+  'workout_finish',
+  'workout_delete',
+  'week_propose',
+  'workout_move',
+  'workout_skip',
+  'sleep_log',
+  'sleep_edit',
+  'sleep_delete',
   'task_create',
   'task_update',
   'event_create',

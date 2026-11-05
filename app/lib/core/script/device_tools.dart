@@ -3,6 +3,8 @@
 // Every call ends with exactly one answer, even when it failed, so the server never waits for the full 45 seconds on a refusal.
 
 // -- DEP-MODULES -- //
+import 'package:flutter/foundation.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -35,6 +37,22 @@ typedef DeviceSender = Future<void> Function(
   bool ok,
   Json result,
 );
+
+/// The screens the assistant may open, and the path of each. Set by a call, read by the app's router.
+const Map<String, String> healthPaths = <String, String>{
+  'health': '/health',
+  'today': '/health/today',
+  'weight': '/health/weight',
+  'train': '/health/train',
+  'sleep': '/health/sleep',
+  'week': '/health/week',
+  'meal': '/health/camera?mode=meal',
+  'barcode': '/health/camera?mode=barcode',
+  'label': '/health/camera?mode=label',
+};
+
+/// The path the assistant last asked to open. The app listens and goes there.
+final ValueNotifier<String?> healthOpenSignal = ValueNotifier<String?>(null);
 
 class DeviceToolRunner {
   DeviceToolRunner({
@@ -91,6 +109,16 @@ class DeviceToolRunner {
           await _script(callId, args, chatId, photos, tainted);
         case 'toolbox':
           await _toolbox(callId, args);
+        case 'health_open':
+          final path = healthPaths[str(args['screen'])];
+          if (path == null) {
+            await _answer(callId, false, <String, Object?>{
+              'error': 'There is no such screen.',
+            });
+          } else {
+            healthOpenSignal.value = path;
+            await _answer(callId, true, <String, Object?>{'opened': true});
+          }
         default:
           await _answer(callId, false, <String, Object?>{
             'error': 'The phone does not know the tool "$tool".',

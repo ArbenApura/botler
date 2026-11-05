@@ -7,6 +7,7 @@ import type { Plain } from './shared';
 import type { Ctx } from './context';
 import type { Schedule } from '../../finance/schedule';
 import type { DbHandle, Tx } from '../db/client';
+import type { MealLogInput } from '../db/zod';
 // -- DEP-MODULES -- //
 import { and, desc, eq, gt, inArray, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
@@ -24,6 +25,7 @@ import {
 } from '../db/schema';
 import { lockPerson, setAuditContext, withUser } from '../db/tenant';
 import { auditOf, OpsError, run } from './context';
+import { mealCardSummary } from './food';
 import { balanceFor } from './ledger';
 import { redactText } from './notebook';
 import { readSettings } from './settings';
@@ -44,6 +46,8 @@ const CARD_LIFETIME_MS = 24 * 3_600_000;
 /** Verbs that ask the person to confirm an amount: an approved card is that confirmation. */
 /** The cards whose approval carries a picture the phone made (imageData). */
 const PICTURE_VERBS: ReadonlySet<string> = new Set(['mark_from_photo', 'mark_from_web']);
+/** The cards whose approval may carry what the person corrected. Only a meal: the verb checks it again and works out every number itself. */
+const EDITABLE_VERBS: ReadonlySet<string> = new Set(['meal_log']);
 const CONFIRMING_VERBS = new Set(['expense_log', 'expense_from_text', 'snapshot_record']);
 
 // -- FUNCTIONS -- //
@@ -366,7 +370,11 @@ export async function createAction(
 					: null
 		};
 	});
-	const summary = describeAction(v.name, args, names, currency, current);
+	// A meal card names every food with its worked-out calories, so a bad food id is refused here, before the person sees it
+	const summary =
+		v.name === 'meal_log'
+			? await mealCardSummary(ctx, args as MealLogInput)
+			: describeAction(v.name, args, names, currency, current);
 	return mapped(async () => {
 		const row = await run(ctx, async (tx, userId) => {
 			if (opts.key && opts.turnId) {
@@ -469,6 +477,8 @@ export async function decideAction(
 		decision: 'approve' | 'reject';
 		/** The picture the phone made for a mark_from_photo card, as base64. It is used once, in memory, and never stored on the card. */
 		imageData?: string;
+		/** What the person corrected on a meal card. The verb checks it again and works out every number. */
+		editedArgs?: unknown;
 	}
 ): Promise<ActionView> {
 	requirePerson(ctx.actor.kind, 'answer an approval card');
@@ -505,6 +515,8 @@ export async function decideAction(
 		// A picture comes only with a card that asks for one: it is never carried by another card
 		if (opts.imageData !== undefined && !PICTURE_VERBS.has(card.verb))
 			throw new OpsError('INVALID', 'This card does not take a picture.');
+		if (opts.editedArgs !== undefined && !EDITABLE_VERBS.has(card.verb))
+			throw new OpsError('INVALID', 'This card cannot be edited.');
 		let patch: Partial<typeof agentAction.$inferInsert>;
 		try {
 			// Approving is the yes the verb asks for. A balance count ten times off asks again: it needs the second approval
@@ -524,7 +536,9 @@ export async function decideAction(
 					}
 				: PICTURE_VERBS.has(card.verb) && opts.imageData !== undefined
 					? { ...(card.args as Args), imageData: opts.imageData }
-					: card.args;
+					: opts.editedArgs !== undefined
+						? opts.editedArgs
+						: card.args;
 			// The assistant asked, the person approved: the audit trail says both
 			const result = await invokeVerb(
 				{

@@ -18,6 +18,8 @@ import {
 	account,
 	accountWallet,
 	allocationRule,
+	availabilityOverride,
+	availabilitySetting,
 	balanceSnapshot,
 	bill,
 	billOverride,
@@ -26,7 +28,14 @@ import {
 	calendarEvent,
 	chat,
 	chatTurn,
+	dayStatus,
+	energyEstimate,
+	foodEntry,
+	foodItem,
 	goal,
+	healthGoal,
+	healthProfile,
+	healthProposal,
 	incomeSchedule,
 	job,
 	ledgerTxn,
@@ -37,11 +46,18 @@ import {
 	notebookPage,
 	notebookPageRevision,
 	notebookRevision,
+	plannedWorkout,
+	program,
 	reminder,
 	routine,
+	sleepEntry,
 	splitPlan,
 	task,
-	userSetting
+	userSetting,
+	weeklyBlock,
+	weightEntry,
+	workoutSession,
+	workoutSet
 } from '../db/schema';
 import {
 	memoryEditInput,
@@ -493,6 +509,29 @@ export async function exportAll(ctx: Ctx) {
 				pictures: await tx.select().from(picture).where(mine(picture))
 			},
 			settings: await tx.select().from(userSetting).where(mine(userSetting)),
+			health: {
+				profile: await tx.select().from(healthProfile).where(mine(healthProfile)),
+				goal: await tx.select().from(healthGoal).where(mine(healthGoal)),
+				savedFoods: await tx.select().from(foodItem).where(mine(foodItem)),
+				foodEntries: await tx
+					.select()
+					.from(foodEntry)
+					.where(mine(foodEntry))
+					.orderBy(foodEntry.day),
+				days: await tx.select().from(dayStatus).where(mine(dayStatus)).orderBy(dayStatus.day),
+				weights: await tx
+					.select()
+					.from(weightEntry)
+					.where(mine(weightEntry))
+					.orderBy(weightEntry.day),
+				estimates: await tx.select().from(energyEstimate).where(mine(energyEstimate)),
+				proposals: await tx.select().from(healthProposal).where(mine(healthProposal)),
+				programs: await tx.select().from(program).where(mine(program)),
+				plannedWorkouts: await tx.select().from(plannedWorkout).where(mine(plannedWorkout)),
+				workoutSessions: await tx.select().from(workoutSession).where(mine(workoutSession)),
+				workoutSets: await tx.select().from(workoutSet).where(mine(workoutSet)),
+				sleep: await tx.select().from(sleepEntry).where(mine(sleepEntry)).orderBy(sleepEntry.day)
+			},
 			schedule: {
 				tasks: await tx.select().from(task).where(mine(task)).orderBy(task.createdAt),
 				events: await tx
@@ -501,7 +540,20 @@ export async function exportAll(ctx: Ctx) {
 					.where(mine(calendarEvent))
 					.orderBy(calendarEvent.startsAt),
 				routines: await tx.select().from(routine).where(mine(routine)).orderBy(routine.createdAt),
-				reminders: await tx.select().from(reminder).where(mine(reminder)).orderBy(reminder.remindAt)
+				reminders: await tx
+					.select()
+					.from(reminder)
+					.where(mine(reminder))
+					.orderBy(reminder.remindAt),
+				weeklyBlocks: await tx.select().from(weeklyBlock).where(mine(weeklyBlock)),
+				availabilityOverrides: await tx
+					.select()
+					.from(availabilityOverride)
+					.where(mine(availabilityOverride)),
+				availabilitySettings: await tx
+					.select()
+					.from(availabilitySetting)
+					.where(mine(availabilitySetting))
 			}
 		};
 		return plain(out);

@@ -43,6 +43,8 @@
   "@calCountEvents": { "placeholders": { "count": { "type": "int" } } },
   "calCountRoutines": "{count, plural, =1{1 routine} other{{count} routines}}",
   "@calCountRoutines": { "placeholders": { "count": { "type": "int" } } },
+  "calCountWorkouts": "{count, plural, =1{1 workout} other{{count} workouts}}",
+  "@calCountWorkouts": { "placeholders": { "count": { "type": "int" } } },
   "calCountTasks": "{count, plural, =1{1 task} other{{count} tasks}}",
   "@calCountTasks": { "placeholders": { "count": { "type": "int" } } },
   "calCountReminders": "{count, plural, =1{1 reminder} other{{count} reminders}}",

@@ -139,5 +139,8 @@
   "fileSaveFailed": "Hindi mabuksan ang share sheet.",
   "fileGone": "Wala na ang file na ito sa phone.",
   "filePicture": "Larawan {name}",
-  "fileOpen": "{name}, {size}. I-tap para i-save o i-share."
+  "fileOpen": "{name}, {size}. I-tap para i-save o i-share.",
+  "chatScriptFailed": "Hindi natapos ang script",
+  "chatOutputShowAll": "Ipakita lahat",
+  "chatOutputShowLess": "Ipakita nang kaunti"
 }

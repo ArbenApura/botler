@@ -145,5 +145,9 @@
   "purposeCustomHint": "hal. Pang-eskuwela",
   "purposeInvalid": "Hanggang 24 na titik at walang mahabang numero.",
   "purposeSaved": "Na-save ang label.",
-  "purposeSemantic": "Layunin: {purpose}"
+  "purposeSemantic": "Layunin: {purpose}",
+  "billsViewWeek": "Linggo",
+  "billsViewMonth": "Buwan",
+  "billsThisWeek": "Ngayong linggo",
+  "billsThisMonth": "Ngayong buwan"
 }

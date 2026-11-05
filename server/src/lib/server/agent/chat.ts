@@ -84,6 +84,8 @@ export const chatInput = z.strictObject({
 		.optional(),
 	/** Pictures of the photos. Used only when the person chose the picture and their host reads pictures; otherwise dropped, never kept. Untrusted. */
 	images: imagesInput.optional(),
+	/** The food camera sent this: a meal photo needs the model to see the picture, so it is refused at once when it cannot. */
+	foodCamera: z.enum(['meal', 'label']).optional(),
 	/** The app can run the tools that run on the phone (scripts, the toolbox) and answer them at the device-result route. */
 	scripts: z.boolean().optional()
 });
@@ -282,6 +284,17 @@ export async function* handleChat(
 	const input = parse(chatInput, raw);
 	// A picture that is not one is refused before the message is claimed, so the person can send it again without that picture
 	const pictures = readImages(input.images);
+	// A meal photo with no way to reach the model would only bring a guess: said before anything is claimed or any model is called. A failed settings read counts as no
+	if (input.foodCamera === 'meal') {
+		const canSee = await getSettings(ctx)
+			.then((s) => s.photoMode === 'image' && s.photoVision)
+			.catch(() => false);
+		if (!canSee || pictures.length === 0)
+			throw new OpsError(
+				'INVALID',
+				'The food camera needs the AI to see your photo, and your settings send only the text in it. You can change this in Settings, or scan a barcode or label.'
+			);
+	}
 	const claimed = await claim(ctx, input, deps.staleMs ?? STALE_RUNNING_MS);
 	// The message is accepted: the screen starts showing that the assistant is working before memory, history or the model are touched
 	const where =

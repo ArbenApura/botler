@@ -15,7 +15,7 @@ import '../../state/providers.dart';
 
 // -- TYPES -- //
 
-enum CalLayer { bills, paydays, events, routines, tasks, reminders }
+enum CalLayer { bills, paydays, events, routines, tasks, reminders, workouts }
 
 /// One dated thing. The fields that do not apply to its [kind] stay at their defaults.
 class CalItem {
@@ -72,6 +72,7 @@ class CalItem {
     'event' => CalLayer.events,
     'routine' => CalLayer.routines,
     'task' => CalLayer.tasks,
+    'workout' => CalLayer.workouts,
     _ => CalLayer.reminders,
   };
 }

@@ -13,6 +13,7 @@ import {
 	dataResetBillOverrideSql,
 	dataResetChatsSql,
 	dataResetLatestSql,
+	dataResetMarksSql,
 	dataResetMigrationSql,
 	dataResetNotebookSql,
 	dataResetPagesSql,
@@ -211,11 +212,29 @@ describe('the pictures copy of the function', () => {
 			join(__dirname, '../../src/lib/server/db/migrations/0041_marks.sql'),
 			'utf8'
 		).replaceAll('\r\n', '\n');
-		expect(file).toContain(dataResetLatestSql());
+		// 0041 holds the function as it was then, before work hours and Health
+		expect(file).toContain(dataResetMarksSql());
 		const money = SCOPE_TABLES.money;
 		expect(money.indexOf('picture')).toBeGreaterThan(money.indexOf('account'));
 		expect(money.indexOf('picture')).toBeGreaterThan(money.indexOf('bill'));
 		expect(EVERYTHING_TABLES).toContain('picture');
+	});
+});
+
+describe('the Health copy of the function', () => {
+	it('is installed by migration 0045, erases children before parents, and adds work hours to the schedule', () => {
+		const file = readFileSync(
+			join(__dirname, '../../src/lib/server/db/migrations/0045_health.sql'),
+			'utf8'
+		).replaceAll('\r\n', '\n');
+		expect(file).toContain(dataResetLatestSql());
+		expect(dataResetMarksSql()).not.toContain('weekly_block');
+		const health = SCOPE_TABLES.health;
+		expect(health.indexOf('workout_set')).toBeLessThan(health.indexOf('workout_session'));
+		expect(health.indexOf('workout_session')).toBeLessThan(health.indexOf('planned_workout'));
+		expect(health.indexOf('planned_workout')).toBeLessThan(health.indexOf('program'));
+		expect(health.indexOf('food_entry')).toBeLessThan(health.indexOf('food_item'));
+		expect(SCOPE_TABLES.schedule).toContain('weekly_block');
 	});
 });
 

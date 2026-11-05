@@ -622,6 +622,8 @@ class _RemindersTabState extends ConsumerState<_RemindersTab> {
                   leading: RowBadge(switch (str(r['kind'])) {
                     'alarm' => Icons.alarm,
                     'timer' => Icons.timer_outlined,
+                    'workout' => Icons.directions_walk,
+                    'winddown' => Icons.bedtime_outlined,
                     _ => Icons.notifications_none,
                   }),
                   subtitle: _stamp(context, _moment(r['remindAt'])),

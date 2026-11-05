@@ -14,6 +14,42 @@ import type { z } from 'zod';
 import type { Ctx } from './context';
 // -- MODULES -- //
 import {
+	healthDayInput,
+	healthMoneyInput,
+	programKeyInput,
+	sleepDeleteInput,
+	sleepEditInput,
+	sleepLogInput,
+	sleepSummaryInput,
+	weekProposeInput,
+	workoutDeleteInput,
+	workoutFinishInput,
+	workoutLastInput,
+	workoutLogInput,
+	workoutMoveInput,
+	workoutSetLogInput,
+	workoutSkipInput,
+	workoutStartInput,
+	workoutSwapInput,
+	proposalAnswerInput,
+	weightDeleteInput,
+	weightLogInput,
+	weightTrendInput,
+	barcodeLookupInput,
+	dayMarkInput,
+	foodArchiveInput,
+	foodDayInput,
+	foodDeleteInput,
+	foodEditInput,
+	foodSaveInput,
+	foodSearchInput,
+	mealLogInput,
+	availabilityOverrideSetInput,
+	availabilitySetInput,
+	availabilitySettingSetInput,
+	freeSlotsInput,
+	healthGoalSetInput,
+	healthProfileSaveInput,
 	accountCreateInput,
 	accountDeleteInput,
 	accountIdInput,
@@ -202,6 +238,53 @@ import {
 	setProfile,
 	wipeMemory
 } from './memory';
+import { getHealth, previewHealthGoal, saveHealthProfile, setHealthGoal } from './health';
+import { healthDay, healthHome, healthMoney } from './healthHome';
+import { deleteSleep, editSleep, getSleepSummary, logSleep } from './sleep';
+import {
+	deleteWorkout,
+	finishWorkout,
+	getTrain,
+	lastWorkouts,
+	listPrograms,
+	logSet,
+	logWorkout,
+	moveWorkout,
+	proposeWeek,
+	skipWorkout,
+	startProgram,
+	startWorkout,
+	stopProgram,
+	swapExercise
+} from './workouts';
+import {
+	answerProposal,
+	deleteWeight,
+	getForecast,
+	getWeightTrend,
+	listProposals,
+	logWeight
+} from './weight';
+import {
+	barcodeLookup,
+	previewMeal,
+	archiveFood,
+	deleteFood,
+	editFood,
+	getFoodDay,
+	listSavedFoods,
+	logMeal,
+	markDay,
+	saveFood,
+	searchFoods
+} from './food';
+import {
+	getAvailability,
+	listFreeSlots,
+	setAvailability,
+	setAvailabilityOverride,
+	setAvailabilitySetting
+} from './availability';
 import {
 	createAlarm,
 	createEvent,
@@ -1420,6 +1503,380 @@ export const VERBS: readonly Verb[] = [
 		description: 'Mark a page as looked at up to a version. Only the seen mark moves.',
 		input: pageSeenInput,
 		run: (ctx, a) => pageSeen(ctx, a)
+	}),
+	// -- HEALTH -- //
+	// Everything the person can do in Health the assistant can do too (ADR 10). The limits are in the verbs, so they hold for it as well
+	verb({
+		name: 'health_get',
+		kind: 'read',
+		description:
+			'The Health setup, the goal, the calorie and protein targets, the estimated burn and what setup still misses. Grams, millimetres and whole kcal.',
+		input: emptyInput,
+		run: (ctx) => getHealth(ctx)
+	}),
+	verb({
+		name: 'health_home',
+		kind: 'read',
+		description:
+			'One short line for each part of Health today: food left, weight trend, the next workout, last night, free time and any open check-in.',
+		input: emptyInput,
+		run: (ctx) => healthHome(ctx)
+	}),
+	verb({
+		name: 'health_goal_preview',
+		kind: 'read',
+		description:
+			'What a goal would mean, without saving it: the calorie target, the grams a week and about when the goal weight is reached, or the limit it breaks.',
+		input: healthGoalSetInput,
+		run: (ctx, a) => previewHealthGoal(ctx, a)
+	}),
+	verb({
+		name: 'health_profile_save',
+		kind: 'free',
+		description:
+			'Save Health setup facts the person gave: heightMm, birthYear, sex (female, male or skip), activity (sitting, some_walking, on_feet, very_active), weightG (today). Only what they said; setupDone true once they are done.',
+		input: healthProfileSaveInput,
+		run: (ctx, a) => saveHealthProfile(ctx, a)
+	}),
+	verb({
+		name: 'health_goal_set',
+		kind: 'free',
+		description:
+			'Set the goal: kind lose, maintain, gain or track, goalWeightG, paceBp (basis points of body weight a week: 50 is 0.5%, the default; 100 is the fastest for losing, 50 for gaining), proteinTenths (14 to 20, tenths of a gram per kg) and an optional targetKcal. It refuses a goal or target outside the safety limits, and the answer says the lowest allowed: tell the person and do not look for a way around it.',
+		input: healthGoalSetInput,
+		run: (ctx, a) => setHealthGoal(ctx, a)
+	}),
+	// -- FOOD -- //
+	verb({
+		name: 'food_search',
+		kind: 'read',
+		description:
+			'Find foods by name, all at once: the saved foods first, then the Filipino list (rough estimates), then USDA data. Each hit has an id for meal_log, calories per 100 g and household amounts.',
+		input: foodSearchInput,
+		run: (ctx, a) => searchFoods(ctx, a)
+	}),
+	verb({
+		name: 'food_day',
+		kind: 'read',
+		description:
+			'The food of a day (today when no day): entries, totals, nutrients with how many foods did not know each, the target and what is left.',
+		input: foodDayInput,
+		run: (ctx, a) => getFoodDay(ctx, a)
+	}),
+	verb({
+		name: 'meal_log',
+		kind: 'free',
+		description:
+			'Log a meal in one call. Each item is a foodId from food_search this message with grams (lowGrams and highGrams when unsure) or a portion and count; or estimate {name, proteinG, carbsG, fatG} when nothing fits; or rough {name, kcal} for "big party, about 3000"; or manual {name, kcal} for numbers the person gave. day defaults to today: last night is yesterday. The server works out the numbers.',
+		input: mealLogInput,
+		run: (ctx, a) => logMeal(ctx, a)
+	}),
+	verb({
+		name: 'meal_preview',
+		kind: 'read',
+		agent: false,
+		description: 'What a meal would log, every number, writing nothing. For the review screen.',
+		input: mealLogInput,
+		run: (ctx, a) => previewMeal(ctx, a)
+	}),
+	verb({
+		name: 'barcode_lookup',
+		kind: 'read',
+		taints: true,
+		description:
+			'Look up a barcode the person typed or scanned. Product names come from other people, so writes after this become cards. The id goes in meal_log. Not found: ask them to photograph the label.',
+		input: barcodeLookupInput,
+		run: (ctx, a) => barcodeLookup(ctx, a)
+	}),
+	verb({
+		name: 'food_edit',
+		kind: 'free',
+		description:
+			'Change a food entry from food_day: grams (its numbers follow), name, meal or day; kcal only on a manual or rough entry.',
+		input: foodEditInput,
+		run: (ctx, a) => editFood(ctx, a)
+	}),
+	verb({
+		name: 'food_delete',
+		kind: 'free',
+		description: 'Remove a food entry. The answer holds what was removed.',
+		input: foodDeleteInput,
+		run: (ctx, a) => deleteFood(ctx, a)
+	}),
+	verb({
+		name: 'food_day_mark',
+		kind: 'free',
+		description:
+			'Say a day is complete or not, only when the person says all their food is logged. Only complete days feed the burn estimate.',
+		input: dayMarkInput,
+		run: (ctx, a) => markDay(ctx, a)
+	}),
+	verb({
+		name: 'food_save',
+		kind: 'free',
+		description:
+			'Save a food the person eats often, per 100 g in kcal and milligrams, with servingG. It comes first in food_search.',
+		input: foodSaveInput,
+		run: (ctx, a) => saveFood(ctx, a)
+	}),
+	verb({
+		name: 'food_saved_list',
+		kind: 'read',
+		description: 'The saved foods.',
+		input: emptyInput,
+		run: (ctx) => listSavedFoods(ctx)
+	}),
+	verb({
+		name: 'food_archive',
+		kind: 'free',
+		description: 'Hide a saved food. Old entries keep their numbers.',
+		input: foodArchiveInput,
+		run: (ctx, a) => archiveFood(ctx, a)
+	}),
+	// -- WEIGHT AND THE CHECK-IN -- //
+	verb({
+		name: 'weight_log',
+		kind: 'free',
+		description:
+			'Log a weigh-in in grams (73.2 kg is 73200), today unless a day is given. A second one that day replaces it.',
+		input: weightLogInput,
+		run: (ctx, a) => logWeight(ctx, a)
+	}),
+	verb({
+		name: 'weight_delete',
+		kind: 'free',
+		description: 'Remove the weigh-in of a day. The answer holds what was removed.',
+		input: weightDeleteInput,
+		run: (ctx, a) => deleteWeight(ctx, a)
+	}),
+	verb({
+		name: 'weight_trend',
+		kind: 'read',
+		description:
+			'The smoothed weight line, the change, about when the goal is reached (null with a reason when the trend is flat or moving away: say so, give no date) and lowIntake. Talk about the trend, not one morning.',
+		input: weightTrendInput,
+		run: (ctx, a) => getWeightTrend(ctx, a)
+	}),
+	verb({
+		name: 'proposals_list',
+		kind: 'read',
+		description:
+			'The open check-ins Botler worked out: a new calorie target or a planned week. They change nothing until answered.',
+		input: emptyInput,
+		run: (ctx) => listProposals(ctx)
+	}),
+	verb({
+		name: 'proposal_answer',
+		kind: 'free',
+		description:
+			'Answer a check-in, only when the person said yes or no in this message. accept true needs value, the kcal shown on a target. Never decide it yourself.',
+		input: proposalAnswerInput,
+		run: (ctx, a) => answerProposal(ctx, a)
+	}),
+	verb({
+		name: 'health_forecast',
+		kind: 'read',
+		description:
+			'About when the goal weight is reached at the pace of the last weeks. Quote it and never work it out yourself. reachOn is null with a reason when the trend is flat or moving away: then give no date.',
+		input: emptyInput,
+		run: (ctx) => getForecast(ctx)
+	}),
+	// -- WORKOUTS -- //
+	verb({
+		name: 'train_get',
+		kind: 'read',
+		description:
+			"This week's workouts: today's session, the seven days, minutes against 150, strength days against 2, the programs, recent sessions, and planned ones that now need a move with a suggested time.",
+		input: emptyInput,
+		run: (ctx) => getTrain(ctx)
+	}),
+	verb({
+		name: 'programs_list',
+		kind: 'read',
+		description:
+			'The programs that exist (all with no equipment), the ones running, and the short readiness questions to ask before one starts.',
+		input: emptyInput,
+		run: (ctx) => listPrograms(ctx)
+	}),
+	verb({
+		name: 'program_start',
+		kind: 'free',
+		description:
+			'Start a program by its template key, after asking the readiness questions. You cannot write your own program or sessions.',
+		input: programKeyInput,
+		run: (ctx, a) => startProgram(ctx, a)
+	}),
+	verb({
+		name: 'program_stop',
+		kind: 'free',
+		description: 'Stop a program by its template key. What was done stays.',
+		input: programKeyInput,
+		run: (ctx, a) => stopProgram(ctx, a)
+	}),
+	verb({
+		name: 'workout_log',
+		kind: 'free',
+		description:
+			'Log a workout that already happened, such as a walk. Today unless a day is given. Exercise is never added to the food budget.',
+		input: workoutLogInput,
+		run: (ctx, a) => logWorkout(ctx, a)
+	}),
+	verb({
+		name: 'workout_start',
+		kind: 'free',
+		description:
+			'Start a workout from a planned one or a program, or answer the one already running. The sets come from the program.',
+		input: workoutStartInput,
+		run: (ctx, a) => startWorkout(ctx, a)
+	}),
+	verb({
+		name: 'workout_set_log',
+		kind: 'free',
+		description:
+			'Log one set of the running workout, reps or seconds. A set the program did not place is refused.',
+		input: workoutSetLogInput,
+		run: (ctx, a) => logSet(ctx, a)
+	}),
+	verb({
+		name: 'workout_swap',
+		kind: 'free',
+		description:
+			'Make a movement one version easier or harder, for the sets left and the next sessions. Offer easier when something hurts.',
+		input: workoutSwapInput,
+		run: (ctx, a) => swapExercise(ctx, a)
+	}),
+	verb({
+		name: 'workout_finish',
+		kind: 'free',
+		description: 'Finish the running workout. The answer names any exercise that moved up.',
+		input: workoutFinishInput,
+		run: (ctx, a) => finishWorkout(ctx, a)
+	}),
+	verb({
+		name: 'workout_last',
+		kind: 'read',
+		description: 'The latest finished workouts, newest first.',
+		input: workoutLastInput,
+		run: (ctx, a) => lastWorkouts(ctx, a)
+	}),
+	verb({
+		name: 'workout_delete',
+		kind: 'free',
+		description: 'Remove a workout from the log. The answer holds what was removed.',
+		input: workoutDeleteInput,
+		run: (ctx, a) => deleteWorkout(ctx, a)
+	}),
+	verb({
+		name: 'week_propose',
+		kind: 'free',
+		description:
+			'Work out a week of workouts around work, free time and the calendar. Next week unless a Monday is given. It writes no session: show it and call proposal_answer only when the person says yes.',
+		input: weekProposeInput,
+		run: (ctx, a) => proposeWeek(ctx, a)
+	}),
+	verb({
+		name: 'workout_move',
+		kind: 'free',
+		description:
+			'Move a planned workout to a free time (24 hour clock). A time that is not free is refused with one that fits.',
+		input: workoutMoveInput,
+		run: (ctx, a) => moveWorkout(ctx, a)
+	}),
+	verb({
+		name: 'workout_skip',
+		kind: 'free',
+		description: 'Let a planned workout go. No guilt about it.',
+		input: workoutSkipInput,
+		run: (ctx, a) => skipWorkout(ctx, a)
+	}),
+	// -- SLEEP -- //
+	verb({
+		name: 'sleep_log',
+		kind: 'free',
+		description:
+			'Log a sleep: "slept 11 to 6" is from 23:00 to 06:00 on the day they woke, today unless given. Under 3 hours counts as a nap.',
+		input: sleepLogInput,
+		run: (ctx, a) => logSleep(ctx, a)
+	}),
+	verb({
+		name: 'sleep_edit',
+		kind: 'free',
+		description: 'Change a sleep. Anything left out stays.',
+		input: sleepEditInput,
+		run: (ctx, a) => editSleep(ctx, a)
+	}),
+	verb({
+		name: 'sleep_delete',
+		kind: 'free',
+		description: 'Remove a sleep. The answer holds what was removed.',
+		input: sleepDeleteInput,
+		run: (ctx, a) => deleteSleep(ctx, a)
+	}),
+	verb({
+		name: 'sleep_summary',
+		kind: 'read',
+		description:
+			'Hours and how regular the bedtimes were, with no scores or stages, and a pattern only after 14 nights. A pattern is something to notice, never a cause: say so.',
+		input: sleepSummaryInput,
+		run: (ctx, a) => getSleepSummary(ctx, a)
+	}),
+	// -- HEALTH BESIDE MONEY AND THE CALENDAR -- //
+	verb({
+		name: 'health_day',
+		kind: 'read',
+		description:
+			'One day across Health and the calendar: calories left, the workout, events and free time. Use it for advice such as a dinner out or a workout that has to move.',
+		input: healthDayInput,
+		run: (ctx, a) => healthDay(ctx, a)
+	}),
+	verb({
+		name: 'health_money',
+		kind: 'read',
+		description:
+			'Calories and spending side by side, one line a day, at most 62 days. Spending is in the main currency in minor units. For any total or average use calc and quote its number.',
+		input: healthMoneyInput,
+		run: (ctx, a) => healthMoney(ctx, a)
+	}),
+	// -- WORK HOURS AND FREE TIME -- //
+	verb({
+		name: 'availability_get',
+		kind: 'read',
+		description:
+			'The week: work, busy and free times per weekday (0 Sunday to 6 Saturday, 24 hour clock), one-day changes to come, awake hours, travel time.',
+		input: emptyInput,
+		run: (ctx) => getAvailability(ctx)
+	}),
+	verb({
+		name: 'availability_set',
+		kind: 'free',
+		description:
+			'Set the usual week: each entry names weekdays and their blocks (start, end, kind work, busy or free). It replaces those weekdays; an empty blocks list clears them. An end before its start runs past midnight. For one date use availability_override_set.',
+		input: availabilitySetInput,
+		run: (ctx, a) => setAvailability(ctx, a)
+	}),
+	verb({
+		name: 'availability_override_set',
+		kind: 'free',
+		description:
+			'Change one date only: its own blocks ("I work this Saturday, 9 to 3"), off true ("no work Thursday"), or clear true to put it back.',
+		input: availabilityOverrideSetInput,
+		run: (ctx, a) => setAvailabilityOverride(ctx, a)
+	}),
+	verb({
+		name: 'availability_setting_set',
+		kind: 'free',
+		description:
+			'Awake hours (awakeFrom, awakeTo), minutes of travel around work (travelMinutes), and the wind-down reminder (windDown).',
+		input: availabilitySettingSetInput,
+		run: (ctx, a) => setAvailabilitySetting(ctx, a)
+	}),
+	verb({
+		name: 'free_slots',
+		kind: 'read',
+		description:
+			'When the person is free between two dates: work, travel and calendar events taken out, inside awake hours unless they named free time.',
+		input: freeSlotsInput,
+		run: (ctx, a) => listFreeSlots(ctx, a)
 	}),
 	verb({
 		name: 'memory_wipe',

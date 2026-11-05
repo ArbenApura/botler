@@ -12,13 +12,29 @@ import { MAX_CENTAVOS } from '../../finance/money';
 import { MAX_SKIP_DATES, validateSchedule, type Schedule } from '../../finance/schedule';
 import { ICON_KEYS, PICTURE_MAX_BASE64 } from '../../finance/visual';
 import {
+	ACTIVITIES,
+	GOAL_KINDS,
+	MAX_PROTEIN_TENTHS,
+	MIN_PROTEIN_TENTHS,
+	SEXES
+} from '../../health/rules';
+import { PROGRAM_KEYS, type ProgramKey } from '../../health/programs';
+import {
 	account,
 	allocationRule,
+	BLOCK_KINDS,
+	WORKOUT_KINDS,
+	foodItem,
+	MEAL_KINDS,
+	SAVED_FOOD_SOURCES,
+	weeklyBlock,
 	bill,
 	billOverride,
 	device,
 	FACT_KINDS,
 	goal,
+	healthGoal,
+	healthProfile,
 	incomeSchedule,
 	ledgerTxn,
 	notebookPage,
@@ -375,14 +391,21 @@ export const calendarRangeInput = z.object({
 	from: dayField,
 	to: dayField,
 	layers: z
-		.array(z.enum(['bills', 'paydays', 'events', 'routines', 'tasks', 'reminders']))
-		.max(6)
+		.array(z.enum(['bills', 'paydays', 'events', 'routines', 'tasks', 'reminders', 'workouts']))
+		.max(7)
 		.optional()
 });
 
 // -- DATA RESET -- //
 
-const resetScope = z.enum(['money', 'schedule', 'memory_and_chat', 'audit', 'everything']);
+const resetScope = z.enum([
+	'money',
+	'schedule',
+	'memory_and_chat',
+	'health',
+	'audit',
+	'everything'
+]);
 
 /** Counts what a scope would erase and mints a confirmation that works once, for five minutes. Changes nothing. */
 export const dataResetPreviewInput = z.object({ scope: resetScope });
@@ -624,6 +647,369 @@ export const undoInput = z.object({ journalId: idField });
 
 /** Verbs that take nothing. */
 export const emptyInput = z.object({});
+
+// -- HEALTH -- //
+
+/** Setup, all of it optional so it can stop halfway. A weight is today's weigh-in, in grams. */
+export const healthProfileSaveInput = createInsertSchema(healthProfile, {
+	heightMm: z.number().int().min(1000).max(2500),
+	birthYear: z.number().int().min(1900).max(2100),
+	sex: z.enum(SEXES),
+	activity: z.enum(ACTIVITIES)
+})
+	.pick({ heightMm: true, birthYear: true, sex: true, activity: true })
+	.partial()
+	.extend({
+		weightG: z.number().int().min(20_000).max(400_000).optional(),
+		setupDone: z.boolean().optional()
+	});
+
+export type HealthProfileSaveInput = z.infer<typeof healthProfileSaveInput>;
+
+/** A pace past the limit is left to the verb, so the refusal names the limit in plain words. */
+export const healthGoalSetInput = createInsertSchema(healthGoal, {
+	kind: z.enum(GOAL_KINDS),
+	goalWeightG: z.number().int().min(20_000).max(400_000).nullable(),
+	paceBp: z.number().int().min(1).max(10_000),
+	targetKcal: z.number().int().min(1).max(20_000),
+	proteinTenths: z.number().int().min(MIN_PROTEIN_TENTHS).max(MAX_PROTEIN_TENTHS)
+})
+	.pick({ kind: true, goalWeightG: true, paceBp: true, targetKcal: true, proteinTenths: true })
+	.partial();
+
+export type HealthGoalSetInput = z.infer<typeof healthGoalSetInput>;
+
+// -- FOOD -- //
+
+const foodNameField = z.string().trim().min(1).max(120);
+const gramsField = z.number().int().min(1).max(10_000);
+const milligramsField = z.number().int().min(0).max(1_000_000);
+const barcodeField = z.string().regex(/^\d{8,14}$/, 'A barcode is 8 to 14 digits');
+
+export const foodSearchInput = z.object({
+	names: z.array(z.string().trim().min(1).max(80)).min(1).max(12)
+});
+
+export type FoodSearchInput = z.infer<typeof foodSearchInput>;
+
+/** One food of a meal: a food from a search with its amount, a marked estimate, a quick rough total, or numbers the person gave. */
+const mealItemInput = z.object({
+	foodId: z.string().min(3).max(80).optional(),
+	grams: gramsField.optional(),
+	lowGrams: gramsField.optional(),
+	highGrams: gramsField.optional(),
+	portion: z.string().trim().min(1).max(40).optional(),
+	count: z.number().min(0.25).max(50).optional(),
+	estimate: z
+		.object({
+			name: foodNameField,
+			proteinG: z.number().min(0).max(500),
+			carbsG: z.number().min(0).max(1000),
+			fatG: z.number().min(0).max(500)
+		})
+		.optional(),
+	rough: z.object({ name: foodNameField, kcal: z.number().int().min(1).max(20_000) }).optional(),
+	manual: z
+		.object({
+			name: foodNameField,
+			kcal: z.number().int().min(0).max(20_000),
+			proteinMg: milligramsField.optional(),
+			carbsMg: milligramsField.optional(),
+			fatMg: milligramsField.optional()
+		})
+		.optional(),
+	/** What a nutrition label says, on the basis it says it (one serving or 100 g). Milligrams for nutrients. */
+	label: z
+		.object({
+			name: foodNameField,
+			basisGrams: gramsField,
+			servingG: gramsField.optional(),
+			kcal: z.number().int().min(0).max(5000).optional(),
+			kilojoules: z.number().int().min(0).max(20_000).optional(),
+			proteinMg: milligramsField.optional(),
+			carbsMg: milligramsField.optional(),
+			sugarMg: milligramsField.optional(),
+			fibreMg: milligramsField.optional(),
+			fatMg: milligramsField.optional(),
+			satFatMg: milligramsField.optional(),
+			sodiumMg: milligramsField.optional(),
+			barcode: barcodeField.optional()
+		})
+		.optional()
+});
+
+export type MealItemInput = z.infer<typeof mealItemInput>;
+
+export const mealLogInput = z.object({
+	day: dayField.optional(),
+	meal: z.enum(MEAL_KINDS).optional(),
+	/** The whole meal on a kitchen scale, in grams. The foods are scaled to add up to it. */
+	totalG: z.number().int().min(1).max(10_000).optional(),
+	items: z.array(mealItemInput).min(1).max(12)
+});
+
+export const barcodeLookupInput = z.object({ barcode: barcodeField });
+
+export type BarcodeLookupInput = z.infer<typeof barcodeLookupInput>;
+
+export type MealLogInput = z.infer<typeof mealLogInput>;
+
+export const foodDayInput = z.object({ day: dayField.optional() });
+
+export type FoodDayInput = z.infer<typeof foodDayInput>;
+
+export const foodEditInput = z.object({
+	entryId: idField,
+	grams: gramsField.optional(),
+	kcal: z.number().int().min(0).max(20_000).optional(),
+	name: foodNameField.optional(),
+	meal: z.enum(MEAL_KINDS).optional(),
+	day: dayField.optional()
+});
+
+export type FoodEditInput = z.infer<typeof foodEditInput>;
+
+export const foodDeleteInput = z.object({ entryId: idField });
+
+export type FoodDeleteInput = z.infer<typeof foodDeleteInput>;
+
+export const dayMarkInput = z.object({ day: dayField.optional(), complete: z.boolean() });
+
+export type DayMarkInput = z.infer<typeof dayMarkInput>;
+
+/** A saved food, per 100 g. */
+export const foodSaveInput = createInsertSchema(foodItem, {
+	name: foodNameField,
+	barcode: z
+		.string()
+		.regex(/^\d{8,14}$/, 'A barcode is 8 to 14 digits')
+		.nullable(),
+	source: z.enum(SAVED_FOOD_SOURCES),
+	kcal: z.number().int().min(0).max(900),
+	servingG: gramsField.nullable()
+})
+	.pick({ name: true, kcal: true })
+	.extend({
+		barcode: z
+			.string()
+			.regex(/^\d{8,14}$/, 'A barcode is 8 to 14 digits')
+			.optional(),
+		source: z.enum(SAVED_FOOD_SOURCES).optional(),
+		servingG: gramsField.optional(),
+		proteinMg: milligramsField.optional(),
+		carbsMg: milligramsField.optional(),
+		sugarMg: milligramsField.optional(),
+		fibreMg: milligramsField.optional(),
+		fatMg: milligramsField.optional(),
+		satFatMg: milligramsField.optional(),
+		sodiumMg: milligramsField.optional(),
+		nutrients: z.record(z.string(), z.number().int().min(0)).optional()
+	});
+
+export type FoodSaveInput = z.infer<typeof foodSaveInput>;
+
+export const foodArchiveInput = z.object({ foodItemId: idField });
+
+export type FoodArchiveInput = z.infer<typeof foodArchiveInput>;
+
+const clockField = z
+	.string()
+	.regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a time like 07:00, in the 24 hour clock');
+
+// -- WEIGHT AND THE CHECK-IN -- //
+
+export const weightLogInput = z.object({
+	day: dayField.optional(),
+	grams: z.number().int().min(20_000).max(400_000)
+});
+
+export type WeightLogInput = z.infer<typeof weightLogInput>;
+
+export const weightDeleteInput = z.object({ day: dayField });
+
+export type WeightDeleteInput = z.infer<typeof weightDeleteInput>;
+
+export const weightTrendInput = z.object({ days: z.number().int().min(7).max(365).optional() });
+
+export type WeightTrendInput = z.infer<typeof weightTrendInput>;
+
+export const proposalAnswerInput = z.object({
+	proposalId: idField,
+	accept: z.boolean(),
+	/** The calorie target the person was shown. A different number is refused. */
+	value: z.number().int().min(1).max(20_000).optional()
+});
+
+export type ProposalAnswerInput = z.infer<typeof proposalAnswerInput>;
+
+// -- WORKOUTS -- //
+
+export const programKeyInput = z.object({
+	templateKey: z.enum(PROGRAM_KEYS as [ProgramKey, ...ProgramKey[]])
+});
+
+export type ProgramKeyInput = z.infer<typeof programKeyInput>;
+
+export const workoutLogInput = z.object({
+	kind: z.enum(WORKOUT_KINDS),
+	minutes: z.number().int().min(1).max(600),
+	distanceM: z.number().int().min(0).max(500_000).optional(),
+	day: dayField.optional(),
+	title: z.string().trim().min(1).max(120).optional()
+});
+
+export type WorkoutLogInput = z.infer<typeof workoutLogInput>;
+
+export const workoutStartInput = z.object({
+	plannedId: idField.optional(),
+	templateKey: z.enum(PROGRAM_KEYS as [ProgramKey, ...ProgramKey[]]).optional()
+});
+
+export type WorkoutStartInput = z.infer<typeof workoutStartInput>;
+
+export const workoutSetLogInput = z.object({
+	sessionId: idField,
+	exerciseKey: z.string().min(1).max(40),
+	position: z.number().int().min(0).max(20),
+	reps: z.number().int().min(0).max(1000).optional(),
+	seconds: z.number().int().min(0).max(36_000).optional(),
+	done: z.boolean().optional()
+});
+
+export type WorkoutSetLogInput = z.infer<typeof workoutSetLogInput>;
+
+export const workoutSwapInput = z.object({
+	sessionId: idField,
+	exerciseKey: z.string().min(1).max(40),
+	direction: z.enum(['easier', 'harder'])
+});
+
+export type WorkoutSwapInput = z.infer<typeof workoutSwapInput>;
+
+export const workoutFinishInput = z.object({
+	sessionId: idField,
+	minutes: z.number().int().min(1).max(600).optional(),
+	distanceM: z.number().int().min(0).max(500_000).optional()
+});
+
+export type WorkoutFinishInput = z.infer<typeof workoutFinishInput>;
+
+export const workoutDeleteInput = z.object({ id: idField });
+
+export type WorkoutDeleteInput = z.infer<typeof workoutDeleteInput>;
+
+export const workoutLastInput = z.object({
+	kind: z.enum(WORKOUT_KINDS).optional(),
+	limit: z.number().int().min(1).max(20).optional()
+});
+
+export type WorkoutLastInput = z.infer<typeof workoutLastInput>;
+
+export const weekProposeInput = z.object({ monday: dayField.optional() });
+
+export type WeekProposeInput = z.infer<typeof weekProposeInput>;
+
+export const workoutMoveInput = z.object({
+	plannedId: idField,
+	day: dayField.optional(),
+	time: clockField
+});
+
+export type WorkoutMoveInput = z.infer<typeof workoutMoveInput>;
+
+export const workoutSkipInput = z.object({ plannedId: idField });
+
+export type WorkoutSkipInput = z.infer<typeof workoutSkipInput>;
+
+// -- SLEEP -- //
+
+export const sleepLogInput = z.object({
+	from: clockField,
+	to: clockField,
+	/** The day they woke. */
+	day: dayField.optional(),
+	nap: z.boolean().optional()
+});
+
+export type SleepLogInput = z.infer<typeof sleepLogInput>;
+
+export const sleepEditInput = z.object({
+	id: idField,
+	from: clockField.optional(),
+	to: clockField.optional(),
+	day: dayField.optional(),
+	nap: z.boolean().optional()
+});
+
+export type SleepEditInput = z.infer<typeof sleepEditInput>;
+
+export const sleepDeleteInput = z.object({ id: idField });
+
+export type SleepDeleteInput = z.infer<typeof sleepDeleteInput>;
+
+export const sleepSummaryInput = z.object({ days: z.number().int().min(7).max(90).optional() });
+
+export type SleepSummaryInput = z.infer<typeof sleepSummaryInput>;
+
+// -- HEALTH BESIDE MONEY AND THE CALENDAR -- //
+
+export const healthDayInput = z.object({ day: dayField.optional() });
+
+export type HealthDayInput = z.infer<typeof healthDayInput>;
+
+export const healthMoneyInput = z.object({ from: dayField, to: dayField });
+
+export type HealthMoneyInput = z.infer<typeof healthMoneyInput>;
+
+// -- WORK HOURS AND FREE TIME -- //
+
+/** One part of a day. An end at or before its start runs past midnight. */
+const timeBlockInput = createInsertSchema(weeklyBlock, {
+	kind: z.enum(BLOCK_KINDS),
+	label: z.string().trim().min(1).max(60).nullable().optional()
+})
+	.pick({ kind: true, label: true })
+	.extend({ start: clockField, end: clockField });
+
+export const availabilitySetInput = z.object({
+	days: z
+		.array(
+			z.object({
+				weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+				blocks: z.array(timeBlockInput).max(8)
+			})
+		)
+		.min(1)
+		.max(7)
+});
+
+export type AvailabilitySetInput = z.infer<typeof availabilitySetInput>;
+
+export const availabilityOverrideSetInput = z.object({
+	day: dayField,
+	off: z.boolean().optional(),
+	blocks: z.array(timeBlockInput).max(8).optional(),
+	clear: z.boolean().optional()
+});
+
+export type AvailabilityOverrideSetInput = z.infer<typeof availabilityOverrideSetInput>;
+
+export const availabilitySettingSetInput = z.object({
+	awakeFrom: clockField.optional(),
+	awakeTo: clockField.optional(),
+	travelMinutes: z.number().int().min(0).max(240).optional(),
+	windDown: z.boolean().optional()
+});
+
+export type AvailabilitySettingSetInput = z.infer<typeof availabilitySettingSetInput>;
+
+export const freeSlotsInput = z.object({
+	from: dayField,
+	to: dayField,
+	minMinutes: z.number().int().min(1).max(1440).optional()
+});
+
+export type FreeSlotsInput = z.infer<typeof freeSlotsInput>;
 
 export const dueRangeInput = z.object({ from: dayField, to: dayField });
 

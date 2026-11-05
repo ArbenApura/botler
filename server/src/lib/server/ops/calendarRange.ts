@@ -20,7 +20,16 @@ import { forecast } from '../../finance/forecast';
 import { placeBills, planFlows } from '../../finance/planFlows';
 import { occurrencesBetween } from '../../finance/schedule';
 import { recurrenceOccurrences } from '../../schedule/recurrence';
-import { calendarEvent, incomeSchedule, reminder, routine, splitPlan, task } from '../db/schema';
+import { workoutTitle } from '../../health/programs';
+import {
+	calendarEvent,
+	incomeSchedule,
+	plannedWorkout,
+	reminder,
+	routine,
+	splitPlan,
+	task
+} from '../db/schema';
 import { calendarRangeInput } from '../db/zod';
 import { OpsError, run } from './context';
 import { dueBills } from './bills';
@@ -71,7 +80,8 @@ export type CalendarItem =
 	  })
 	| (Base & { type: 'routine'; at: string })
 	| (Base & { type: 'task'; dueAt: string; priority: number })
-	| (Base & { type: 'reminder'; at: string });
+	| (Base & { type: 'reminder'; at: string })
+	| (Base & { type: 'workout'; at: string; minutes: number; kind: string; status: string });
 
 export type ForecastDay = {
 	date: ManilaDate;
@@ -101,7 +111,15 @@ export type CalendarRange = {
 
 // -- CONSTANTS -- //
 
-export const LAYERS = ['bills', 'paydays', 'events', 'routines', 'tasks', 'reminders'] as const;
+export const LAYERS = [
+	'bills',
+	'paydays',
+	'events',
+	'routines',
+	'tasks',
+	'reminders',
+	'workouts'
+] as const;
 /** How far past today the forecast is worked out (the simulation's reach: 5 years). */
 const FORECAST_REACH_DAYS = 1827;
 export const MAX_RANGE_DAYS = 92;
@@ -294,6 +312,33 @@ export async function calendarRange(ctx: Ctx, raw: CalendarRangeInput): Promise<
 					date: day(r.remindAt),
 					endDate: day(r.remindAt),
 					at: r.remindAt.toISOString()
+				});
+		}
+
+		// -- PLANNED WORKOUTS -- //
+		if (layers.has('workouts')) {
+			const workouts = await tx
+				.select()
+				.from(plannedWorkout)
+				.where(
+					and(
+						eq(plannedWorkout.userId, userId),
+						gte(plannedWorkout.startsAt, startInstant),
+						lt(plannedWorkout.startsAt, endInstant),
+						ne(plannedWorkout.status, 'skipped')
+					)
+				);
+			for (const w of workouts)
+				items.push({
+					type: 'workout',
+					id: w.id,
+					title: workoutTitle(w.sessionKey, w.kind),
+					date: w.day,
+					endDate: w.day,
+					at: w.startsAt.toISOString(),
+					minutes: w.minutes,
+					kind: w.kind,
+					status: w.status
 				});
 		}
 

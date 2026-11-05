@@ -556,6 +556,8 @@
   },
   "billsSkipYes": "Skip it",
   "billsSkipped": "Skipped.",
+  "billsThisMonth": "This month",
+  "billsThisWeek": "This week",
   "billsTitle": "Bills",
   "billsUsualSuffix": "{amount} (usual)",
   "@billsUsualSuffix": {
@@ -566,6 +568,8 @@
     }
   },
   "billsVaries": "The amount is different every time",
+  "billsViewMonth": "Month",
+  "billsViewWeek": "Week",
   "billsWalletLabel": "Paid in",
   "calAdd": "Add",
   "calAddBill": "A bill",
@@ -655,6 +659,14 @@
       }
     }
   },
+  "calCountWorkouts": "{count, plural, =1{1 workout} other{{count} workouts}}",
+  "@calCountWorkouts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "calDayNothing": "nothing planned",
   "calDaySemantics": "{date}, {parts}",
   "@calDaySemantics": {
@@ -732,6 +744,7 @@
   "calLayerReminders": "Reminders",
   "calLayerRoutines": "Routines",
   "calLayerTasks": "Tasks",
+  "calLayerWorkouts": "Workouts",
   "calLayersLabel": "Show",
   "calMarkPaid": "Mark paid",
   "calMarkPaidBody": "This writes {amount} as an expense.",
@@ -786,6 +799,7 @@
     }
   },
   "calWhatIsIt": "What is it?",
+  "calWorkoutLabel": "Workout",
   "cancel": "Cancel",
   "changelogBuildHeader": "Version {version}",
   "@changelogBuildHeader": {
@@ -923,6 +937,8 @@
   "chatNoticeFailed": "The assistant could not finish that. Try again.",
   "chatNoticeOffline": "No connection. Saved on your phone. It will be sent once, when you are back online.",
   "chatOffline": "offline",
+  "chatOutputShowAll": "Show all of it",
+  "chatOutputShowLess": "Show less",
   "chatPasteNothing": "There is no picture on the clipboard.",
   "chatPastePhoto": "Paste photo",
   "chatPendingSnack": "{count, plural, =1{{count} entry is waiting for a connection.} other{{count} entries are waiting for a connection.}}",
@@ -1050,6 +1066,7 @@
   },
   "chatRestoreFailed": "Could not load your earlier chat.",
   "chatRunningScript": "Running a script on your phone",
+  "chatScriptFailed": "The script did not finish",
   "chatSend": "Send",
   "chatSpeak": "Speak",
   "chatStop": "Stop",
@@ -1289,6 +1306,906 @@
       }
     }
   },
+  "healthAbout": "About",
+  "healthAboutTime": "About {time}",
+  "@healthAboutTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthAcceptWeek": "Accept this week",
+  "healthActivityFeet": "On my feet",
+  "healthActivitySitting": "Mostly sitting",
+  "healthActivityVery": "Very active",
+  "healthActivityWalking": "Some walking",
+  "healthAddByHand": "Add by hand",
+  "healthAddFood": "Add a food",
+  "healthAddKcal": "Calories (kcal)",
+  "healthAddName": "What did you eat?",
+  "healthAddNeeds": "Give a name and the calories.",
+  "healthAddProtein": "Protein in grams (optional)",
+  "healthAddSleep": "Add sleep",
+  "healthAddToToday": "Add to today",
+  "healthAddWeight": "Add weight",
+  "healthAskBotler": "Ask Botler",
+  "healthBack": "Back",
+  "healthBedtimeSteady": "Your bedtime stayed within about {time}.",
+  "@healthBedtimeSteady": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthByBotler": "By Botler",
+  "healthCalories": "Calories",
+  "healthCameraBarcode": "Barcode",
+  "healthCameraDenied": "Botler needs the camera for this. You can allow it in the phone settings, or add the food by hand.",
+  "healthCameraGallery": "Choose from gallery",
+  "healthCameraHintAngle": "Angle {count} of {total}. Take another, or tap Done.",
+  "@healthCameraHintAngle": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "healthCameraHintBarcode": "Point at the barcode. It scans by itself.",
+  "healthCameraHintLabel": "Fit the whole label in the frame.",
+  "healthCameraHintMeal": "Take it from above. A second angle helps.",
+  "healthCameraLabel": "Label",
+  "healthCameraMeal": "Meal",
+  "healthCameraOffline": "Reading a photo needs the internet, and nothing was saved. You can add the food by hand.",
+  "healthCameraOfflineTitle": "This needs a connection",
+  "healthCameraTake": "Take the photo",
+  "healthCarbs": "Carbohydrates",
+  "healthChartEmpty": "Two weigh-ins draw your line. Any time of day is fine, but the same time each day is easiest to compare.",
+  "healthChartLabel": "Your weight from {from} kilograms to a trend of {to} kilograms",
+  "@healthChartLabel": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "healthCheckInLine": "A new calorie target to look at",
+  "healthCheckInReady": "Your weekly check-in is ready",
+  "healthCheckInTitle": "Weekly check-in",
+  "healthCheckInWhy": "Your body seems to burn about {burn} a day. This keeps you moving toward your goal at the pace you chose.",
+  "@healthCheckInWhy": {
+    "placeholders": {
+      "burn": {
+        "type": "String"
+      }
+    }
+  },
+  "healthClose": "Close",
+  "healthCouldBe": "Could be {low} to {high}",
+  "@healthCouldBe": {
+    "placeholders": {
+      "low": {
+        "type": "String"
+      },
+      "high": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDataCredit": "Food data from USDA FoodData Central and Open Food Facts. Filipino dishes are rough estimates.",
+  "healthDayComplete": "Today is complete",
+  "healthDayCompleteLine": "Turn on when everything you ate is logged",
+  "healthDayDone": "done",
+  "healthDayPlanned": "planned",
+  "healthDayRest": "rest",
+  "healthDayState": "{day}, {state}",
+  "@healthDayState": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "healthDayToday": "today",
+  "healthDetailTitle": "Today in detail",
+  "healthDetails": "Details",
+  "healthDiscard": "Discard",
+  "healthDistanceField": "Distance in km (optional)",
+  "healthDone": "Done",
+  "healthDown": "Down {kg} kg",
+  "@healthDown": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "healthEasier": "Make it easier",
+  "healthEatenKcal": "{kcal} kcal eaten",
+  "@healthEatenKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthEatenOf": "{eaten} eaten of {target}",
+  "@healthEatenOf": {
+    "placeholders": {
+      "eaten": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "healthExerciseOf": "Exercise {index} of {count}",
+  "@healthExerciseOf": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "healthFat": "Fat",
+  "healthFibre": "Fibre",
+  "healthFieldActivity": "How active is a normal day?",
+  "healthFieldGoalWeight": "Goal weight in kilograms",
+  "healthFieldHeight": "Height in centimetres",
+  "healthFieldHeightHint": "For example, 168",
+  "healthFieldSex": "Sex, used only for the first estimate",
+  "healthFieldWeight": "Weight today in kilograms",
+  "healthFieldWeightHint": "For example, 74",
+  "healthFieldYear": "Year you were born",
+  "healthFieldYearHint": "For example, 1995",
+  "healthFinishLater": "Finish later",
+  "healthFinishSet": "Finish set",
+  "healthFinishWorkout": "Finish workout",
+  "healthFlash": "Flash",
+  "healthForecastAround": "{kg} kg around {date}",
+  "@healthForecastAround": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthForecastAway": "Your trend is moving away from your goal",
+  "healthForecastFar": "Your goal is a long way off at this pace",
+  "healthForecastFlat": "Your trend is steady",
+  "healthForecastLine": "An estimate at your pace of the last weeks",
+  "healthForecastNoDate": "There is no date to give right now, and that is fine.",
+  "healthForecastReached": "You are at your goal",
+  "healthFromFoods": "From {count} foods. Amounts are estimates.",
+  "@healthFromFoods": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "healthGoalGain": "Gain",
+  "healthGoalLose": "Lose weight",
+  "healthGoalMaintain": "Maintain",
+  "healthGoalTrack": "Just track",
+  "healthGrams": "{value} g",
+  "@healthGrams": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthGramsOf": "{value} of {target} g",
+  "@healthGramsOf": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "healthHalf": "Half",
+  "healthHarder": "Make it harder",
+  "healthHowMuch": "How much did you have?",
+  "healthIsThisIt": "Is this it?",
+  "healthKcal": "{value} kcal",
+  "@healthKcal": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthKcalEaten": "kcal eaten",
+  "healthKcalLeft": "kcal left",
+  "healthKcalOver": "kcal",
+  "healthKeepKcal": "Keep {kcal}",
+  "@healthKeepKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthKindRun": "Run",
+  "healthKindWalk": "Walk",
+  "healthKnownFor": "Known for {known} of {total} foods",
+  "@healthKnownFor": {
+    "placeholders": {
+      "known": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLabelBasis": "These numbers are for {grams} g",
+  "@healthLabelBasis": {
+    "placeholders": {
+      "grams": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLabelFits": "Calories match protein, carbs and fat",
+  "healthLabelNoFit": "Check this: the calories do not match protein, carbs and fat",
+  "healthLastNightTitle": "Last night",
+  "healthLeftKcal": "About {kcal} kcal left",
+  "@healthLeftKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLeftWordsAbout": "About {kcal} kcal",
+  "@healthLeftWordsAbout": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLess": "Less",
+  "healthLevelUp": "Next time: {names}",
+  "@healthLevelUp": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "healthLogFood": "Log food",
+  "healthLogWalkTitle": "Log a walk or a run",
+  "healthLowIntake": "You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.",
+  "healthMealBreakfast": "Breakfast",
+  "healthMealDinner": "Dinner",
+  "healthMealLunch": "Lunch",
+  "healthMealMerienda": "Merienda",
+  "healthMealPhoto": "The photo of your meal",
+  "healthMealSnack": "Snack",
+  "healthMilligrams": "{value} mg",
+  "@healthMilligrams": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMinutesBad": "Enter the minutes, such as 30",
+  "healthMinutesField": "Minutes",
+  "healthMinutesLabel": "{done} of {goal} minutes moving this week",
+  "@healthMinutesLabel": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMinutesMoving": "minutes moving",
+  "healthMinutesOf": "{done} of {goal}",
+  "@healthMinutesOf": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMore": "More",
+  "healthMoveTo": "Move to {time}",
+  "@healthMoveTo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNeedsMove": "{title} on {day} needs a move",
+  "@healthNeedsMove": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNeedsMoveLine": "Your free time changed.",
+  "healthNewWeek": "Plan it again",
+  "healthNext": "Next",
+  "healthNextAt": "{day} at {time}",
+  "@healthNextAt": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNextWeek": "Next week",
+  "healthNoFit": "No free time held: {titles}",
+  "@healthNoFit": {
+    "placeholders": {
+      "titles": {
+        "type": "String"
+      }
+    }
+  },
+  "healthNoRoom": "No time fits that day. You can skip it.",
+  "healthNotFoundLine": "Take a photo of its nutrition label. Botler reads it and remembers this product for next time.",
+  "healthNotFoundTitle": "This product is not in the food data yet",
+  "healthNotMedical": "Botler gives general guidance, not medical advice. If you have a health condition or take medication, check with your doctor first.",
+  "healthNotThisProduct": "Not this product",
+  "healthOffCredit": "Contains data from Open Food Facts, available under the Open Database License. Anyone can edit this data, so check it looks right.",
+  "healthOilLine": "Oil is hard to see, and it changes the calories the most.",
+  "healthOilLots": "About two spoons",
+  "healthOilName": "Cooking oil",
+  "healthOilNone": "No added oil",
+  "healthOilQuestion": "Was it cooked in oil?",
+  "healthOilSome": "About a spoon",
+  "healthOneServing": "One",
+  "healthOverBy": "Over by about",
+  "healthPaceFastest": "Fastest allowed",
+  "healthPaceGentle": "Gentle",
+  "healthPaceSteady": "Steady",
+  "healthPaceTitle": "How fast?",
+  "healthPainNote": "If something hurts, stop and swap it. If pain keeps coming back, see a clinician.",
+  "healthPathNext": "Reach {high} on all sets and {next} comes next.",
+  "@healthPathNext": {
+    "placeholders": {
+      "high": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPathTop": "This is the hardest version here. Nice and steady.",
+  "healthPatternLine": "After nights under 6 hours, you ate about {kcal} kcal more. It may not be the only reason.",
+  "@healthPatternLine": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPatternTitle": "A pattern to notice",
+  "healthPer100": "{kcal} kcal per 100 g",
+  "@healthPer100": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPhotoFailedLine": "Botler could not find any food in it, and nothing was saved. Try again with the whole plate in view and more light.",
+  "healthPhotoFailedTitle": "That photo did not work",
+  "healthPhotoLabel": "Your photo",
+  "healthPhotoSettingTitle": "Your settings keep pictures private",
+  "healthPlanRest": "Rest",
+  "healthPlanWhen": "{minutes} min at {time}",
+  "@healthPlanWhen": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPreviewKcal": "About {kcal} kcal a day",
+  "@healthPreviewKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPreviewReach": "About {kg} kg a week, reaching your goal around {date}. This first estimate improves as you log.",
+  "@healthPreviewReach": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "healthPreviewTitle": "What this means for you",
+  "healthProgramWeek": "Week {week} of {weeks}",
+  "@healthProgramWeek": {
+    "placeholders": {
+      "week": {
+        "type": "String"
+      },
+      "weeks": {
+        "type": "String"
+      }
+    }
+  },
+  "healthProgramsNone": "Pick one when you feel ready. Both need no equipment.",
+  "healthProtein": "Protein",
+  "healthProteinShort": "{value} g protein",
+  "@healthProteinShort": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReadLabel": "Read the label",
+  "healthReadingLine": "Finding the foods and checking their nutrition.",
+  "healthReadingTitle": "Your meal",
+  "healthReadyLine": "If you answer yes to any of these, talk to a clinician first.",
+  "healthReadyNo": "Not now",
+  "healthReadyTitle": "Before you start",
+  "healthReadyYes": "All no, start",
+  "healthRecent": "This week",
+  "healthRecentWeights": "Recent weigh-ins",
+  "healthRemove": "Remove",
+  "healthRemoveWeight": "Remove this weigh-in",
+  "healthRepsAsk": "How many did you do?",
+  "healthRestDay": "A rest day",
+  "healthRestLeft": "Rest, {time} left",
+  "@healthRestLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRestLine": "Nothing planned today. A walk still counts if you feel like one.",
+  "healthResume": "Back to your workout",
+  "healthReviewAsk": "Ask Botler",
+  "healthReviewDone": "Got it",
+  "healthReviewFood": "Food logged on {days} days, about {kcal} kcal a day",
+  "@healthReviewFood": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReviewMoved": "{minutes} minutes moving, {days} strength days",
+  "@healthReviewMoved": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReviewNoFood": "No full days of food logged",
+  "healthReviewSleep": "About {time} of sleep a night",
+  "@healthReviewSleep": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthReviewTitle": "Your week",
+  "healthRingLabel": "{percent} percent of the calorie target",
+  "@healthRingLabel": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRunSteps": "Run {run}, walk {walk}, {repeat} times",
+  "@healthRunSteps": {
+    "placeholders": {
+      "run": {
+        "type": "String"
+      },
+      "walk": {
+        "type": "String"
+      },
+      "repeat": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRunTotal": "About {minutes} minutes in all",
+  "@healthRunTotal": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRunWarm": "Walk 5 minutes first and 5 minutes after.",
+  "healthSatFat": "Saturated fat",
+  "healthSave": "Save",
+  "healthSaveMeal": "Save meal",
+  "healthSaveSleep": "Save sleep",
+  "healthSavedOffline": "Saved on your phone. It will send when you are back online.",
+  "healthScaleToday": "Scale today: {kg} kg. Daily changes are mostly water, so the line is what counts.",
+  "@healthScaleToday": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "healthScanBarcode": "Scan a barcode",
+  "healthSecondsAsk": "How many seconds?",
+  "healthSecondsShort": "{seconds} s",
+  "@healthSecondsShort": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSessionMinutes": "{title}, {minutes} minutes",
+  "@healthSessionMinutes": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSetDoneLabel": "Set {index}, {value} done",
+  "@healthSetDoneLabel": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSetOpenLabel": "Set {index}, aim for {value}",
+  "@healthSetOpenLabel": {
+    "placeholders": {
+      "index": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSetsOfHolds": "{sets} holds of {low} to {high} seconds.",
+  "@healthSetsOfHolds": {
+    "placeholders": {
+      "sets": {
+        "type": "String"
+      },
+      "low": {
+        "type": "String"
+      },
+      "high": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSetsOfReps": "{sets} sets of {low} to {high}.",
+  "@healthSetsOfReps": {
+    "placeholders": {
+      "sets": {
+        "type": "String"
+      },
+      "low": {
+        "type": "String"
+      },
+      "high": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSetupAboutLine": "Your real weight trend corrects these after a few weeks, so close is fine.",
+  "healthSetupAboutTitle": "A few facts to start",
+  "healthSetupGoalTitle": "What do you want to do?",
+  "healthSetupPrompt": "Finish setting up Health",
+  "healthSetupPromptLine": "It takes a minute, or just tell Botler in chat",
+  "healthSetupTitle": "Set up Health",
+  "healthSevenNights": "Last 7 nights",
+  "healthSexFemale": "Female",
+  "healthSexMale": "Male",
+  "healthSexSkip": "Skip",
+  "healthSkip": "Skip",
+  "healthSleepBars": "Hours slept on the last nights",
+  "healthSleepChart": "Bedtimes and wake times for the last nights",
+  "healthSleepEmpty": "No sleep logged yet. Say \"I slept 11 to 6\" in chat, or add it here.",
+  "healthSleepFrom": "Went to sleep",
+  "healthSleepTitle": "Sleep",
+  "healthSleepTo": "Woke up",
+  "healthSodium": "Sodium",
+  "healthSourceEstimate": "AI estimate",
+  "healthSourceFilipino": "Filipino list",
+  "healthSourceLabel": "From the label",
+  "healthSourceSaved": "Saved",
+  "healthSourceYours": "Your numbers",
+  "healthStart": "Start",
+  "healthStartProgram": "Start {name}",
+  "@healthStartProgram": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "healthStartSession": "Start {title}",
+  "@healthStartSession": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "healthStartWalk": "Log a walk",
+  "healthSteady": "Steady",
+  "healthStepOf": "{step} of 2",
+  "@healthStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "healthStopProgram": "Stop this program",
+  "healthStrengthDays": "strength days",
+  "healthStrengthLabel": "{done} of {goal} strength days this week",
+  "@healthStrengthLabel": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "goal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthSugar": "Sugar",
+  "healthSuggestFood": "Try logging a few more full days, so the numbers can help you.",
+  "healthSuggestKeep": "Keep doing what you are doing.",
+  "healthSuggestMove": "Try one more walk this week.",
+  "healthSuggestSleep": "Try to get to bed a little earlier this week.",
+  "healthSuggestWeigh": "Try a few more weigh-ins, so the trend is clearer.",
+  "healthSwap": "Swap",
+  "healthTakeAnother": "Take another photo",
+  "healthTileEaten": "About {kcal} kcal",
+  "@healthTileEaten": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTileFreeToday": "Free today from {from} to {to}",
+  "@healthTileFreeToday": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTileLastNight": "Last night",
+  "healthTileLeft": "About {kcal} left",
+  "@healthTileLeft": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTileNoFree": "No free time left in the plan today",
+  "healthTileNoPlan": "Nothing planned",
+  "healthTileOfTarget": "{eaten} of {target} kcal",
+  "@healthTileOfTarget": {
+    "placeholders": {
+      "eaten": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTileOver": "About {kcal} over",
+  "@healthTileOver": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTileSleep": "Sleep",
+  "healthTileSleepEmpty": "Tell Botler how you slept",
+  "healthTileToday": "Today",
+  "healthTileTodayEmpty": "Nothing logged yet",
+  "healthTileTrain": "Train",
+  "healthTileTrainEmpty": "Plan a week around your work",
+  "healthTileWeek": "My week",
+  "healthTileWeekEmpty": "Add your work hours",
+  "healthTileWeight": "Weight",
+  "healthTileWeightEmpty": "Add your first weigh-in",
+  "healthTitle": "Health",
+  "healthTodayAt": "Today at {time}",
+  "@healthTodayAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayEmptyLine": "Take a photo of your food, or tell Botler what you ate.",
+  "healthTotalWeight": "Weighed it? Total weight in grams (optional)",
+  "healthTrainTitle": "Train",
+  "healthTryKcal": "Try {kcal} kcal a day",
+  "@healthTryKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTwoServings": "Two",
+  "healthUndo": "Undo",
+  "healthUnknown": "Unknown",
+  "healthUp": "Up {kg} kg",
+  "@healthUp": {
+    "placeholders": {
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "healthUseKcal": "Use {kcal}",
+  "@healthUseKcal": {
+    "placeholders": {
+      "kcal": {
+        "type": "String"
+      }
+    }
+  },
+  "healthVitamins": "Vitamins and minerals",
+  "healthWeekAccepted": "Your week is set. Reminders come before each one.",
+  "healthWeekAddOnce": "Add a change for one day",
+  "healthWeekAwake": "Awake hours",
+  "healthWeekAwakeFrom": "Change when you wake",
+  "healthWeekAwakeTo": "Change when you sleep",
+  "healthWeekCopy": "Copy to Tuesday through Friday",
+  "healthWeekFree": "Free all day",
+  "healthWeekIntro": "Planned around your work and calendar. Nothing is set until you accept.",
+  "healthWeekLegendFree": "Free",
+  "healthWeekLegendWork": "Work",
+  "healthWeekLine": "Botler plans workouts and reminders around this. You can also just say it in chat.",
+  "healthWeekMinutes": "{minutes} minutes",
+  "@healthWeekMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWeekOff": "Day off",
+  "healthWeekOnce": "Just this once",
+  "healthWeekRange": "{from} to {to}",
+  "@healthWeekRange": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWeekReady": "A new week of workouts is ready",
+  "healthWeekReadyLine": "Nothing is set until you accept",
+  "healthWeekSave": "Save my week",
+  "healthWeekSaved": "Saved your week.",
+  "healthWeekTitle": "My week",
+  "healthWeekTravel": "Travel to and from work",
+  "healthWeekWorking": "I work this day",
+  "healthWeightBad": "Enter your weight in kilograms, such as 74.2",
+  "healthWeightKg": "Weight in kg",
+  "healthWeightQueued": "Saved on this phone. It goes up when you are back online.",
+  "healthWeightSpark": "Your weight trend",
+  "healthWeightTitle": "Weight",
+  "healthWeightToday": "Your weight today",
+  "healthWindDownBy": "Wind down by {time}",
+  "@healthWindDownBy": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWindDownNoEarly": "No early start tomorrow",
+  "healthWindDownNone": "Wind-down reminder",
+  "healthWindDownSwitch": "Wind-down reminder",
+  "healthWindDownWhy": "You start at {time} tomorrow",
+  "@healthWindDownWhy": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWokeToday": "Woke up today",
+  "healthWorkingOnIt": "Working on it",
+  "healthWorkoutMinutes": "{minutes} min",
+  "@healthWorkoutMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWorkoutSaved": "Saved. Well done for showing up.",
+  "healthYourPath": "Your path",
+  "healthYourPrograms": "Your programs",
+  "healthYourTrend": "Your trend",
   "histEntryTitle": "Details",
   "historyAccountFallback": "account",
   "historyEmpty": "Nothing here yet.",
@@ -1550,6 +2467,8 @@
   "menuCalendarLine": "Bills, paydays, events and routines by day",
   "menuGoals": "Savings goals",
   "menuGoalsLine": "What you are saving for",
+  "menuHealth": "Health",
+  "menuHealthLine": "Food, weight, workouts and sleep",
   "menuHistory": "History",
   "menuHistoryLine": "Everything you spent, and undo",
   "menuNotebook": "Notebook",
@@ -2060,6 +2979,8 @@
   "resetScopeAuditLine": "The record of who changed what. A single note of the reset stays.",
   "resetScopeEverything": "Everything",
   "resetScopeEverythingLine": "All of the above",
+  "resetScopeHealth": "Health",
+  "resetScopeHealthLine": "Food, weight, workouts, sleep and your Health setup",
   "resetScopeMemory": "Memory and chat",
   "resetScopeMemoryLine": "What Botler remembers and your conversations",
   "resetScopeMoney": "Money",
@@ -3283,12 +4204,5 @@
       }
     }
   },
-  "yes": "Yes",
-  "chatScriptFailed": "The script did not finish",
-  "chatOutputShowAll": "Show all of it",
-  "chatOutputShowLess": "Show less",
-  "billsViewWeek": "Week",
-  "billsViewMonth": "Month",
-  "billsThisWeek": "This week",
-  "billsThisMonth": "This month"
+  "yes": "Yes"
 }

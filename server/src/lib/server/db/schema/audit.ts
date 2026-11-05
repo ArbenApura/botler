@@ -517,6 +517,157 @@ export const AUDITED_TABLES: readonly AuditedTable[] = [
 		columns: ['id', 'verb', 'status', 'turn_id', 'expires_at', 'decided_at'],
 		account: '',
 		amount: ''
+	},
+	// -- HEALTH (0045) -- //
+	// Numbers, ids, dates and source codes only. A food name, a label, a note or a nutrient map can come from a photo or a product database, so it is never copied
+	{
+		table: 'health_profile',
+		columns: ['id', 'height_mm', 'birth_year', 'sex', 'activity', 'setup_done_at'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'health_goal',
+		columns: ['id', 'kind', 'goal_weight_g', 'pace_bp', 'target_kcal', 'protein_tenths'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'food_item',
+		columns: ['id', 'source', 'kcal', 'serving_g', 'archived_at'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'food_entry',
+		columns: [
+			'id',
+			'day',
+			'meal',
+			'grams',
+			'kcal',
+			'low_kcal',
+			'high_kcal',
+			'source_kind',
+			'food_item_id'
+		],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'day_status',
+		columns: ['id', 'day', 'complete'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'weight_entry',
+		columns: ['id', 'day', 'grams'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'energy_estimate',
+		columns: [
+			'id',
+			'week_key',
+			'trend_g',
+			'burn_kcal',
+			'intake_kcal',
+			'complete_days',
+			'weigh_ins'
+		],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'health_proposal',
+		columns: ['id', 'kind', 'week_key', 'status', 'answered_at'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'program',
+		columns: ['id', 'template_key', 'started_on', 'stopped_at', 'week'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'planned_workout',
+		columns: [
+			'id',
+			'program_id',
+			'day',
+			'starts_at',
+			'minutes',
+			'kind',
+			'session_key',
+			'status',
+			'week_key'
+		],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'workout_session',
+		columns: [
+			'id',
+			'planned_id',
+			'program_id',
+			'day',
+			'kind',
+			'minutes',
+			'distance_m',
+			'finished_at'
+		],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'workout_set',
+		columns: ['id', 'session_id', 'exercise_key', 'position', 'reps', 'seconds', 'done'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'sleep_entry',
+		columns: ['id', 'day', 'starts_at', 'ends_at', 'nap'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'weekly_block',
+		columns: ['id', 'weekday', 'start_minute', 'end_minute', 'kind'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'availability_override',
+		columns: ['id', 'day', 'off'],
+		account: '',
+		amount: '',
+		migration: '0045'
+	},
+	{
+		table: 'availability_setting',
+		columns: ['id', 'wake_start_minute', 'wake_end_minute', 'travel_minutes', 'wind_down'],
+		account: '',
+		amount: '',
+		migration: '0045'
 	}
 ];
 

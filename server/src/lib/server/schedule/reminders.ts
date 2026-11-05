@@ -9,13 +9,25 @@ import type { Tx } from '../db/client';
 import type { Recurrence } from '../../schedule/recurrence';
 import type { Schedule } from '../../finance/schedule';
 // -- DEP-MODULES -- //
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../finance/dates';
 import { occurrencesBetween } from '../../finance/schedule';
 import { atManilaTime, recurrenceOccurrences } from '../../schedule/recurrence';
-import { calendarEvent, incomeSchedule, reminder, routine, splitPlan, task } from '../db/schema';
+import { workoutTitle } from '../../health/programs';
+import { windDownFor } from '../../schedule/availability';
+import {
+	availabilitySetting,
+	calendarEvent,
+	incomeSchedule,
+	plannedWorkout,
+	reminder,
+	routine,
+	splitPlan,
+	task
+} from '../db/schema';
 import { lockPerson } from '../db/tenant';
+import { readAvailability } from '../ops/availability';
 import { dueBills } from '../ops/bills';
 
 // -- TYPES -- //
@@ -42,6 +54,7 @@ const RESEND_AFTER_MS = 12 * HOUR;
 const DISMISS_STICKS_MS = 3 * 24 * HOUR;
 /** How long before an event it is reminded, tried in this order until one is still ahead. */
 const EVENT_LEADS_MIN = [30, 10, 0];
+const WORKOUT_LEADS_MIN = [15, 5, 0];
 const OVERDUE_BILL_DAYS = 7;
 const OVERDUE_TASK_DAYS = 30;
 
@@ -197,6 +210,50 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 					remindAt: at
 				});
 		}
+
+	// -- WORKOUTS: TITLES ARE FIXED TEXT, WITH NO CALORIES OR WEIGHT -- //
+	for (const w of await tx
+		.select()
+		.from(plannedWorkout)
+		.where(
+			and(
+				eq(plannedWorkout.userId, userId),
+				eq(plannedWorkout.status, 'planned'),
+				gte(plannedWorkout.startsAt, now),
+				lte(plannedWorkout.startsAt, endInstant)
+			)
+		)) {
+		const at = WORKOUT_LEADS_MIN.map((m) => new Date(w.startsAt.getTime() - m * MINUTE)).find(
+			(t) => t.getTime() > now.getTime()
+		);
+		if (at)
+			out.push({
+				kind: 'workout',
+				refKey: `workout:${w.id}`,
+				title: `${workoutTitle(w.sessionKey, w.kind)} at ${clock(w.startsAt)}`,
+				remindAt: at
+			});
+	}
+
+	// -- WIND DOWN: WORKED OUT FROM TOMORROW, SO IT FOLLOWS A CHANGE ON THE NEXT SYNC -- //
+	const [setting] = await tx
+		.select({ windDown: availabilitySetting.windDown })
+		.from(availabilitySetting)
+		.where(eq(availabilitySetting.userId, userId));
+	if (setting?.windDown) {
+		const tomorrow = addDays(today, 1);
+		const availability = await readAvailability(tx, userId, today, addDays(tomorrow, 1));
+		for (const day of [today, tomorrow]) {
+			const wind = windDownFor(day, availability);
+			if (wind && Date.parse(wind.at) > now.getTime())
+				out.push({
+					kind: 'winddown',
+					refKey: `winddown:${day}`,
+					title: 'Time to wind down',
+					remindAt: new Date(wind.at)
+				});
+		}
+	}
 	return out;
 }
 

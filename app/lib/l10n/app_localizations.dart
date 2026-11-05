@@ -1393,6 +1393,18 @@ abstract class AppLocalizations {
   /// **'Skipped.'**
   String get billsSkipped;
 
+  /// No description provided for @billsThisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get billsThisMonth;
+
+  /// No description provided for @billsThisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get billsThisWeek;
+
   /// No description provided for @billsTitle.
   ///
   /// In en, this message translates to:
@@ -1410,6 +1422,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The amount is different every time'**
   String get billsVaries;
+
+  /// No description provided for @billsViewMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get billsViewMonth;
+
+  /// No description provided for @billsViewWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get billsViewWeek;
 
   /// No description provided for @billsWalletLabel.
   ///
@@ -1549,6 +1573,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 task} other{{count} tasks}}'**
   String calCountTasks(int count);
 
+  /// No description provided for @calCountWorkouts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 workout} other{{count} workouts}}'**
+  String calCountWorkouts(int count);
+
   /// No description provided for @calDayNothing.
   ///
   /// In en, this message translates to:
@@ -1662,6 +1692,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tasks'**
   String get calLayerTasks;
+
+  /// No description provided for @calLayerWorkouts.
+  ///
+  /// In en, this message translates to:
+  /// **'Workouts'**
+  String get calLayerWorkouts;
 
   /// No description provided for @calLayersLabel.
   ///
@@ -1818,6 +1854,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What is it?'**
   String get calWhatIsIt;
+
+  /// No description provided for @calWorkoutLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Workout'**
+  String get calWorkoutLabel;
 
   /// No description provided for @cancel.
   ///
@@ -2107,6 +2149,18 @@ abstract class AppLocalizations {
   /// **'offline'**
   String get chatOffline;
 
+  /// No description provided for @chatOutputShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all of it'**
+  String get chatOutputShowAll;
+
+  /// No description provided for @chatOutputShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get chatOutputShowLess;
+
   /// No description provided for @chatPasteNothing.
   ///
   /// In en, this message translates to:
@@ -2310,6 +2364,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Running a script on your phone'**
   String get chatRunningScript;
+
+  /// No description provided for @chatScriptFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The script did not finish'**
+  String get chatScriptFailed;
 
   /// No description provided for @chatSend.
   ///
@@ -2958,6 +3018,1932 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In a year ({count} paydays) that is {amount}.'**
   String goalsYear(int count, String amount);
+
+  /// No description provided for @healthAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get healthAbout;
+
+  /// No description provided for @healthAboutTime.
+  ///
+  /// In en, this message translates to:
+  /// **'About {time}'**
+  String healthAboutTime(String time);
+
+  /// No description provided for @healthAcceptWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this week'**
+  String get healthAcceptWeek;
+
+  /// No description provided for @healthActivityFeet.
+  ///
+  /// In en, this message translates to:
+  /// **'On my feet'**
+  String get healthActivityFeet;
+
+  /// No description provided for @healthActivitySitting.
+  ///
+  /// In en, this message translates to:
+  /// **'Mostly sitting'**
+  String get healthActivitySitting;
+
+  /// No description provided for @healthActivityVery.
+  ///
+  /// In en, this message translates to:
+  /// **'Very active'**
+  String get healthActivityVery;
+
+  /// No description provided for @healthActivityWalking.
+  ///
+  /// In en, this message translates to:
+  /// **'Some walking'**
+  String get healthActivityWalking;
+
+  /// No description provided for @healthAddByHand.
+  ///
+  /// In en, this message translates to:
+  /// **'Add by hand'**
+  String get healthAddByHand;
+
+  /// No description provided for @healthAddFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a food'**
+  String get healthAddFood;
+
+  /// No description provided for @healthAddKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'Calories (kcal)'**
+  String get healthAddKcal;
+
+  /// No description provided for @healthAddName.
+  ///
+  /// In en, this message translates to:
+  /// **'What did you eat?'**
+  String get healthAddName;
+
+  /// No description provided for @healthAddNeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Give a name and the calories.'**
+  String get healthAddNeeds;
+
+  /// No description provided for @healthAddProtein.
+  ///
+  /// In en, this message translates to:
+  /// **'Protein in grams (optional)'**
+  String get healthAddProtein;
+
+  /// No description provided for @healthAddSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Add sleep'**
+  String get healthAddSleep;
+
+  /// No description provided for @healthAddToToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to today'**
+  String get healthAddToToday;
+
+  /// No description provided for @healthAddWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Add weight'**
+  String get healthAddWeight;
+
+  /// No description provided for @healthAskBotler.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Botler'**
+  String get healthAskBotler;
+
+  /// No description provided for @healthBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get healthBack;
+
+  /// No description provided for @healthBedtimeSteady.
+  ///
+  /// In en, this message translates to:
+  /// **'Your bedtime stayed within about {time}.'**
+  String healthBedtimeSteady(String time);
+
+  /// No description provided for @healthByBotler.
+  ///
+  /// In en, this message translates to:
+  /// **'By Botler'**
+  String get healthByBotler;
+
+  /// No description provided for @healthCalories.
+  ///
+  /// In en, this message translates to:
+  /// **'Calories'**
+  String get healthCalories;
+
+  /// No description provided for @healthCameraBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode'**
+  String get healthCameraBarcode;
+
+  /// No description provided for @healthCameraDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler needs the camera for this. You can allow it in the phone settings, or add the food by hand.'**
+  String get healthCameraDenied;
+
+  /// No description provided for @healthCameraGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from gallery'**
+  String get healthCameraGallery;
+
+  /// No description provided for @healthCameraHintAngle.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle {count} of {total}. Take another, or tap Done.'**
+  String healthCameraHintAngle(String count, String total);
+
+  /// No description provided for @healthCameraHintBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Point at the barcode. It scans by itself.'**
+  String get healthCameraHintBarcode;
+
+  /// No description provided for @healthCameraHintLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit the whole label in the frame.'**
+  String get healthCameraHintLabel;
+
+  /// No description provided for @healthCameraHintMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Take it from above. A second angle helps.'**
+  String get healthCameraHintMeal;
+
+  /// No description provided for @healthCameraLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label'**
+  String get healthCameraLabel;
+
+  /// No description provided for @healthCameraMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Meal'**
+  String get healthCameraMeal;
+
+  /// No description provided for @healthCameraOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading a photo needs the internet, and nothing was saved. You can add the food by hand.'**
+  String get healthCameraOffline;
+
+  /// No description provided for @healthCameraOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This needs a connection'**
+  String get healthCameraOfflineTitle;
+
+  /// No description provided for @healthCameraTake.
+  ///
+  /// In en, this message translates to:
+  /// **'Take the photo'**
+  String get healthCameraTake;
+
+  /// No description provided for @healthCarbs.
+  ///
+  /// In en, this message translates to:
+  /// **'Carbohydrates'**
+  String get healthCarbs;
+
+  /// No description provided for @healthChartEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Two weigh-ins draw your line. Any time of day is fine, but the same time each day is easiest to compare.'**
+  String get healthChartEmpty;
+
+  /// No description provided for @healthChartLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weight from {from} kilograms to a trend of {to} kilograms'**
+  String healthChartLabel(String from, String to);
+
+  /// No description provided for @healthCheckInLine.
+  ///
+  /// In en, this message translates to:
+  /// **'A new calorie target to look at'**
+  String get healthCheckInLine;
+
+  /// No description provided for @healthCheckInReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weekly check-in is ready'**
+  String get healthCheckInReady;
+
+  /// No description provided for @healthCheckInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly check-in'**
+  String get healthCheckInTitle;
+
+  /// No description provided for @healthCheckInWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'Your body seems to burn about {burn} a day. This keeps you moving toward your goal at the pace you chose.'**
+  String healthCheckInWhy(String burn);
+
+  /// No description provided for @healthClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get healthClose;
+
+  /// No description provided for @healthCouldBe.
+  ///
+  /// In en, this message translates to:
+  /// **'Could be {low} to {high}'**
+  String healthCouldBe(String low, String high);
+
+  /// No description provided for @healthDataCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Food data from USDA FoodData Central and Open Food Facts. Filipino dishes are rough estimates.'**
+  String get healthDataCredit;
+
+  /// No description provided for @healthDayComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Today is complete'**
+  String get healthDayComplete;
+
+  /// No description provided for @healthDayCompleteLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on when everything you ate is logged'**
+  String get healthDayCompleteLine;
+
+  /// No description provided for @healthDayDone.
+  ///
+  /// In en, this message translates to:
+  /// **'done'**
+  String get healthDayDone;
+
+  /// No description provided for @healthDayPlanned.
+  ///
+  /// In en, this message translates to:
+  /// **'planned'**
+  String get healthDayPlanned;
+
+  /// No description provided for @healthDayRest.
+  ///
+  /// In en, this message translates to:
+  /// **'rest'**
+  String get healthDayRest;
+
+  /// No description provided for @healthDayState.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}, {state}'**
+  String healthDayState(String day, String state);
+
+  /// No description provided for @healthDayToday.
+  ///
+  /// In en, this message translates to:
+  /// **'today'**
+  String get healthDayToday;
+
+  /// No description provided for @healthDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today in detail'**
+  String get healthDetailTitle;
+
+  /// No description provided for @healthDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get healthDetails;
+
+  /// No description provided for @healthDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get healthDiscard;
+
+  /// No description provided for @healthDistanceField.
+  ///
+  /// In en, this message translates to:
+  /// **'Distance in km (optional)'**
+  String get healthDistanceField;
+
+  /// No description provided for @healthDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get healthDone;
+
+  /// No description provided for @healthDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Down {kg} kg'**
+  String healthDown(String kg);
+
+  /// No description provided for @healthEasier.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it easier'**
+  String get healthEasier;
+
+  /// No description provided for @healthEatenKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal eaten'**
+  String healthEatenKcal(String kcal);
+
+  /// No description provided for @healthEatenOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten} eaten of {target}'**
+  String healthEatenOf(String eaten, String target);
+
+  /// No description provided for @healthExerciseOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise {index} of {count}'**
+  String healthExerciseOf(String index, String count);
+
+  /// No description provided for @healthFat.
+  ///
+  /// In en, this message translates to:
+  /// **'Fat'**
+  String get healthFat;
+
+  /// No description provided for @healthFibre.
+  ///
+  /// In en, this message translates to:
+  /// **'Fibre'**
+  String get healthFibre;
+
+  /// No description provided for @healthFieldActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'How active is a normal day?'**
+  String get healthFieldActivity;
+
+  /// No description provided for @healthFieldGoalWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal weight in kilograms'**
+  String get healthFieldGoalWeight;
+
+  /// No description provided for @healthFieldHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Height in centimetres'**
+  String get healthFieldHeight;
+
+  /// No description provided for @healthFieldHeightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example, 168'**
+  String get healthFieldHeightHint;
+
+  /// No description provided for @healthFieldSex.
+  ///
+  /// In en, this message translates to:
+  /// **'Sex, used only for the first estimate'**
+  String get healthFieldSex;
+
+  /// No description provided for @healthFieldWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight today in kilograms'**
+  String get healthFieldWeight;
+
+  /// No description provided for @healthFieldWeightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example, 74'**
+  String get healthFieldWeightHint;
+
+  /// No description provided for @healthFieldYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year you were born'**
+  String get healthFieldYear;
+
+  /// No description provided for @healthFieldYearHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example, 1995'**
+  String get healthFieldYearHint;
+
+  /// No description provided for @healthFinishLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish later'**
+  String get healthFinishLater;
+
+  /// No description provided for @healthFinishSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish set'**
+  String get healthFinishSet;
+
+  /// No description provided for @healthFinishWorkout.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish workout'**
+  String get healthFinishWorkout;
+
+  /// No description provided for @healthFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Flash'**
+  String get healthFlash;
+
+  /// No description provided for @healthForecastAround.
+  ///
+  /// In en, this message translates to:
+  /// **'{kg} kg around {date}'**
+  String healthForecastAround(String kg, String date);
+
+  /// No description provided for @healthForecastAway.
+  ///
+  /// In en, this message translates to:
+  /// **'Your trend is moving away from your goal'**
+  String get healthForecastAway;
+
+  /// No description provided for @healthForecastFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Your goal is a long way off at this pace'**
+  String get healthForecastFar;
+
+  /// No description provided for @healthForecastFlat.
+  ///
+  /// In en, this message translates to:
+  /// **'Your trend is steady'**
+  String get healthForecastFlat;
+
+  /// No description provided for @healthForecastLine.
+  ///
+  /// In en, this message translates to:
+  /// **'An estimate at your pace of the last weeks'**
+  String get healthForecastLine;
+
+  /// No description provided for @healthForecastNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no date to give right now, and that is fine.'**
+  String get healthForecastNoDate;
+
+  /// No description provided for @healthForecastReached.
+  ///
+  /// In en, this message translates to:
+  /// **'You are at your goal'**
+  String get healthForecastReached;
+
+  /// No description provided for @healthFromFoods.
+  ///
+  /// In en, this message translates to:
+  /// **'From {count} foods. Amounts are estimates.'**
+  String healthFromFoods(String count);
+
+  /// No description provided for @healthGoalGain.
+  ///
+  /// In en, this message translates to:
+  /// **'Gain'**
+  String get healthGoalGain;
+
+  /// No description provided for @healthGoalLose.
+  ///
+  /// In en, this message translates to:
+  /// **'Lose weight'**
+  String get healthGoalLose;
+
+  /// No description provided for @healthGoalMaintain.
+  ///
+  /// In en, this message translates to:
+  /// **'Maintain'**
+  String get healthGoalMaintain;
+
+  /// No description provided for @healthGoalTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Just track'**
+  String get healthGoalTrack;
+
+  /// No description provided for @healthGrams.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} g'**
+  String healthGrams(String value);
+
+  /// No description provided for @healthGramsOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} of {target} g'**
+  String healthGramsOf(String value, String target);
+
+  /// No description provided for @healthHalf.
+  ///
+  /// In en, this message translates to:
+  /// **'Half'**
+  String get healthHalf;
+
+  /// No description provided for @healthHarder.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it harder'**
+  String get healthHarder;
+
+  /// No description provided for @healthHowMuch.
+  ///
+  /// In en, this message translates to:
+  /// **'How much did you have?'**
+  String get healthHowMuch;
+
+  /// No description provided for @healthIsThisIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Is this it?'**
+  String get healthIsThisIt;
+
+  /// No description provided for @healthKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} kcal'**
+  String healthKcal(String value);
+
+  /// No description provided for @healthKcalEaten.
+  ///
+  /// In en, this message translates to:
+  /// **'kcal eaten'**
+  String get healthKcalEaten;
+
+  /// No description provided for @healthKcalLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'kcal left'**
+  String get healthKcalLeft;
+
+  /// No description provided for @healthKcalOver.
+  ///
+  /// In en, this message translates to:
+  /// **'kcal'**
+  String get healthKcalOver;
+
+  /// No description provided for @healthKeepKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep {kcal}'**
+  String healthKeepKcal(String kcal);
+
+  /// No description provided for @healthKindRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get healthKindRun;
+
+  /// No description provided for @healthKindWalk.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk'**
+  String get healthKindWalk;
+
+  /// No description provided for @healthKnownFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Known for {known} of {total} foods'**
+  String healthKnownFor(String known, String total);
+
+  /// No description provided for @healthLabelBasis.
+  ///
+  /// In en, this message translates to:
+  /// **'These numbers are for {grams} g'**
+  String healthLabelBasis(String grams);
+
+  /// No description provided for @healthLabelFits.
+  ///
+  /// In en, this message translates to:
+  /// **'Calories match protein, carbs and fat'**
+  String get healthLabelFits;
+
+  /// No description provided for @healthLabelNoFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Check this: the calories do not match protein, carbs and fat'**
+  String get healthLabelNoFit;
+
+  /// No description provided for @healthLastNightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get healthLastNightTitle;
+
+  /// No description provided for @healthLeftKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} kcal left'**
+  String healthLeftKcal(String kcal);
+
+  /// No description provided for @healthLeftWordsAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} kcal'**
+  String healthLeftWordsAbout(String kcal);
+
+  /// No description provided for @healthLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Less'**
+  String get healthLess;
+
+  /// No description provided for @healthLevelUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Next time: {names}'**
+  String healthLevelUp(String names);
+
+  /// No description provided for @healthLogFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Log food'**
+  String get healthLogFood;
+
+  /// No description provided for @healthLogWalkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Log a walk or a run'**
+  String get healthLogWalkTitle;
+
+  /// No description provided for @healthLowIntake.
+  ///
+  /// In en, this message translates to:
+  /// **'You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.'**
+  String get healthLowIntake;
+
+  /// No description provided for @healthMealBreakfast.
+  ///
+  /// In en, this message translates to:
+  /// **'Breakfast'**
+  String get healthMealBreakfast;
+
+  /// No description provided for @healthMealDinner.
+  ///
+  /// In en, this message translates to:
+  /// **'Dinner'**
+  String get healthMealDinner;
+
+  /// No description provided for @healthMealLunch.
+  ///
+  /// In en, this message translates to:
+  /// **'Lunch'**
+  String get healthMealLunch;
+
+  /// No description provided for @healthMealMerienda.
+  ///
+  /// In en, this message translates to:
+  /// **'Merienda'**
+  String get healthMealMerienda;
+
+  /// No description provided for @healthMealPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'The photo of your meal'**
+  String get healthMealPhoto;
+
+  /// No description provided for @healthMealSnack.
+  ///
+  /// In en, this message translates to:
+  /// **'Snack'**
+  String get healthMealSnack;
+
+  /// No description provided for @healthMilligrams.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} mg'**
+  String healthMilligrams(String value);
+
+  /// No description provided for @healthMinutesBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the minutes, such as 30'**
+  String get healthMinutesBad;
+
+  /// No description provided for @healthMinutesField.
+  ///
+  /// In en, this message translates to:
+  /// **'Minutes'**
+  String get healthMinutesField;
+
+  /// No description provided for @healthMinutesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {goal} minutes moving this week'**
+  String healthMinutesLabel(String done, String goal);
+
+  /// No description provided for @healthMinutesMoving.
+  ///
+  /// In en, this message translates to:
+  /// **'minutes moving'**
+  String get healthMinutesMoving;
+
+  /// No description provided for @healthMinutesOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {goal}'**
+  String healthMinutesOf(String done, String goal);
+
+  /// No description provided for @healthMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get healthMore;
+
+  /// No description provided for @healthMoveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to {time}'**
+  String healthMoveTo(String time);
+
+  /// No description provided for @healthNeedsMove.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} on {day} needs a move'**
+  String healthNeedsMove(String title, String day);
+
+  /// No description provided for @healthNeedsMoveLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Your free time changed.'**
+  String get healthNeedsMoveLine;
+
+  /// No description provided for @healthNewWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan it again'**
+  String get healthNewWeek;
+
+  /// No description provided for @healthNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get healthNext;
+
+  /// No description provided for @healthNextAt.
+  ///
+  /// In en, this message translates to:
+  /// **'{day} at {time}'**
+  String healthNextAt(String day, String time);
+
+  /// No description provided for @healthNextWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get healthNextWeek;
+
+  /// No description provided for @healthNoFit.
+  ///
+  /// In en, this message translates to:
+  /// **'No free time held: {titles}'**
+  String healthNoFit(String titles);
+
+  /// No description provided for @healthNoRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'No time fits that day. You can skip it.'**
+  String get healthNoRoom;
+
+  /// No description provided for @healthNotFoundLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo of its nutrition label. Botler reads it and remembers this product for next time.'**
+  String get healthNotFoundLine;
+
+  /// No description provided for @healthNotFoundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This product is not in the food data yet'**
+  String get healthNotFoundTitle;
+
+  /// No description provided for @healthNotMedical.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler gives general guidance, not medical advice. If you have a health condition or take medication, check with your doctor first.'**
+  String get healthNotMedical;
+
+  /// No description provided for @healthNotThisProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Not this product'**
+  String get healthNotThisProduct;
+
+  /// No description provided for @healthOffCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains data from Open Food Facts, available under the Open Database License. Anyone can edit this data, so check it looks right.'**
+  String get healthOffCredit;
+
+  /// No description provided for @healthOilLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Oil is hard to see, and it changes the calories the most.'**
+  String get healthOilLine;
+
+  /// No description provided for @healthOilLots.
+  ///
+  /// In en, this message translates to:
+  /// **'About two spoons'**
+  String get healthOilLots;
+
+  /// No description provided for @healthOilName.
+  ///
+  /// In en, this message translates to:
+  /// **'Cooking oil'**
+  String get healthOilName;
+
+  /// No description provided for @healthOilNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No added oil'**
+  String get healthOilNone;
+
+  /// No description provided for @healthOilQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Was it cooked in oil?'**
+  String get healthOilQuestion;
+
+  /// No description provided for @healthOilSome.
+  ///
+  /// In en, this message translates to:
+  /// **'About a spoon'**
+  String get healthOilSome;
+
+  /// No description provided for @healthOneServing.
+  ///
+  /// In en, this message translates to:
+  /// **'One'**
+  String get healthOneServing;
+
+  /// No description provided for @healthOverBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Over by about'**
+  String get healthOverBy;
+
+  /// No description provided for @healthPaceFastest.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest allowed'**
+  String get healthPaceFastest;
+
+  /// No description provided for @healthPaceGentle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gentle'**
+  String get healthPaceGentle;
+
+  /// No description provided for @healthPaceSteady.
+  ///
+  /// In en, this message translates to:
+  /// **'Steady'**
+  String get healthPaceSteady;
+
+  /// No description provided for @healthPaceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How fast?'**
+  String get healthPaceTitle;
+
+  /// No description provided for @healthPainNote.
+  ///
+  /// In en, this message translates to:
+  /// **'If something hurts, stop and swap it. If pain keeps coming back, see a clinician.'**
+  String get healthPainNote;
+
+  /// No description provided for @healthPathNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Reach {high} on all sets and {next} comes next.'**
+  String healthPathNext(String high, String next);
+
+  /// No description provided for @healthPathTop.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the hardest version here. Nice and steady.'**
+  String get healthPathTop;
+
+  /// No description provided for @healthPatternLine.
+  ///
+  /// In en, this message translates to:
+  /// **'After nights under 6 hours, you ate about {kcal} kcal more. It may not be the only reason.'**
+  String healthPatternLine(String kcal);
+
+  /// No description provided for @healthPatternTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A pattern to notice'**
+  String get healthPatternTitle;
+
+  /// No description provided for @healthPer100.
+  ///
+  /// In en, this message translates to:
+  /// **'{kcal} kcal per 100 g'**
+  String healthPer100(String kcal);
+
+  /// No description provided for @healthPhotoFailedLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler could not find any food in it, and nothing was saved. Try again with the whole plate in view and more light.'**
+  String get healthPhotoFailedLine;
+
+  /// No description provided for @healthPhotoFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'That photo did not work'**
+  String get healthPhotoFailedTitle;
+
+  /// No description provided for @healthPhotoLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your photo'**
+  String get healthPhotoLabel;
+
+  /// No description provided for @healthPhotoSettingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your settings keep pictures private'**
+  String get healthPhotoSettingTitle;
+
+  /// No description provided for @healthPlanRest.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get healthPlanRest;
+
+  /// No description provided for @healthPlanWhen.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min at {time}'**
+  String healthPlanWhen(String minutes, String time);
+
+  /// No description provided for @healthPreviewKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} kcal a day'**
+  String healthPreviewKcal(String kcal);
+
+  /// No description provided for @healthPreviewReach.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kg} kg a week, reaching your goal around {date}. This first estimate improves as you log.'**
+  String healthPreviewReach(String kg, String date);
+
+  /// No description provided for @healthPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What this means for you'**
+  String get healthPreviewTitle;
+
+  /// No description provided for @healthProgramWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {week} of {weeks}'**
+  String healthProgramWeek(String week, String weeks);
+
+  /// No description provided for @healthProgramsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick one when you feel ready. Both need no equipment.'**
+  String get healthProgramsNone;
+
+  /// No description provided for @healthProtein.
+  ///
+  /// In en, this message translates to:
+  /// **'Protein'**
+  String get healthProtein;
+
+  /// No description provided for @healthProteinShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{value} g protein'**
+  String healthProteinShort(String value);
+
+  /// No description provided for @healthReadLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the label'**
+  String get healthReadLabel;
+
+  /// No description provided for @healthReadingLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding the foods and checking their nutrition.'**
+  String get healthReadingLine;
+
+  /// No description provided for @healthReadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your meal'**
+  String get healthReadingTitle;
+
+  /// No description provided for @healthReadyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'If you answer yes to any of these, talk to a clinician first.'**
+  String get healthReadyLine;
+
+  /// No description provided for @healthReadyNo.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get healthReadyNo;
+
+  /// No description provided for @healthReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you start'**
+  String get healthReadyTitle;
+
+  /// No description provided for @healthReadyYes.
+  ///
+  /// In en, this message translates to:
+  /// **'All no, start'**
+  String get healthReadyYes;
+
+  /// No description provided for @healthRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get healthRecent;
+
+  /// No description provided for @healthRecentWeights.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent weigh-ins'**
+  String get healthRecentWeights;
+
+  /// No description provided for @healthRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get healthRemove;
+
+  /// No description provided for @healthRemoveWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this weigh-in'**
+  String get healthRemoveWeight;
+
+  /// No description provided for @healthRepsAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'How many did you do?'**
+  String get healthRepsAsk;
+
+  /// No description provided for @healthRestDay.
+  ///
+  /// In en, this message translates to:
+  /// **'A rest day'**
+  String get healthRestDay;
+
+  /// No description provided for @healthRestLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Rest, {time} left'**
+  String healthRestLeft(String time);
+
+  /// No description provided for @healthRestLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing planned today. A walk still counts if you feel like one.'**
+  String get healthRestLine;
+
+  /// No description provided for @healthResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to your workout'**
+  String get healthResume;
+
+  /// No description provided for @healthReviewAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Botler'**
+  String get healthReviewAsk;
+
+  /// No description provided for @healthReviewDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get healthReviewDone;
+
+  /// No description provided for @healthReviewFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food logged on {days} days, about {kcal} kcal a day'**
+  String healthReviewFood(String days, String kcal);
+
+  /// No description provided for @healthReviewMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} minutes moving, {days} strength days'**
+  String healthReviewMoved(String minutes, String days);
+
+  /// No description provided for @healthReviewNoFood.
+  ///
+  /// In en, this message translates to:
+  /// **'No full days of food logged'**
+  String get healthReviewNoFood;
+
+  /// No description provided for @healthReviewSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'About {time} of sleep a night'**
+  String healthReviewSleep(String time);
+
+  /// No description provided for @healthReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your week'**
+  String get healthReviewTitle;
+
+  /// No description provided for @healthRingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} percent of the calorie target'**
+  String healthRingLabel(String percent);
+
+  /// No description provided for @healthRunSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Run {run}, walk {walk}, {repeat} times'**
+  String healthRunSteps(String run, String walk, String repeat);
+
+  /// No description provided for @healthRunTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'About {minutes} minutes in all'**
+  String healthRunTotal(String minutes);
+
+  /// No description provided for @healthRunWarm.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk 5 minutes first and 5 minutes after.'**
+  String get healthRunWarm;
+
+  /// No description provided for @healthSatFat.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturated fat'**
+  String get healthSatFat;
+
+  /// No description provided for @healthSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get healthSave;
+
+  /// No description provided for @healthSaveMeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Save meal'**
+  String get healthSaveMeal;
+
+  /// No description provided for @healthSaveSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sleep'**
+  String get healthSaveSleep;
+
+  /// No description provided for @healthSavedOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on your phone. It will send when you are back online.'**
+  String get healthSavedOffline;
+
+  /// No description provided for @healthScaleToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale today: {kg} kg. Daily changes are mostly water, so the line is what counts.'**
+  String healthScaleToday(String kg);
+
+  /// No description provided for @healthScanBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a barcode'**
+  String get healthScanBarcode;
+
+  /// No description provided for @healthSecondsAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'How many seconds?'**
+  String get healthSecondsAsk;
+
+  /// No description provided for @healthSecondsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} s'**
+  String healthSecondsShort(String seconds);
+
+  /// No description provided for @healthSessionMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{title}, {minutes} minutes'**
+  String healthSessionMinutes(String title, String minutes);
+
+  /// No description provided for @healthSetDoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Set {index}, {value} done'**
+  String healthSetDoneLabel(String index, String value);
+
+  /// No description provided for @healthSetOpenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Set {index}, aim for {value}'**
+  String healthSetOpenLabel(String index, String value);
+
+  /// No description provided for @healthSetsOfHolds.
+  ///
+  /// In en, this message translates to:
+  /// **'{sets} holds of {low} to {high} seconds.'**
+  String healthSetsOfHolds(String sets, String low, String high);
+
+  /// No description provided for @healthSetsOfReps.
+  ///
+  /// In en, this message translates to:
+  /// **'{sets} sets of {low} to {high}.'**
+  String healthSetsOfReps(String sets, String low, String high);
+
+  /// No description provided for @healthSetupAboutLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Your real weight trend corrects these after a few weeks, so close is fine.'**
+  String get healthSetupAboutLine;
+
+  /// No description provided for @healthSetupAboutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A few facts to start'**
+  String get healthSetupAboutTitle;
+
+  /// No description provided for @healthSetupGoalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What do you want to do?'**
+  String get healthSetupGoalTitle;
+
+  /// No description provided for @healthSetupPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Finish setting up Health'**
+  String get healthSetupPrompt;
+
+  /// No description provided for @healthSetupPromptLine.
+  ///
+  /// In en, this message translates to:
+  /// **'It takes a minute, or just tell Botler in chat'**
+  String get healthSetupPromptLine;
+
+  /// No description provided for @healthSetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up Health'**
+  String get healthSetupTitle;
+
+  /// No description provided for @healthSevenNights.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 7 nights'**
+  String get healthSevenNights;
+
+  /// No description provided for @healthSexFemale.
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get healthSexFemale;
+
+  /// No description provided for @healthSexMale.
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get healthSexMale;
+
+  /// No description provided for @healthSexSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get healthSexSkip;
+
+  /// No description provided for @healthSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get healthSkip;
+
+  /// No description provided for @healthSleepBars.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours slept on the last nights'**
+  String get healthSleepBars;
+
+  /// No description provided for @healthSleepChart.
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtimes and wake times for the last nights'**
+  String get healthSleepChart;
+
+  /// No description provided for @healthSleepEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sleep logged yet. Say \"I slept 11 to 6\" in chat, or add it here.'**
+  String get healthSleepEmpty;
+
+  /// No description provided for @healthSleepFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Went to sleep'**
+  String get healthSleepFrom;
+
+  /// No description provided for @healthSleepTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get healthSleepTitle;
+
+  /// No description provided for @healthSleepTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Woke up'**
+  String get healthSleepTo;
+
+  /// No description provided for @healthSodium.
+  ///
+  /// In en, this message translates to:
+  /// **'Sodium'**
+  String get healthSodium;
+
+  /// No description provided for @healthSourceEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'AI estimate'**
+  String get healthSourceEstimate;
+
+  /// No description provided for @healthSourceFilipino.
+  ///
+  /// In en, this message translates to:
+  /// **'Filipino list'**
+  String get healthSourceFilipino;
+
+  /// No description provided for @healthSourceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'From the label'**
+  String get healthSourceLabel;
+
+  /// No description provided for @healthSourceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get healthSourceSaved;
+
+  /// No description provided for @healthSourceYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Your numbers'**
+  String get healthSourceYours;
+
+  /// No description provided for @healthStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get healthStart;
+
+  /// No description provided for @healthStartProgram.
+  ///
+  /// In en, this message translates to:
+  /// **'Start {name}'**
+  String healthStartProgram(String name);
+
+  /// No description provided for @healthStartSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Start {title}'**
+  String healthStartSession(String title);
+
+  /// No description provided for @healthStartWalk.
+  ///
+  /// In en, this message translates to:
+  /// **'Log a walk'**
+  String get healthStartWalk;
+
+  /// No description provided for @healthSteady.
+  ///
+  /// In en, this message translates to:
+  /// **'Steady'**
+  String get healthSteady;
+
+  /// No description provided for @healthStepOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{step} of 2'**
+  String healthStepOf(String step);
+
+  /// No description provided for @healthStopProgram.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop this program'**
+  String get healthStopProgram;
+
+  /// No description provided for @healthStrengthDays.
+  ///
+  /// In en, this message translates to:
+  /// **'strength days'**
+  String get healthStrengthDays;
+
+  /// No description provided for @healthStrengthLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {goal} strength days this week'**
+  String healthStrengthLabel(String done, String goal);
+
+  /// No description provided for @healthSugar.
+  ///
+  /// In en, this message translates to:
+  /// **'Sugar'**
+  String get healthSugar;
+
+  /// No description provided for @healthSuggestFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Try logging a few more full days, so the numbers can help you.'**
+  String get healthSuggestFood;
+
+  /// No description provided for @healthSuggestKeep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep doing what you are doing.'**
+  String get healthSuggestKeep;
+
+  /// No description provided for @healthSuggestMove.
+  ///
+  /// In en, this message translates to:
+  /// **'Try one more walk this week.'**
+  String get healthSuggestMove;
+
+  /// No description provided for @healthSuggestSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Try to get to bed a little earlier this week.'**
+  String get healthSuggestSleep;
+
+  /// No description provided for @healthSuggestWeigh.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a few more weigh-ins, so the trend is clearer.'**
+  String get healthSuggestWeigh;
+
+  /// No description provided for @healthSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap'**
+  String get healthSwap;
+
+  /// No description provided for @healthTakeAnother.
+  ///
+  /// In en, this message translates to:
+  /// **'Take another photo'**
+  String get healthTakeAnother;
+
+  /// No description provided for @healthTileEaten.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} kcal'**
+  String healthTileEaten(String kcal);
+
+  /// No description provided for @healthTileFreeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Free today from {from} to {to}'**
+  String healthTileFreeToday(String from, String to);
+
+  /// No description provided for @healthTileLastNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Last night'**
+  String get healthTileLastNight;
+
+  /// No description provided for @healthTileLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} left'**
+  String healthTileLeft(String kcal);
+
+  /// No description provided for @healthTileNoFree.
+  ///
+  /// In en, this message translates to:
+  /// **'No free time left in the plan today'**
+  String get healthTileNoFree;
+
+  /// No description provided for @healthTileNoPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing planned'**
+  String get healthTileNoPlan;
+
+  /// No description provided for @healthTileOfTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'{eaten} of {target} kcal'**
+  String healthTileOfTarget(String eaten, String target);
+
+  /// No description provided for @healthTileOver.
+  ///
+  /// In en, this message translates to:
+  /// **'About {kcal} over'**
+  String healthTileOver(String kcal);
+
+  /// No description provided for @healthTileSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep'**
+  String get healthTileSleep;
+
+  /// No description provided for @healthTileSleepEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell Botler how you slept'**
+  String get healthTileSleepEmpty;
+
+  /// No description provided for @healthTileToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get healthTileToday;
+
+  /// No description provided for @healthTileTodayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing logged yet'**
+  String get healthTileTodayEmpty;
+
+  /// No description provided for @healthTileTrain.
+  ///
+  /// In en, this message translates to:
+  /// **'Train'**
+  String get healthTileTrain;
+
+  /// No description provided for @healthTileTrainEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan a week around your work'**
+  String get healthTileTrainEmpty;
+
+  /// No description provided for @healthTileWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'My week'**
+  String get healthTileWeek;
+
+  /// No description provided for @healthTileWeekEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your work hours'**
+  String get healthTileWeekEmpty;
+
+  /// No description provided for @healthTileWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight'**
+  String get healthTileWeight;
+
+  /// No description provided for @healthTileWeightEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your first weigh-in'**
+  String get healthTileWeightEmpty;
+
+  /// No description provided for @healthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get healthTitle;
+
+  /// No description provided for @healthTodayAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Today at {time}'**
+  String healthTodayAt(String time);
+
+  /// No description provided for @healthTodayEmptyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo of your food, or tell Botler what you ate.'**
+  String get healthTodayEmptyLine;
+
+  /// No description provided for @healthTotalWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Weighed it? Total weight in grams (optional)'**
+  String get healthTotalWeight;
+
+  /// No description provided for @healthTrainTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Train'**
+  String get healthTrainTitle;
+
+  /// No description provided for @healthTryKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'Try {kcal} kcal a day'**
+  String healthTryKcal(String kcal);
+
+  /// No description provided for @healthTwoServings.
+  ///
+  /// In en, this message translates to:
+  /// **'Two'**
+  String get healthTwoServings;
+
+  /// No description provided for @healthUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get healthUndo;
+
+  /// No description provided for @healthUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get healthUnknown;
+
+  /// No description provided for @healthUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Up {kg} kg'**
+  String healthUp(String kg);
+
+  /// No description provided for @healthUseKcal.
+  ///
+  /// In en, this message translates to:
+  /// **'Use {kcal}'**
+  String healthUseKcal(String kcal);
+
+  /// No description provided for @healthVitamins.
+  ///
+  /// In en, this message translates to:
+  /// **'Vitamins and minerals'**
+  String get healthVitamins;
+
+  /// No description provided for @healthWeekAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your week is set. Reminders come before each one.'**
+  String get healthWeekAccepted;
+
+  /// No description provided for @healthWeekAddOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a change for one day'**
+  String get healthWeekAddOnce;
+
+  /// No description provided for @healthWeekAwake.
+  ///
+  /// In en, this message translates to:
+  /// **'Awake hours'**
+  String get healthWeekAwake;
+
+  /// No description provided for @healthWeekAwakeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Change when you wake'**
+  String get healthWeekAwakeFrom;
+
+  /// No description provided for @healthWeekAwakeTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change when you sleep'**
+  String get healthWeekAwakeTo;
+
+  /// No description provided for @healthWeekCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy to Tuesday through Friday'**
+  String get healthWeekCopy;
+
+  /// No description provided for @healthWeekFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free all day'**
+  String get healthWeekFree;
+
+  /// No description provided for @healthWeekIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned around your work and calendar. Nothing is set until you accept.'**
+  String get healthWeekIntro;
+
+  /// No description provided for @healthWeekLegendFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get healthWeekLegendFree;
+
+  /// No description provided for @healthWeekLegendWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get healthWeekLegendWork;
+
+  /// No description provided for @healthWeekLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler plans workouts and reminders around this. You can also just say it in chat.'**
+  String get healthWeekLine;
+
+  /// No description provided for @healthWeekMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} minutes'**
+  String healthWeekMinutes(String minutes);
+
+  /// No description provided for @healthWeekOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Day off'**
+  String get healthWeekOff;
+
+  /// No description provided for @healthWeekOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Just this once'**
+  String get healthWeekOnce;
+
+  /// No description provided for @healthWeekRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{from} to {to}'**
+  String healthWeekRange(String from, String to);
+
+  /// No description provided for @healthWeekReady.
+  ///
+  /// In en, this message translates to:
+  /// **'A new week of workouts is ready'**
+  String get healthWeekReady;
+
+  /// No description provided for @healthWeekReadyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is set until you accept'**
+  String get healthWeekReadyLine;
+
+  /// No description provided for @healthWeekSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save my week'**
+  String get healthWeekSave;
+
+  /// No description provided for @healthWeekSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved your week.'**
+  String get healthWeekSaved;
+
+  /// No description provided for @healthWeekTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My week'**
+  String get healthWeekTitle;
+
+  /// No description provided for @healthWeekTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel to and from work'**
+  String get healthWeekTravel;
+
+  /// No description provided for @healthWeekWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'I work this day'**
+  String get healthWeekWorking;
+
+  /// No description provided for @healthWeightBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your weight in kilograms, such as 74.2'**
+  String get healthWeightBad;
+
+  /// No description provided for @healthWeightKg.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight in kg'**
+  String get healthWeightKg;
+
+  /// No description provided for @healthWeightQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone. It goes up when you are back online.'**
+  String get healthWeightQueued;
+
+  /// No description provided for @healthWeightSpark.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weight trend'**
+  String get healthWeightSpark;
+
+  /// No description provided for @healthWeightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight'**
+  String get healthWeightTitle;
+
+  /// No description provided for @healthWeightToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Your weight today'**
+  String get healthWeightToday;
+
+  /// No description provided for @healthWindDownBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Wind down by {time}'**
+  String healthWindDownBy(String time);
+
+  /// No description provided for @healthWindDownNoEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'No early start tomorrow'**
+  String get healthWindDownNoEarly;
+
+  /// No description provided for @healthWindDownNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Wind-down reminder'**
+  String get healthWindDownNone;
+
+  /// No description provided for @healthWindDownSwitch.
+  ///
+  /// In en, this message translates to:
+  /// **'Wind-down reminder'**
+  String get healthWindDownSwitch;
+
+  /// No description provided for @healthWindDownWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'You start at {time} tomorrow'**
+  String healthWindDownWhy(String time);
+
+  /// No description provided for @healthWokeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Woke up today'**
+  String get healthWokeToday;
+
+  /// No description provided for @healthWorkingOnIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on it'**
+  String get healthWorkingOnIt;
+
+  /// No description provided for @healthWorkoutMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String healthWorkoutMinutes(String minutes);
+
+  /// No description provided for @healthWorkoutSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved. Well done for showing up.'**
+  String get healthWorkoutSaved;
+
+  /// No description provided for @healthYourPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Your path'**
+  String get healthYourPath;
+
+  /// No description provided for @healthYourPrograms.
+  ///
+  /// In en, this message translates to:
+  /// **'Your programs'**
+  String get healthYourPrograms;
+
+  /// No description provided for @healthYourTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Your trend'**
+  String get healthYourTrend;
 
   /// No description provided for @histEntryTitle.
   ///
@@ -3774,6 +5760,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What you are saving for'**
   String get menuGoalsLine;
+
+  /// No description provided for @menuHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get menuHealth;
+
+  /// No description provided for @menuHealthLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Food, weight, workouts and sleep'**
+  String get menuHealthLine;
 
   /// No description provided for @menuHistory.
   ///
@@ -5214,6 +7212,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All of the above'**
   String get resetScopeEverythingLine;
+
+  /// No description provided for @resetScopeHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get resetScopeHealth;
+
+  /// No description provided for @resetScopeHealthLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Food, weight, workouts, sleep and your Health setup'**
+  String get resetScopeHealthLine;
 
   /// No description provided for @resetScopeMemory.
   ///
@@ -7744,48 +9754,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yes'**
   String get yes;
-
-  /// No description provided for @chatScriptFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'The script did not finish'**
-  String get chatScriptFailed;
-
-  /// No description provided for @chatOutputShowAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Show all of it'**
-  String get chatOutputShowAll;
-
-  /// No description provided for @chatOutputShowLess.
-  ///
-  /// In en, this message translates to:
-  /// **'Show less'**
-  String get chatOutputShowLess;
-
-  /// No description provided for @billsViewWeek.
-  ///
-  /// In en, this message translates to:
-  /// **'Week'**
-  String get billsViewWeek;
-
-  /// No description provided for @billsViewMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'Month'**
-  String get billsViewMonth;
-
-  /// No description provided for @billsThisWeek.
-  ///
-  /// In en, this message translates to:
-  /// **'This week'**
-  String get billsThisWeek;
-
-  /// No description provided for @billsThisMonth.
-  ///
-  /// In en, this message translates to:
-  /// **'This month'**
-  String get billsThisMonth;
 }
 
 class _AppLocalizationsDelegate

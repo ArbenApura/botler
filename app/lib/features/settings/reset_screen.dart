@@ -54,6 +54,7 @@ class _State extends ConsumerState<ResetScreen> {
       'money' => (t.resetScopeMoney, t.resetScopeMoneyLine, scope),
       'schedule' => (t.resetScopeSchedule, t.resetScopeScheduleLine, scope),
       'memory_and_chat' => (t.resetScopeMemory, t.resetScopeMemoryLine, scope),
+      'health' => (t.resetScopeHealth, t.resetScopeHealthLine, scope),
       'audit' => (t.resetScopeAudit, t.resetScopeAuditLine, scope),
       _ => (t.resetScopeEverything, t.resetScopeEverythingLine, scope),
     };
@@ -209,6 +210,7 @@ class _State extends ConsumerState<ResetScreen> {
               'money',
               'schedule',
               'memory_and_chat',
+              'health',
               'audit',
               'everything',
             ])

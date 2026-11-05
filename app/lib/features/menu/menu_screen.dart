@@ -18,6 +18,7 @@ class MenuScreen extends StatelessWidget {
   List<(String, String, String, IconData)> _items(BuildContext context) {
     final t = context.t;
     return <(String, String, String, IconData)>[
+      ('/health', t.menuHealth, t.menuHealthLine, Icons.favorite_border),
       (
         '/calendar',
         t.menuCalendar,

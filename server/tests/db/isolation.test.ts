@@ -10,6 +10,22 @@ import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import {
+	availabilityOverride,
+	availabilitySetting,
+	dayStatus,
+	energyEstimate,
+	foodEntry,
+	foodItem,
+	healthGoal,
+	healthProfile,
+	healthProposal,
+	plannedWorkout,
+	program,
+	sleepEntry,
+	weeklyBlock,
+	weightEntry,
+	workoutSession,
+	workoutSet,
 	USER_TABLES,
 	account,
 	accountWallet,
@@ -213,6 +229,84 @@ const CASES: Record<string, (tx: Tx, userId: string) => Promise<unknown>> = {
 			actor: 'user'
 		});
 	},
+	health_profile: (tx, userId) => tx.insert(healthProfile).values({ userId, heightMm: 1700 }),
+	health_goal: (tx, userId) => tx.insert(healthGoal).values({ userId, kind: 'track' }),
+	food_item: (tx, userId) => tx.insert(foodItem).values({ userId, name: 'Rice', kcal: 130 }),
+	food_entry: (tx, userId) =>
+		tx.insert(foodEntry).values({
+			userId,
+			day: '2030-01-01',
+			meal: 'lunch',
+			mealGroup: crypto.randomUUID(),
+			name: 'Rice',
+			kcal: 130,
+			lowKcal: 100,
+			highKcal: 160,
+			sourceKind: 'manual'
+		}),
+	day_status: (tx, userId) => tx.insert(dayStatus).values({ userId, day: '2030-01-01' }),
+	weight_entry: (tx, userId) =>
+		tx.insert(weightEntry).values({ userId, day: '2030-01-01', grams: 70_000 }),
+	energy_estimate: (tx, userId) =>
+		tx.insert(energyEstimate).values({
+			userId,
+			weekKey: '2030-W01',
+			trendG: 70_000,
+			burnKcal: 2000,
+			intakeKcal: 1800,
+			completeDays: 14,
+			weighIns: 8
+		}),
+	health_proposal: (tx, userId) =>
+		tx.insert(healthProposal).values({
+			userId,
+			kind: 'target',
+			weekKey: '2030-W01',
+			payload: {},
+			basisHash: 'x',
+			expiresAt: new Date('2030-01-08T00:00:00Z')
+		}),
+	program: (tx, userId) =>
+		tx.insert(program).values({ userId, templateKey: 'home_strength', startedOn: '2030-01-01' }),
+	planned_workout: (tx, userId) =>
+		tx.insert(plannedWorkout).values({
+			userId,
+			day: '2030-01-01',
+			startsAt: new Date('2030-01-01T11:00:00Z'),
+			minutes: 20,
+			kind: 'strength',
+			sessionKey: 'a',
+			weekKey: '2030-W01'
+		}),
+	workout_session: (tx, userId) =>
+		tx.insert(workoutSession).values({ userId, day: '2030-01-01', kind: 'walk', title: 'Walk' }),
+	// The set hangs off the session the previous case made (another person sees none: the policy refuses the row before the key is looked at)
+	workout_set: async (tx, userId) => {
+		const [s] = await tx
+			.select({ id: workoutSession.id })
+			.from(workoutSession)
+			.where(eq(workoutSession.userId, userId));
+		await tx.insert(workoutSet).values({
+			userId,
+			sessionId: s?.id ?? crypto.randomUUID(),
+			exerciseKey: 'squat',
+			position: 1
+		});
+	},
+	sleep_entry: (tx, userId) =>
+		tx.insert(sleepEntry).values({
+			userId,
+			day: '2030-01-01',
+			startsAt: new Date('2029-12-31T15:00:00Z'),
+			endsAt: new Date('2029-12-31T22:00:00Z')
+		}),
+	weekly_block: (tx, userId) =>
+		tx
+			.insert(weeklyBlock)
+			.values({ userId, weekday: 1, startMinute: 420, endMinute: 1110, kind: 'work' }),
+	availability_override: (tx, userId) =>
+		tx.insert(availabilityOverride).values({ userId, day: '2030-01-01', off: true }),
+	availability_setting: (tx, userId) => tx.insert(availabilitySetting).values({ userId }),
 	chat: (tx, userId) => tx.insert(chat).values({ userId, title: 'A chat' }),
 	chat_turn: async (tx, userId) =>
 		tx.insert(chatTurn).values({

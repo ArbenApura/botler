@@ -18,6 +18,21 @@ import 'features/calendar/calendar_screen.dart';
 import 'features/chat/chat_screen.dart';
 import 'features/chat/chat_state.dart';
 import 'features/expense/expense_screen.dart';
+import 'core/json.dart';
+import 'core/script/device_tools.dart';
+import 'features/health/availability_screen.dart';
+import 'features/health/barcode_screen.dart';
+import 'features/health/camera_screen.dart';
+import 'features/health/reading_screen.dart';
+import 'features/health/review_screen.dart';
+import 'features/health/health_home_screen.dart';
+import 'features/health/health_setup_screen.dart';
+import 'features/health/session_screen.dart';
+import 'features/health/sleep_screen.dart';
+import 'features/health/train_screen.dart';
+import 'features/health/week_plan_screen.dart';
+import 'features/health/weight_screen.dart';
+import 'features/health/today_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/notebooks/library_screen.dart';
 import 'features/menu/menu_screen.dart';
@@ -102,6 +117,107 @@ GoRouter buildRouter(WidgetRef ref) {
         pageBuilder: (_, state) => botlerPage(state, const BillsScreen()),
       ),
       GoRoute(
+        path: '/health',
+        pageBuilder: (_, state) => botlerPage(state, const HealthHomeScreen()),
+      ),
+      GoRoute(
+        path: '/health/setup',
+        pageBuilder: (_, state) => botlerPage(state, const HealthSetupScreen()),
+      ),
+      GoRoute(
+        path: '/health/week',
+        pageBuilder: (_, state) =>
+            botlerPage(state, const AvailabilityScreen()),
+      ),
+      GoRoute(
+        path: '/health/today',
+        pageBuilder: (_, state) => botlerPage(state, const TodayScreen()),
+      ),
+      GoRoute(
+        path: '/health/nutrients',
+        pageBuilder: (_, state) => botlerPage(state, const NutrientsScreen()),
+      ),
+      GoRoute(
+        path: '/health/camera',
+        pageBuilder: (_, state) => botlerPage(
+          state,
+          FoodCameraScreen(
+            mode: state.uri.queryParameters['mode'] ?? 'meal',
+            barcode: state.uri.queryParameters['barcode'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/health/reading',
+        pageBuilder: (_, state) {
+          final e = asJson(state.extra);
+          return botlerPage(
+            state,
+            ReadingScreen(
+              mode: str(e['mode'], 'meal'),
+              paths: <String>[
+                for (final p in asList(e['paths']))
+                  if (p is String) p,
+              ],
+              barcode: e['barcode'] is String ? str(e['barcode']) : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/health/review',
+        pageBuilder: (_, state) {
+          final e = asJson(state.extra);
+          return botlerPage(
+            state,
+            MealReviewScreen(
+              actionId: str(e['actionId']),
+              args: asJson(e['args']),
+              note: e['note'] is String ? str(e['note']) : null,
+              photo: e['photo'] is String ? str(e['photo']) : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/health/weight',
+        pageBuilder: (_, state) => botlerPage(state, const WeightScreen()),
+      ),
+      GoRoute(
+        path: '/health/train',
+        pageBuilder: (_, state) => botlerPage(state, const TrainScreen()),
+      ),
+      GoRoute(
+        path: '/health/train/session',
+        pageBuilder: (_, state) {
+          final e = asJson(state.extra);
+          return botlerPage(
+            state,
+            SessionScreen(
+              plannedId: e['plannedId'] is String ? str(e['plannedId']) : null,
+              templateKey: e['templateKey'] is String
+                  ? str(e['templateKey'])
+                  : null,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/health/train/week',
+        pageBuilder: (_, state) => botlerPage(state, const WeekPlanScreen()),
+      ),
+      GoRoute(
+        path: '/health/sleep',
+        pageBuilder: (_, state) => botlerPage(state, const SleepScreen()),
+      ),
+      GoRoute(
+        path: '/health/barcode',
+        pageBuilder: (_, state) => botlerPage(
+          state,
+          BarcodeResultScreen(code: str(asJson(state.extra)['code'])),
+        ),
+      ),
+      GoRoute(
         path: '/goals',
         pageBuilder: (_, state) => botlerPage(state, const GoalsScreen()),
       ),
@@ -159,10 +275,19 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
     with WidgetsBindingObserver {
   late final GoRouter _router = buildRouter(ref);
 
+  void _openHealth() {
+    final path = healthOpenSignal.value;
+    if (path == null) return;
+    healthOpenSignal.value = null;
+    unawaited(_router.push(path));
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // The assistant asked to open a Health screen or the food camera
+    healthOpenSignal.addListener(_openHealth);
     // Re-evaluate the redirect when the session changes (signing in or out)
     ref.listenManual(sessionProvider, (_, next) {
       _router.refresh();

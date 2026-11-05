@@ -12,6 +12,9 @@
     <!-- APP LOCK WITH FINGERPRINT OR FACE, AND TALKING TO BOTLER -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- THE FOOD CAMERA: A MEAL PHOTO, A BARCODE OR A NUTRITION LABEL -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- IN-APP UPDATES: OPENING THE SYSTEM INSTALLER FOR A BUILD DOWNLOADED FROM THE BOTLER SERVER (ANDROID STILL ASKS THE PERSON TO TAP INSTALL) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 

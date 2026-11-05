@@ -72,3 +72,6 @@ CREDENTIALS.md
 
 # A dev session for the emulator (holds a token)
 app/.dev/
+
+# The nutrition seed built from the USDA downloads
+server/data/

@@ -28,11 +28,14 @@ export const POST: RequestHandler = async ({ locals, request, params }) => {
 		const imageData = (body as { imageData?: unknown }).imageData;
 		if (imageData !== undefined && typeof imageData !== 'string')
 			throw new OpsError('INVALID', 'imageData must be text');
+		// What the person corrected on a meal card; the verb checks it again and works out every number
+		const editedArgs = (body as { editedArgs?: unknown }).editedArgs;
 		return json({
 			action: await decideAction(c.ctx, {
 				actionId: params.id,
 				decision: (body as { decision: 'approve' | 'reject' }).decision,
-				...(imageData !== undefined ? { imageData } : {})
+				...(imageData !== undefined ? { imageData } : {}),
+				...(editedArgs !== undefined ? { editedArgs } : {})
 			})
 		});
 	} catch (e) {

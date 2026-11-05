@@ -34,6 +34,7 @@
   "calCountPaydays": "{count, plural, =1{1 sweldo} other{{count} sweldo}}",
   "calCountEvents": "{count, plural, =1{1 event} other{{count} event}}",
   "calCountRoutines": "{count, plural, =1{1 routine} other{{count} routine}}",
+  "calCountWorkouts": "{count, plural, =1{1 workout} other{{count} na workout}}",
   "calCountTasks": "{count, plural, =1{1 gawain} other{{count} gawain}}",
   "calCountReminders": "{count, plural, =1{1 paalala} other{{count} paalala}}",
   "calDaySemantics": "{date}, {parts}",

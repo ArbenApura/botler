@@ -43,6 +43,7 @@ const MAX_READ_JSON_CHARS = 15_000;
 
 export const SCRIPT_RUN = 'script_run';
 export const TOOLBOX = 'toolbox';
+export const HEALTH_OPEN = 'health_open';
 
 export const SCRIPT_CODE_MAX = 20_000;
 export const TOOLBOX_NAME_MAX = 60;
@@ -57,6 +58,22 @@ const scriptRunInput = z
 		message:
 			'Give either code (a new script) or saved (the name of a script in the toolbox), not both.'
 	});
+
+const healthOpenInput = z
+	.object({
+		screen: z.enum([
+			'health',
+			'today',
+			'weight',
+			'train',
+			'sleep',
+			'week',
+			'meal',
+			'barcode',
+			'label'
+		])
+	})
+	.strict();
 
 const toolboxInput = z
 	.strictObject({
@@ -274,6 +291,15 @@ function deviceTools(): AgentTool[] {
 			parameters: toParameters(toolboxInput),
 			taints: false,
 			deviceInput: toolboxInput
+		},
+		{
+			name: HEALTH_OPEN,
+			description:
+				'Open a Health screen on the phone (health, today, weight, train, sleep, week) or the food camera in a mode (meal, barcode, label). The person takes the photo. The app must be open.',
+			kind: 'device',
+			parameters: toParameters(healthOpenInput),
+			taints: false,
+			deviceInput: healthOpenInput
 		}
 	];
 }

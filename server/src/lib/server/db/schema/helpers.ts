@@ -44,6 +44,9 @@ export const PLAIN_TABLES: string[] = [];
 /** Plain tables the runtime role may read, insert into and update but never delete from (the exchange rates must survive a bad refresh). */
 export const PLAIN_NO_DELETE: Set<string> = new Set();
 
+/** Plain tables the runtime role may only read: shared reference data that holds nothing of anyone. The loader writes them as the owner. */
+export const PLAIN_READ_ONLY: Set<string> = new Set();
+
 // -- FUNCTIONS -- //
 
 /** A PostgreSQL full text search column, always generated from the row's own text columns. */
@@ -82,10 +85,11 @@ export function plainTable<T extends Record<string, PgColumnBuilderBase>>(
 	name: string,
 	columns: T,
 	extra?: (self: { [K in keyof T]: ExtraConfigColumn }) => PgTableExtraConfigValue[],
-	options: { noDelete?: boolean } = {}
+	options: { noDelete?: boolean; readOnly?: boolean } = {}
 ) {
 	PLAIN_TABLES.push(name);
 	if (options.noDelete) PLAIN_NO_DELETE.add(name);
+	if (options.readOnly) PLAIN_READ_ONLY.add(name);
 	// The array form of the extra config is supported at runtime, its type is wider than the overloads accept
 	return pgTable(name, columns, extra as never);
 }

@@ -397,7 +397,14 @@ describe('the delete cap covers every removing verb', () => {
 				(v.name.endsWith('_delete') ||
 					v.name === 'account_wallet_remove' ||
 					v.name === 'account_archive') &&
-				!['event_delete'].includes(v.name)
+				// A food, weight, workout or sleep entry is not part of the money plan or the notebooks, and each answer returns the removed row
+				![
+					'event_delete',
+					'food_delete',
+					'weight_delete',
+					'workout_delete',
+					'sleep_delete'
+				].includes(v.name)
 		).map((v) => v.name);
 		for (const name of removing) expect(DELETE_VERBS.has(name), name).toBe(true);
 		expect(removing.length).toBeGreaterThanOrEqual(7);

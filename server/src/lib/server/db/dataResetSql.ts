@@ -5,7 +5,8 @@
 // purpose, and that the migration file is exactly the SQL built here.
 
 // -- TYPES -- //
-export type ResetScope = 'money' | 'schedule' | 'memory_and_chat' | 'audit' | 'everything';
+export type ResetScope =
+	'money' | 'schedule' | 'memory_and_chat' | 'health' | 'audit' | 'everything';
 
 // -- CONSTANTS -- //
 
@@ -13,6 +14,7 @@ export const RESET_SCOPES: readonly ResetScope[] = [
 	'money',
 	'schedule',
 	'memory_and_chat',
+	'health',
 	'audit',
 	'everything'
 ];
@@ -43,7 +45,15 @@ export const SCOPE_TABLES: Record<
 		'undo_journal',
 		'agent_action'
 	],
-	schedule: ['reminder', 'task', 'calendar_event', 'routine'],
+	schedule: [
+		'reminder',
+		'task',
+		'calendar_event',
+		'routine',
+		'availability_override',
+		'weekly_block',
+		'availability_setting'
+	],
 	// A chat is deleted after its turns (the turns point at it)
 	// The revisions of the notebook go before the notebook they point at; the revisions of a page before the page, and the pages before the notebook
 	memory_and_chat: [
@@ -55,8 +65,27 @@ export const SCOPE_TABLES: Record<
 		'notebook_page',
 		'notebook_revision',
 		'notebook'
+	],
+	// A set goes before its session, a session before the planned workout and program it names, and an entry before the saved food it names
+	health: [
+		'workout_set',
+		'workout_session',
+		'planned_workout',
+		'program',
+		'health_proposal',
+		'energy_estimate',
+		'weight_entry',
+		'sleep_entry',
+		'food_entry',
+		'food_item',
+		'day_status',
+		'health_goal',
+		'health_profile'
 	]
 };
+
+/** The schedule scope as migrations 0017 to 0041 shipped it, before work hours and free time (0045 adds them). */
+const SCHEDULE_0041: readonly string[] = ['reminder', 'task', 'calendar_event', 'routine'];
 
 /** The notebook and its revisions: erased by a memory and chat reset since migration 0031. */
 const NOTEBOOK_TABLES: readonly string[] = ['notebook_revision', 'notebook'];
@@ -115,6 +144,7 @@ export const EVERYTHING_TABLES: readonly string[] = [
 	...SCOPE_TABLES.money,
 	...SCOPE_TABLES.schedule,
 	...SCOPE_TABLES.memory_and_chat,
+	...SCOPE_TABLES.health,
 	...EVERYTHING_EXTRA
 ];
 
@@ -134,7 +164,9 @@ export function tablesOf(scope: ResetScope): readonly string[] {
 function resetFunctionSql(
 	money: readonly string[],
 	memory: readonly string[],
-	everything: readonly string[]
+	everything: readonly string[],
+	schedule: readonly string[] = SCHEDULE_0041,
+	health?: readonly string[]
 ): string {
 	return `-- ERASE ONE PERSON'S DATA BY SCOPE. SECURITY DEFINER, OWNED BY THE MIGRATING OWNER. IT CAN ONLY ERASE THE PERSON SET IN THE SESSION (app.user_id).
 -- The audit triggers stay quiet (this function runs as the owner), the trail's own guard is lifted for this transaction, and one tombstone
@@ -159,9 +191,14 @@ BEGIN
 	END IF;
 	tables := CASE p_scope
 		WHEN 'money' THEN ${arr(money)}
-		WHEN 'schedule' THEN ${arr(SCOPE_TABLES.schedule)}
+		WHEN 'schedule' THEN ${arr(schedule)}
 		WHEN 'memory_and_chat' THEN ${arr(memory)}
-		WHEN 'audit' THEN ${arr([])}
+${
+	health
+		? `		WHEN 'health' THEN ${arr(health)}
+`
+		: ''
+}		WHEN 'audit' THEN ${arr([])}
 		WHEN 'everything' THEN ${arr(everything)}
 		ELSE NULL
 	END;
@@ -204,7 +241,7 @@ $$;
 export function dataResetMigrationSql(): string {
 	return resetFunctionSql(MONEY_0017, MEMORY_0017, [
 		...MONEY_0017,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...MEMORY_0017,
 		...EVERYTHING_EXTRA
 	]);
@@ -214,7 +251,7 @@ export function dataResetMigrationSql(): string {
 export function dataResetBillOverrideSql(): string {
 	return resetFunctionSql(MONEY_0021, MEMORY_0017, [
 		...MONEY_0021,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...MEMORY_0017,
 		...EVERYTHING_EXTRA
 	]);
@@ -224,7 +261,7 @@ export function dataResetBillOverrideSql(): string {
 export function dataResetChatsSql(): string {
 	return resetFunctionSql(MONEY_0021, MEMORY_0025, [
 		...MONEY_0021,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...MEMORY_0025,
 		...EVERYTHING_EXTRA
 	]);
@@ -234,7 +271,7 @@ export function dataResetChatsSql(): string {
 export function dataResetWalletsSql(): string {
 	return resetFunctionSql(MONEY_0037, MEMORY_0025, [
 		...MONEY_0037,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...MEMORY_0025,
 		...EVERYTHING_EXTRA
 	]);
@@ -244,7 +281,7 @@ export function dataResetWalletsSql(): string {
 export function dataResetNotebookSql(): string {
 	return resetFunctionSql(MONEY_0037, MEMORY_0031, [
 		...MONEY_0037,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...MEMORY_0031,
 		...EVERYTHING_EXTRA
 	]);
@@ -254,13 +291,29 @@ export function dataResetNotebookSql(): string {
 export function dataResetPagesSql(): string {
 	return resetFunctionSql(MONEY_0037, SCOPE_TABLES.memory_and_chat, [
 		...MONEY_0037,
-		...SCOPE_TABLES.schedule,
+		...SCHEDULE_0041,
 		...SCOPE_TABLES.memory_and_chat,
 		...EVERYTHING_EXTRA
 	]);
 }
 
-/** The function as it is now: what the newest migration (0041, the pictures of accounts and bills) installs over the one of 0037. */
+/** The function migration 0041 installed (the pictures of accounts and bills, before work hours and Health). */
+export function dataResetMarksSql(): string {
+	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, [
+		...SCOPE_TABLES.money,
+		...SCHEDULE_0041,
+		...SCOPE_TABLES.memory_and_chat,
+		...EVERYTHING_EXTRA
+	]);
+}
+
+/** The function as it is now: what the newest migration (0045, Health and work hours) installs over the one of 0041. */
 export function dataResetLatestSql(): string {
-	return resetFunctionSql(SCOPE_TABLES.money, SCOPE_TABLES.memory_and_chat, EVERYTHING_TABLES);
+	return resetFunctionSql(
+		SCOPE_TABLES.money,
+		SCOPE_TABLES.memory_and_chat,
+		EVERYTHING_TABLES,
+		SCOPE_TABLES.schedule,
+		SCOPE_TABLES.health
+	);
 }

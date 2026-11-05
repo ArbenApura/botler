@@ -757,6 +757,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get billsSkipped => 'Skipped.';
 
   @override
+  String get billsThisMonth => 'This month';
+
+  @override
+  String get billsThisWeek => 'This week';
+
+  @override
   String get billsTitle => 'Bills';
 
   @override
@@ -766,6 +772,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get billsVaries => 'The amount is different every time';
+
+  @override
+  String get billsViewMonth => 'Month';
+
+  @override
+  String get billsViewWeek => 'Week';
 
   @override
   String get billsWalletLabel => 'Paid in';
@@ -891,6 +903,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String calCountWorkouts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count workouts',
+      one: '1 workout',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get calDayNothing => 'nothing planned';
 
   @override
@@ -967,6 +990,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calLayerTasks => 'Tasks';
+
+  @override
+  String get calLayerWorkouts => 'Workouts';
 
   @override
   String get calLayersLabel => 'Show';
@@ -1053,6 +1079,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calWhatIsIt => 'What is it?';
+
+  @override
+  String get calWorkoutLabel => 'Workout';
 
   @override
   String get cancel => 'Cancel';
@@ -1231,6 +1260,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOffline => 'offline';
 
   @override
+  String get chatOutputShowAll => 'Show all of it';
+
+  @override
+  String get chatOutputShowLess => 'Show less';
+
+  @override
   String get chatPasteNothing => 'There is no picture on the clipboard.';
 
   @override
@@ -1376,6 +1411,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatRunningScript => 'Running a script on your phone';
+
+  @override
+  String get chatScriptFailed => 'The script did not finish';
 
   @override
   String get chatSend => 'Send';
@@ -1745,6 +1783,1141 @@ class AppLocalizationsEn extends AppLocalizations {
   String goalsYear(int count, String amount) {
     return 'In a year ($count paydays) that is $amount.';
   }
+
+  @override
+  String get healthAbout => 'About';
+
+  @override
+  String healthAboutTime(String time) {
+    return 'About $time';
+  }
+
+  @override
+  String get healthAcceptWeek => 'Accept this week';
+
+  @override
+  String get healthActivityFeet => 'On my feet';
+
+  @override
+  String get healthActivitySitting => 'Mostly sitting';
+
+  @override
+  String get healthActivityVery => 'Very active';
+
+  @override
+  String get healthActivityWalking => 'Some walking';
+
+  @override
+  String get healthAddByHand => 'Add by hand';
+
+  @override
+  String get healthAddFood => 'Add a food';
+
+  @override
+  String get healthAddKcal => 'Calories (kcal)';
+
+  @override
+  String get healthAddName => 'What did you eat?';
+
+  @override
+  String get healthAddNeeds => 'Give a name and the calories.';
+
+  @override
+  String get healthAddProtein => 'Protein in grams (optional)';
+
+  @override
+  String get healthAddSleep => 'Add sleep';
+
+  @override
+  String get healthAddToToday => 'Add to today';
+
+  @override
+  String get healthAddWeight => 'Add weight';
+
+  @override
+  String get healthAskBotler => 'Ask Botler';
+
+  @override
+  String get healthBack => 'Back';
+
+  @override
+  String healthBedtimeSteady(String time) {
+    return 'Your bedtime stayed within about $time.';
+  }
+
+  @override
+  String get healthByBotler => 'By Botler';
+
+  @override
+  String get healthCalories => 'Calories';
+
+  @override
+  String get healthCameraBarcode => 'Barcode';
+
+  @override
+  String get healthCameraDenied =>
+      'Botler needs the camera for this. You can allow it in the phone settings, or add the food by hand.';
+
+  @override
+  String get healthCameraGallery => 'Choose from gallery';
+
+  @override
+  String healthCameraHintAngle(String count, String total) {
+    return 'Angle $count of $total. Take another, or tap Done.';
+  }
+
+  @override
+  String get healthCameraHintBarcode =>
+      'Point at the barcode. It scans by itself.';
+
+  @override
+  String get healthCameraHintLabel => 'Fit the whole label in the frame.';
+
+  @override
+  String get healthCameraHintMeal =>
+      'Take it from above. A second angle helps.';
+
+  @override
+  String get healthCameraLabel => 'Label';
+
+  @override
+  String get healthCameraMeal => 'Meal';
+
+  @override
+  String get healthCameraOffline =>
+      'Reading a photo needs the internet, and nothing was saved. You can add the food by hand.';
+
+  @override
+  String get healthCameraOfflineTitle => 'This needs a connection';
+
+  @override
+  String get healthCameraTake => 'Take the photo';
+
+  @override
+  String get healthCarbs => 'Carbohydrates';
+
+  @override
+  String get healthChartEmpty =>
+      'Two weigh-ins draw your line. Any time of day is fine, but the same time each day is easiest to compare.';
+
+  @override
+  String healthChartLabel(String from, String to) {
+    return 'Your weight from $from kilograms to a trend of $to kilograms';
+  }
+
+  @override
+  String get healthCheckInLine => 'A new calorie target to look at';
+
+  @override
+  String get healthCheckInReady => 'Your weekly check-in is ready';
+
+  @override
+  String get healthCheckInTitle => 'Weekly check-in';
+
+  @override
+  String healthCheckInWhy(String burn) {
+    return 'Your body seems to burn about $burn a day. This keeps you moving toward your goal at the pace you chose.';
+  }
+
+  @override
+  String get healthClose => 'Close';
+
+  @override
+  String healthCouldBe(String low, String high) {
+    return 'Could be $low to $high';
+  }
+
+  @override
+  String get healthDataCredit =>
+      'Food data from USDA FoodData Central and Open Food Facts. Filipino dishes are rough estimates.';
+
+  @override
+  String get healthDayComplete => 'Today is complete';
+
+  @override
+  String get healthDayCompleteLine =>
+      'Turn on when everything you ate is logged';
+
+  @override
+  String get healthDayDone => 'done';
+
+  @override
+  String get healthDayPlanned => 'planned';
+
+  @override
+  String get healthDayRest => 'rest';
+
+  @override
+  String healthDayState(String day, String state) {
+    return '$day, $state';
+  }
+
+  @override
+  String get healthDayToday => 'today';
+
+  @override
+  String get healthDetailTitle => 'Today in detail';
+
+  @override
+  String get healthDetails => 'Details';
+
+  @override
+  String get healthDiscard => 'Discard';
+
+  @override
+  String get healthDistanceField => 'Distance in km (optional)';
+
+  @override
+  String get healthDone => 'Done';
+
+  @override
+  String healthDown(String kg) {
+    return 'Down $kg kg';
+  }
+
+  @override
+  String get healthEasier => 'Make it easier';
+
+  @override
+  String healthEatenKcal(String kcal) {
+    return '$kcal kcal eaten';
+  }
+
+  @override
+  String healthEatenOf(String eaten, String target) {
+    return '$eaten eaten of $target';
+  }
+
+  @override
+  String healthExerciseOf(String index, String count) {
+    return 'Exercise $index of $count';
+  }
+
+  @override
+  String get healthFat => 'Fat';
+
+  @override
+  String get healthFibre => 'Fibre';
+
+  @override
+  String get healthFieldActivity => 'How active is a normal day?';
+
+  @override
+  String get healthFieldGoalWeight => 'Goal weight in kilograms';
+
+  @override
+  String get healthFieldHeight => 'Height in centimetres';
+
+  @override
+  String get healthFieldHeightHint => 'For example, 168';
+
+  @override
+  String get healthFieldSex => 'Sex, used only for the first estimate';
+
+  @override
+  String get healthFieldWeight => 'Weight today in kilograms';
+
+  @override
+  String get healthFieldWeightHint => 'For example, 74';
+
+  @override
+  String get healthFieldYear => 'Year you were born';
+
+  @override
+  String get healthFieldYearHint => 'For example, 1995';
+
+  @override
+  String get healthFinishLater => 'Finish later';
+
+  @override
+  String get healthFinishSet => 'Finish set';
+
+  @override
+  String get healthFinishWorkout => 'Finish workout';
+
+  @override
+  String get healthFlash => 'Flash';
+
+  @override
+  String healthForecastAround(String kg, String date) {
+    return '$kg kg around $date';
+  }
+
+  @override
+  String get healthForecastAway => 'Your trend is moving away from your goal';
+
+  @override
+  String get healthForecastFar => 'Your goal is a long way off at this pace';
+
+  @override
+  String get healthForecastFlat => 'Your trend is steady';
+
+  @override
+  String get healthForecastLine => 'An estimate at your pace of the last weeks';
+
+  @override
+  String get healthForecastNoDate =>
+      'There is no date to give right now, and that is fine.';
+
+  @override
+  String get healthForecastReached => 'You are at your goal';
+
+  @override
+  String healthFromFoods(String count) {
+    return 'From $count foods. Amounts are estimates.';
+  }
+
+  @override
+  String get healthGoalGain => 'Gain';
+
+  @override
+  String get healthGoalLose => 'Lose weight';
+
+  @override
+  String get healthGoalMaintain => 'Maintain';
+
+  @override
+  String get healthGoalTrack => 'Just track';
+
+  @override
+  String healthGrams(String value) {
+    return '$value g';
+  }
+
+  @override
+  String healthGramsOf(String value, String target) {
+    return '$value of $target g';
+  }
+
+  @override
+  String get healthHalf => 'Half';
+
+  @override
+  String get healthHarder => 'Make it harder';
+
+  @override
+  String get healthHowMuch => 'How much did you have?';
+
+  @override
+  String get healthIsThisIt => 'Is this it?';
+
+  @override
+  String healthKcal(String value) {
+    return '$value kcal';
+  }
+
+  @override
+  String get healthKcalEaten => 'kcal eaten';
+
+  @override
+  String get healthKcalLeft => 'kcal left';
+
+  @override
+  String get healthKcalOver => 'kcal';
+
+  @override
+  String healthKeepKcal(String kcal) {
+    return 'Keep $kcal';
+  }
+
+  @override
+  String get healthKindRun => 'Run';
+
+  @override
+  String get healthKindWalk => 'Walk';
+
+  @override
+  String healthKnownFor(String known, String total) {
+    return 'Known for $known of $total foods';
+  }
+
+  @override
+  String healthLabelBasis(String grams) {
+    return 'These numbers are for $grams g';
+  }
+
+  @override
+  String get healthLabelFits => 'Calories match protein, carbs and fat';
+
+  @override
+  String get healthLabelNoFit =>
+      'Check this: the calories do not match protein, carbs and fat';
+
+  @override
+  String get healthLastNightTitle => 'Last night';
+
+  @override
+  String healthLeftKcal(String kcal) {
+    return 'About $kcal kcal left';
+  }
+
+  @override
+  String healthLeftWordsAbout(String kcal) {
+    return 'About $kcal kcal';
+  }
+
+  @override
+  String get healthLess => 'Less';
+
+  @override
+  String healthLevelUp(String names) {
+    return 'Next time: $names';
+  }
+
+  @override
+  String get healthLogFood => 'Log food';
+
+  @override
+  String get healthLogWalkTitle => 'Log a walk or a run';
+
+  @override
+  String get healthLowIntake =>
+      'You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.';
+
+  @override
+  String get healthMealBreakfast => 'Breakfast';
+
+  @override
+  String get healthMealDinner => 'Dinner';
+
+  @override
+  String get healthMealLunch => 'Lunch';
+
+  @override
+  String get healthMealMerienda => 'Merienda';
+
+  @override
+  String get healthMealPhoto => 'The photo of your meal';
+
+  @override
+  String get healthMealSnack => 'Snack';
+
+  @override
+  String healthMilligrams(String value) {
+    return '$value mg';
+  }
+
+  @override
+  String get healthMinutesBad => 'Enter the minutes, such as 30';
+
+  @override
+  String get healthMinutesField => 'Minutes';
+
+  @override
+  String healthMinutesLabel(String done, String goal) {
+    return '$done of $goal minutes moving this week';
+  }
+
+  @override
+  String get healthMinutesMoving => 'minutes moving';
+
+  @override
+  String healthMinutesOf(String done, String goal) {
+    return '$done of $goal';
+  }
+
+  @override
+  String get healthMore => 'More';
+
+  @override
+  String healthMoveTo(String time) {
+    return 'Move to $time';
+  }
+
+  @override
+  String healthNeedsMove(String title, String day) {
+    return '$title on $day needs a move';
+  }
+
+  @override
+  String get healthNeedsMoveLine => 'Your free time changed.';
+
+  @override
+  String get healthNewWeek => 'Plan it again';
+
+  @override
+  String get healthNext => 'Next';
+
+  @override
+  String healthNextAt(String day, String time) {
+    return '$day at $time';
+  }
+
+  @override
+  String get healthNextWeek => 'Next week';
+
+  @override
+  String healthNoFit(String titles) {
+    return 'No free time held: $titles';
+  }
+
+  @override
+  String get healthNoRoom => 'No time fits that day. You can skip it.';
+
+  @override
+  String get healthNotFoundLine =>
+      'Take a photo of its nutrition label. Botler reads it and remembers this product for next time.';
+
+  @override
+  String get healthNotFoundTitle => 'This product is not in the food data yet';
+
+  @override
+  String get healthNotMedical =>
+      'Botler gives general guidance, not medical advice. If you have a health condition or take medication, check with your doctor first.';
+
+  @override
+  String get healthNotThisProduct => 'Not this product';
+
+  @override
+  String get healthOffCredit =>
+      'Contains data from Open Food Facts, available under the Open Database License. Anyone can edit this data, so check it looks right.';
+
+  @override
+  String get healthOilLine =>
+      'Oil is hard to see, and it changes the calories the most.';
+
+  @override
+  String get healthOilLots => 'About two spoons';
+
+  @override
+  String get healthOilName => 'Cooking oil';
+
+  @override
+  String get healthOilNone => 'No added oil';
+
+  @override
+  String get healthOilQuestion => 'Was it cooked in oil?';
+
+  @override
+  String get healthOilSome => 'About a spoon';
+
+  @override
+  String get healthOneServing => 'One';
+
+  @override
+  String get healthOverBy => 'Over by about';
+
+  @override
+  String get healthPaceFastest => 'Fastest allowed';
+
+  @override
+  String get healthPaceGentle => 'Gentle';
+
+  @override
+  String get healthPaceSteady => 'Steady';
+
+  @override
+  String get healthPaceTitle => 'How fast?';
+
+  @override
+  String get healthPainNote =>
+      'If something hurts, stop and swap it. If pain keeps coming back, see a clinician.';
+
+  @override
+  String healthPathNext(String high, String next) {
+    return 'Reach $high on all sets and $next comes next.';
+  }
+
+  @override
+  String get healthPathTop =>
+      'This is the hardest version here. Nice and steady.';
+
+  @override
+  String healthPatternLine(String kcal) {
+    return 'After nights under 6 hours, you ate about $kcal kcal more. It may not be the only reason.';
+  }
+
+  @override
+  String get healthPatternTitle => 'A pattern to notice';
+
+  @override
+  String healthPer100(String kcal) {
+    return '$kcal kcal per 100 g';
+  }
+
+  @override
+  String get healthPhotoFailedLine =>
+      'Botler could not find any food in it, and nothing was saved. Try again with the whole plate in view and more light.';
+
+  @override
+  String get healthPhotoFailedTitle => 'That photo did not work';
+
+  @override
+  String get healthPhotoLabel => 'Your photo';
+
+  @override
+  String get healthPhotoSettingTitle => 'Your settings keep pictures private';
+
+  @override
+  String get healthPlanRest => 'Rest';
+
+  @override
+  String healthPlanWhen(String minutes, String time) {
+    return '$minutes min at $time';
+  }
+
+  @override
+  String healthPreviewKcal(String kcal) {
+    return 'About $kcal kcal a day';
+  }
+
+  @override
+  String healthPreviewReach(String kg, String date) {
+    return 'About $kg kg a week, reaching your goal around $date. This first estimate improves as you log.';
+  }
+
+  @override
+  String get healthPreviewTitle => 'What this means for you';
+
+  @override
+  String healthProgramWeek(String week, String weeks) {
+    return 'Week $week of $weeks';
+  }
+
+  @override
+  String get healthProgramsNone =>
+      'Pick one when you feel ready. Both need no equipment.';
+
+  @override
+  String get healthProtein => 'Protein';
+
+  @override
+  String healthProteinShort(String value) {
+    return '$value g protein';
+  }
+
+  @override
+  String get healthReadLabel => 'Read the label';
+
+  @override
+  String get healthReadingLine =>
+      'Finding the foods and checking their nutrition.';
+
+  @override
+  String get healthReadingTitle => 'Your meal';
+
+  @override
+  String get healthReadyLine =>
+      'If you answer yes to any of these, talk to a clinician first.';
+
+  @override
+  String get healthReadyNo => 'Not now';
+
+  @override
+  String get healthReadyTitle => 'Before you start';
+
+  @override
+  String get healthReadyYes => 'All no, start';
+
+  @override
+  String get healthRecent => 'This week';
+
+  @override
+  String get healthRecentWeights => 'Recent weigh-ins';
+
+  @override
+  String get healthRemove => 'Remove';
+
+  @override
+  String get healthRemoveWeight => 'Remove this weigh-in';
+
+  @override
+  String get healthRepsAsk => 'How many did you do?';
+
+  @override
+  String get healthRestDay => 'A rest day';
+
+  @override
+  String healthRestLeft(String time) {
+    return 'Rest, $time left';
+  }
+
+  @override
+  String get healthRestLine =>
+      'Nothing planned today. A walk still counts if you feel like one.';
+
+  @override
+  String get healthResume => 'Back to your workout';
+
+  @override
+  String get healthReviewAsk => 'Ask Botler';
+
+  @override
+  String get healthReviewDone => 'Got it';
+
+  @override
+  String healthReviewFood(String days, String kcal) {
+    return 'Food logged on $days days, about $kcal kcal a day';
+  }
+
+  @override
+  String healthReviewMoved(String minutes, String days) {
+    return '$minutes minutes moving, $days strength days';
+  }
+
+  @override
+  String get healthReviewNoFood => 'No full days of food logged';
+
+  @override
+  String healthReviewSleep(String time) {
+    return 'About $time of sleep a night';
+  }
+
+  @override
+  String get healthReviewTitle => 'Your week';
+
+  @override
+  String healthRingLabel(String percent) {
+    return '$percent percent of the calorie target';
+  }
+
+  @override
+  String healthRunSteps(String run, String walk, String repeat) {
+    return 'Run $run, walk $walk, $repeat times';
+  }
+
+  @override
+  String healthRunTotal(String minutes) {
+    return 'About $minutes minutes in all';
+  }
+
+  @override
+  String get healthRunWarm => 'Walk 5 minutes first and 5 minutes after.';
+
+  @override
+  String get healthSatFat => 'Saturated fat';
+
+  @override
+  String get healthSave => 'Save';
+
+  @override
+  String get healthSaveMeal => 'Save meal';
+
+  @override
+  String get healthSaveSleep => 'Save sleep';
+
+  @override
+  String get healthSavedOffline =>
+      'Saved on your phone. It will send when you are back online.';
+
+  @override
+  String healthScaleToday(String kg) {
+    return 'Scale today: $kg kg. Daily changes are mostly water, so the line is what counts.';
+  }
+
+  @override
+  String get healthScanBarcode => 'Scan a barcode';
+
+  @override
+  String get healthSecondsAsk => 'How many seconds?';
+
+  @override
+  String healthSecondsShort(String seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String healthSessionMinutes(String title, String minutes) {
+    return '$title, $minutes minutes';
+  }
+
+  @override
+  String healthSetDoneLabel(String index, String value) {
+    return 'Set $index, $value done';
+  }
+
+  @override
+  String healthSetOpenLabel(String index, String value) {
+    return 'Set $index, aim for $value';
+  }
+
+  @override
+  String healthSetsOfHolds(String sets, String low, String high) {
+    return '$sets holds of $low to $high seconds.';
+  }
+
+  @override
+  String healthSetsOfReps(String sets, String low, String high) {
+    return '$sets sets of $low to $high.';
+  }
+
+  @override
+  String get healthSetupAboutLine =>
+      'Your real weight trend corrects these after a few weeks, so close is fine.';
+
+  @override
+  String get healthSetupAboutTitle => 'A few facts to start';
+
+  @override
+  String get healthSetupGoalTitle => 'What do you want to do?';
+
+  @override
+  String get healthSetupPrompt => 'Finish setting up Health';
+
+  @override
+  String get healthSetupPromptLine =>
+      'It takes a minute, or just tell Botler in chat';
+
+  @override
+  String get healthSetupTitle => 'Set up Health';
+
+  @override
+  String get healthSevenNights => 'Last 7 nights';
+
+  @override
+  String get healthSexFemale => 'Female';
+
+  @override
+  String get healthSexMale => 'Male';
+
+  @override
+  String get healthSexSkip => 'Skip';
+
+  @override
+  String get healthSkip => 'Skip';
+
+  @override
+  String get healthSleepBars => 'Hours slept on the last nights';
+
+  @override
+  String get healthSleepChart => 'Bedtimes and wake times for the last nights';
+
+  @override
+  String get healthSleepEmpty =>
+      'No sleep logged yet. Say \"I slept 11 to 6\" in chat, or add it here.';
+
+  @override
+  String get healthSleepFrom => 'Went to sleep';
+
+  @override
+  String get healthSleepTitle => 'Sleep';
+
+  @override
+  String get healthSleepTo => 'Woke up';
+
+  @override
+  String get healthSodium => 'Sodium';
+
+  @override
+  String get healthSourceEstimate => 'AI estimate';
+
+  @override
+  String get healthSourceFilipino => 'Filipino list';
+
+  @override
+  String get healthSourceLabel => 'From the label';
+
+  @override
+  String get healthSourceSaved => 'Saved';
+
+  @override
+  String get healthSourceYours => 'Your numbers';
+
+  @override
+  String get healthStart => 'Start';
+
+  @override
+  String healthStartProgram(String name) {
+    return 'Start $name';
+  }
+
+  @override
+  String healthStartSession(String title) {
+    return 'Start $title';
+  }
+
+  @override
+  String get healthStartWalk => 'Log a walk';
+
+  @override
+  String get healthSteady => 'Steady';
+
+  @override
+  String healthStepOf(String step) {
+    return '$step of 2';
+  }
+
+  @override
+  String get healthStopProgram => 'Stop this program';
+
+  @override
+  String get healthStrengthDays => 'strength days';
+
+  @override
+  String healthStrengthLabel(String done, String goal) {
+    return '$done of $goal strength days this week';
+  }
+
+  @override
+  String get healthSugar => 'Sugar';
+
+  @override
+  String get healthSuggestFood =>
+      'Try logging a few more full days, so the numbers can help you.';
+
+  @override
+  String get healthSuggestKeep => 'Keep doing what you are doing.';
+
+  @override
+  String get healthSuggestMove => 'Try one more walk this week.';
+
+  @override
+  String get healthSuggestSleep =>
+      'Try to get to bed a little earlier this week.';
+
+  @override
+  String get healthSuggestWeigh =>
+      'Try a few more weigh-ins, so the trend is clearer.';
+
+  @override
+  String get healthSwap => 'Swap';
+
+  @override
+  String get healthTakeAnother => 'Take another photo';
+
+  @override
+  String healthTileEaten(String kcal) {
+    return 'About $kcal kcal';
+  }
+
+  @override
+  String healthTileFreeToday(String from, String to) {
+    return 'Free today from $from to $to';
+  }
+
+  @override
+  String get healthTileLastNight => 'Last night';
+
+  @override
+  String healthTileLeft(String kcal) {
+    return 'About $kcal left';
+  }
+
+  @override
+  String get healthTileNoFree => 'No free time left in the plan today';
+
+  @override
+  String get healthTileNoPlan => 'Nothing planned';
+
+  @override
+  String healthTileOfTarget(String eaten, String target) {
+    return '$eaten of $target kcal';
+  }
+
+  @override
+  String healthTileOver(String kcal) {
+    return 'About $kcal over';
+  }
+
+  @override
+  String get healthTileSleep => 'Sleep';
+
+  @override
+  String get healthTileSleepEmpty => 'Tell Botler how you slept';
+
+  @override
+  String get healthTileToday => 'Today';
+
+  @override
+  String get healthTileTodayEmpty => 'Nothing logged yet';
+
+  @override
+  String get healthTileTrain => 'Train';
+
+  @override
+  String get healthTileTrainEmpty => 'Plan a week around your work';
+
+  @override
+  String get healthTileWeek => 'My week';
+
+  @override
+  String get healthTileWeekEmpty => 'Add your work hours';
+
+  @override
+  String get healthTileWeight => 'Weight';
+
+  @override
+  String get healthTileWeightEmpty => 'Add your first weigh-in';
+
+  @override
+  String get healthTitle => 'Health';
+
+  @override
+  String healthTodayAt(String time) {
+    return 'Today at $time';
+  }
+
+  @override
+  String get healthTodayEmptyLine =>
+      'Take a photo of your food, or tell Botler what you ate.';
+
+  @override
+  String get healthTotalWeight =>
+      'Weighed it? Total weight in grams (optional)';
+
+  @override
+  String get healthTrainTitle => 'Train';
+
+  @override
+  String healthTryKcal(String kcal) {
+    return 'Try $kcal kcal a day';
+  }
+
+  @override
+  String get healthTwoServings => 'Two';
+
+  @override
+  String get healthUndo => 'Undo';
+
+  @override
+  String get healthUnknown => 'Unknown';
+
+  @override
+  String healthUp(String kg) {
+    return 'Up $kg kg';
+  }
+
+  @override
+  String healthUseKcal(String kcal) {
+    return 'Use $kcal';
+  }
+
+  @override
+  String get healthVitamins => 'Vitamins and minerals';
+
+  @override
+  String get healthWeekAccepted =>
+      'Your week is set. Reminders come before each one.';
+
+  @override
+  String get healthWeekAddOnce => 'Add a change for one day';
+
+  @override
+  String get healthWeekAwake => 'Awake hours';
+
+  @override
+  String get healthWeekAwakeFrom => 'Change when you wake';
+
+  @override
+  String get healthWeekAwakeTo => 'Change when you sleep';
+
+  @override
+  String get healthWeekCopy => 'Copy to Tuesday through Friday';
+
+  @override
+  String get healthWeekFree => 'Free all day';
+
+  @override
+  String get healthWeekIntro =>
+      'Planned around your work and calendar. Nothing is set until you accept.';
+
+  @override
+  String get healthWeekLegendFree => 'Free';
+
+  @override
+  String get healthWeekLegendWork => 'Work';
+
+  @override
+  String get healthWeekLine =>
+      'Botler plans workouts and reminders around this. You can also just say it in chat.';
+
+  @override
+  String healthWeekMinutes(String minutes) {
+    return '$minutes minutes';
+  }
+
+  @override
+  String get healthWeekOff => 'Day off';
+
+  @override
+  String get healthWeekOnce => 'Just this once';
+
+  @override
+  String healthWeekRange(String from, String to) {
+    return '$from to $to';
+  }
+
+  @override
+  String get healthWeekReady => 'A new week of workouts is ready';
+
+  @override
+  String get healthWeekReadyLine => 'Nothing is set until you accept';
+
+  @override
+  String get healthWeekSave => 'Save my week';
+
+  @override
+  String get healthWeekSaved => 'Saved your week.';
+
+  @override
+  String get healthWeekTitle => 'My week';
+
+  @override
+  String get healthWeekTravel => 'Travel to and from work';
+
+  @override
+  String get healthWeekWorking => 'I work this day';
+
+  @override
+  String get healthWeightBad => 'Enter your weight in kilograms, such as 74.2';
+
+  @override
+  String get healthWeightKg => 'Weight in kg';
+
+  @override
+  String get healthWeightQueued =>
+      'Saved on this phone. It goes up when you are back online.';
+
+  @override
+  String get healthWeightSpark => 'Your weight trend';
+
+  @override
+  String get healthWeightTitle => 'Weight';
+
+  @override
+  String get healthWeightToday => 'Your weight today';
+
+  @override
+  String healthWindDownBy(String time) {
+    return 'Wind down by $time';
+  }
+
+  @override
+  String get healthWindDownNoEarly => 'No early start tomorrow';
+
+  @override
+  String get healthWindDownNone => 'Wind-down reminder';
+
+  @override
+  String get healthWindDownSwitch => 'Wind-down reminder';
+
+  @override
+  String healthWindDownWhy(String time) {
+    return 'You start at $time tomorrow';
+  }
+
+  @override
+  String get healthWokeToday => 'Woke up today';
+
+  @override
+  String get healthWorkingOnIt => 'Working on it';
+
+  @override
+  String healthWorkoutMinutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get healthWorkoutSaved => 'Saved. Well done for showing up.';
+
+  @override
+  String get healthYourPath => 'Your path';
+
+  @override
+  String get healthYourPrograms => 'Your programs';
+
+  @override
+  String get healthYourTrend => 'Your trend';
 
   @override
   String get histEntryTitle => 'Details';
@@ -2222,6 +3395,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get menuGoalsLine => 'What you are saving for';
+
+  @override
+  String get menuHealth => 'Health';
+
+  @override
+  String get menuHealthLine => 'Food, weight, workouts and sleep';
 
   @override
   String get menuHistory => 'History';
@@ -3052,6 +4231,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetScopeEverythingLine => 'All of the above';
+
+  @override
+  String get resetScopeHealth => 'Health';
+
+  @override
+  String get resetScopeHealthLine =>
+      'Food, weight, workouts, sleep and your Health setup';
 
   @override
   String get resetScopeMemory => 'Memory and chat';
@@ -4604,25 +5790,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yes => 'Yes';
-
-  @override
-  String get chatScriptFailed => 'The script did not finish';
-
-  @override
-  String get chatOutputShowAll => 'Show all of it';
-
-  @override
-  String get chatOutputShowLess => 'Show less';
-
-  @override
-  String get billsViewWeek => 'Week';
-
-  @override
-  String get billsViewMonth => 'Month';
-
-  @override
-  String get billsThisWeek => 'This week';
-
-  @override
-  String get billsThisMonth => 'This month';
 }

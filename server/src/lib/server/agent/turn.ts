@@ -192,7 +192,32 @@ export class TurnState {
 	readonly reasons = new Set<string>();
 	/** How many calls with the same verb and arguments already succeeded in this message, so the second real purchase gets its own request id. */
 	readonly succeeded = new Map<string, number>();
+	/** The food ids a search or a scan of this message gave. meal_log takes only these. */
+	readonly foodIds = new Set<string>();
 	constructor(readonly userUrls: ReadonlySet<string> = new Set()) {}
+	/** Keeps the ids of a food_search or barcode_lookup answer. */
+	rememberFoods(result: unknown) {
+		const take = (v: unknown) => {
+			const id = (v as { id?: unknown } | null)?.id;
+			if (typeof id === 'string') this.foodIds.add(id);
+		};
+		take(result);
+		if (Array.isArray(result))
+			for (const r of result) {
+				const hits = (r as { hits?: unknown } | null)?.hits;
+				if (Array.isArray(hits)) hits.forEach(take);
+			}
+	}
+	/** The first food id in a meal_log that no search or scan of this message gave, or null. */
+	strayFood(args: unknown): string | null {
+		const items = (args as { items?: unknown } | null)?.items;
+		if (!Array.isArray(items)) return null;
+		for (const item of items) {
+			const id = (item as { foodId?: unknown } | null)?.foodId;
+			if (typeof id === 'string' && !this.foodIds.has(id)) return id;
+		}
+		return null;
+	}
 	taint(reason: string) {
 		this.tainted = true;
 		this.reasons.add(reason);
@@ -550,7 +575,9 @@ async function executeTool(
 			return {
 				status: 'needs_approval',
 				card:
-					tool.name === 'mark_from_photo' || tool.name === 'mark_from_web'
+					tool.name === 'mark_from_photo' ||
+					tool.name === 'mark_from_web' ||
+					tool.name === 'meal_log'
 						? { ...card, verb: tool.name }
 						: card,
 				message: card.summary,
@@ -594,6 +621,15 @@ async function executeTool(
 			'The phone downloads the logo candidates and shows them on the card, so the person picks and approves there.'
 		);
 	}
+	if (tool.name === 'meal_log') {
+		// A food id must come from a search or a scan of this message, so a made-up or remembered id never reaches the person's log
+		const stray = state.strayFood(args);
+		if (stray)
+			return err(
+				'invalid_arguments',
+				`The food "${stray.slice(0, 60)}" was not in a food_search or barcode_lookup of this message. Search for it first, or use estimate.`
+			);
+	}
 	if (tool.kind === 'gated')
 		return asCard('This changes the plan, so it needs the person to approve it.');
 	if (tool.kind === 'free' && state.tainted)
@@ -615,6 +651,7 @@ async function executeTool(
 			tool.name
 		);
 		state.succeeded.set(callHash, sameBefore + 1);
+		if (tool.name === 'food_search' || tool.name === 'barcode_lookup') state.rememberFoods(result);
 		// A read that can hold text other people wrote (a calendar) is untrusted like a web page: it is marked, and the turn is
 		// closed to writes from here on
 		if (tool.taints) {

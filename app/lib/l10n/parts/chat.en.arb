@@ -167,5 +167,8 @@
   "filePicture": "Picture {name}",
   "@filePicture": {"placeholders": {"name": {"type": "String"}}},
   "fileOpen": "{name}, {size}. Tap to save or share.",
-  "@fileOpen": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}}
+  "@fileOpen": {"placeholders": {"name": {"type": "String"}, "size": {"type": "String"}}},
+  "chatScriptFailed": "The script did not finish",
+  "chatOutputShowAll": "Show all of it",
+  "chatOutputShowLess": "Show less"
 }

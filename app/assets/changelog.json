@@ -534,5 +534,23 @@
       "Pareho na ang ayos ng bawat account card: ang pangalan sa kaliwa at isang halaga sa kanan na hindi na napuputol sa dalawang linya. Kapag pareho ang balanse at ang balanseng nabilang, isang beses na lang ito ipinapakita.",
       "Ang account na may ilang pera ay may kabuuan na sa pangunahing pera mo sa itaas, at nasa maayos na listahan sa ibaba ang bawat pera kasama ang halaga nito sa pangunahing pera mo."
     ]
+  },
+  {
+    "versionCode": 50,
+    "versionName": "1.5.0",
+    "en": [
+      "Health is here: food, weight, workouts and sleep, in the menu.",
+      "Take a photo of your meal, or scan a barcode or a label, and check what Botler found before it is saved.",
+      "Your weight is shown as a trend, and a weekly check-in may suggest a new calorie target. Nothing changes until you say yes.",
+      "Home workouts with no equipment and a walk to run program, planned around your work hours and free time.",
+      "You can do all of it by telling Botler in chat."
+    ],
+    "fil": [
+      "Narito na ang Health: pagkain, timbang, ehersisyo at tulog, sa menu.",
+      "Kuhanan ng litrato ang pagkain mo, o i-scan ang barcode o label, at tingnan ang nakita ni Botler bago ito i-save.",
+      "Ipinapakita ang timbang mo bilang takbo, at maaaring magmungkahi ang lingguhang check-in ng bagong calorie target. Walang magbabago hangga't hindi ka pumapayag.",
+      "Mga ehersisyo sa bahay na walang kailangang gamit at programang lakad-hanggang-takbo, ayon sa oras ng trabaho at libreng oras mo.",
+      "Magagawa mo ang lahat ng ito sa pagsabi kay Botler sa chat."
+    ]
   }
 ]

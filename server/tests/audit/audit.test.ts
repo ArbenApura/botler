@@ -114,9 +114,12 @@ describe('the registry of audited tables', () => {
 		// Every audited table has its trigger in exactly one of the migrations
 		for (const a of AUDITED_TABLES)
 			expect(
-				[auditMigrationSql(), file, auditLaterTriggersSql('0025')].filter((f) =>
-					f.includes(`TRIGGER "audit_${a.table}" `)
-				),
+				[
+					auditMigrationSql(),
+					file,
+					auditLaterTriggersSql('0025'),
+					auditLaterTriggersSql('0045')
+				].filter((f) => f.includes(`TRIGGER "audit_${a.table}" `)),
 				a.table
 			).toHaveLength(1);
 	});

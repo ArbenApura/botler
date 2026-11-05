@@ -6,7 +6,11 @@ import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
 import { lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
+import { toManilaDate } from '../../finance/dates';
 import { notebook, notebookPage, NOTEBOOK_TRASH_DAYS, requestLog, undoJournal } from '../db/schema';
+import { runWeekly, runWeeklyReview } from '../ops/weight';
+import { enqueue } from './queue';
+import { advancePrograms } from '../ops/workouts';
 
 // -- CONSTANTS -- //
 
@@ -52,5 +56,14 @@ export const RETIRED_JOB_KINDS = [
 
 export const jobHandlers: Record<string, JobHandler> = {
 	'maintenance.purge': purgeOld,
+	// The weekly Health sums make no model call, and only ever propose
+	'health.weekly': async (job, tx) => {
+		const today = toManilaDate(new Date());
+		await advancePrograms(tx, job.userId, today);
+		const target = await runWeekly(tx, job.userId, today);
+		const review = await runWeeklyReview(tx, job.userId, today);
+		if (target.proposed || review.proposed)
+			await enqueue(tx, { userId: job.userId, kind: 'push.health', key: job.key });
+	},
 	...Object.fromEntries(RETIRED_JOB_KINDS.map((kind) => [kind, retired]))
 };

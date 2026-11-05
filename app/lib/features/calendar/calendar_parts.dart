@@ -44,6 +44,7 @@ String dayParts(BuildContext context, List<CalItem> items) {
     if (n(CalLayer.events) > 0) t.calCountEvents(n(CalLayer.events)),
     if (n(CalLayer.routines) > 0) t.calCountRoutines(n(CalLayer.routines)),
     if (n(CalLayer.tasks) > 0) t.calCountTasks(n(CalLayer.tasks)),
+    if (n(CalLayer.workouts) > 0) t.calCountWorkouts(n(CalLayer.workouts)),
     if (n(CalLayer.reminders) > 0) t.calCountReminders(n(CalLayer.reminders)),
   ];
   return parts.isEmpty ? t.calDayNothing : parts.join(', ');
@@ -56,6 +57,7 @@ String layerName(BuildContext context, CalLayer l) => switch (l) {
   CalLayer.routines => context.t.calLayerRoutines,
   CalLayer.tasks => context.t.calLayerTasks,
   CalLayer.reminders => context.t.calLayerReminders,
+  CalLayer.workouts => context.t.calLayerWorkouts,
 };
 
 // -- TYPES -- //
@@ -121,6 +123,14 @@ class _Mark extends CustomPainter {
         );
       case 'task':
         canvas.drawRect(Rect.fromCircle(center: c, radius: r * 0.7), fill);
+      case 'workout':
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(center: c, width: r * 1.8, height: r),
+            Radius.circular(r / 2),
+          ),
+          fill,
+        );
       default:
         canvas.drawLine(
           Offset(c.dx - r * 0.8, c.dy),
@@ -144,6 +154,7 @@ Color markColor(BotlerColors c, CalItem i) => switch (i.kind) {
   'event' => c.info,
   'routine' => c.accentText,
   'task' => c.warning,
+  'workout' => c.accent,
   _ => c.muted,
 };
 
@@ -449,6 +460,8 @@ class _ItemRowState extends ConsumerState<ItemRow> {
         return <String>[t.calRoutineLabel, ?time].join(' · ');
       case 'task':
         return <String>[t.calTaskLabel, ?time].join(' · ');
+      case 'workout':
+        return <String>[t.calWorkoutLabel, ?time].join(' · ');
       default:
         return <String>[t.calReminderLabel, ?time].join(' · ');
     }

@@ -31,7 +31,9 @@ export const REMINDER_KINDS = [
 	'routine',
 	'custom',
 	'alarm',
-	'timer'
+	'timer',
+	'workout',
+	'winddown'
 ] as const;
 export const REMINDER_STATUSES = ['scheduled', 'sent', 'dismissed', 'cancelled'] as const;
 export const REMINDER_ORIGINS = ['user', 'agent', 'system'] as const;

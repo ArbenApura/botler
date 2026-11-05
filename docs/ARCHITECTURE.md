@@ -87,3 +87,14 @@ See ADR 1 to 5 and settled decision 1 on the item: Flutter + SvelteKit + own Pos
 ## Run
 
 Local dev ports: server 5280, preview 5290, Postgres 5434. The VPS layout is in the gitignored `VPS.md`.
+
+## Health
+
+Health is one more part of the operations layer: the HTTP API, the agent tools and the jobs call the same verbs, every table is a tenant table with forced row level security and audit triggers, and `data_reset` and the export cover them.
+
+- **Pure rules** in `server/src/lib/health/` and `lib/schedule/availability.ts` hold no database and no clock.
+- **The burn** is read from logged food on complete days plus the slope of the weight over 28 days (at least 14 complete days and 8 weigh-ins), so steady under-logging comes out in the burn and the target still gives the result the person wants.
+- **The weekly job** (`health.weekly`, keyed by Manila ISO week, no backfill, no model call) moves programs on, works out the burn, and may write a target and a review proposal. It never changes a target. A numberless push follows.
+- **Proposals** (`health_proposal`): one open per kind. The target's fingerprint covers the data up to its own date, so a new weigh-in leaves it valid and a corrected past day refuses it.
+- **Weeks and workouts**: `planner.ts` lays sessions over `free_slots` and `ops/workouts.ts` writes them when accepted. Planned workouts are a calendar layer and a reminder source. A later change to work hours flags "needs a move" when the week is read; it never moves a session by itself.
+- **Food camera**: the phone reads the photos and sends them to the assistant in the Food chat with the `foodCamera` flag. The result is an approval card the phone shows as the review screen. The server does not store the photo.

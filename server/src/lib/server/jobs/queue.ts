@@ -8,6 +8,8 @@ import type { Ctx } from '../ops/context';
 import { sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { job, user } from '../db/schema';
+import { toManilaDate } from '../../finance/dates';
+import { weekKeyOf } from '../../health/energy';
 import { lockPerson, setAuditContext, withUser } from '../db/tenant';
 import { auditOf } from '../ops/context';
 
@@ -263,6 +265,11 @@ export async function scheduleMaintenance(handle: DbHandle, now: Date = new Date
 		await handle.db
 			.insert(job)
 			.values({ userId: p.id, kind: 'fx.refresh', key: day })
+			.onConflictDoNothing();
+		// The Health check-in, once a week. Only the week it is now: a server that was off makes one job, not one for each week it missed
+		await handle.db
+			.insert(job)
+			.values({ userId: p.id, kind: 'health.weekly', key: weekKeyOf(toManilaDate(now)) })
 			.onConflictDoNothing();
 	}
 }

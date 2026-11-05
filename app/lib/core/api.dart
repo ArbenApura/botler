@@ -261,9 +261,11 @@ class ApiClient {
     String id, {
     required bool approve,
     String? imageData,
+    Json? editedArgs,
   }) => post('/api/v1/agent/actions/$id', <String, Object?>{
     'decision': approve ? 'approve' : 'reject',
     'imageData': ?imageData,
+    'editedArgs': ?editedArgs,
   });
 
   /// The phone's answer to a call the assistant made to it (a script run, the toolbox), under the call id the chat stream announced.
@@ -292,6 +294,7 @@ class ApiClient {
     Future<void>? abort,
     Duration idle = _idle,
     bool scripts = false,
+    String? foodCamera,
   }) async* {
     // Stopped by the person (abort) or when the first answer takes too long: either way the socket is closed
     final stop = Completer<void>();
@@ -313,6 +316,8 @@ class ApiClient {
             'chatId': ?chatId,
             // This app can run the assistant's script and toolbox calls and answer them (the server offers those tools only to such an app)
             if (scripts) 'scripts': true,
+            // The food camera sent this: the server refuses a meal photo at once when the model could not see it
+            'foodCamera': ?foodCamera,
             if (ocrTexts.isNotEmpty) 'ocrTexts': ocrTexts,
             // The pictures themselves, as JPEG base64. Sent only when the server has said it will use them (an older server refuses the key)
             if (images.isNotEmpty)

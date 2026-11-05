@@ -72,5 +72,15 @@ export function createPushHandlers(deps: {
 			key: r.refKey
 		});
 	});
-	return { 'push.sync': sync, 'push.nudge': nudge };
+	// The weekly check-in. No numbers in it: a lock screen is not the place for a weight or a calorie target. No push set up means the Health screen still shows it
+	const health: JobHandler = noTx(async (_job, ctx) => {
+		const pusher = limited();
+		if (!pusher) return;
+		await pushToUser(ctx, pusher, {
+			kind: 'notice',
+			title: 'Your weekly Health check-in is ready',
+			key: 'health-weekly'
+		});
+	});
+	return { 'push.sync': sync, 'push.nudge': nudge, 'push.health': health };
 }

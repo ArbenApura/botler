@@ -100,7 +100,9 @@ describe('compact tool schemas', () => {
 		expect(json).not.toContain('"oneOf"');
 		// 33_750 since the icon on four account and bill tools (the enum of 40 keys): they measure 33_164, and the cap keeps about 600 of margin (32_750 before, since the ten page and library tools)
 		// 34_700 since mark_from_web: it measures 34_037 and the cap keeps about 600 of margin
-		expect(json.length).toBeLessThan(34_700);
+		// Health adds its own tools (BTL-20261105-0015): the cap is set again with the measured size when each phase lands
+		// 45_300 since the workout, sleep, weight and check-in tools: they measure about 44_700 and the cap keeps about 600 of margin
+		expect(json.length).toBeLessThan(45_300);
 	});
 
 	it('turn anyOf with null into a nullable type and drop a type beside a const', () => {

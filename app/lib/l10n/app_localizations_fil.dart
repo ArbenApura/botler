@@ -763,6 +763,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get billsSkipped => 'Nilaktawan.';
 
   @override
+  String get billsThisMonth => 'Ngayong buwan';
+
+  @override
+  String get billsThisWeek => 'Ngayong linggo';
+
+  @override
   String get billsTitle => 'Mga bill';
 
   @override
@@ -772,6 +778,12 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get billsVaries => 'Iba-iba ang halaga tuwing magbabayad';
+
+  @override
+  String get billsViewMonth => 'Buwan';
+
+  @override
+  String get billsViewWeek => 'Linggo';
 
   @override
   String get billsWalletLabel => 'Binayaran sa';
@@ -897,6 +909,17 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String calCountWorkouts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count na workout',
+      one: '1 workout',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get calDayNothing => 'walang nakaplano';
 
   @override
@@ -973,6 +996,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get calLayerTasks => 'Mga gawain';
+
+  @override
+  String get calLayerWorkouts => 'Mga workout';
 
   @override
   String get calLayersLabel => 'Ipakita';
@@ -1060,6 +1086,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get calWhatIsIt => 'Ano ito?';
+
+  @override
+  String get calWorkoutLabel => 'Workout';
 
   @override
   String get cancel => 'Kanselahin';
@@ -1240,6 +1269,12 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatOffline => 'offline';
 
   @override
+  String get chatOutputShowAll => 'Ipakita lahat';
+
+  @override
+  String get chatOutputShowLess => 'Ipakita nang kaunti';
+
+  @override
   String get chatPasteNothing => 'Walang larawan sa clipboard.';
 
   @override
@@ -1386,6 +1421,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatRunningScript => 'Nagpapatakbo ng script sa phone mo';
+
+  @override
+  String get chatScriptFailed => 'Hindi natapos ang script';
 
   @override
   String get chatSend => 'Ipadala';
@@ -1756,6 +1794,1147 @@ class AppLocalizationsFil extends AppLocalizations {
   String goalsYear(int count, String amount) {
     return 'Sa isang taon ($count payday) ito ay $amount.';
   }
+
+  @override
+  String get healthAbout => 'Mga';
+
+  @override
+  String healthAboutTime(String time) {
+    return 'Mga $time';
+  }
+
+  @override
+  String get healthAcceptWeek => 'Tanggapin ang linggong ito';
+
+  @override
+  String get healthActivityFeet => 'Madalas nakatayo';
+
+  @override
+  String get healthActivitySitting => 'Madalas nakaupo';
+
+  @override
+  String get healthActivityVery => 'Napakagalaw';
+
+  @override
+  String get healthActivityWalking => 'Medyo naglalakad';
+
+  @override
+  String get healthAddByHand => 'Ilagay nang mano-mano';
+
+  @override
+  String get healthAddFood => 'Magdagdag ng pagkain';
+
+  @override
+  String get healthAddKcal => 'Calorie (kcal)';
+
+  @override
+  String get healthAddName => 'Ano ang kinain mo?';
+
+  @override
+  String get healthAddNeeds => 'Ilagay ang pangalan at calorie.';
+
+  @override
+  String get healthAddProtein => 'Protina sa gramo (opsyonal)';
+
+  @override
+  String get healthAddSleep => 'Magdagdag ng tulog';
+
+  @override
+  String get healthAddToToday => 'Idagdag ngayong araw';
+
+  @override
+  String get healthAddWeight => 'Magdagdag ng timbang';
+
+  @override
+  String get healthAskBotler => 'Tanungin si Botler';
+
+  @override
+  String get healthBack => 'Bumalik';
+
+  @override
+  String healthBedtimeSteady(String time) {
+    return 'Nanatili ang oras ng tulog mo sa loob ng mga $time.';
+  }
+
+  @override
+  String get healthByBotler => 'Gawa ni Botler';
+
+  @override
+  String get healthCalories => 'Calorie';
+
+  @override
+  String get healthCameraBarcode => 'Barcode';
+
+  @override
+  String get healthCameraDenied =>
+      'Kailangan ni Botler ang camera para rito. Payagan ito sa settings ng telepono, o ilagay ang pagkain nang mano-mano.';
+
+  @override
+  String get healthCameraGallery => 'Pumili sa gallery';
+
+  @override
+  String healthCameraHintAngle(String count, String total) {
+    return 'Anggulo $count sa $total. Kumuha pa, o pindutin ang Tapos na.';
+  }
+
+  @override
+  String get healthCameraHintBarcode =>
+      'Itutok sa barcode. Kusa itong babasahin.';
+
+  @override
+  String get healthCameraHintLabel => 'Ipasok ang buong label sa frame.';
+
+  @override
+  String get healthCameraHintMeal =>
+      'Kunan mula sa itaas. Nakakatulong ang pangalawang anggulo.';
+
+  @override
+  String get healthCameraLabel => 'Label';
+
+  @override
+  String get healthCameraMeal => 'Pagkain';
+
+  @override
+  String get healthCameraOffline =>
+      'Kailangan ng internet para mabasa ang litrato, at walang na-save. Puwede mong ilagay ang pagkain nang mano-mano.';
+
+  @override
+  String get healthCameraOfflineTitle => 'Kailangan nito ng internet';
+
+  @override
+  String get healthCameraTake => 'Kumuha ng litrato';
+
+  @override
+  String get healthCarbs => 'Carbohydrates';
+
+  @override
+  String get healthChartEmpty =>
+      'Dalawang timbang ang kailangan para sa linya. Puwede kahit anong oras, pero mas madaling ikumpara kung parehong oras araw-araw.';
+
+  @override
+  String healthChartLabel(String from, String to) {
+    return 'Timbang mo mula $from kilo hanggang $to kilo sa takbo';
+  }
+
+  @override
+  String get healthCheckInLine => 'May bagong calorie target na titingnan';
+
+  @override
+  String get healthCheckInReady => 'Handa na ang weekly check-in mo';
+
+  @override
+  String get healthCheckInTitle => 'Weekly check-in';
+
+  @override
+  String healthCheckInWhy(String burn) {
+    return 'Mukhang mga $burn kada araw ang nasusunog ng katawan mo. Pinapanatili nito ang takbo mo patungo sa goal sa bilis na pinili mo.';
+  }
+
+  @override
+  String get healthClose => 'Isara';
+
+  @override
+  String healthCouldBe(String low, String high) {
+    return 'Puwedeng $low hanggang $high';
+  }
+
+  @override
+  String get healthDataCredit =>
+      'Galing ang datos ng pagkain sa USDA FoodData Central at Open Food Facts. Tantiya lang ang mga lutong Pinoy.';
+
+  @override
+  String get healthDayComplete => 'Kumpleto na ang araw';
+
+  @override
+  String get healthDayCompleteLine =>
+      'I-on kapag naitala na lahat ng kinain mo';
+
+  @override
+  String get healthDayDone => 'tapos';
+
+  @override
+  String get healthDayPlanned => 'nakaplano';
+
+  @override
+  String get healthDayRest => 'pahinga';
+
+  @override
+  String healthDayState(String day, String state) {
+    return '$day, $state';
+  }
+
+  @override
+  String get healthDayToday => 'ngayon';
+
+  @override
+  String get healthDetailTitle => 'Detalye ngayong araw';
+
+  @override
+  String get healthDetails => 'Detalye';
+
+  @override
+  String get healthDiscard => 'Itapon';
+
+  @override
+  String get healthDistanceField => 'Layo sa km (hindi kailangan)';
+
+  @override
+  String get healthDone => 'Tapos na';
+
+  @override
+  String healthDown(String kg) {
+    return 'Bumaba ng $kg kg';
+  }
+
+  @override
+  String get healthEasier => 'Gawing mas madali';
+
+  @override
+  String healthEatenKcal(String kcal) {
+    return '$kcal kcal ang nakain';
+  }
+
+  @override
+  String healthEatenOf(String eaten, String target) {
+    return '$eaten ang nakain sa $target';
+  }
+
+  @override
+  String healthExerciseOf(String index, String count) {
+    return 'Ehersisyo $index sa $count';
+  }
+
+  @override
+  String get healthFat => 'Taba';
+
+  @override
+  String get healthFibre => 'Fiber';
+
+  @override
+  String get healthFieldActivity => 'Gaano ka kagalaw sa karaniwang araw?';
+
+  @override
+  String get healthFieldGoalWeight => 'Target na timbang sa kilo';
+
+  @override
+  String get healthFieldHeight => 'Taas sa sentimetro';
+
+  @override
+  String get healthFieldHeightHint => 'Halimbawa, 168';
+
+  @override
+  String get healthFieldSex => 'Kasarian, para lang sa unang tantiya';
+
+  @override
+  String get healthFieldWeight => 'Timbang ngayon sa kilo';
+
+  @override
+  String get healthFieldWeightHint => 'Halimbawa, 74';
+
+  @override
+  String get healthFieldYear => 'Taon ng kapanganakan';
+
+  @override
+  String get healthFieldYearHint => 'Halimbawa, 1995';
+
+  @override
+  String get healthFinishLater => 'Tapusin mamaya';
+
+  @override
+  String get healthFinishSet => 'Tapusin ang set';
+
+  @override
+  String get healthFinishWorkout => 'Tapusin ang workout';
+
+  @override
+  String get healthFlash => 'Flash';
+
+  @override
+  String healthForecastAround(String kg, String date) {
+    return '$kg kg sa bandang $date';
+  }
+
+  @override
+  String get healthForecastAway => 'Lumalayo ang takbo mo sa goal mo';
+
+  @override
+  String get healthForecastFar => 'Malayo pa ang goal mo sa bilis na ito';
+
+  @override
+  String get healthForecastFlat => 'Hindi nagbabago ang takbo mo';
+
+  @override
+  String get healthForecastLine =>
+      'Tantiya ayon sa bilis mo nitong mga huling linggo';
+
+  @override
+  String get healthForecastNoDate =>
+      'Wala pang petsang maibibigay ngayon, at ayos lang iyon.';
+
+  @override
+  String get healthForecastReached => 'Nasa goal ka na';
+
+  @override
+  String healthFromFoods(String count) {
+    return 'Mula sa $count pagkain. Tantiya lang ang mga bilang.';
+  }
+
+  @override
+  String get healthGoalGain => 'Magdagdag';
+
+  @override
+  String get healthGoalLose => 'Magbawas ng timbang';
+
+  @override
+  String get healthGoalMaintain => 'Panatilihin';
+
+  @override
+  String get healthGoalTrack => 'Itala lang';
+
+  @override
+  String healthGrams(String value) {
+    return '$value g';
+  }
+
+  @override
+  String healthGramsOf(String value, String target) {
+    return '$value sa $target g';
+  }
+
+  @override
+  String get healthHalf => 'Kalahati';
+
+  @override
+  String get healthHarder => 'Gawing mas mahirap';
+
+  @override
+  String get healthHowMuch => 'Gaano karami ang kinain mo?';
+
+  @override
+  String get healthIsThisIt => 'Ito ba?';
+
+  @override
+  String healthKcal(String value) {
+    return '$value kcal';
+  }
+
+  @override
+  String get healthKcalEaten => 'kcal ang nakain';
+
+  @override
+  String get healthKcalLeft => 'kcal ang natitira';
+
+  @override
+  String get healthKcalOver => 'kcal';
+
+  @override
+  String healthKeepKcal(String kcal) {
+    return 'Panatilihin ang $kcal';
+  }
+
+  @override
+  String get healthKindRun => 'Takbo';
+
+  @override
+  String get healthKindWalk => 'Lakad';
+
+  @override
+  String healthKnownFor(String known, String total) {
+    return 'Alam sa $known ng $total pagkain';
+  }
+
+  @override
+  String healthLabelBasis(String grams) {
+    return 'Para sa $grams g ang mga bilang na ito';
+  }
+
+  @override
+  String get healthLabelFits => 'Tugma ang calorie sa protina, carbs at taba';
+
+  @override
+  String get healthLabelNoFit =>
+      'Pakitingnan: hindi tugma ang calorie sa protina, carbs at taba';
+
+  @override
+  String get healthLastNightTitle => 'Kagabi';
+
+  @override
+  String healthLeftKcal(String kcal) {
+    return 'Mga $kcal kcal ang natitira';
+  }
+
+  @override
+  String healthLeftWordsAbout(String kcal) {
+    return 'Mga $kcal kcal';
+  }
+
+  @override
+  String get healthLess => 'Bawasan';
+
+  @override
+  String healthLevelUp(String names) {
+    return 'Sa susunod: $names';
+  }
+
+  @override
+  String get healthLogFood => 'Itala ang pagkain';
+
+  @override
+  String get healthLogWalkTitle => 'I-log ang lakad o takbo';
+
+  @override
+  String get healthLowIntake =>
+      'Napakakaunti ng kinakain mo ngayong linggo. Mahirap ito sa katawan. Makakatulong na kausapin ang doktor o isang pinagkakatiwalaan mo.';
+
+  @override
+  String get healthMealBreakfast => 'Almusal';
+
+  @override
+  String get healthMealDinner => 'Hapunan';
+
+  @override
+  String get healthMealLunch => 'Tanghalian';
+
+  @override
+  String get healthMealMerienda => 'Merienda';
+
+  @override
+  String get healthMealPhoto => 'Ang litrato ng pagkain mo';
+
+  @override
+  String get healthMealSnack => 'Meryenda';
+
+  @override
+  String healthMilligrams(String value) {
+    return '$value mg';
+  }
+
+  @override
+  String get healthMinutesBad => 'Ilagay ang minuto, gaya ng 30';
+
+  @override
+  String get healthMinutesField => 'Minuto';
+
+  @override
+  String healthMinutesLabel(String done, String goal) {
+    return '$done sa $goal minutong gumagalaw ngayong linggo';
+  }
+
+  @override
+  String get healthMinutesMoving => 'minutong gumagalaw';
+
+  @override
+  String healthMinutesOf(String done, String goal) {
+    return '$done sa $goal';
+  }
+
+  @override
+  String get healthMore => 'Dagdagan';
+
+  @override
+  String healthMoveTo(String time) {
+    return 'Ilipat sa $time';
+  }
+
+  @override
+  String healthNeedsMove(String title, String day) {
+    return 'Kailangang ilipat ang $title sa $day';
+  }
+
+  @override
+  String get healthNeedsMoveLine => 'Nagbago ang libreng oras mo.';
+
+  @override
+  String get healthNewWeek => 'Planuhin ulit';
+
+  @override
+  String get healthNext => 'Susunod';
+
+  @override
+  String healthNextAt(String day, String time) {
+    return '$day, $time';
+  }
+
+  @override
+  String get healthNextWeek => 'Susunod na linggo';
+
+  @override
+  String healthNoFit(String titles) {
+    return 'Walang libreng oras para sa: $titles';
+  }
+
+  @override
+  String get healthNoRoom =>
+      'Walang oras na kasya sa araw na iyon. Puwede mo itong laktawan.';
+
+  @override
+  String get healthNotFoundLine =>
+      'Kunan ng litrato ang nutrition label. Babasahin ito ni Botler at tatandaan ang produkto sa susunod.';
+
+  @override
+  String get healthNotFoundTitle => 'Wala pa ang produktong ito sa datos';
+
+  @override
+  String get healthNotMedical =>
+      'Pangkalahatang gabay ang bigay ni Botler, hindi payong medikal. Kung may kondisyon ka o umiinom ng gamot, kumonsulta muna sa doktor.';
+
+  @override
+  String get healthNotThisProduct => 'Hindi ito ang produkto';
+
+  @override
+  String get healthOffCredit =>
+      'May datos mula sa Open Food Facts, sa ilalim ng Open Database License. Puwedeng baguhin ng kahit sino ang datos na ito, kaya pakitingnan kung tama.';
+
+  @override
+  String get healthOilLine =>
+      'Mahirap makita ang mantika, at ito ang pinakamalaking dagdag sa calorie.';
+
+  @override
+  String get healthOilLots => 'Mga dalawang kutsara';
+
+  @override
+  String get healthOilName => 'Mantika';
+
+  @override
+  String get healthOilNone => 'Walang dagdag na mantika';
+
+  @override
+  String get healthOilQuestion => 'Niluto ba ito sa mantika?';
+
+  @override
+  String get healthOilSome => 'Mga isang kutsara';
+
+  @override
+  String get healthOneServing => 'Isa';
+
+  @override
+  String get healthOverBy => 'Sobra nang mga';
+
+  @override
+  String get healthPaceFastest => 'Pinakamabilis na pinapayagan';
+
+  @override
+  String get healthPaceGentle => 'Dahan-dahan';
+
+  @override
+  String get healthPaceSteady => 'Katamtaman';
+
+  @override
+  String get healthPaceTitle => 'Gaano kabilis?';
+
+  @override
+  String get healthPainNote =>
+      'Kung may masakit, tumigil at palitan ito. Kung bumabalik ang sakit, magpatingin sa clinician.';
+
+  @override
+  String healthPathNext(String high, String next) {
+    return 'Abutin ang $high sa lahat ng set at susunod na ang $next.';
+  }
+
+  @override
+  String get healthPathTop =>
+      'Ito na ang pinakamahirap na bersyon dito. Dahan-dahan lang.';
+
+  @override
+  String healthPatternLine(String kcal) {
+    return 'Pagkatapos ng mga gabing wala pang 6 na oras, mga $kcal kcal ang nadagdag sa kinain mo. Maaaring hindi lang ito ang dahilan.';
+  }
+
+  @override
+  String get healthPatternTitle => 'Isang pattern na dapat pansinin';
+
+  @override
+  String healthPer100(String kcal) {
+    return '$kcal kcal bawat 100 g';
+  }
+
+  @override
+  String get healthPhotoFailedLine =>
+      'Walang nakitang pagkain si Botler, at walang na-save. Subukan ulit na kita ang buong plato at mas maliwanag.';
+
+  @override
+  String get healthPhotoFailedTitle => 'Hindi gumana ang litrato';
+
+  @override
+  String get healthPhotoLabel => 'Ang litrato mo';
+
+  @override
+  String get healthPhotoSettingTitle =>
+      'Pribado ang mga litrato sa settings mo';
+
+  @override
+  String get healthPlanRest => 'Pahinga';
+
+  @override
+  String healthPlanWhen(String minutes, String time) {
+    return '$minutes min, $time';
+  }
+
+  @override
+  String healthPreviewKcal(String kcal) {
+    return 'Mga $kcal kcal sa isang araw';
+  }
+
+  @override
+  String healthPreviewReach(String kg, String date) {
+    return 'Mga $kg kg sa isang linggo, at maaabot ang target bandang $date. Gaganda ang tantiyang ito habang nagtatala ka.';
+  }
+
+  @override
+  String get healthPreviewTitle => 'Ibig sabihin nito para sa iyo';
+
+  @override
+  String healthProgramWeek(String week, String weeks) {
+    return 'Linggo $week sa $weeks';
+  }
+
+  @override
+  String get healthProgramsNone =>
+      'Pumili kapag handa ka na. Parehong walang kailangang gamit.';
+
+  @override
+  String get healthProtein => 'Protina';
+
+  @override
+  String healthProteinShort(String value) {
+    return '$value g protina';
+  }
+
+  @override
+  String get healthReadLabel => 'Basahin ang label';
+
+  @override
+  String get healthReadingLine =>
+      'Hinahanap ang mga pagkain at tinitingnan ang sustansya.';
+
+  @override
+  String get healthReadingTitle => 'Pagkain mo';
+
+  @override
+  String get healthReadyLine =>
+      'Kung oo ang sagot mo sa alinman dito, kausapin muna ang isang clinician.';
+
+  @override
+  String get healthReadyNo => 'Hindi muna';
+
+  @override
+  String get healthReadyTitle => 'Bago ka magsimula';
+
+  @override
+  String get healthReadyYes => 'Lahat hindi, simulan';
+
+  @override
+  String get healthRecent => 'Ngayong linggo';
+
+  @override
+  String get healthRecentWeights => 'Mga huling timbang';
+
+  @override
+  String get healthRemove => 'Alisin';
+
+  @override
+  String get healthRemoveWeight => 'Tanggalin ang timbang na ito';
+
+  @override
+  String get healthRepsAsk => 'Ilan ang nagawa mo?';
+
+  @override
+  String get healthRestDay => 'Araw ng pahinga';
+
+  @override
+  String healthRestLeft(String time) {
+    return 'Pahinga, $time pa';
+  }
+
+  @override
+  String get healthRestLine =>
+      'Walang plano ngayon. Bilang pa rin ang lakad kung gusto mo.';
+
+  @override
+  String get healthResume => 'Balik sa workout mo';
+
+  @override
+  String get healthReviewAsk => 'Tanungin si Botler';
+
+  @override
+  String get healthReviewDone => 'Sige';
+
+  @override
+  String healthReviewFood(String days, String kcal) {
+    return 'Naka-log ang pagkain sa $days araw, mga $kcal kcal bawat araw';
+  }
+
+  @override
+  String healthReviewMoved(String minutes, String days) {
+    return '$minutes minutong gumagalaw, $days araw ng strength';
+  }
+
+  @override
+  String get healthReviewNoFood => 'Walang buong araw ng pagkain na naka-log';
+
+  @override
+  String healthReviewSleep(String time) {
+    return 'Mga $time na tulog bawat gabi';
+  }
+
+  @override
+  String get healthReviewTitle => 'Ang linggo mo';
+
+  @override
+  String healthRingLabel(String percent) {
+    return '$percent porsyento ng calorie target';
+  }
+
+  @override
+  String healthRunSteps(String run, String walk, String repeat) {
+    return 'Takbo $run, lakad $walk, $repeat beses';
+  }
+
+  @override
+  String healthRunTotal(String minutes) {
+    return 'Mga $minutes minuto lahat';
+  }
+
+  @override
+  String get healthRunWarm =>
+      'Maglakad muna ng 5 minuto at 5 minuto pagkatapos.';
+
+  @override
+  String get healthSatFat => 'Saturated fat';
+
+  @override
+  String get healthSave => 'I-save';
+
+  @override
+  String get healthSaveMeal => 'I-save ang pagkain';
+
+  @override
+  String get healthSaveSleep => 'I-save ang tulog';
+
+  @override
+  String get healthSavedOffline =>
+      'Naka-save sa telepono. Ipapadala ito pagbalik ng internet.';
+
+  @override
+  String healthScaleToday(String kg) {
+    return 'Timbang ngayon: $kg kg. Karamihan sa araw-araw na pagbabago ay tubig lang, kaya ang linya ang mahalaga.';
+  }
+
+  @override
+  String get healthScanBarcode => 'Mag-scan ng barcode';
+
+  @override
+  String get healthSecondsAsk => 'Ilang segundo?';
+
+  @override
+  String healthSecondsShort(String seconds) {
+    return '$seconds s';
+  }
+
+  @override
+  String healthSessionMinutes(String title, String minutes) {
+    return '$title, $minutes minuto';
+  }
+
+  @override
+  String healthSetDoneLabel(String index, String value) {
+    return 'Set $index, $value tapos';
+  }
+
+  @override
+  String healthSetOpenLabel(String index, String value) {
+    return 'Set $index, abutin ang $value';
+  }
+
+  @override
+  String healthSetsOfHolds(String sets, String low, String high) {
+    return '$sets hold ng $low hanggang $high segundo.';
+  }
+
+  @override
+  String healthSetsOfReps(String sets, String low, String high) {
+    return '$sets set ng $low hanggang $high.';
+  }
+
+  @override
+  String get healthSetupAboutLine =>
+      'Itatama ito ng totoong takbo ng timbang mo pagkalipas ng ilang linggo, kaya ayos na ang malapit.';
+
+  @override
+  String get healthSetupAboutTitle => 'Ilang detalye muna';
+
+  @override
+  String get healthSetupGoalTitle => 'Ano ang gusto mong gawin?';
+
+  @override
+  String get healthSetupPrompt => 'Tapusin ang setup ng Kalusugan';
+
+  @override
+  String get healthSetupPromptLine =>
+      'Isang minuto lang, o sabihin kay Botler sa chat';
+
+  @override
+  String get healthSetupTitle => 'I-set up ang Kalusugan';
+
+  @override
+  String get healthSevenNights => 'Huling 7 gabi';
+
+  @override
+  String get healthSexFemale => 'Babae';
+
+  @override
+  String get healthSexMale => 'Lalaki';
+
+  @override
+  String get healthSexSkip => 'Laktawan';
+
+  @override
+  String get healthSkip => 'Laktawan';
+
+  @override
+  String get healthSleepBars => 'Oras ng tulog nitong mga huling gabi';
+
+  @override
+  String get healthSleepChart =>
+      'Oras ng tulog at gising nitong mga huling gabi';
+
+  @override
+  String get healthSleepEmpty =>
+      'Wala pang naka-log na tulog. Sabihin sa chat ang \"natulog ako 11 hanggang 6\", o idagdag dito.';
+
+  @override
+  String get healthSleepFrom => 'Natulog';
+
+  @override
+  String get healthSleepTitle => 'Tulog';
+
+  @override
+  String get healthSleepTo => 'Gumising';
+
+  @override
+  String get healthSodium => 'Sodium';
+
+  @override
+  String get healthSourceEstimate => 'Tantiya ng AI';
+
+  @override
+  String get healthSourceFilipino => 'Listahang Pinoy';
+
+  @override
+  String get healthSourceLabel => 'Mula sa label';
+
+  @override
+  String get healthSourceSaved => 'Naka-save';
+
+  @override
+  String get healthSourceYours => 'Bilang mo';
+
+  @override
+  String get healthStart => 'Simulan';
+
+  @override
+  String healthStartProgram(String name) {
+    return 'Simulan ang $name';
+  }
+
+  @override
+  String healthStartSession(String title) {
+    return 'Simulan ang $title';
+  }
+
+  @override
+  String get healthStartWalk => 'I-log ang lakad';
+
+  @override
+  String get healthSteady => 'Hindi nagbago';
+
+  @override
+  String healthStepOf(String step) {
+    return '$step sa 2';
+  }
+
+  @override
+  String get healthStopProgram => 'Itigil ang programang ito';
+
+  @override
+  String get healthStrengthDays => 'araw ng strength';
+
+  @override
+  String healthStrengthLabel(String done, String goal) {
+    return '$done sa $goal araw ng strength ngayong linggo';
+  }
+
+  @override
+  String get healthSugar => 'Asukal';
+
+  @override
+  String get healthSuggestFood =>
+      'Subukang mag-log ng ilan pang buong araw para makatulong ang mga numero.';
+
+  @override
+  String get healthSuggestKeep => 'Ituloy mo lang ang ginagawa mo.';
+
+  @override
+  String get healthSuggestMove => 'Subukan ang isa pang lakad ngayong linggo.';
+
+  @override
+  String get healthSuggestSleep =>
+      'Subukang matulog nang mas maaga nang kaunti ngayong linggo.';
+
+  @override
+  String get healthSuggestWeigh =>
+      'Subukang magtimbang nang mas madalas para mas malinaw ang takbo.';
+
+  @override
+  String get healthSwap => 'Palitan';
+
+  @override
+  String get healthTakeAnother => 'Kumuha ng panibagong litrato';
+
+  @override
+  String healthTileEaten(String kcal) {
+    return 'Mga $kcal kcal';
+  }
+
+  @override
+  String healthTileFreeToday(String from, String to) {
+    return 'Libre ngayon mula $from hanggang $to';
+  }
+
+  @override
+  String get healthTileLastNight => 'Kagabi';
+
+  @override
+  String healthTileLeft(String kcal) {
+    return 'Mga $kcal pa ang natitira';
+  }
+
+  @override
+  String get healthTileNoFree => 'Wala nang libreng oras ngayon';
+
+  @override
+  String get healthTileNoPlan => 'Walang plano';
+
+  @override
+  String healthTileOfTarget(String eaten, String target) {
+    return '$eaten sa $target kcal';
+  }
+
+  @override
+  String healthTileOver(String kcal) {
+    return 'Mga $kcal ang sobra';
+  }
+
+  @override
+  String get healthTileSleep => 'Tulog';
+
+  @override
+  String get healthTileSleepEmpty => 'Sabihin kay Botler ang tulog mo';
+
+  @override
+  String get healthTileToday => 'Ngayon';
+
+  @override
+  String get healthTileTodayEmpty => 'Wala pang naitala';
+
+  @override
+  String get healthTileTrain => 'Ehersisyo';
+
+  @override
+  String get healthTileTrainEmpty => 'Magplano ng linggo ayon sa trabaho mo';
+
+  @override
+  String get healthTileWeek => 'Linggo ko';
+
+  @override
+  String get healthTileWeekEmpty => 'Ilagay ang oras ng trabaho';
+
+  @override
+  String get healthTileWeight => 'Timbang';
+
+  @override
+  String get healthTileWeightEmpty => 'Ilagay ang unang timbang mo';
+
+  @override
+  String get healthTitle => 'Kalusugan';
+
+  @override
+  String healthTodayAt(String time) {
+    return 'Ngayon, $time';
+  }
+
+  @override
+  String get healthTodayEmptyLine =>
+      'Kunan ng litrato ang pagkain mo, o sabihin kay Botler ang kinain mo.';
+
+  @override
+  String get healthTotalWeight =>
+      'Tinimbang mo ba? Kabuuang timbang sa gramo (opsyonal)';
+
+  @override
+  String get healthTrainTitle => 'Ehersisyo';
+
+  @override
+  String healthTryKcal(String kcal) {
+    return 'Subukan ang $kcal kcal bawat araw';
+  }
+
+  @override
+  String get healthTwoServings => 'Dalawa';
+
+  @override
+  String get healthUndo => 'Bawiin';
+
+  @override
+  String get healthUnknown => 'Hindi alam';
+
+  @override
+  String healthUp(String kg) {
+    return 'Tumaas ng $kg kg';
+  }
+
+  @override
+  String healthUseKcal(String kcal) {
+    return 'Gamitin ang $kcal';
+  }
+
+  @override
+  String get healthVitamins => 'Mga bitamina at mineral';
+
+  @override
+  String get healthWeekAccepted =>
+      'Naka-set na ang linggo mo. May paalala bago ang bawat isa.';
+
+  @override
+  String get healthWeekAddOnce => 'Magdagdag ng pagbabago para sa isang araw';
+
+  @override
+  String get healthWeekAwake => 'Oras na gising';
+
+  @override
+  String get healthWeekAwakeFrom => 'Baguhin ang oras ng gising';
+
+  @override
+  String get healthWeekAwakeTo => 'Baguhin ang oras ng tulog';
+
+  @override
+  String get healthWeekCopy => 'Kopyahin sa Martes hanggang Biyernes';
+
+  @override
+  String get healthWeekFree => 'Libre buong araw';
+
+  @override
+  String get healthWeekIntro =>
+      'Nakaplano ayon sa trabaho at kalendaryo mo. Walang mase-set hangga\'t di mo tinatanggap.';
+
+  @override
+  String get healthWeekLegendFree => 'Libre';
+
+  @override
+  String get healthWeekLegendWork => 'Trabaho';
+
+  @override
+  String get healthWeekLine =>
+      'Dito ibinabatay ni Botler ang ehersisyo at paalala. Puwede mo ring sabihin na lang sa chat.';
+
+  @override
+  String healthWeekMinutes(String minutes) {
+    return '$minutes minuto';
+  }
+
+  @override
+  String get healthWeekOff => 'Walang pasok';
+
+  @override
+  String get healthWeekOnce => 'Ngayon lang';
+
+  @override
+  String healthWeekRange(String from, String to) {
+    return '$from hanggang $to';
+  }
+
+  @override
+  String get healthWeekReady => 'Handa na ang bagong linggo ng workouts';
+
+  @override
+  String get healthWeekReadyLine =>
+      'Walang mase-set hangga\'t di mo tinatanggap';
+
+  @override
+  String get healthWeekSave => 'I-save ang linggo ko';
+
+  @override
+  String get healthWeekSaved => 'Na-save ang linggo mo.';
+
+  @override
+  String get healthWeekTitle => 'Linggo ko';
+
+  @override
+  String get healthWeekTravel => 'Biyahe papunta at pauwi';
+
+  @override
+  String get healthWeekWorking => 'May pasok ako sa araw na ito';
+
+  @override
+  String get healthWeightBad => 'Ilagay ang timbang mo sa kilo, gaya ng 74.2';
+
+  @override
+  String get healthWeightKg => 'Timbang sa kg';
+
+  @override
+  String get healthWeightQueued =>
+      'Naka-save sa phone na ito. Maa-upload pagbalik ng internet.';
+
+  @override
+  String get healthWeightSpark => 'Takbo ng timbang mo';
+
+  @override
+  String get healthWeightTitle => 'Timbang';
+
+  @override
+  String get healthWeightToday => 'Timbang mo ngayon';
+
+  @override
+  String healthWindDownBy(String time) {
+    return 'Mag-wind down bago mag-$time';
+  }
+
+  @override
+  String get healthWindDownNoEarly => 'Walang maagang simula bukas';
+
+  @override
+  String get healthWindDownNone => 'Paalala sa wind-down';
+
+  @override
+  String get healthWindDownSwitch => 'Paalala sa wind-down';
+
+  @override
+  String healthWindDownWhy(String time) {
+    return 'Magsisimula ka ng $time bukas';
+  }
+
+  @override
+  String get healthWokeToday => 'Gumising ngayon';
+
+  @override
+  String get healthWorkingOnIt => 'Inaasikaso na';
+
+  @override
+  String healthWorkoutMinutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get healthWorkoutSaved => 'Naka-save. Salamat sa pagpunta.';
+
+  @override
+  String get healthYourPath => 'Ang landas mo';
+
+  @override
+  String get healthYourPrograms => 'Mga programa mo';
+
+  @override
+  String get healthYourTrend => 'Takbo ng timbang mo';
 
   @override
   String get histEntryTitle => 'Mga detalye';
@@ -2235,6 +3414,12 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get menuGoalsLine => 'Ang iniipon mo';
+
+  @override
+  String get menuHealth => 'Kalusugan';
+
+  @override
+  String get menuHealthLine => 'Pagkain, timbang, ehersisyo at tulog';
 
   @override
   String get menuHistory => 'Kasaysayan';
@@ -3072,6 +4257,13 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get resetScopeEverythingLine => 'Lahat ng nasa itaas';
+
+  @override
+  String get resetScopeHealth => 'Kalusugan';
+
+  @override
+  String get resetScopeHealthLine =>
+      'Pagkain, timbang, ehersisyo, tulog at ang setup ng Kalusugan';
 
   @override
   String get resetScopeMemory => 'Memorya at chat';
@@ -4631,25 +5823,4 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get yes => 'Oo';
-
-  @override
-  String get chatScriptFailed => 'Hindi natapos ang script';
-
-  @override
-  String get chatOutputShowAll => 'Ipakita lahat';
-
-  @override
-  String get chatOutputShowLess => 'Ipakita nang kaunti';
-
-  @override
-  String get billsViewWeek => 'Linggo';
-
-  @override
-  String get billsViewMonth => 'Buwan';
-
-  @override
-  String get billsThisWeek => 'Ngayong linggo';
-
-  @override
-  String get billsThisMonth => 'Ngayong buwan';
 }
