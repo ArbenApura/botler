@@ -6,14 +6,17 @@ import 'dart:convert';
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
 import 'package:botler/features/health/home_tiles.dart';
+import 'package:botler/features/health/review_screen.dart';
 import 'package:botler/features/health/session_screen.dart';
 import 'package:botler/features/health/sleep_screen.dart';
 import 'package:botler/features/health/train_screen.dart';
 import 'package:botler/features/health/week_plan_screen.dart';
 import 'package:botler/features/health/weight_screen.dart';
 import 'package:botler/l10n/l10n.dart';
+import 'package:botler/state/food_camera.dart';
 import 'package:botler/state/providers.dart';
 import 'package:botler/theme/theme.dart';
+import 'package:botler/ui/markdown_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -134,6 +137,158 @@ void unawaitedPush(GoRouter router) {
 // -- TESTS -- //
 
 void main() {
+  test('plain words from a line of Markdown', () {
+    expect(plainFromMarkdown('**Rice** and *beans*'), 'Rice and beans');
+    expect(plainFromMarkdown('## Lunch'), 'Lunch');
+    expect(plainFromMarkdown('- one\n- two'), 'one\ntwo');
+    expect(
+      plainFromMarkdown('See [the page](https://a.b) and [[Food]]'),
+      'See the page and Food',
+    );
+    expect(plainFromMarkdown('`code` and ~~old~~'), 'code and old');
+    expect(
+      plainFromMarkdown('2*3*4 and snake_case_name'),
+      '2*3*4 and snake_case_name',
+    );
+    expect(plainFromMarkdown('5 * 3 * 2'), '5 * 3 * 2');
+    expect(plainFromMarkdown('| a |\n|---|\n| b |'), '| a |\n| b |');
+  });
+
+  group('the meal review', () {
+    const args = <String, Object?>{
+      'meal': 'lunch',
+      'items': <Json>[
+        <String, Object?>{'foodId': 'fil:adobo_chicken', 'grams': 180},
+      ],
+    };
+    const preview = <String, Object?>{
+      'items': <Object?>[
+        <String, Object?>{
+          'name': 'Chicken adobo',
+          'grams': 180,
+          'kcal': 360,
+          'lowKcal': 300,
+          'highKcal': 420,
+          'sourceKind': 'filipino',
+        },
+      ],
+      'kcal': 360,
+      'lowKcal': 300,
+      'highKcal': 420,
+      'proteinMg': 30000,
+      'carbsMg': 2000,
+      'fatMg': 20000,
+    };
+
+    testWidgets(
+      'draws the assistant\'s note as Markdown, with no marks showing',
+      (tester) async {
+        await _show(
+          tester,
+          const MealReviewScreen(
+            actionId: 'c1',
+            args: args,
+            note: '**Was it fried?** Oil is *hard* to see.',
+          ),
+          _api(<String, Object?>{'meal_preview': preview}, <(String, Json)>[]),
+        );
+        expect(
+          find.textContaining('Was it fried?', findRichText: true),
+          findsOneWidget,
+        );
+        expect(find.textContaining('**', findRichText: true), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'offers no correction when there is no photo to look at again',
+      (tester) async {
+        await _show(
+          tester,
+          const MealReviewScreen(actionId: 'c1', args: args),
+          _api(<String, Object?>{'meal_preview': preview}, <(String, Json)>[]),
+        );
+        expect(find.text('Not right?'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'sends the correction and lets the old card go for the new one',
+      (tester) async {
+        final calls = <(String, Json)>[];
+        String? sent;
+        await _show(
+          tester,
+          MealReviewScreen(
+            actionId: 'old',
+            args: args,
+            photo: 'no-such-file.jpg',
+            resend: (words) async {
+              sent = words;
+              return const FoodCameraResult(
+                actionId: 'new',
+                args: args,
+                note: 'Fixed.',
+              );
+            },
+          ),
+          _api(<String, Object?>{'meal_preview': preview}, calls),
+        );
+        final field = find.widgetWithText(TextField, 'What is it really?');
+        await tester.scrollUntilVisible(
+          field,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.enterText(field, 'That is tinola');
+        await tester.pump();
+        final send = find.text('Ask Botler to fix it');
+        await tester.ensureVisible(send);
+        await tester.tap(send);
+        await tester.pumpAndSettle();
+        expect(sent, contains('That is tinola'));
+        expect(sent, contains('Chicken adobo 180 g'));
+        expect(find.text('opened'), findsOneWidget);
+        // The old card was declined, at its own address, only after the new one came
+        expect(calls.any((c) => c.$1 == 'old'), isTrue);
+      },
+    );
+
+    testWidgets('keeps the card and says so when Botler finds nothing new', (
+      tester,
+    ) async {
+      final calls = <(String, Json)>[];
+      await _show(
+        tester,
+        MealReviewScreen(
+          actionId: 'old',
+          args: args,
+          photo: 'no-such-file.jpg',
+          resend: (_) async => const FoodCameraResult(failure: 'Could not.'),
+        ),
+        _api(<String, Object?>{'meal_preview': preview}, calls),
+      );
+      final field = find.widgetWithText(TextField, 'What is it really?');
+      await tester.scrollUntilVisible(
+        field,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(field, 'That is tinola');
+      await tester.pump();
+      final send = find.text('Ask Botler to fix it');
+      await tester.ensureVisible(send);
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Could not.'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(calls.any((c) => c.$1 == 'old'), isFalse);
+    });
+  });
+
   testWidgets('the home tiles show each part, with data and with none', (
     tester,
   ) async {

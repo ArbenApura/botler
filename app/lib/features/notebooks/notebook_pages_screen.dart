@@ -12,6 +12,7 @@ import '../../l10n/l10n.dart';
 import '../../state/library.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'library_actions.dart';
 import 'deleted_pages.dart';
@@ -158,7 +159,10 @@ class _NotebookPagesScreenState extends ConsumerState<NotebookPagesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   if (book.summary.isNotEmpty)
-                    Text(book.summary, style: TextStyle(color: c.muted)),
+                    Text(
+                      plainFromMarkdown(book.summary),
+                      style: TextStyle(color: c.muted),
+                    ),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(

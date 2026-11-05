@@ -118,7 +118,7 @@ export async function activeChatId(tx: Tx, userId: string): Promise<string | nul
 	const [row] = await tx
 		.select({ id: chat.id })
 		.from(chat)
-		.where(and(eq(chat.userId, userId), isNull(chat.archivedAt)))
+		.where(and(eq(chat.userId, userId), isNull(chat.archivedAt), eq(chat.hidden, false)))
 		.orderBy(desc(chat.lastActiveAt), desc(chat.id))
 		.limit(1);
 	return row?.id ?? null;
@@ -131,8 +131,18 @@ export async function activeChatId(tx: Tx, userId: string): Promise<string | nul
 export async function resolveChat(
 	tx: Tx,
 	userId: string,
-	chatId: string | undefined
+	chatId: string | undefined,
+	options: { hidden?: boolean } = {}
 ): Promise<{ id: string; title: string | null }> {
+	// One food camera scan gets its own short-lived chat, so it never joins or replaces the conversation the person is having
+	if (options.hidden && !chatId) {
+		const [scan] = await tx
+			.insert(chat)
+			.values({ userId, hidden: true })
+			.returning({ id: chat.id, title: chat.title });
+		if (!scan) throw new OpsError('CONFLICT', 'A chat could not be started.');
+		return scan;
+	}
 	if (chatId) {
 		const [row] = await tx
 			.select({ id: chat.id, title: chat.title })
@@ -223,6 +233,7 @@ export async function chatList(
 			.where(
 				and(
 					eq(chat.userId, userId),
+					eq(chat.hidden, false),
 					input.archived ? isNotNull(chat.archivedAt) : isNull(chat.archivedAt),
 					said,
 					match,

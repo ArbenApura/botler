@@ -22,15 +22,57 @@ Future<void> openWebLink(String? href) async {
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+/// A short line of Markdown as plain words, for a place that shows one or two lines (a preview, a search hit, a one-line summary), where drawing it would break the line and showing
+/// it raw would show the marks. Only marks that come in pairs are taken, so "2*3*4" and snake_case stay as they are.
+///
+/// [keepPageLinks] leaves [[Page]] as it is, where the link itself is what the line is showing.
+String plainFromMarkdown(String text, {bool keepPageLinks = false}) {
+  final lines = <String>[
+    for (final line in text.split('\n'))
+      // A table's divider line has no words in it
+      if (!RegExp(r'^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$').hasMatch(line) ||
+          line.trim().isEmpty)
+        line
+            .replaceFirst(RegExp(r'^\s*#{1,6}\s+'), '')
+            .replaceFirst(RegExp(r'^\s*>\s?'), '')
+            .replaceFirst(RegExp(r'^\s*[-*+]\s+'), ''),
+  ];
+  return lines
+      .join('\n')
+      .replaceAllMapped(
+        RegExp(r'!?\[([^\]\n]*)\]\([^)\n]*\)'),
+        (m) => m[1] ?? '',
+      )
+      .replaceAllMapped(
+        RegExp(r'\[\[([^\]\n]+)\]\]'),
+        (m) => keepPageLinks ? m[0] ?? '' : m[1] ?? '',
+      )
+      .replaceAllMapped(RegExp(r'`([^`\n]+)`'), (m) => m[1] ?? '')
+      .replaceAllMapped(
+        RegExp(r'(\*\*|__|~~)(?=\S)(.+?)(?<=\S)\1'),
+        (m) => m[2] ?? '',
+      )
+      .replaceAllMapped(
+        RegExp(r'(?<![\w*])\*(?=[^\s*])([^*\n]+?)(?<=\S)\*(?![\w*])'),
+        (m) => m[1] ?? '',
+      )
+      .replaceAllMapped(
+        RegExp(r'(?<![\w_])_(?=[^\s_])([^_\n]+?)(?<=\S)_(?![\w_])'),
+        (m) => m[1] ?? '',
+      )
+      .trim();
+}
+
 /// The style sheet. [levels] gives a heading its size by level (the reader needs to tell a chapter from a section); the chat keeps one heading
 /// style, so a reply never shouts.
 MarkdownStyleSheet botlerMarkdownStyle(
   BuildContext context, {
   bool levels = false,
+  Color? color,
 }) {
   final c = context.colors;
   final t = Theme.of(context).textTheme;
-  final body = t.bodyLarge ?? const TextStyle();
+  final body = (t.bodyLarge ?? const TextStyle()).copyWith(color: color);
   final heading = (t.titleMedium ?? body).copyWith(fontWeight: FontWeight.w700);
   final h1 = levels
       ? (t.titleLarge ?? heading).copyWith(fontWeight: FontWeight.w700)
@@ -86,6 +128,8 @@ class BotlerMarkdown extends StatelessWidget {
     this.onTapLink,
     this.builders = const <String, MarkdownElementBuilder>{},
     this.inlineSyntaxes = const <md.InlineSyntax>[],
+    this.color,
+    this.centered = false,
     super.key,
   });
 
@@ -101,6 +145,12 @@ class BotlerMarkdown extends StatelessWidget {
 
   /// Own inline forms the text may hold, read before the usual ones.
   final List<md.InlineSyntax> inlineSyntaxes;
+
+  /// The words in this colour, on a surface that needs its own ink.
+  final Color? color;
+
+  /// Paragraphs in the middle, on a screen that is centred.
+  final bool centered;
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +169,11 @@ class BotlerMarkdown extends StatelessWidget {
           openWebLink(href);
         }
       },
-      styleSheet: botlerMarkdownStyle(context, levels: levels),
+      styleSheet: botlerMarkdownStyle(
+        context,
+        levels: levels,
+        color: color,
+      ).copyWith(textAlign: centered ? WrapAlignment.center : null),
     );
   }
 }

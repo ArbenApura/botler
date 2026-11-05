@@ -124,7 +124,9 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>, staleMs: number
 			// Locked, so two requests that find the same stuck turn take turns: the second sees it running again and is refused
 			.for('update');
 		if (!row) {
-			const target = await resolveChat(tx, userId, input.chatId);
+			const target = await resolveChat(tx, userId, input.chatId, {
+				hidden: input.foodCamera !== undefined
+			});
 			const [fresh] = await tx
 				.insert(chatTurn)
 				.values({

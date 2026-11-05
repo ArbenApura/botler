@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../state/library_extras.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 
 // -- WIDGETS -- //
@@ -83,7 +84,7 @@ class BacklinkRow extends StatelessWidget {
                       ),
                       if (link.snippet.isNotEmpty)
                         Text(
-                          link.snippet,
+                          plainFromMarkdown(link.snippet, keepPageLinks: true),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall

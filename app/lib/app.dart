@@ -175,6 +175,7 @@ GoRouter buildRouter(WidgetRef ref) {
               args: asJson(e['args']),
               note: e['note'] is String ? str(e['note']) : null,
               photo: e['photo'] is String ? str(e['photo']) : null,
+              mode: str(e['mode'], 'meal'),
             ),
           );
         },

@@ -1388,6 +1388,12 @@
     }
   },
   "healthClose": "Close",
+  "healthCorrectBusy": "Botler is looking again",
+  "healthCorrectHint": "That is tinola, and half a cup of rice",
+  "healthCorrectLabel": "What is it really?",
+  "healthCorrectLine": "Tell Botler what it really is, and it will look at your photo again. You check the result before anything is saved.",
+  "healthCorrectSend": "Ask Botler to fix it",
+  "healthCorrectTitle": "Not right?",
   "healthCouldBe": "Could be {low} to {high}",
   "@healthCouldBe": {
     "placeholders": {

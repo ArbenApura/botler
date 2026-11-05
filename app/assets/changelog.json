@@ -562,5 +562,19 @@
     "fil": [
       "Ang Enter key sa chat box ay magsisimula na ng bagong linya, kaya maaari ka nang mag-indent at maglagay ng espasyo. Gamitin ang arrow button para magpadala."
     ]
+  },
+  {
+    "versionCode": 52,
+    "versionName": "1.5.2",
+    "en": [
+      "Scanning a meal no longer opens a new chat or takes over the one you were in.",
+      "If Botler reads your meal wrong, tell it what it really is on the check screen and it will look at your photo again. You still check the result before anything is saved.",
+      "Bold text, lists and other formatting now show properly on the meal screen, and stray marks are gone from chat previews, notebook search and notebook summaries."
+    ],
+    "fil": [
+      "Hindi na nagbubukas ng bagong chat ang pag-scan ng pagkain, at hindi na nito pinapalitan ang chat na ginagamit mo.",
+      "Kung mali ang basa ni Botler sa pagkain mo, sabihin sa kanya kung ano talaga ito sa screen ng pagsusuri at titingnan niya ulit ang litrato mo. Susuriin mo pa rin ang resulta bago may ma-save.",
+      "Maayos na ang pagpapakita ng bold, listahan at iba pang format sa screen ng pagkain, at wala na ang mga sobrang marka sa mga preview ng chat, paghahanap sa notebook at mga buod ng notebook."
+    ]
   }
 ]

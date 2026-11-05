@@ -17,6 +17,7 @@ import '../../state/library_extras.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'page_reader.dart';
 import 'term_highlight.dart';
@@ -172,7 +173,7 @@ class _LibrarySearchScreenState extends ConsumerState<LibrarySearchScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: HighlightedText(
-                      hit.snippet,
+                      plainFromMarkdown(hit.snippet),
                       term: _asked,
                       style: theme.bodyMedium?.copyWith(color: c.ink),
                       maxLines: 3,

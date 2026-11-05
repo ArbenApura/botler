@@ -325,5 +325,11 @@
   "calWorkoutLabel": "Workout",
   "healthMealPhoto": "Ang litrato ng pagkain mo",
   "healthRecentWeights": "Mga huling timbang",
-  "healthRemoveWeight": "Tanggalin ang timbang na ito"
+  "healthRemoveWeight": "Tanggalin ang timbang na ito",
+  "healthCorrectTitle": "Mali ba?",
+  "healthCorrectLine": "Sabihin kay Botler kung ano talaga ito, at titingnan niya ulit ang litrato mo. Susuriin mo ang resulta bago may ma-save.",
+  "healthCorrectLabel": "Ano ba talaga ito?",
+  "healthCorrectHint": "Tinola iyan, at kalahating tasa ng kanin",
+  "healthCorrectSend": "Ipaayos kay Botler",
+  "healthCorrectBusy": "Tinitingnan ulit ni Botler"
 }

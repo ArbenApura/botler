@@ -14,10 +14,12 @@ import '../../core/api.dart';
 import '../../core/health_units.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
+import '../../state/food_camera.dart';
 import '../../state/health.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'camera_screen.dart';
 import 'health_parts.dart';
@@ -31,6 +33,8 @@ class MealReviewScreen extends ConsumerStatefulWidget {
     required this.args,
     this.note,
     this.photo,
+    this.mode = 'meal',
+    this.resend,
     super.key,
   });
 
@@ -40,6 +44,12 @@ class MealReviewScreen extends ConsumerStatefulWidget {
 
   /// The first photo, on this phone only. It is deleted when the review closes.
   final String? photo;
+
+  /// What the photo was taken as: 'meal' or 'label'.
+  final String mode;
+
+  /// Test hook: what sends the person's correction. The food camera does it otherwise.
+  final Future<FoodCameraResult> Function(String correction)? resend;
 
   @override
   ConsumerState<MealReviewScreen> createState() => _MealReviewScreenState();
@@ -52,6 +62,8 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
       .map(Map<String, Object?>.of)
       .toList();
   final TextEditingController _total = TextEditingController();
+  final TextEditingController _correction = TextEditingController();
+  bool _photoHandedOn = false;
   late final Once _once = Once(() => setState(() {}));
   Json? _preview;
   String? _error;
@@ -70,10 +82,13 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
   @override
   void dispose() {
     _total.dispose();
+    _correction.dispose();
     _debounce?.cancel();
-    // The photo never leaves this phone and is not kept after the review
+    // The photo never leaves this phone and is not kept after the review. A corrected review takes it over
     final photo = widget.photo;
-    if (photo != null) unawaited(deleteShots(<String>[photo]));
+    if (photo != null && !_photoHandedOn) {
+      unawaited(deleteShots(<String>[photo]));
+    }
     super.dispose();
   }
 
@@ -150,6 +165,124 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
     if (picked == null) return;
     setState(() => _items = <Json>[..._items, picked]);
     _changed();
+  }
+
+  /// Tells Botler what the food really is. It looks at the photo again with the person's words, and the answer is a new card to check, so nothing is saved by this. The old
+  /// card is let go only once the new one exists: a failure leaves everything as it was.
+  Future<void> _correct() async {
+    final words = _correction.text.trim();
+    final photo = widget.photo;
+    if (words.isEmpty || photo == null) return;
+    final t = context.t;
+    final api = ref.read(apiProvider);
+    final had = asJsonList(_preview?['items'])
+        .map((v) {
+          final grams = v['grams'];
+          return grams == null
+              ? str(v['name'])
+              : '${str(v['name'])} ${intOf(grams)} g';
+        })
+        .join(', ');
+    final correction =
+        'Correction from the person: "$words". Your last reading was: $had';
+    setState(() => _error = null);
+    try {
+      await _once.run((_) async {
+        final resend = widget.resend;
+        final r = resend != null
+            ? await resend(correction)
+            : await sendFoodPhotos(
+                ref,
+                mode: widget.mode,
+                paths: <String>[photo],
+                correction: correction,
+              );
+        final actionId = r.actionId;
+        if (!r.hasCard || actionId == null) {
+          if (mounted) {
+            setState(() => _error = r.failure ?? t.healthPhotoFailedLine);
+          }
+          return;
+        }
+        // The screen was left while Botler worked: the new card is not wanted
+        if (!mounted) {
+          await api.decideCard(actionId, approve: false);
+          return;
+        }
+        try {
+          await api.decideCard(widget.actionId, approve: false);
+        } on ApiException {
+          // The old card closed some other way, which is what this wanted
+        }
+        if (!mounted) return;
+        _photoHandedOn = true;
+        context.pushReplacement(
+          '/health/review',
+          extra: <String, Object?>{
+            'photo': photo,
+            'mode': widget.mode,
+            'actionId': actionId,
+            'args': r.args,
+            'note': r.note,
+          },
+        );
+      }, intent: 'correct');
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(
+          () => _error = e.isNetwork ? t.healthCameraOffline : e.message,
+        );
+      }
+    } on Object {
+      if (mounted) setState(() => _error = t.healthPhotoFailedLine);
+    }
+  }
+
+  Widget _correctionCard() {
+    final t = context.t;
+    final c = context.colors;
+    final busy = _once.running('correct');
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            t.healthCorrectTitle,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            t.healthCorrectLine,
+            style: TextStyle(color: c.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _correction,
+            enabled: !busy,
+            minLines: 1,
+            maxLines: 3,
+            maxLength: 300,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: t.healthCorrectLabel,
+              hintText: t.healthCorrectHint,
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _once.running() || _correction.text.trim().isEmpty
+                  ? null
+                  : () => unawaited(_correct()),
+              child: Text(busy ? t.healthCorrectBusy : t.healthCorrectSend),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _decide(bool approve) async {
@@ -386,13 +519,17 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(
-                  note == null || note.isEmpty ? t.healthOilQuestion : note,
-                  style: TextStyle(
-                    color: c.accentText,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                // The assistant's words may hold Markdown; the fixed question does not
+                if (note == null || note.isEmpty)
+                  Text(
+                    t.healthOilQuestion,
+                    style: TextStyle(
+                      color: c.accentText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                else
+                  BotlerMarkdown(note, color: c.accentText),
                 const SizedBox(height: 4),
                 Text(
                   t.healthOilLine,
@@ -427,6 +564,10 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
               ),
             ),
           const SizedBox(height: 12),
+          if (widget.photo != null) ...<Widget>[
+            _correctionCard(),
+            const SizedBox(height: 12),
+          ],
           OutlinedButton(onPressed: _addFood, child: Text(t.healthAddFood)),
           const SizedBox(height: 12),
           PaperCard(

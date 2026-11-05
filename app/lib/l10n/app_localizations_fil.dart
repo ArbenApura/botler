@@ -1934,6 +1934,25 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthClose => 'Isara';
 
   @override
+  String get healthCorrectBusy => 'Tinitingnan ulit ni Botler';
+
+  @override
+  String get healthCorrectHint => 'Tinola iyan, at kalahating tasa ng kanin';
+
+  @override
+  String get healthCorrectLabel => 'Ano ba talaga ito?';
+
+  @override
+  String get healthCorrectLine =>
+      'Sabihin kay Botler kung ano talaga ito, at titingnan niya ulit ang litrato mo. Susuriin mo ang resulta bago may ma-save.';
+
+  @override
+  String get healthCorrectSend => 'Ipaayos kay Botler';
+
+  @override
+  String get healthCorrectTitle => 'Mali ba?';
+
+  @override
   String healthCouldBe(String low, String high) {
     return 'Puwedeng $low hanggang $high';
   }

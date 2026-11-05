@@ -18,6 +18,7 @@ import '../../state/providers.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import '../auth/lock_gate.dart';
 import 'notebook_editor.dart';
@@ -329,7 +330,10 @@ class _Page extends StatelessWidget {
         if (str(book['summary']).isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Text(str(book['summary']), style: TextStyle(color: c.muted)),
+            child: Text(
+              plainFromMarkdown(str(book['summary'])),
+              style: TextStyle(color: c.muted),
+            ),
           ),
         if (draft && !empty)
           Padding(

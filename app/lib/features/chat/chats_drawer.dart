@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'chat_state.dart';
 import 'chats_state.dart';
@@ -541,7 +542,7 @@ class _ChatRow extends StatelessWidget {
                           ),
                           if (chat.preview.isNotEmpty)
                             Text(
-                              chat.preview,
+                              plainFromMarkdown(chat.preview),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.bodySmall?.copyWith(color: c.muted),

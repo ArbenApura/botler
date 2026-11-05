@@ -4,10 +4,17 @@
 // -- TYPES -- //
 import type { JobHandler } from './queue';
 // -- DEP-MODULES -- //
-import { lt, sql } from 'drizzle-orm';
+import { and, eq, lt, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { toManilaDate } from '../../finance/dates';
-import { notebook, notebookPage, NOTEBOOK_TRASH_DAYS, requestLog, undoJournal } from '../db/schema';
+import {
+	chat,
+	notebook,
+	notebookPage,
+	NOTEBOOK_TRASH_DAYS,
+	requestLog,
+	undoJournal
+} from '../db/schema';
 import { runWeekly, runWeeklyReview } from '../ops/weight';
 import { enqueue } from './queue';
 import { advancePrograms } from '../ops/workouts';
@@ -17,6 +24,8 @@ import { advancePrograms } from '../ops/workouts';
 /** How long a request id is remembered for replays, and how long an undo entry is kept. */
 const REQUEST_LOG_DAYS = 30;
 const UNDO_DAYS = 90;
+/** How long the unlisted chat of one food camera scan is kept. What it logged stays: the food entries and the audit trail are not in it. */
+const SCAN_CHAT_DAYS = 7;
 
 /** Removes the person's old request ids and old undo entries. Safe to run any time: row level security limits it to their own rows. */
 export const purgeOld: JobHandler = async (_job, tx) => {
@@ -26,6 +35,15 @@ export const purgeOld: JobHandler = async (_job, tx) => {
 	await tx
 		.delete(undoJournal)
 		.where(lt(undoJournal.createdAt, sql`now() - ${UNDO_DAYS} * interval '1 day'`));
+	// The messages of a scan follow its chat by the composite key
+	await tx
+		.delete(chat)
+		.where(
+			and(
+				eq(chat.hidden, true),
+				lt(chat.lastActiveAt, sql`now() - ${SCAN_CHAT_DAYS} * interval '1 day'`)
+			)
+		);
 	// A deleted page can be restored for a while; after that it goes, with its changes (they follow it by the composite key). A parent is
 	// kept while any sub-page stays (a live one, or a hidden one that is not old enough yet), so a page never goes from under a live sub-page.
 	await tx.delete(notebookPage).where(

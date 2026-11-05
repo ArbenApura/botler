@@ -2,6 +2,7 @@
 
 // -- DEP-MODULES -- //
 import {
+	boolean,
 	foreignKey,
 	index,
 	integer,
@@ -67,6 +68,8 @@ export const chat = userTable(
 		title: text('title'),
 		pinnedAt: timestamp('pinned_at', { withTimezone: true }),
 		archivedAt: timestamp('archived_at', { withTimezone: true }),
+		/** A short-lived chat for one food camera scan: never listed, never the one that opens, and cleared after a few days. */
+		hidden: boolean('hidden').notNull().default(false),
 		/** Where a fork came from. Plain ids with no reference, so the source can be erased without touching the fork. */
 		forkedFromChatId: uuid('forked_from_chat_id'),
 		forkedAtTurnId: uuid('forked_at_turn_id'),

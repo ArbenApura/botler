@@ -12,6 +12,7 @@ import '../../l10n/l10n.dart';
 import '../../state/library.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 
 // -- CONSTANTS -- //
@@ -197,7 +198,7 @@ class DeletedNotebooks extends ConsumerWidget {
                 subtitle: str(n['summary']).isEmpty
                     ? null
                     : Text(
-                        str(n['summary']),
+                        plainFromMarkdown(str(n['summary'])),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: c.muted),

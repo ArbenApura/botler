@@ -4,13 +4,18 @@
 import type { TestDb } from '../support/testDb';
 import type { Fixture, Step } from './support';
 // -- DEP-MODULES -- //
+import { and, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 // -- MODULES -- //
 import { addDays, toManilaDate } from '../../src/lib/finance/dates';
+import { chat, chatTurn } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
+import { purgeOld } from '../../src/lib/server/jobs/handlers';
+import { activeChatId, chatList, resolveChat, touchChat } from '../../src/lib/server/ops/chats';
 import { resetBarcodeState } from '../../src/lib/server/fooddata/barcode';
 import { supersedeAndPropose } from '../../src/lib/server/ops/proposals';
 import { invokeVerb } from '../../src/lib/server/ops/registry';
+import { SYSTEM_PREFIX } from '../../src/lib/server/agent/prompt';
 import { buildTools } from '../../src/lib/server/agent/tools';
 import { handleChat } from '../../src/lib/server/agent/chat';
 import { createTestDb } from '../support/testDb';
@@ -196,6 +201,89 @@ describe('after a photo', () => {
 		expect(cards[0]).toMatchObject({ verb: 'meal_log' });
 		expect(String(cards[0]?.summary)).toContain('Chicken adobo 180 g');
 		expect((await day()).entries).toHaveLength(0);
+	});
+});
+
+describe('a scan is not a conversation', () => {
+	it('gets its own chat that is never listed and never becomes the one that opens', async () => {
+		f = await seedPerson(t);
+		const userId = f.ctx.actor.userId;
+		const talking = await withUser(t.handle, userId, async (tx) => {
+			const mine = await resolveChat(tx, userId, undefined);
+			await tx
+				.insert(chatTurn)
+				.values({ userId, chatId: mine.id, clientMessageId: `talk-${n}-00001`, userText: 'Hi' });
+			return mine.id;
+		});
+		const scan = await withUser(t.handle, userId, async (tx) => {
+			const made = await resolveChat(tx, userId, undefined, { hidden: true });
+			await tx.insert(chatTurn).values({
+				userId,
+				chatId: made.id,
+				clientMessageId: `scan-${n}-00001`,
+				userText: 'Food camera: meal'
+			});
+			await touchChat(tx, userId, made, 'Food camera: meal');
+			return made.id;
+		});
+		expect(scan).not.toBe(talking);
+		const active = await withUser(t.handle, userId, (tx) => activeChatId(tx, userId));
+		expect(active).toBe(talking);
+		const listed = await chatList(f.ctx, {});
+		expect(listed.chats.map((c) => c.id)).toEqual([talking]);
+		expect((await chatList(f.ctx, { search: 'Food camera' })).chats).toHaveLength(0);
+		expect((await chatList(f.ctx, { archived: true })).chats).toHaveLength(0);
+	});
+
+	it('gives each scan a new chat, and clears it after a week, leaving the conversation', async () => {
+		f = await seedPerson(t);
+		const userId = f.ctx.actor.userId;
+		const count = () =>
+			withUser(t.handle, userId, (tx) =>
+				tx.select({ id: chat.id, hidden: chat.hidden }).from(chat).where(eq(chat.userId, userId))
+			);
+		const made = await withUser(t.handle, userId, async (tx) => {
+			await resolveChat(tx, userId, undefined);
+			const one = await resolveChat(tx, userId, undefined, { hidden: true });
+			const two = await resolveChat(tx, userId, undefined, { hidden: true });
+			return [one.id, two.id];
+		});
+		expect(made[0]).not.toBe(made[1]);
+		await withUser(t.handle, userId, (tx) =>
+			tx
+				.update(chat)
+				.set({ lastActiveAt: new Date(Date.now() - 8 * 86_400_000) })
+				.where(and(eq(chat.userId, userId), eq(chat.id, made[0] ?? '')))
+		);
+		await withUser(t.handle, userId, (tx) => purgeOld({} as never, tx, f.ctx as never));
+		const left = await count();
+		expect(left.map((c) => c.id)).not.toContain(made[0]);
+		expect(left.map((c) => c.id)).toContain(made[1]);
+		expect(left.filter((c) => !c.hidden)).toHaveLength(1);
+	});
+});
+
+describe('a correction of a meal photo', () => {
+	it('is still a card to check, not a saved meal, though the person wrote the words', async () => {
+		f = await seedPerson(t);
+		const model = stubModel([
+			call('food_search', { names: ['tinola'] }),
+			call('meal_log', { items: [{ foodId: 'fil:tinola', grams: 250 }] }),
+			reply('Check the card.')
+		]);
+		const events = await play({
+			f,
+			model,
+			text: `Food camera: meal. Correction from the person: "That is tinola ${n}". Your last reading was: Chicken adobo 180 g`,
+			ocrText: 'photo words'
+		});
+		expect(cardEvents(events)).toHaveLength(1);
+		expect((await day()).entries).toHaveLength(0);
+	});
+
+	it('tells the model their words win, and the coverage of the rule stays in the prompt', () => {
+		expect(SYSTEM_PREFIX).toMatch(/Correction from the person/);
+		expect(SYSTEM_PREFIX).toMatch(/Their words win over what you see/);
 	});
 });
 

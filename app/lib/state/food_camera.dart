@@ -1,4 +1,5 @@
-// THE FOOD CAMERA'S TRIP TO THE SERVER: THE PHOTOS GO THROUGH THE SAME CHAT PATH AS ANY PHOTO, IN ONE FOOD CHAT, AND THE MEAL COMES BACK AS A CARD THE PERSON CHECKS.
+// THE FOOD CAMERA'S TRIP TO THE SERVER: A SCAN IS ITS OWN SHORT-LIVED, UNLISTED CHAT, SO IT NEVER SHOWS AS A CONVERSATION OR TAKES OVER THE ONE THE PERSON IS HAVING.
+// THE PHOTOS GO THROUGH THE SAME CHAT PATH AS ANY PHOTO, IN ONE FOOD CHAT, AND THE MEAL COMES BACK AS A CARD THE PERSON CHECKS.
 // Photos are never stored here. Nothing is saved until the card is approved.
 
 // -- DEP-MODULES -- //
@@ -13,8 +14,9 @@ import 'providers.dart';
 
 // -- CONSTANTS -- //
 
-/// The name of the chat that holds food camera messages, so ordinary chats stay clean.
-const String foodChatTitle = 'Food';
+/// The name of the chat older builds kept every scan in. One build archives it, once.
+const String _oldFoodChatTitle = 'Food';
+const String _oldFoodChatGoneKey = 'health.foodChatArchived.v1';
 
 // -- TYPES -- //
 
@@ -36,32 +38,25 @@ class FoodCameraResult {
 
 // -- FUNCTIONS -- //
 
-String? _foodChatNewKey;
-String? _foodChatRenameKey;
-
-/// The Food chat's id, made the first time.
-Future<String> foodChatId(ApiClient api) async {
-  final list = await api.verbJson('chat_list', <String, Object?>{});
-  final chats = asJsonList(list['chats']);
-  for (final c in chats) {
-    if (str(c['title']) == foodChatTitle) return str(c['id']);
+/// Older builds kept every scan in one chat called Food, which sat among the person's conversations. It is archived, so nothing in it is lost. A failure only means trying again next
+/// scan, and never stops the scan.
+Future<void> _archiveOldFoodChat(WidgetRef ref) async {
+  final prefs = ref.read(prefsProvider);
+  if (prefs.getBool(_oldFoodChatGoneKey) ?? false) return;
+  final api = ref.read(apiProvider);
+  try {
+    final list = await api.verbJson('chat_list', <String, Object?>{});
+    for (final c in asJsonList(list['chats'])) {
+      if (str(c['title']) != _oldFoodChatTitle) continue;
+      await api.verb('chat_archive', <String, Object?>{
+        'chatId': str(c['id']),
+        'archived': true,
+      }, newRequestId());
+    }
+    await prefs.setBool(_oldFoodChatGoneKey, true);
+  } on ApiException {
+    return;
   }
-  // The same keys until both calls worked, so a retry after a dropped connection makes no second chat
-  final newKey = _foodChatNewKey ??= newRequestId();
-  final renameKey = _foodChatRenameKey ??= newRequestId();
-  final made = await api.verbJson(
-    'chat_new',
-    const <String, Object?>{},
-    newKey,
-  );
-  final id = str(made['id'], str(made['chatId']));
-  await api.verb('chat_rename', <String, Object?>{
-    'chatId': id,
-    'title': foodChatTitle,
-  }, renameKey);
-  _foodChatNewKey = null;
-  _foodChatRenameKey = null;
-  return id;
 }
 
 /// Sends the photos of one meal or one label. [mode] is 'meal' or 'label'. [barcode] is passed along when a scan led to a label.
@@ -70,6 +65,7 @@ Future<FoodCameraResult> sendFoodPhotos(
   required String mode,
   required List<String> paths,
   String? barcode,
+  String? correction,
 }) async {
   final api = ref.read(apiProvider);
   final reader = PhotoReader();
@@ -89,10 +85,12 @@ Future<FoodCameraResult> sendFoodPhotos(
     for (final p in pictures)
       if (p != null) p.data,
   ];
-  final chatId = await foodChatId(api);
-  final text = barcode == null
-      ? 'Food camera: $mode'
-      : 'Food camera: $mode. Barcode $barcode';
+  await _archiveOldFoodChat(ref);
+  final text = <String>[
+    'Food camera: $mode',
+    if (barcode != null) 'Barcode $barcode',
+    ?correction,
+  ].join('. ');
   String? actionId;
   final words = StringBuffer();
   String? failed;
@@ -101,12 +99,14 @@ Future<FoodCameraResult> sendFoodPhotos(
     text: text,
     ocrTexts: texts,
     images: images,
-    chatId: chatId,
     foodCamera: mode,
   )) {
     switch (str(e['type'])) {
       case 'card':
         if (str(e['verb']) == 'meal_log') actionId = str(e['actionId']);
+      // Only the words after the last tool are the answer: what came before was the assistant working
+      case 'tool_start':
+        words.clear();
       case 'delta':
         words.write(str(e['text']));
       case 'error':

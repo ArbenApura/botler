@@ -904,5 +904,11 @@
   "calWorkoutLabel": "Workout",
   "healthMealPhoto": "The photo of your meal",
   "healthRecentWeights": "Recent weigh-ins",
-  "healthRemoveWeight": "Remove this weigh-in"
+  "healthRemoveWeight": "Remove this weigh-in",
+  "healthCorrectTitle": "Not right?",
+  "healthCorrectLine": "Tell Botler what it really is, and it will look at your photo again. You check the result before anything is saved.",
+  "healthCorrectLabel": "What is it really?",
+  "healthCorrectHint": "That is tinola, and half a cup of rice",
+  "healthCorrectSend": "Ask Botler to fix it",
+  "healthCorrectBusy": "Botler is looking again"
 }

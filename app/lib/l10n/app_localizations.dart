@@ -3265,6 +3265,42 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get healthClose;
 
+  /// No description provided for @healthCorrectBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Botler is looking again'**
+  String get healthCorrectBusy;
+
+  /// No description provided for @healthCorrectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'That is tinola, and half a cup of rice'**
+  String get healthCorrectHint;
+
+  /// No description provided for @healthCorrectLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What is it really?'**
+  String get healthCorrectLabel;
+
+  /// No description provided for @healthCorrectLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell Botler what it really is, and it will look at your photo again. You check the result before anything is saved.'**
+  String get healthCorrectLine;
+
+  /// No description provided for @healthCorrectSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask Botler to fix it'**
+  String get healthCorrectSend;
+
+  /// No description provided for @healthCorrectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Not right?'**
+  String get healthCorrectTitle;
+
   /// No description provided for @healthCouldBe.
   ///
   /// In en, this message translates to:

@@ -13,6 +13,7 @@ import '../../core/api.dart';
 import '../../l10n/l10n.dart';
 import '../../state/food_camera.dart';
 import '../../theme/tokens.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'camera_screen.dart';
 import 'food_sheets.dart';
@@ -70,6 +71,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
           '/health/review',
           extra: <String, Object?>{
             'photo': _heldForReview,
+            'mode': widget.mode,
             'actionId': r.actionId,
             'args': r.args,
             'note': r.note,
@@ -147,11 +149,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  failure,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: c.muted),
-                ),
+                // This can be the assistant's own words, which may hold Markdown
+                BotlerMarkdown(failure, color: c.muted, centered: true),
               ],
             ),
           ),

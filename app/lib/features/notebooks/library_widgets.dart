@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/manila_clock.dart';
+import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 
 // -- CONSTANTS -- //
@@ -172,7 +173,7 @@ class NotebookCard extends StatelessWidget {
                     ),
                     if (notebook.summary.isNotEmpty)
                       Text(
-                        notebook.summary,
+                        plainFromMarkdown(notebook.summary),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: c.muted),

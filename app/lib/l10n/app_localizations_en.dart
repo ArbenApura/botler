@@ -1923,6 +1923,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthClose => 'Close';
 
   @override
+  String get healthCorrectBusy => 'Botler is looking again';
+
+  @override
+  String get healthCorrectHint => 'That is tinola, and half a cup of rice';
+
+  @override
+  String get healthCorrectLabel => 'What is it really?';
+
+  @override
+  String get healthCorrectLine =>
+      'Tell Botler what it really is, and it will look at your photo again. You check the result before anything is saved.';
+
+  @override
+  String get healthCorrectSend => 'Ask Botler to fix it';
+
+  @override
+  String get healthCorrectTitle => 'Not right?';
+
+  @override
   String healthCouldBe(String low, String high) {
     return 'Could be $low to $high';
   }

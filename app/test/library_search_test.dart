@@ -116,7 +116,8 @@ void main() {
     fake.broken = false;
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
-    expect(find.text('Flights'), findsOneWidget);
+    // The title, and the hit line that starts with the same heading, now drawn without its # mark
+    expect(find.text('Flights'), findsWidgets);
     expect(fake.of('notebook_search'), hasLength(2));
   });
 
