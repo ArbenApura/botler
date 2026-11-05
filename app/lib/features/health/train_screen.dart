@@ -123,42 +123,107 @@ class _TodayCard extends StatelessWidget {
 
   final Json data;
 
+  /// The card answers from what the server says today is. An older server sends no state, and then the planned session decides, as before.
+  String _state() {
+    final given = str(data['todayState']);
+    if (given.isNotEmpty) return given;
+    return data['todayPlanned'] is Map ? 'planned' : 'rest';
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final c = context.colors;
     final style = TextStyle(color: c.accentText);
-    final today = data['todayPlanned'];
-    if (today is! Map) {
-      return SoftCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            BigNumber(t.healthRestDay, size: 28, color: c.accentText),
-            const SizedBox(height: 4),
-            Text(t.healthRestLine, style: style),
-          ],
-        ),
-      );
-    }
-    final j = asJson(today);
-    return SoftCard(
+    final title = Theme.of(context).textTheme.titleLarge
+        ?.copyWith(color: c.accentText);
+    Widget card(String heading, String? line, {List<Widget>? more}) => SoftCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
-            t.healthTodayAt(clockText(context, str(j['time']))),
-            style: style.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
-          BigNumber(
-            t.healthSessionMinutes(str(j['title']), '${intOf(j['minutes'])}'),
-            size: 28,
-            color: c.accentText,
-          ),
+          Text(heading, style: title),
+          if (line != null) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(line, style: style),
+          ],
+          ...?more,
         ],
       ),
     );
+    switch (_state()) {
+      case 'running':
+        return card(t.healthTodayRunning, t.healthTodayRunningLine);
+      case 'planned':
+        final j = asJson(data['todayPlanned']);
+        return card(
+          t.healthSessionMinutes(str(j['title']), '${intOf(j['minutes'])}'),
+          t.healthTodayAt(clockText(context, str(j['time']))),
+        );
+      case 'done':
+        return card(
+          t.healthTodayDone,
+          null,
+          more: <Widget>[
+            const SizedBox(height: 6),
+            for (final d in asJsonList(data['todayDone']))
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: <Widget>[
+                    Icon(Icons.check, size: 18, color: c.accentText),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        t.healthSessionMinutes(
+                          str(d['title']),
+                          '${intOf(d['minutes'])}',
+                        ),
+                        style: style,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      case 'routine':
+        return card(
+          t.healthTodayRoutine,
+          t.healthTodayRoutineLine,
+          more: <Widget>[
+            const SizedBox(height: 6),
+            for (final r in asJsonList(data['todayRoutines']))
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  t.healthTodayRoutineItem(
+                    clockText(context, str(r['time'])),
+                    str(r['title']),
+                  ),
+                  style: style.copyWith(fontFeatures: tabular),
+                ),
+              ),
+          ],
+        );
+      case 'program':
+        final due = asJsonList(data['programsDue'])
+            .where((p) => intOf(p['toPlace']) > 0)
+            .map((p) => str(p['name']))
+            .join(', ');
+        return card(
+          t.healthTodayProgram(due),
+          t.healthTodayProgramLine,
+          more: <Widget>[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => context.push('/health/train/week'),
+              child: Text(t.healthPlanNextWeek),
+            ),
+          ],
+        );
+      default:
+        return card(t.healthRestDay, t.healthRestLine);
+    }
   }
 }
 
@@ -324,7 +389,10 @@ class WeekDots extends StatelessWidget {
                           color: state == 'today'
                               ? c.accent
                               : state == 'rest'
-                              ? c.line
+                              // A day with an exercise routine reads as a soft ring, not as a bare rest day
+                              ? (boolOf(d['routineDay'])
+                                    ? c.accent.withValues(alpha: 0.5)
+                                    : c.line)
                               : c.accent.withValues(alpha: 0),
                           width: state == 'today' ? 2 : 1,
                         ),
@@ -516,6 +584,13 @@ class _ProgramsSection extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(t.healthReadyLine),
+              if (active.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 10),
+                Text(
+                  t.healthProgramWarning,
+                  style: TextStyle(color: context.colors.warning),
+                ),
+              ],
               const SizedBox(height: 10),
               for (final q in asList(all['readiness']))
                 Padding(
@@ -538,11 +613,15 @@ class _ProgramsSection extends ConsumerWidget {
       ),
     );
     if (yes != true) return;
-    await ref.read(apiProvider).verb('program_start', <String, Object?>{
-      'templateKey': str(p['key']),
-    }, newRequestId());
-    ref.invalidate(programsProvider);
-    refreshTrain(ref);
+    try {
+      await ref.read(apiProvider).verb('program_start', <String, Object?>{
+        'templateKey': str(p['key']),
+      }, newRequestId());
+      ref.invalidate(programsProvider);
+      refreshTrain(ref);
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+    }
   }
 
   Future<void> _askStop(BuildContext context, WidgetRef ref, Json p) async {
@@ -564,11 +643,15 @@ class _ProgramsSection extends ConsumerWidget {
       ),
     );
     if (yes != true) return;
-    await ref.read(apiProvider).verb('program_stop', <String, Object?>{
-      'templateKey': str(p['templateKey']),
-    }, newRequestId());
-    ref.invalidate(programsProvider);
-    refreshTrain(ref);
+    try {
+      await ref.read(apiProvider).verb('program_stop', <String, Object?>{
+        'templateKey': str(p['templateKey']),
+      }, newRequestId());
+      ref.invalidate(programsProvider);
+      refreshTrain(ref);
+    } catch (e) {
+      if (context.mounted) say(context, errorWords(e, context));
+    }
   }
 }
 
@@ -620,12 +703,18 @@ class _RecentSection extends ConsumerWidget {
                   if (boolOf(r['byAgent']))
                     TextButton(
                       onPressed: () async {
-                        await ref.read(apiProvider).verb(
-                          'workout_delete',
-                          <String, Object?>{'id': str(r['id'])},
-                          newRequestId(),
-                        );
-                        refreshTrain(ref);
+                        try {
+                          await ref.read(apiProvider).verb(
+                            'workout_delete',
+                            <String, Object?>{'id': str(r['id'])},
+                            newRequestId(),
+                          );
+                          refreshTrain(ref);
+                        } catch (e) {
+                          if (context.mounted) {
+                            say(context, errorWords(e, context));
+                          }
+                        }
                       },
                       child: Text(t.healthUndo),
                     ),
@@ -749,7 +838,7 @@ class _LogWalkSheetState extends ConsumerState<_LogWalkSheet> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _once.running() ? null : () => unawaited(_save()),
-              child: Text(t.healthStartWalk),
+              child: Text(t.healthWalkSave),
             ),
           ),
         ],

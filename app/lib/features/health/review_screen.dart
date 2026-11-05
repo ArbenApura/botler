@@ -285,6 +285,19 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
     );
   }
 
+  /// Throwing away a meal the photo read asks first: it cannot be brought back.
+  Future<void> _askDiscard() async {
+    final t = context.t;
+    final yes = await confirm(
+      context,
+      title: t.healthDiscard,
+      body: t.healthDiscardBody,
+      yes: t.healthDiscard,
+      danger: true,
+    );
+    if (yes && mounted) await _decide(false);
+  }
+
   Future<void> _decide(bool approve) async {
     setState(() => _error = null);
     final failedWords = context.t.healthPhotoFailedLine;
@@ -592,7 +605,7 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
           child: Text(t.healthSaveMeal),
         ),
         below: TextButton(
-          onPressed: _once.running() ? null : () => _decide(false),
+          onPressed: _once.running() ? null : _askDiscard,
           child: Text(t.healthDiscard),
         ),
       ),

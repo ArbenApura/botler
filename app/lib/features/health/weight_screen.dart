@@ -360,14 +360,14 @@ class _EntriesCard extends ConsumerWidget {
                 ),
                 if (boolOf(e['byAgent']))
                   TextButton(
-                    onPressed: () => unawaited(_remove(ref, e)),
+                    onPressed: () => unawaited(_remove(context, ref, e)),
                     child: Text(t.healthUndo),
                   )
                 else
                   IconButton(
                     tooltip: t.healthRemoveWeight,
                     icon: Icon(Icons.close, color: c.muted),
-                    onPressed: () => unawaited(_remove(ref, e)),
+                    onPressed: () => unawaited(_remove(context, ref, e)),
                   ),
               ],
             ),
@@ -376,11 +376,27 @@ class _EntriesCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _remove(WidgetRef ref, Json e) async {
-    await ref.read(apiProvider).verb('weight_delete', <String, Object?>{
-      'day': str(e['day']),
-    }, newRequestId());
-    onChanged();
+  Future<void> _remove(BuildContext context, WidgetRef ref, Json e) async {
+    final t = context.t;
+    // An entry the person typed leaves the trend for good, so it asks first; an assistant entry has its Undo
+    if (!boolOf(e['byAgent'])) {
+      final yes = await confirm(
+        context,
+        title: t.healthRemoveWeight,
+        body: t.healthRemoveWeightBody,
+        yes: t.healthRemove,
+        danger: true,
+      );
+      if (!yes || !context.mounted) return;
+    }
+    try {
+      await ref.read(apiProvider).verb('weight_delete', <String, Object?>{
+        'day': str(e['day']),
+      }, newRequestId());
+      onChanged();
+    } catch (err) {
+      if (context.mounted) say(context, errorWords(err, context));
+    }
   }
 }
 

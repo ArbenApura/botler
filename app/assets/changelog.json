@@ -576,5 +576,21 @@
       "Kung mali ang basa ni Botler sa pagkain mo, sabihin sa kanya kung ano talaga ito sa screen ng pagsusuri at titingnan niya ulit ang litrato mo. Susuriin mo pa rin ang resulta bago may ma-save.",
       "Maayos na ang pagpapakita ng bold, listahan at iba pang format sa screen ng pagkain, at wala na ang mga sobrang marka sa mga preview ng chat, paghahanap sa notebook at mga buod ng notebook."
     ]
+  },
+  {
+    "versionCode": 53,
+    "versionName": "1.5.3",
+    "en": [
+      "Train no longer says rest when you have something today: it shows a finished session, your exercise routine, or the program waiting to be planned.",
+      "A meal now opens to its full detail: calories, protein, carbs and fat, and every nutrient of every food, with Unknown where it is not known.",
+      "My week shows and keeps every work and busy time of a day, and no longer drops the extra ones when you save.",
+      "Routines are respected when Botler plans your week, starting a second program warns you, and removing a weigh-in or discarding a meal asks first."
+    ],
+    "fil": [
+      "Hindi na sinasabing pahinga ang Train kapag may gagawin ka ngayon: ipinapakita nito ang natapos na session, ang routine mo sa ehersisyo, o ang programang naghihintay ma-plano.",
+      "Bubuksan na ng isang kainan ang buong detalye: calories, protina, carbs at taba, at lahat ng nutrient ng bawat pagkain, na may Hindi alam kung hindi pa alam.",
+      "Ipinapakita at iniingatan ng My week ang bawat oras ng trabaho at abala sa isang araw, at hindi na nawawala ang mga dagdag kapag nag-save.",
+      "Iginagalang na ang mga routine kapag nagpaplano si Botler ng linggo mo, may babala kapag nagsimula ng pangalawang programa, at nagtatanong muna bago magtanggal ng timbang o magtapon ng kainan."
+    ]
   }
 ]

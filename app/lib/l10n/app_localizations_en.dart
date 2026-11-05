@@ -1984,6 +1984,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthDiscard => 'Discard';
 
   @override
+  String get healthDiscardBody =>
+      'The meal read from your photo will not be saved.';
+
+  @override
   String get healthDistanceField => 'Distance in km (optional)';
 
   @override
@@ -2194,16 +2198,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.';
 
   @override
+  String healthMacroLine(String protein, String carbs, String fat) {
+    return 'Protein $protein g · Carbs $carbs g · Fat $fat g';
+  }
+
+  @override
+  String get healthMacroSplit => 'Where the calories come from';
+
+  @override
   String get healthMealBreakfast => 'Breakfast';
 
   @override
   String get healthMealDinner => 'Dinner';
 
   @override
+  String get healthMealFoods => 'Foods in this meal';
+
+  @override
   String get healthMealLunch => 'Lunch';
 
   @override
   String get healthMealMerienda => 'Merienda';
+
+  @override
+  String healthMealOfDay(String percent) {
+    return '$percent% of today\'s target';
+  }
 
   @override
   String get healthMealPhoto => 'The photo of your meal';
@@ -2368,6 +2388,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthPhotoSettingTitle => 'Your settings keep pictures private';
 
   @override
+  String get healthPlanNextWeek => 'Plan next week';
+
+  @override
   String get healthPlanRest => 'Rest';
 
   @override
@@ -2387,6 +2410,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthPreviewTitle => 'What this means for you';
+
+  @override
+  String get healthProgramWarning =>
+      'Another program is already running. Starting this one adds its sessions to every week.';
 
   @override
   String healthProgramWeek(String week, String weeks) {
@@ -2439,6 +2466,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthRemoveWeight => 'Remove this weigh-in';
+
+  @override
+  String get healthRemoveWeightBody =>
+      'This weigh-in leaves your trend for good.';
 
   @override
   String get healthRepsAsk => 'How many did you do?';
@@ -2767,8 +2798,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get healthTodayDone => 'Done today';
+
+  @override
   String get healthTodayEmptyLine =>
       'Take a photo of your food, or tell Botler what you ate.';
+
+  @override
+  String healthTodayProgram(String name) {
+    return '$name is running';
+  }
+
+  @override
+  String get healthTodayProgramLine =>
+      'Nothing is set for today yet. Plan your next week and Botler places the sessions around your day.';
+
+  @override
+  String get healthTodayRoutine => 'Your routine today';
+
+  @override
+  String healthTodayRoutineItem(String time, String title) {
+    return '$time, $title';
+  }
+
+  @override
+  String get healthTodayRoutineLine =>
+      'From your routines. Log it when you are done and it counts here.';
+
+  @override
+  String get healthTodayRunning => 'A session is in progress';
+
+  @override
+  String get healthTodayRunningLine => 'Pick up where you stopped.';
 
   @override
   String get healthTotalWeight =>
@@ -2805,8 +2866,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthVitamins => 'Vitamins and minerals';
 
   @override
+  String get healthWalkSave => 'Save';
+
+  @override
   String get healthWeekAccepted =>
       'Your week is set. Reminders come before each one.';
+
+  @override
+  String get healthWeekAddBlock => 'Add a time';
 
   @override
   String get healthWeekAddOnce => 'Add a change for one day';
@@ -2821,14 +2888,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthWeekAwakeTo => 'Change when you sleep';
 
   @override
+  String healthWeekBusyLine(String ranges) {
+    return 'Busy $ranges';
+  }
+
+  @override
   String get healthWeekCopy => 'Copy to Tuesday through Friday';
 
   @override
   String get healthWeekFree => 'Free all day';
 
   @override
+  String get healthWeekFrom => 'From';
+
+  @override
   String get healthWeekIntro =>
       'Planned around your work and calendar. Nothing is set until you accept.';
+
+  @override
+  String get healthWeekLegendBusy => 'Busy';
 
   @override
   String get healthWeekLegendFree => 'Free';
@@ -2852,6 +2930,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthWeekOnce => 'Just this once';
 
   @override
+  String get healthWeekOverlap =>
+      'Two times on this day run into each other. Change one so they do not overlap.';
+
+  @override
   String healthWeekRange(String from, String to) {
     return '$from to $to';
   }
@@ -2863,6 +2945,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthWeekReadyLine => 'Nothing is set until you accept';
 
   @override
+  String get healthWeekSameTime =>
+      'A time cannot start and end at the same minute.';
+
+  @override
   String get healthWeekSave => 'Save my week';
 
   @override
@@ -2870,6 +2956,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get healthWeekTitle => 'My week';
+
+  @override
+  String get healthWeekTo => 'To';
 
   @override
   String get healthWeekTravel => 'Travel to and from work';

@@ -23,6 +23,7 @@ import 'core/script/device_tools.dart';
 import 'features/health/availability_screen.dart';
 import 'features/health/barcode_screen.dart';
 import 'features/health/camera_screen.dart';
+import 'features/health/meal_detail_screen.dart';
 import 'features/health/reading_screen.dart';
 import 'features/health/review_screen.dart';
 import 'features/health/health_home_screen.dart';
@@ -132,6 +133,13 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/health/today',
         pageBuilder: (_, state) => botlerPage(state, const TodayScreen()),
+      ),
+      GoRoute(
+        path: '/health/meal/:meal',
+        pageBuilder: (_, state) => botlerPage(
+          state,
+          MealDetailScreen(meal: state.pathParameters['meal'] ?? 'snack'),
+        ),
       ),
       GoRoute(
         path: '/health/nutrients',

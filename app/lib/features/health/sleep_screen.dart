@@ -251,12 +251,16 @@ class _LastNight extends ConsumerWidget {
                 const Spacer(),
                 TextButton(
                   onPressed: () async {
-                    await ref.read(apiProvider).verb(
-                      'sleep_delete',
-                      <String, Object?>{'id': str(entry['id'])},
-                      newRequestId(),
-                    );
-                    onChanged();
+                    try {
+                      await ref.read(apiProvider).verb(
+                        'sleep_delete',
+                        <String, Object?>{'id': str(entry['id'])},
+                        newRequestId(),
+                      );
+                      onChanged();
+                    } catch (e) {
+                      if (context.mounted) say(context, errorWords(e, context));
+                    }
                   },
                   child: Text(t.healthUndo),
                 ),

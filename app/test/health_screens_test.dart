@@ -516,6 +516,72 @@ void main() {
     expect(args['time'], '16:00');
   });
 
+  testWidgets(
+    'train does not say rest when a routine, a program or a session is there',
+    (tester) async {
+      Json train(String state, Json extra) => <String, Object?>{
+        'days': <Object?>[],
+        'todayPlanned': null,
+        'todayState': state,
+        'minutes': 0,
+        'minutesGoal': 150,
+        'strengthDays': 0,
+        'strengthGoal': 2,
+        'needsMove': <Object?>[],
+        'programs': <Object?>[],
+        'recent': <Object?>[],
+        ...extra,
+      };
+      final programs = <String, Object?>{
+        'templates': <Object?>[],
+        'readiness': <Object?>[],
+      };
+      await _show(
+        tester,
+        const TrainScreen(),
+        _api(<String, Object?>{
+          'train_get': train('routine', <String, Object?>{
+            'todayRoutines': <Object?>[
+              <String, Object?>{'title': 'Night jog', 'time': '19:15'},
+            ],
+          }),
+          'programs_list': programs,
+        }, <(String, Json)>[]),
+      );
+      expect(find.text('Your routine today'), findsOneWidget);
+      expect(find.textContaining('Night jog'), findsOneWidget);
+      expect(find.text('A rest day'), findsNothing);
+      await _show(
+        tester,
+        const TrainScreen(),
+        _api(<String, Object?>{
+          'train_get': train('program', <String, Object?>{
+            'programsDue': <Object?>[
+              <String, Object?>{'name': 'Walk to run', 'toPlace': 3},
+            ],
+          }),
+          'programs_list': programs,
+        }, <(String, Json)>[]),
+      );
+      expect(find.text('Walk to run is running'), findsOneWidget);
+      expect(find.text('Plan next week'), findsOneWidget);
+      await _show(
+        tester,
+        const TrainScreen(),
+        _api(<String, Object?>{
+          'train_get': train('done', <String, Object?>{
+            'todayDone': <Object?>[
+              <String, Object?>{'title': 'Walk', 'minutes': 20},
+            ],
+          }),
+          'programs_list': programs,
+        }, <(String, Json)>[]),
+      );
+      expect(find.text('Done today'), findsOneWidget);
+      expect(find.text('Walk, 20 minutes'), findsOneWidget);
+    },
+  );
+
   testWidgets('a session logs a set and offers an easier version', (
     tester,
   ) async {

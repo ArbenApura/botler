@@ -11,6 +11,7 @@ import 'package:botler/features/health/barcode_screen.dart';
 import 'package:botler/features/health/review_screen.dart';
 import 'package:botler/features/health/health_home_screen.dart';
 import 'package:botler/features/health/food_sheets.dart';
+import 'package:botler/features/health/meal_detail_screen.dart';
 import 'package:botler/features/health/health_setup_screen.dart';
 import 'package:botler/features/health/today_screen.dart';
 import 'package:botler/l10n/l10n.dart';
@@ -124,6 +125,102 @@ void main() {
     await tester.pumpAndSettle();
     final saved = calls.firstWhere((c) => c.$1 == 'availability_set').$2;
     expect(asJsonList(saved['days']), hasLength(7));
+  });
+
+  testWidgets('my week lists every block and saves them all untouched', (
+    tester,
+  ) async {
+    final calls = <(String, Json)>[];
+    Json block(String start, String end, String kind) => <String, Object?>{
+      'start': start,
+      'end': end,
+      'kind': kind,
+    };
+    final api = fakeApi(<String, Object?>{
+      'availability_get': <String, Object?>{
+        'days': <Json>[
+          for (var w = 0; w < 7; w++)
+            <String, Object?>{
+              'weekday': w,
+              'blocks': w == 1
+                  ? <Json>[
+                      block('07:00', '10:00', 'work'),
+                      block('10:00', '11:00', 'busy'),
+                      block('11:00', '18:30', 'work'),
+                    ]
+                  : <Json>[],
+            },
+        ],
+        'changes': <Json>[],
+        'awakeFrom': '07:00',
+        'awakeTo': '23:00',
+        'travelMinutes': 0,
+      },
+    }, calls);
+    tester.view.physicalSize = const Size(1200, 3000);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(host(const AvailabilityScreen(), api));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('11:00 AM to 6:30 PM'), findsOneWidget);
+    expect(find.textContaining('7:00 AM to 10:00 AM'), findsOneWidget);
+    expect(find.textContaining('Busy 10:00 AM to 11:00 AM'), findsOneWidget);
+    await tester.tap(find.text('Save my week'));
+    await tester.pumpAndSettle();
+    final saved = calls.firstWhere((c) => c.$1 == 'availability_set').$2;
+    final monday = asJsonList(saved['days'])
+        .firstWhere((d) => (d['weekdays'] as List<Object?>).contains(1));
+    expect(asJsonList(monday['blocks']), hasLength(3));
+  });
+
+  testWidgets('a meal shows every nutrient of every food, unknown as unknown', (
+    tester,
+  ) async {
+    final calls = <(String, Json)>[];
+    final api = fakeApi(<String, Object?>{
+      'food_day': <String, Object?>{
+        'day': '2026-11-26',
+        'targetKcal': 1661,
+        'entries': <Json>[
+          <String, Object?>{
+            'id': 'e1',
+            'meal': 'lunch',
+            'name': 'Chicken afritada',
+            'grams': 120,
+            'kcal': 157,
+            'lowKcal': 157,
+            'highKcal': 157,
+            'proteinMg': 14000,
+            'carbsMg': 6000,
+            'sugarMg': 2400,
+            'fibreMg': null,
+            'fatMg': 7000,
+            'satFatMg': 2000,
+            'sodiumMg': 320,
+            'sourceKind': 'filipino',
+            'nutrients': <String, Object?>{
+              'potassium': 250000000,
+              'vitamin_b12': 400,
+            },
+          },
+        ],
+        'totals': <String, Object?>{},
+      },
+    }, calls);
+    tester.view.physicalSize = const Size(1200, 3000);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(host(const MealDetailScreen(meal: 'lunch'), api));
+    await tester.pumpAndSettle();
+    expect(find.text('Chicken afritada'), findsOneWidget);
+    expect(find.text('157'), findsOneWidget);
+    expect(find.text('Fibre'), findsOneWidget);
+    expect(find.text('Unknown'), findsOneWidget);
+    expect(find.text('2.4 g'), findsOneWidget);
+    expect(find.text('320 mg'), findsOneWidget);
+    expect(find.textContaining('9% of today'), findsOneWidget);
+    await tester.tap(find.text('Vitamins and minerals'));
+    await tester.pumpAndSettle();
+    expect(find.text('Potassium'), findsOneWidget);
+    expect(find.text('0.4 µg'), findsOneWidget);
   });
 
   group('today', () {
@@ -312,6 +409,9 @@ void main() {
       await tester.pumpWidget(review(api));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      // Discarding a meal asks first
+      await tester.tap(find.text('Discard').last);
       await tester.pumpAndSettle();
       final sent = calls.lastWhere((c) => c.$1 == 'card-1').$2;
       expect(sent['decision'], 'reject');

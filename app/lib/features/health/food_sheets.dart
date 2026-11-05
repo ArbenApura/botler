@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
-import '../../core/api.dart';
 import '../../core/health_units.dart';
 import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/health.dart';
-import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 
@@ -50,18 +48,6 @@ Future<void> showAddFoodSheet(BuildContext context, WidgetRef ref) =>
       showDragHandle: true,
       builder: (_) => const _AddFoodSheet(),
     );
-
-Future<void> showMealSheet(
-  BuildContext context,
-  WidgetRef ref,
-  String title,
-  List<Json> entries,
-) => showModalBottomSheet<void>(
-  context: context,
-  isScrollControlled: true,
-  showDragHandle: true,
-  builder: (_) => _MealSheet(title: title, entries: entries),
-);
 
 // -- TYPES -- //
 
@@ -187,130 +173,6 @@ class _AddFoodSheetState extends ConsumerState<_AddFoodSheet> {
             child: Text(t.healthSave),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _MealSheet extends ConsumerStatefulWidget {
-  const _MealSheet({required this.title, required this.entries});
-
-  final String title;
-  final List<Json> entries;
-
-  @override
-  ConsumerState<_MealSheet> createState() => _MealSheetState();
-}
-
-class _MealSheetState extends ConsumerState<_MealSheet> {
-  // -- STATES -- //
-
-  late List<Json> _entries = widget.entries;
-  late final Once _once = Once(() => setState(() {}));
-
-  // -- FUNCTIONS -- //
-
-  Future<void> _grams(Json e, int change) async {
-    final now = intOf(e['grams']);
-    final next = now + change;
-    if (next < 1) return;
-    await _call('food_edit', <String, Object?>{
-      'entryId': e['id'],
-      'grams': next,
-    }, 'edit:${e['id']}:$next');
-  }
-
-  Future<void> _remove(Json e) => _call('food_delete', <String, Object?>{
-    'entryId': e['id'],
-  }, 'delete:${e['id']}');
-
-  Future<void> _call(String verb, Json args, String intent) async {
-    try {
-      await _once.run((key) async {
-        final r = await ref.read(apiProvider).verbJson(verb, args, key);
-        ref.invalidate(foodDayProvider);
-        final today = asJson(r['today']);
-        final meal = str(_entries.first['meal']);
-        if (mounted) {
-          setState(() {
-            _entries = asJsonList(today['entries'])
-                .where((x) => str(x['meal']) == meal)
-                .toList();
-          });
-          if (_entries.isEmpty) Navigator.of(context).pop();
-        }
-      }, intent: intent);
-    } on ApiException catch (e) {
-      if (mounted) say(context, e.message);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final c = context.colors;
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          children: <Widget>[
-            Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            for (final e in _entries) ...<Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          str(e['name']),
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
-                        Text(
-                          t.healthCouldBe(
-                            kcalText(intOf(e['lowKcal'])),
-                            kcalText(intOf(e['highKcal'])),
-                          ),
-                          style: TextStyle(color: c.muted, fontSize: 13),
-                        ),
-                        if (boolOf(e['byAgent'])) const ByBotlerMark(),
-                      ],
-                    ),
-                  ),
-                  Text(t.healthKcal(kcalText(intOf(e['kcal'])))),
-                ],
-              ),
-              Row(
-                children: <Widget>[
-                  if (e['grams'] != null) ...<Widget>[
-                    IconButton(
-                      tooltip: t.healthLess,
-                      onPressed: _once.running() ? null : () => _grams(e, -10),
-                      icon: const Icon(Icons.remove),
-                    ),
-                    Text(t.healthGrams('${intOf(e['grams'])}')),
-                    IconButton(
-                      tooltip: t.healthMore,
-                      onPressed: _once.running() ? null : () => _grams(e, 10),
-                      icon: const Icon(Icons.add),
-                    ),
-                  ],
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _once.running() ? null : () => _remove(e),
-                    child: Text(t.healthRemove),
-                  ),
-                ],
-              ),
-              const Divider(),
-            ],
-          ],
-        ),
       ),
     );
   }

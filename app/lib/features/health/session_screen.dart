@@ -190,7 +190,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     final s = _session;
     if (s == null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: Text(context.t.healthTitle)),
         body: _error == null
             ? const SkeletonPage(
                 child: SkeletonRows(count: 3, kind: SkeletonKind.tile),

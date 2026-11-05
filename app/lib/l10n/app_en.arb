@@ -1426,6 +1426,7 @@
   "healthDetailTitle": "Today in detail",
   "healthDetails": "Details",
   "healthDiscard": "Discard",
+  "healthDiscardBody": "The meal read from your photo will not be saved.",
   "healthDistanceField": "Distance in km (optional)",
   "healthDone": "Done",
   "healthDown": "Down {kg} kg",
@@ -1605,10 +1606,34 @@
   "healthLogFood": "Log food",
   "healthLogWalkTitle": "Log a walk or a run",
   "healthLowIntake": "You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.",
+  "healthMacroLine": "Protein {protein} g · Carbs {carbs} g · Fat {fat} g",
+  "@healthMacroLine": {
+    "placeholders": {
+      "protein": {
+        "type": "String"
+      },
+      "carbs": {
+        "type": "String"
+      },
+      "fat": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMacroSplit": "Where the calories come from",
   "healthMealBreakfast": "Breakfast",
   "healthMealDinner": "Dinner",
+  "healthMealFoods": "Foods in this meal",
   "healthMealLunch": "Lunch",
   "healthMealMerienda": "Merienda",
+  "healthMealOfDay": "{percent}% of today's target",
+  "@healthMealOfDay": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
   "healthMealPhoto": "The photo of your meal",
   "healthMealSnack": "Snack",
   "healthMilligrams": "{value} mg",
@@ -1739,6 +1764,7 @@
   "healthPhotoFailedTitle": "That photo did not work",
   "healthPhotoLabel": "Your photo",
   "healthPhotoSettingTitle": "Your settings keep pictures private",
+  "healthPlanNextWeek": "Plan next week",
   "healthPlanRest": "Rest",
   "healthPlanWhen": "{minutes} min at {time}",
   "@healthPlanWhen": {
@@ -1771,6 +1797,7 @@
     }
   },
   "healthPreviewTitle": "What this means for you",
+  "healthProgramWarning": "Another program is already running. Starting this one adds its sessions to every week.",
   "healthProgramWeek": "Week {week} of {weeks}",
   "@healthProgramWeek": {
     "placeholders": {
@@ -1803,6 +1830,7 @@
   "healthRecentWeights": "Recent weigh-ins",
   "healthRemove": "Remove",
   "healthRemoveWeight": "Remove this weigh-in",
+  "healthRemoveWeightBody": "This weigh-in leaves your trend for good.",
   "healthRepsAsk": "How many did you do?",
   "healthRestDay": "A rest day",
   "healthRestLeft": "Rest, {time} left",
@@ -2103,7 +2131,32 @@
       }
     }
   },
+  "healthTodayDone": "Done today",
   "healthTodayEmptyLine": "Take a photo of your food, or tell Botler what you ate.",
+  "healthTodayProgram": "{name} is running",
+  "@healthTodayProgram": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayProgramLine": "Nothing is set for today yet. Plan your next week and Botler places the sessions around your day.",
+  "healthTodayRoutine": "Your routine today",
+  "healthTodayRoutineItem": "{time}, {title}",
+  "@healthTodayRoutineItem": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayRoutineLine": "From your routines. Log it when you are done and it counts here.",
+  "healthTodayRunning": "A session is in progress",
+  "healthTodayRunningLine": "Pick up where you stopped.",
   "healthTotalWeight": "Weighed it? Total weight in grams (optional)",
   "healthTrainTitle": "Train",
   "healthTryKcal": "Try {kcal} kcal a day",
@@ -2134,14 +2187,26 @@
     }
   },
   "healthVitamins": "Vitamins and minerals",
+  "healthWalkSave": "Save",
   "healthWeekAccepted": "Your week is set. Reminders come before each one.",
+  "healthWeekAddBlock": "Add a time",
   "healthWeekAddOnce": "Add a change for one day",
   "healthWeekAwake": "Awake hours",
   "healthWeekAwakeFrom": "Change when you wake",
   "healthWeekAwakeTo": "Change when you sleep",
+  "healthWeekBusyLine": "Busy {ranges}",
+  "@healthWeekBusyLine": {
+    "placeholders": {
+      "ranges": {
+        "type": "String"
+      }
+    }
+  },
   "healthWeekCopy": "Copy to Tuesday through Friday",
   "healthWeekFree": "Free all day",
+  "healthWeekFrom": "From",
   "healthWeekIntro": "Planned around your work and calendar. Nothing is set until you accept.",
+  "healthWeekLegendBusy": "Busy",
   "healthWeekLegendFree": "Free",
   "healthWeekLegendWork": "Work",
   "healthWeekLine": "Botler plans workouts and reminders around this. You can also just say it in chat.",
@@ -2155,6 +2220,7 @@
   },
   "healthWeekOff": "Day off",
   "healthWeekOnce": "Just this once",
+  "healthWeekOverlap": "Two times on this day run into each other. Change one so they do not overlap.",
   "healthWeekRange": "{from} to {to}",
   "@healthWeekRange": {
     "placeholders": {
@@ -2168,9 +2234,11 @@
   },
   "healthWeekReady": "A new week of workouts is ready",
   "healthWeekReadyLine": "Nothing is set until you accept",
+  "healthWeekSameTime": "A time cannot start and end at the same minute.",
   "healthWeekSave": "Save my week",
   "healthWeekSaved": "Saved your week.",
   "healthWeekTitle": "My week",
+  "healthWeekTo": "To",
   "healthWeekTravel": "Travel to and from work",
   "healthWeekWorking": "I work this day",
   "healthWeightBad": "Enter your weight in kilograms, such as 74.2",

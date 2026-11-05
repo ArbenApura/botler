@@ -1995,6 +1995,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthDiscard => 'Itapon';
 
   @override
+  String get healthDiscardBody =>
+      'Hindi ise-save ang pagkaing nabasa mula sa litrato.';
+
+  @override
   String get healthDistanceField => 'Layo sa km (hindi kailangan)';
 
   @override
@@ -2206,16 +2210,32 @@ class AppLocalizationsFil extends AppLocalizations {
       'Napakakaunti ng kinakain mo ngayong linggo. Mahirap ito sa katawan. Makakatulong na kausapin ang doktor o isang pinagkakatiwalaan mo.';
 
   @override
+  String healthMacroLine(String protein, String carbs, String fat) {
+    return 'Protina $protein g · Carbs $carbs g · Taba $fat g';
+  }
+
+  @override
+  String get healthMacroSplit => 'Saan galing ang mga calorie';
+
+  @override
   String get healthMealBreakfast => 'Almusal';
 
   @override
   String get healthMealDinner => 'Hapunan';
 
   @override
+  String get healthMealFoods => 'Mga pagkain sa kainang ito';
+
+  @override
   String get healthMealLunch => 'Tanghalian';
 
   @override
   String get healthMealMerienda => 'Merienda';
+
+  @override
+  String healthMealOfDay(String percent) {
+    return '$percent% ng target mo ngayon';
+  }
 
   @override
   String get healthMealPhoto => 'Ang litrato ng pagkain mo';
@@ -2382,6 +2402,9 @@ class AppLocalizationsFil extends AppLocalizations {
       'Pribado ang mga litrato sa settings mo';
 
   @override
+  String get healthPlanNextWeek => 'I-plano ang susunod na linggo';
+
+  @override
   String get healthPlanRest => 'Pahinga';
 
   @override
@@ -2401,6 +2424,10 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get healthPreviewTitle => 'Ibig sabihin nito para sa iyo';
+
+  @override
+  String get healthProgramWarning =>
+      'May tumatakbong ibang programa. Idadagdag nito ang mga session sa bawat linggo.';
 
   @override
   String healthProgramWeek(String week, String weeks) {
@@ -2453,6 +2480,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get healthRemoveWeight => 'Tanggalin ang timbang na ito';
+
+  @override
+  String get healthRemoveWeightBody => 'Aalis na ito sa trend mo nang tuluyan.';
 
   @override
   String get healthRepsAsk => 'Ilan ang nagawa mo?';
@@ -2783,8 +2813,38 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get healthTodayDone => 'Tapos na ngayon';
+
+  @override
   String get healthTodayEmptyLine =>
       'Kunan ng litrato ang pagkain mo, o sabihin kay Botler ang kinain mo.';
+
+  @override
+  String healthTodayProgram(String name) {
+    return 'Tumatakbo ang $name';
+  }
+
+  @override
+  String get healthTodayProgramLine =>
+      'Wala pang nakatakda ngayon. I-plano ang susunod na linggo at ilalagay ni Botler ang mga session sa paligid ng araw mo.';
+
+  @override
+  String get healthTodayRoutine => 'Ang routine mo ngayon';
+
+  @override
+  String healthTodayRoutineItem(String time, String title) {
+    return '$time, $title';
+  }
+
+  @override
+  String get healthTodayRoutineLine =>
+      'Galing sa mga routine mo. I-log pagkatapos para mabilang dito.';
+
+  @override
+  String get healthTodayRunning => 'May session na tumatakbo';
+
+  @override
+  String get healthTodayRunningLine => 'Ituloy kung saan ka huminto.';
 
   @override
   String get healthTotalWeight =>
@@ -2821,8 +2881,14 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthVitamins => 'Mga bitamina at mineral';
 
   @override
+  String get healthWalkSave => 'I-save';
+
+  @override
   String get healthWeekAccepted =>
       'Naka-set na ang linggo mo. May paalala bago ang bawat isa.';
+
+  @override
+  String get healthWeekAddBlock => 'Magdagdag ng oras';
 
   @override
   String get healthWeekAddOnce => 'Magdagdag ng pagbabago para sa isang araw';
@@ -2837,14 +2903,25 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthWeekAwakeTo => 'Baguhin ang oras ng tulog';
 
   @override
+  String healthWeekBusyLine(String ranges) {
+    return 'Abala $ranges';
+  }
+
+  @override
   String get healthWeekCopy => 'Kopyahin sa Martes hanggang Biyernes';
 
   @override
   String get healthWeekFree => 'Libre buong araw';
 
   @override
+  String get healthWeekFrom => 'Mula';
+
+  @override
   String get healthWeekIntro =>
       'Nakaplano ayon sa trabaho at kalendaryo mo. Walang mase-set hangga\'t di mo tinatanggap.';
+
+  @override
+  String get healthWeekLegendBusy => 'Abala';
 
   @override
   String get healthWeekLegendFree => 'Libre';
@@ -2868,6 +2945,10 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthWeekOnce => 'Ngayon lang';
 
   @override
+  String get healthWeekOverlap =>
+      'May dalawang oras sa araw na ito na nagtatagpo. Baguhin ang isa para hindi magpatong.';
+
+  @override
   String healthWeekRange(String from, String to) {
     return '$from hanggang $to';
   }
@@ -2880,6 +2961,10 @@ class AppLocalizationsFil extends AppLocalizations {
       'Walang mase-set hangga\'t di mo tinatanggap';
 
   @override
+  String get healthWeekSameTime =>
+      'Hindi puwedeng magsimula at magtapos sa parehong minuto.';
+
+  @override
   String get healthWeekSave => 'I-save ang linggo ko';
 
   @override
@@ -2887,6 +2972,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get healthWeekTitle => 'Linggo ko';
+
+  @override
+  String get healthWeekTo => 'Hanggang';
 
   @override
   String get healthWeekTravel => 'Biyahe papunta at pauwi';

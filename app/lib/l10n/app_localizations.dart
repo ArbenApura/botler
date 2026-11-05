@@ -3373,6 +3373,12 @@ abstract class AppLocalizations {
   /// **'Discard'**
   String get healthDiscard;
 
+  /// No description provided for @healthDiscardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The meal read from your photo will not be saved.'**
+  String get healthDiscardBody;
+
   /// No description provided for @healthDistanceField.
   ///
   /// In en, this message translates to:
@@ -3727,6 +3733,18 @@ abstract class AppLocalizations {
   /// **'You have been eating very little this week. That can be hard on your body. It may help to talk to a doctor or someone you trust.'**
   String get healthLowIntake;
 
+  /// No description provided for @healthMacroLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Protein {protein} g · Carbs {carbs} g · Fat {fat} g'**
+  String healthMacroLine(String protein, String carbs, String fat);
+
+  /// No description provided for @healthMacroSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the calories come from'**
+  String get healthMacroSplit;
+
   /// No description provided for @healthMealBreakfast.
   ///
   /// In en, this message translates to:
@@ -3739,6 +3757,12 @@ abstract class AppLocalizations {
   /// **'Dinner'**
   String get healthMealDinner;
 
+  /// No description provided for @healthMealFoods.
+  ///
+  /// In en, this message translates to:
+  /// **'Foods in this meal'**
+  String get healthMealFoods;
+
   /// No description provided for @healthMealLunch.
   ///
   /// In en, this message translates to:
@@ -3750,6 +3774,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Merienda'**
   String get healthMealMerienda;
+
+  /// No description provided for @healthMealOfDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% of today\'s target'**
+  String healthMealOfDay(String percent);
 
   /// No description provided for @healthMealPhoto.
   ///
@@ -4021,6 +4051,12 @@ abstract class AppLocalizations {
   /// **'Your settings keep pictures private'**
   String get healthPhotoSettingTitle;
 
+  /// No description provided for @healthPlanNextWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan next week'**
+  String get healthPlanNextWeek;
+
   /// No description provided for @healthPlanRest.
   ///
   /// In en, this message translates to:
@@ -4050,6 +4086,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What this means for you'**
   String get healthPreviewTitle;
+
+  /// No description provided for @healthProgramWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Another program is already running. Starting this one adds its sessions to every week.'**
+  String get healthProgramWarning;
 
   /// No description provided for @healthProgramWeek.
   ///
@@ -4140,6 +4182,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove this weigh-in'**
   String get healthRemoveWeight;
+
+  /// No description provided for @healthRemoveWeightBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This weigh-in leaves your trend for good.'**
+  String get healthRemoveWeightBody;
 
   /// No description provided for @healthRepsAsk.
   ///
@@ -4681,11 +4729,59 @@ abstract class AppLocalizations {
   /// **'Today at {time}'**
   String healthTodayAt(String time);
 
+  /// No description provided for @healthTodayDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done today'**
+  String get healthTodayDone;
+
   /// No description provided for @healthTodayEmptyLine.
   ///
   /// In en, this message translates to:
   /// **'Take a photo of your food, or tell Botler what you ate.'**
   String get healthTodayEmptyLine;
+
+  /// No description provided for @healthTodayProgram.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is running'**
+  String healthTodayProgram(String name);
+
+  /// No description provided for @healthTodayProgramLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is set for today yet. Plan your next week and Botler places the sessions around your day.'**
+  String get healthTodayProgramLine;
+
+  /// No description provided for @healthTodayRoutine.
+  ///
+  /// In en, this message translates to:
+  /// **'Your routine today'**
+  String get healthTodayRoutine;
+
+  /// No description provided for @healthTodayRoutineItem.
+  ///
+  /// In en, this message translates to:
+  /// **'{time}, {title}'**
+  String healthTodayRoutineItem(String time, String title);
+
+  /// No description provided for @healthTodayRoutineLine.
+  ///
+  /// In en, this message translates to:
+  /// **'From your routines. Log it when you are done and it counts here.'**
+  String get healthTodayRoutineLine;
+
+  /// No description provided for @healthTodayRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'A session is in progress'**
+  String get healthTodayRunning;
+
+  /// No description provided for @healthTodayRunningLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick up where you stopped.'**
+  String get healthTodayRunningLine;
 
   /// No description provided for @healthTotalWeight.
   ///
@@ -4741,11 +4837,23 @@ abstract class AppLocalizations {
   /// **'Vitamins and minerals'**
   String get healthVitamins;
 
+  /// No description provided for @healthWalkSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get healthWalkSave;
+
   /// No description provided for @healthWeekAccepted.
   ///
   /// In en, this message translates to:
   /// **'Your week is set. Reminders come before each one.'**
   String get healthWeekAccepted;
+
+  /// No description provided for @healthWeekAddBlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a time'**
+  String get healthWeekAddBlock;
 
   /// No description provided for @healthWeekAddOnce.
   ///
@@ -4771,6 +4879,12 @@ abstract class AppLocalizations {
   /// **'Change when you sleep'**
   String get healthWeekAwakeTo;
 
+  /// No description provided for @healthWeekBusyLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy {ranges}'**
+  String healthWeekBusyLine(String ranges);
+
   /// No description provided for @healthWeekCopy.
   ///
   /// In en, this message translates to:
@@ -4783,11 +4897,23 @@ abstract class AppLocalizations {
   /// **'Free all day'**
   String get healthWeekFree;
 
+  /// No description provided for @healthWeekFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get healthWeekFrom;
+
   /// No description provided for @healthWeekIntro.
   ///
   /// In en, this message translates to:
   /// **'Planned around your work and calendar. Nothing is set until you accept.'**
   String get healthWeekIntro;
+
+  /// No description provided for @healthWeekLegendBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy'**
+  String get healthWeekLegendBusy;
 
   /// No description provided for @healthWeekLegendFree.
   ///
@@ -4825,6 +4951,12 @@ abstract class AppLocalizations {
   /// **'Just this once'**
   String get healthWeekOnce;
 
+  /// No description provided for @healthWeekOverlap.
+  ///
+  /// In en, this message translates to:
+  /// **'Two times on this day run into each other. Change one so they do not overlap.'**
+  String get healthWeekOverlap;
+
   /// No description provided for @healthWeekRange.
   ///
   /// In en, this message translates to:
@@ -4843,6 +4975,12 @@ abstract class AppLocalizations {
   /// **'Nothing is set until you accept'**
   String get healthWeekReadyLine;
 
+  /// No description provided for @healthWeekSameTime.
+  ///
+  /// In en, this message translates to:
+  /// **'A time cannot start and end at the same minute.'**
+  String get healthWeekSameTime;
+
   /// No description provided for @healthWeekSave.
   ///
   /// In en, this message translates to:
@@ -4860,6 +4998,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'My week'**
   String get healthWeekTitle;
+
+  /// No description provided for @healthWeekTo.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get healthWeekTo;
 
   /// No description provided for @healthWeekTravel.
   ///

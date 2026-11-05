@@ -97,7 +97,7 @@ class _BarcodeResultScreenState extends ConsumerState<BarcodeResultScreen> {
     final t = context.t;
     final c = context.colors;
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(context.t.healthTitle)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),

@@ -12,6 +12,7 @@ import '../../core/json.dart';
 import '../../l10n/l10n.dart';
 import '../../state/health.dart';
 import '../../state/providers.dart';
+import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'food_sheets.dart';
@@ -258,12 +259,13 @@ class _MealRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.t;
     final c = context.colors;
-    final kcal = entries.fold<int>(0, (a, e) => a + intOf(e['kcal']));
+    int sum(String key) => entries.fold<int>(0, (a, e) => a + intOf(e[key]));
+    final kcal = sum('kcal');
     final byBotler = entries.any((e) => boolOf(e['byAgent']));
     return InkWell(
-      onTap: () =>
-          showMealSheet(context, ref, mealName(context, meal), entries),
+      onTap: () => context.push('/health/meal/$meal'),
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -285,12 +287,25 @@ class _MealRow extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: c.muted, fontSize: 13),
                   ),
+                  Text(
+                    t.healthMacroLine(
+                      gramsFromMgText(sum('proteinMg')),
+                      gramsFromMgText(sum('carbsMg')),
+                      gramsFromMgText(sum('fatMg')),
+                    ),
+                    style: TextStyle(
+                      color: c.muted,
+                      fontSize: 12,
+                      fontFeatures: tabular,
+                    ),
+                  ),
                   if (byBotler) const ByBotlerMark(),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(kcalText(kcal)),
+            Text(kcalText(kcal), style: TextStyle(fontFeatures: tabular)),
+            Icon(Icons.chevron_right, color: c.muted),
           ],
         ),
       ),

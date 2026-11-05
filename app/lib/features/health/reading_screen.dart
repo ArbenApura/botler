@@ -121,7 +121,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final failure = _failure;
     if (failure != null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: Text(context.t.healthTitle)),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),

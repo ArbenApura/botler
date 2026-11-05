@@ -910,5 +910,73 @@
   "healthCorrectLabel": "What is it really?",
   "healthCorrectHint": "That is tinola, and half a cup of rice",
   "healthCorrectSend": "Ask Botler to fix it",
-  "healthCorrectBusy": "Botler is looking again"
+  "healthCorrectBusy": "Botler is looking again",
+  "healthTodayRunning": "A session is in progress",
+  "healthTodayRunningLine": "Pick up where you stopped.",
+  "healthTodayDone": "Done today",
+  "healthTodayRoutine": "Your routine today",
+  "healthTodayRoutineLine": "From your routines. Log it when you are done and it counts here.",
+  "healthTodayRoutineItem": "{time}, {title}",
+  "@healthTodayRoutineItem": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayProgram": "{name} is running",
+  "@healthTodayProgram": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayProgramLine": "Nothing is set for today yet. Plan your next week and Botler places the sessions around your day.",
+  "healthPlanNextWeek": "Plan next week",
+  "healthProgramWarning": "Another program is already running. Starting this one adds its sessions to every week.",
+  "healthWalkSave": "Save",
+  "healthWeekLegendBusy": "Busy",
+  "healthWeekBusyLine": "Busy {ranges}",
+  "@healthWeekBusyLine": {
+    "placeholders": {
+      "ranges": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWeekFrom": "From",
+  "healthWeekTo": "To",
+  "healthWeekAddBlock": "Add a time",
+  "healthWeekOverlap": "Two times on this day run into each other. Change one so they do not overlap.",
+  "healthWeekSameTime": "A time cannot start and end at the same minute.",
+  "healthMealFoods": "Foods in this meal",
+  "healthMealOfDay": "{percent}% of today's target",
+  "@healthMealOfDay": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMacroSplit": "Where the calories come from",
+  "healthMacroLine": "Protein {protein} g · Carbs {carbs} g · Fat {fat} g",
+  "@healthMacroLine": {
+    "placeholders": {
+      "protein": {
+        "type": "String"
+      },
+      "carbs": {
+        "type": "String"
+      },
+      "fat": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRemoveWeightBody": "This weigh-in leaves your trend for good.",
+  "healthDiscardBody": "The meal read from your photo will not be saved."
 }

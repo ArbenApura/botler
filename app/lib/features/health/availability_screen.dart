@@ -69,49 +69,49 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
 
   String _clock(String hhmm) => _time(hhmm).format(context);
 
+  /// Every block of the day in words: the work times, then the busy ones. Free blocks are the default and need no words.
   String _workLine(List<Json> blocks) {
     final t = context.t;
-    final work = blocks.where((b) => str(b['kind']) == 'work').toList();
-    if (work.isEmpty) return t.healthWeekFree;
-    final first = work.first;
-    return t.healthWeekRange(
-      _clock(str(first['start'])),
-      _clock(str(first['end'])),
-    );
+    String ranges(String kind) =>
+        (blocks.where((b) => str(b['kind']) == kind).toList()
+              ..sort((a, b) => str(a['start']).compareTo(str(b['start']))))
+            .map(
+              (b) => t.healthWeekRange(
+                _clock(str(b['start'])),
+                _clock(str(b['end'])),
+              ),
+            )
+            .join(', ');
+    final work = ranges('work');
+    final busy = ranges('busy');
+    if (work.isEmpty && busy.isEmpty) return t.healthWeekFree;
+    return <String>[
+      if (work.isNotEmpty) work,
+      if (busy.isNotEmpty) t.healthWeekBusyLine(busy),
+    ].join(' · ');
   }
 
   Future<void> _editDay(int weekday) async {
     final days = _days;
     if (days == null) return;
-    final blocks = days[weekday] ?? <Json>[];
-    final work = blocks.where((b) => str(b['kind']) == 'work').firstOrNull;
     final result = await showModalBottomSheet<_DayEdit>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _DaySheet(
         title: _dayName(weekday),
-        start: work == null ? '07:00' : str(work['start']),
-        end: work == null ? '18:30' : str(work['end']),
-        working: work != null,
+        blocks: days[weekday] ?? <Json>[],
         showCopy: weekday == 1,
       ),
     );
     if (result == null || !mounted) return;
-    final next = result.working
-        ? <Json>[
-            <String, Object?>{
-              'start': result.start,
-              'end': result.end,
-              'kind': 'work',
-            },
-          ]
-        : <Json>[];
     setState(() {
-      days[weekday] = next;
+      days[weekday] = result.blocks;
       if (result.copyToWeekdays) {
         for (final w in const <int>[2, 3, 4, 5]) {
-          days[w] = <Json>[...next];
+          days[w] = <Json>[
+            for (final b in result.blocks) <String, Object?>{...b},
+          ];
         }
       }
     });
@@ -131,6 +131,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
                   'start': b['start'],
                   'end': b['end'],
                   'kind': b['kind'],
+                  if (str(b['label']).isNotEmpty) 'label': b['label'],
                 },
             ],
           },
@@ -162,22 +163,23 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       showDragHandle: true,
       builder: (_) => _DaySheet(
         title: _shortDate(day),
-        start: '09:00',
-        end: '15:00',
-        working: true,
+        blocks: <Json>[
+          <String, Object?>{'start': '09:00', 'end': '15:00', 'kind': 'work'},
+        ],
         showCopy: false,
       ),
     );
     if (result == null || !mounted) return;
     await _change(<String, Object?>{
       'day': day,
-      if (result.working)
+      if (result.blocks.isNotEmpty)
         'blocks': <Json>[
-          <String, Object?>{
-            'start': result.start,
-            'end': result.end,
-            'kind': 'work',
-          },
+          for (final b in result.blocks)
+            <String, Object?>{
+              'start': b['start'],
+              'end': b['end'],
+              'kind': b['kind'],
+            },
         ]
       else
         'off': true,
@@ -262,6 +264,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
       children: <Widget>[
         one(c.accent, t.healthWeekLegendFree),
         one(c.muted, t.healthWeekLegendWork),
+        one(c.info, t.healthWeekLegendBusy),
       ],
     );
   }
@@ -284,12 +287,21 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
               Row(
                 children: <Widget>[
                   Expanded(
+                    flex: 2,
                     child: Text(
                       _dayName(weekday),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
-                  Text(line, style: TextStyle(color: c.muted, fontSize: 13)),
+                  // Several blocks make a long line: it wraps under the day instead of overflowing
+                  Flexible(
+                    flex: 3,
+                    child: Text(
+                      line,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(color: c.muted, fontSize: 13),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -439,34 +451,39 @@ class _DayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final spans = <(int, int, bool)>[];
+    // 0 is free time, 1 is work, 2 is busy
+    final spans = <(int, int, int)>[];
     var at = awakeFrom;
-    final work = blocks.where((b) => str(b['kind']) == 'work').toList()
+    final taken = blocks.where((b) => str(b['kind']) != 'free').toList()
       ..sort((a, b) => str(a['start']).compareTo(str(b['start'])));
-    for (final b in work) {
+    for (final b in taken) {
       final s = _minutes(str(b['start'])).clamp(awakeFrom, awakeTo);
       final raw = _minutes(str(b['end']));
       final e = (raw <= _minutes(str(b['start'])) ? awakeTo : raw).clamp(
         awakeFrom,
         awakeTo,
       );
-      if (s > at) spans.add((at, s, false));
-      if (e > s) spans.add((s, e, true));
+      if (s > at) spans.add((at, s, 0));
+      if (e > s) spans.add((s, e, str(b['kind']) == 'busy' ? 2 : 1));
       at = e > at ? e : at;
     }
-    if (at < awakeTo) spans.add((at, awakeTo, false));
+    if (at < awakeTo) spans.add((at, awakeTo, 0));
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         height: 22,
         child: Row(
           children: <Widget>[
-            for (final (s, e, isWork) in spans)
+            for (final (s, e, kind) in spans)
               Expanded(
                 flex: e - s,
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 1),
-                  color: isWork ? c.muted : c.accent,
+                  color: kind == 1
+                      ? c.muted
+                      : kind == 2
+                      ? c.info
+                      : c.accent,
                 ),
               ),
           ],
@@ -477,32 +494,21 @@ class _DayBar extends StatelessWidget {
 }
 
 class _DayEdit {
-  const _DayEdit({
-    required this.working,
-    required this.start,
-    required this.end,
-    required this.copyToWeekdays,
-  });
+  const _DayEdit({required this.blocks, required this.copyToWeekdays});
 
-  final bool working;
-  final String start;
-  final String end;
+  final List<Json> blocks;
   final bool copyToWeekdays;
 }
 
 class _DaySheet extends StatefulWidget {
   const _DaySheet({
     required this.title,
-    required this.start,
-    required this.end,
-    required this.working,
+    required this.blocks,
     required this.showCopy,
   });
 
   final String title;
-  final String start;
-  final String end;
-  final bool working;
+  final List<Json> blocks;
   final bool showCopy;
 
   @override
@@ -512,64 +518,146 @@ class _DaySheet extends StatefulWidget {
 class _DaySheetState extends State<_DaySheet> {
   // -- STATES -- //
 
-  late bool _working = widget.working;
-  late String _start = widget.start;
-  late String _end = widget.end;
+  /// A copy of the day's blocks of every kind, so a block the sheet does not change is kept exactly as it was.
+  late final List<Json> _blocks = <Json>[
+    for (final b in widget.blocks) <String, Object?>{...b},
+  ];
   bool _copy = false;
+  String? _error;
 
   // -- FUNCTIONS -- //
 
-  Future<void> _pick(bool isStart) async {
+  Future<void> _pick(Json block, bool isStart) async {
+    final key = isStart ? 'start' : 'end';
     final picked = await showTimePicker(
       context: context,
-      initialTime: _time(isStart ? _start : _end),
+      initialTime: _time(str(block[key])),
     );
     if (picked == null) return;
     setState(() {
-      if (isStart) {
-        _start = _hhmm(picked);
-      } else {
-        _end = _hhmm(picked);
-      }
+      block[key] = _hhmm(picked);
+      _error = null;
     });
+  }
+
+  /// The rule the server holds: no two blocks of one day run into each other, and a block that ends before it starts runs overnight.
+  bool _overlaps() {
+    final sorted = [..._blocks]
+      ..sort((a, b) => str(a['start']).compareTo(str(b['start'])));
+    for (var i = 1; i < sorted.length; i++) {
+      final prev = sorted[i - 1];
+      final start = _minutes(str(prev['start']));
+      final end = _minutes(str(prev['end']));
+      final prevEnd = end <= start ? 24 * 60 : end;
+      if (prevEnd > _minutes(str(sorted[i]['start']))) return true;
+    }
+    return false;
+  }
+
+  void _add() {
+    // The new block starts where the last one ends, so a second work block after a break is two taps
+    final last = _blocks.isEmpty ? null : _blocks.last;
+    final from = last == null ? '09:00' : str(last['end']);
+    final to = _hhmm(
+      TimeOfDay(hour: (_time(from).hour + 1) % 24, minute: _time(from).minute),
+    );
+    setState(() {
+      _blocks.add(<String, Object?>{'start': from, 'end': to, 'kind': 'work'});
+      _error = null;
+    });
+  }
+
+  void _done() {
+    final t = context.t;
+    if (_blocks.any((b) => str(b['start']) == str(b['end']))) {
+      setState(() => _error = t.healthWeekSameTime);
+      return;
+    }
+    if (_overlaps()) {
+      setState(() => _error = t.healthWeekOverlap);
+      return;
+    }
+    Navigator.of(context).pop(
+      _DayEdit(
+        blocks: _blocks
+          ..sort((a, b) => str(a['start']).compareTo(str(b['start']))),
+        copyToWeekdays: _copy,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final c = context.colors;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          16 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t.healthWeekWorking),
-              value: _working,
-              onChanged: (v) => setState(() => _working = v),
-            ),
-            if (_working)
+            if (_blocks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(t.healthWeekFree, style: TextStyle(color: c.muted)),
+              ),
+            for (final b in _blocks) ...<Widget>[
+              ChoiceRow<String>(
+                choices: <(String, String)>[
+                  ('work', t.healthWeekLegendWork),
+                  ('busy', t.healthWeekLegendBusy),
+                  ('free', t.healthWeekLegendFree),
+                ],
+                value: str(b['kind'], 'work'),
+                onChanged: (v) => setState(() => b['kind'] = v),
+              ),
               Row(
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _pick(true),
-                      child: Text(_time(_start).format(context)),
+                      onPressed: () => _pick(b, true),
+                      child: Text(
+                        '${t.healthWeekFrom} ${_time(str(b['start'])).format(context)}',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => _pick(false),
-                      child: Text(_time(_end).format(context)),
+                      onPressed: () => _pick(b, false),
+                      child: Text(
+                        '${t.healthWeekTo} ${_time(str(b['end'])).format(context)}',
+                      ),
                     ),
+                  ),
+                  IconButton(
+                    tooltip: t.healthRemove,
+                    onPressed: () => setState(() {
+                      _blocks.remove(b);
+                      _error = null;
+                    }),
+                    icon: const Icon(Icons.close),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+            ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _add,
+                icon: const Icon(Icons.add),
+                label: Text(t.healthWeekAddBlock),
+              ),
+            ),
             if (widget.showCopy)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -577,20 +665,15 @@ class _DaySheetState extends State<_DaySheet> {
                 value: _copy,
                 onChanged: (v) => setState(() => _copy = v ?? false),
               ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_error ?? '', style: TextStyle(color: c.danger)),
+              ),
             const SizedBox(height: 12),
             ConstrainedBox(
               constraints: const BoxConstraints(minHeight: minTap),
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(
-                  _DayEdit(
-                    working: _working,
-                    start: _start,
-                    end: _end,
-                    copyToWeekdays: _copy,
-                  ),
-                ),
-                child: Text(t.healthDone),
-              ),
+              child: FilledButton(onPressed: _done, child: Text(t.healthDone)),
             ),
           ],
         ),

@@ -331,5 +331,73 @@
   "healthCorrectLabel": "Ano ba talaga ito?",
   "healthCorrectHint": "Tinola iyan, at kalahating tasa ng kanin",
   "healthCorrectSend": "Ipaayos kay Botler",
-  "healthCorrectBusy": "Tinitingnan ulit ni Botler"
+  "healthCorrectBusy": "Tinitingnan ulit ni Botler",
+  "healthTodayRunning": "May session na tumatakbo",
+  "healthTodayRunningLine": "Ituloy kung saan ka huminto.",
+  "healthTodayDone": "Tapos na ngayon",
+  "healthTodayRoutine": "Ang routine mo ngayon",
+  "healthTodayRoutineLine": "Galing sa mga routine mo. I-log pagkatapos para mabilang dito.",
+  "healthTodayRoutineItem": "{time}, {title}",
+  "@healthTodayRoutineItem": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayProgram": "Tumatakbo ang {name}",
+  "@healthTodayProgram": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "healthTodayProgramLine": "Wala pang nakatakda ngayon. I-plano ang susunod na linggo at ilalagay ni Botler ang mga session sa paligid ng araw mo.",
+  "healthPlanNextWeek": "I-plano ang susunod na linggo",
+  "healthProgramWarning": "May tumatakbong ibang programa. Idadagdag nito ang mga session sa bawat linggo.",
+  "healthWalkSave": "I-save",
+  "healthWeekLegendBusy": "Abala",
+  "healthWeekBusyLine": "Abala {ranges}",
+  "@healthWeekBusyLine": {
+    "placeholders": {
+      "ranges": {
+        "type": "String"
+      }
+    }
+  },
+  "healthWeekFrom": "Mula",
+  "healthWeekTo": "Hanggang",
+  "healthWeekAddBlock": "Magdagdag ng oras",
+  "healthWeekOverlap": "May dalawang oras sa araw na ito na nagtatagpo. Baguhin ang isa para hindi magpatong.",
+  "healthWeekSameTime": "Hindi puwedeng magsimula at magtapos sa parehong minuto.",
+  "healthMealFoods": "Mga pagkain sa kainang ito",
+  "healthMealOfDay": "{percent}% ng target mo ngayon",
+  "@healthMealOfDay": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "healthMacroSplit": "Saan galing ang mga calorie",
+  "healthMacroLine": "Protina {protein} g · Carbs {carbs} g · Taba {fat} g",
+  "@healthMacroLine": {
+    "placeholders": {
+      "protein": {
+        "type": "String"
+      },
+      "carbs": {
+        "type": "String"
+      },
+      "fat": {
+        "type": "String"
+      }
+    }
+  },
+  "healthRemoveWeightBody": "Aalis na ito sa trend mo nang tuluyan.",
+  "healthDiscardBody": "Hindi ise-save ang pagkaing nabasa mula sa litrato."
 }
