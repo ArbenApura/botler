@@ -8,6 +8,7 @@ import type { TestDb } from '../support/testDb';
 import { and, asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
+import { toManilaDate } from '../../src/lib/finance/dates';
 import { allocationRule, auditEvent } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { createBill, deleteBill, markBillPaid, updateBill } from '../../src/lib/server/ops/bills';
@@ -216,7 +217,11 @@ describe('a bill edit or delete clears a link that no longer fits', () => {
 			ruleId: again.ruleId,
 			fundsBillId: again.billId
 		});
-		await markBillPaid(w(f), { billId: again.billId, dueDate: '2026-11-04', amount: 150_000 });
+		// The next 4th of a month, the day the bill is due, whatever day the test runs
+		const today = toManilaDate(new Date());
+		const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+		const next = new Date(Date.UTC(y, d > 4 ? m : m - 1, 4)).toISOString().slice(0, 10);
+		await markBillPaid(w(f), { billId: again.billId, dueDate: next, amount: 150_000 });
 		const off = await deleteBill(w(f), { billId: again.billId });
 		expect(off).toMatchObject({ switchedOff: true, unlinkedRules: [{ ruleId: again.ruleId }] });
 		expect((await ruleOf(f, again.ruleId))?.fundsBillId).toBeNull();

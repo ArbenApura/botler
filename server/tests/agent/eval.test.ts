@@ -11,6 +11,7 @@ import type { TestDb } from '../support/testDb';
 // -- DEP-MODULES -- //
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
+import { toManilaDate } from '../../src/lib/finance/dates';
 import { listAccounts } from '../../src/lib/server/ops/accounts';
 import { listActions } from '../../src/lib/server/ops/actions';
 import { listBills } from '../../src/lib/server/ops/bills';
@@ -51,6 +52,14 @@ type Case = {
 let t: TestDb;
 
 // -- FUNCTIONS -- //
+
+/** The whole of next month, so the case does not go stale as bills fall behind the clock. */
+function nextMonth() {
+	const [y, m] = toManilaDate(new Date()).split('-').map(Number) as [number, number];
+	const day = (month: number, date: number) =>
+		new Date(Date.UTC(y, month, date)).toISOString().slice(0, 10);
+	return { from: day(m, 1), to: day(m + 1, 0) };
+}
 
 /** The JSON a tool returned in the last tool message of a request. */
 const lastTool = (req: CompletionRequest): unknown => {
@@ -224,12 +233,9 @@ const CASES: Case[] = [
 		}
 	},
 	{
-		name: '10 bills due in November',
-		text: 'what bills are due in November?',
-		script: () => [
-			{ calls: [['bills_due', { from: '2026-11-01', to: '2026-11-30' }]] },
-			{ say: 'Rent and Meralco.' }
-		],
+		name: '10 bills due next month',
+		text: 'what bills are due next month?',
+		script: () => [{ calls: [['bills_due', nextMonth()]] }, { say: 'Rent and Meralco.' }],
 		check: ({ events }) => {
 			expect((toolEvents(events)[0]?.data as unknown[]).length).toBe(2);
 		}
