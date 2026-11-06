@@ -12,7 +12,7 @@
   "@libraryPageCount": { "placeholders": { "count": { "type": "int" } } },
   "libraryUpdated": "Botler updated",
   "libraryPinned": "Pinned",
-  "libraryEmpty": "Botler will fill this as you talk.",
+  "libraryEmpty": "No notebooks yet. Ask Botler to start one for a trip, a project or a list.",
   "libraryOffline": "Offline copy",
   "libraryOfflineSince": "Offline copy from {when}",
   "@libraryOfflineSince": { "placeholders": { "when": { "type": "String" } } },

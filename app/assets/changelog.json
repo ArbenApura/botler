@@ -634,5 +634,17 @@
       "Hindi na nalilimutan ang mensaheng pumalya o itinigil: nakikita ito ni Botler sa susunod mong mensahe at maaari mo itong banggitin.",
       "Puwede mo nang i-edit at ipadalang muli ang kahit anong mensahe mo, kahit ang hindi nakarating kay Botler."
     ]
+  },
+  {
+    "versionCode": 57,
+    "versionName": "1.7.2",
+    "en": [
+      "When you stop Botler in the middle of a task, it now remembers what it already found and did, so you can ask it to carry on and it continues from there.",
+      "The chat now tells you when Botler saves to or changes your notebooks, and the notebooks screen has a clearer empty state."
+    ],
+    "fil": [
+      "Kapag itinigil mo si Botler sa kalagitnaan ng gawain, naaalala na niya ang mga nahanap at nagawa na niya, kaya puwede mo siyang pagpatuloy at magpapatuloy siya mula doon.",
+      "Sinasabi na ng chat kapag nag-save o nagbago si Botler sa mga notebook mo, at mas malinaw na ang walang laman na screen ng mga notebook."
+    ]
   }
 ]

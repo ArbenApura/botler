@@ -11,7 +11,7 @@
   "libraryPageCount": "{count, plural, =1{1 pahina} other{{count} pahina}}",
   "libraryUpdated": "Binago ni Botler",
   "libraryPinned": "Naka-pin",
-  "libraryEmpty": "Pupunuin ito ni Botler habang nag-uusap kayo.",
+  "libraryEmpty": "Wala pang notebook. Ipasimula kay Botler ang isa para sa biyahe, proyekto o listahan.",
   "libraryOffline": "Kopyang offline",
   "libraryOfflineSince": "Kopyang offline mula {when}",
   "libraryUpdateServer": "Mas luma ang server kaysa sa app na ito at hindi pa nito maipapakita ang mga pahina. I-update ang server.",

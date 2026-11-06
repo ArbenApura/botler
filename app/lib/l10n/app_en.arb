@@ -934,11 +934,65 @@
   "chatNoEvent": "Nothing on your calendar today",
   "chatNotDone": "Not done",
   "chatNotNow": "Not now",
+  "chatNotebookAlready": "Already in your notebook",
+  "chatNotebookChanged": "Updated {what}",
+  "@chatNotebookChanged": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNotebookChangedPlain": "Updated your notebooks",
+  "chatNotebookMade": "Made {what}",
+  "@chatNotebookMade": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNotebookRemoved": "Deleted {what}",
+  "@chatNotebookRemoved": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNotebookRestored": "Put back {what}",
+  "@chatNotebookRestored": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNotebookSaved": "Saved to your notebook · {where}",
+  "@chatNotebookSaved": {
+    "placeholders": {
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "chatNotebookSavedPlain": "Saved to your notebook",
   "chatNoticeFailed": "The assistant could not finish that. Try again.",
   "chatNoticeOffline": "No connection. Saved on your phone. It will be sent once, when you are back online.",
   "chatOffline": "offline",
   "chatOutputShowAll": "Show all of it",
   "chatOutputShowLess": "Show less",
+  "chatPageSaved": "Saved to {page} in {notebook}",
+  "@chatPageSaved": {
+    "placeholders": {
+      "page": {
+        "type": "String"
+      },
+      "notebook": {
+        "type": "String"
+      }
+    }
+  },
   "chatPasteNothing": "There is no picture on the clipboard.",
   "chatPastePhoto": "Paste photo",
   "chatPendingSnack": "{count, plural, =1{{count} entry is waiting for a connection.} other{{count} entries are waiting for a connection.}}",
@@ -1066,6 +1120,7 @@
   },
   "chatRestoreFailed": "Could not load your earlier chat.",
   "chatRunningScript": "Running a script on your phone",
+  "chatSavingNotebook": "Updating your notebooks",
   "chatScriptFailed": "The script did not finish",
   "chatSend": "Send",
   "chatSpeak": "Speak",
@@ -2375,7 +2430,7 @@
   },
   "libraryAgoNow": "just now",
   "libraryAsk": "Ask Botler to file something",
-  "libraryEmpty": "Botler will fill this as you talk.",
+  "libraryEmpty": "No notebooks yet. Ask Botler to start one for a trip, a project or a list.",
   "libraryMain": "Main notebook",
   "libraryMainLine": "What Botler keeps in mind about you",
   "libraryNeedsConnection": "This needs a connection. Try again when you are online.",

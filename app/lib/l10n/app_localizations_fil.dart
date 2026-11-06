@@ -1258,6 +1258,40 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatNotNow => 'Mamaya na';
 
   @override
+  String get chatNotebookAlready => 'Nasa notebook mo na ito';
+
+  @override
+  String chatNotebookChanged(String what) {
+    return 'Binago ang $what';
+  }
+
+  @override
+  String get chatNotebookChangedPlain => 'Binago ang mga notebook mo';
+
+  @override
+  String chatNotebookMade(String what) {
+    return 'Ginawa ang $what';
+  }
+
+  @override
+  String chatNotebookRemoved(String what) {
+    return 'Binura ang $what';
+  }
+
+  @override
+  String chatNotebookRestored(String what) {
+    return 'Ibinalik ang $what';
+  }
+
+  @override
+  String chatNotebookSaved(String where) {
+    return 'Nai-save sa notebook mo · $where';
+  }
+
+  @override
+  String get chatNotebookSavedPlain => 'Nai-save sa notebook mo';
+
+  @override
   String get chatNoticeFailed =>
       'Hindi natapos ng assistant iyon. Subukan ulit.';
 
@@ -1273,6 +1307,11 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatOutputShowLess => 'Ipakita nang kaunti';
+
+  @override
+  String chatPageSaved(String page, String notebook) {
+    return 'Nai-save sa $page sa $notebook';
+  }
 
   @override
   String get chatPasteNothing => 'Walang larawan sa clipboard.';
@@ -1421,6 +1460,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatRunningScript => 'Nagpapatakbo ng script sa phone mo';
+
+  @override
+  String get chatSavingNotebook => 'Ina-update ang mga notebook mo';
 
   @override
   String get chatScriptFailed => 'Hindi natapos ang script';
@@ -3158,7 +3200,8 @@ class AppLocalizationsFil extends AppLocalizations {
   String get libraryAsk => 'Utusan si Botler na mag-ayos ng laman';
 
   @override
-  String get libraryEmpty => 'Pupunuin ito ni Botler habang nag-uusap kayo.';
+  String get libraryEmpty =>
+      'Wala pang notebook. Ipasimula kay Botler ang isa para sa biyahe, proyekto o listahan.';
 
   @override
   String get libraryMain => 'Pangunahing kuwaderno';

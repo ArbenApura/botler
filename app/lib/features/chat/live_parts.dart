@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/l10n.dart';
 import '../../theme/tokens.dart';
 import 'chat_state.dart';
+import 'notebook_rows.dart';
 
 // -- CONSTANTS -- //
 
@@ -29,6 +30,8 @@ String phaseWords(BuildContext context, TurnPhase phase, String? tool) =>
       TurnPhase.tool => switch (tool) {
         'script_run' => context.t.chatRunningScript,
         'toolbox' => context.t.chatUsingToolbox,
+        final name when isNotebookWrite(name ?? '') =>
+          context.t.chatSavingNotebook,
         _ => context.t.chatChecking(toolWords(tool ?? '')),
       },
     };
@@ -269,6 +272,7 @@ class RunningToolRow extends StatelessWidget {
     final label = switch (name) {
       'script_run' => context.t.chatRunningScript,
       'toolbox' => context.t.chatUsingToolbox,
+      _ when isNotebookWrite(name) => context.t.chatSavingNotebook,
       _ => context.t.chatChecking(toolWords(name)),
     };
     return Semantics(

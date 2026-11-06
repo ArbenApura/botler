@@ -124,11 +124,16 @@ void main() {
       );
     });
 
-    testWidgets('says Botler will fill it when there are no notebooks', (
+    testWidgets('says to ask Botler for one when there are no notebooks', (
       tester,
     ) async {
       await pumpLibrary(tester, FakeLibrary(), const LibraryScreen());
-      expect(find.text('Botler will fill this as you talk.'), findsOneWidget);
+      expect(
+        find.text(
+          'No notebooks yet. Ask Botler to start one for a trip, a project or a list.',
+        ),
+        findsOneWidget,
+      );
       // The main notebook is always there
       expect(find.text('Main notebook'), findsOneWidget);
     });

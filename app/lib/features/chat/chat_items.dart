@@ -25,6 +25,7 @@ import 'chat_state.dart';
 import 'live_parts.dart';
 import 'web_mark_card.dart';
 import 'message_actions.dart';
+import 'notebook_rows.dart';
 import 'photo_mark_card.dart';
 import 'shown_files.dart';
 import 'photo_widgets.dart';
@@ -230,6 +231,17 @@ class _ToolView extends ConsumerWidget {
       return Text(
         item.message ?? context.t.chatToolFailed,
         style: TextStyle(color: c.muted),
+      );
+    }
+    // A save in a notebook is one quiet line of its own, never "Checked ...": it names what the answer says was written
+    if (isNotebookWrite(item.name)) {
+      return _QuietRow(
+        icon: Icons.menu_book_outlined,
+        text: notebookWriteLine(context, item.name, item.data) ?? '',
+        style:
+            Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted) ??
+            TextStyle(color: c.muted),
+        maxLines: 2,
       );
     }
     final data = asJson(item.data);
@@ -475,6 +487,15 @@ class _RestoredToolLine extends ConsumerWidget {
     final muted = TextStyle(color: c.muted, fontSize: 13);
     if (item.status != 'ok') {
       return Text(item.message ?? context.t.chatToolFailed, style: muted);
+    }
+    // The same words as the live line, from the stored answer
+    if (isNotebookWrite(item.name)) {
+      return _QuietRow(
+        icon: Icons.menu_book_outlined,
+        text: notebookWriteLine(context, item.name, item.data) ?? '',
+        style: muted,
+        maxLines: 2,
+      );
     }
     final data = asJson(item.data);
     String? line;

@@ -2131,6 +2131,54 @@ abstract class AppLocalizations {
   /// **'Not now'**
   String get chatNotNow;
 
+  /// No description provided for @chatNotebookAlready.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in your notebook'**
+  String get chatNotebookAlready;
+
+  /// No description provided for @chatNotebookChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {what}'**
+  String chatNotebookChanged(String what);
+
+  /// No description provided for @chatNotebookChangedPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated your notebooks'**
+  String get chatNotebookChangedPlain;
+
+  /// No description provided for @chatNotebookMade.
+  ///
+  /// In en, this message translates to:
+  /// **'Made {what}'**
+  String chatNotebookMade(String what);
+
+  /// No description provided for @chatNotebookRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {what}'**
+  String chatNotebookRemoved(String what);
+
+  /// No description provided for @chatNotebookRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Put back {what}'**
+  String chatNotebookRestored(String what);
+
+  /// No description provided for @chatNotebookSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your notebook · {where}'**
+  String chatNotebookSaved(String where);
+
+  /// No description provided for @chatNotebookSavedPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your notebook'**
+  String get chatNotebookSavedPlain;
+
   /// No description provided for @chatNoticeFailed.
   ///
   /// In en, this message translates to:
@@ -2160,6 +2208,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show less'**
   String get chatOutputShowLess;
+
+  /// No description provided for @chatPageSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to {page} in {notebook}'**
+  String chatPageSaved(String page, String notebook);
 
   /// No description provided for @chatPasteNothing.
   ///
@@ -2364,6 +2418,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Running a script on your phone'**
   String get chatRunningScript;
+
+  /// No description provided for @chatSavingNotebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating your notebooks'**
+  String get chatSavingNotebook;
 
   /// No description provided for @chatScriptFailed.
   ///
@@ -5284,7 +5344,7 @@ abstract class AppLocalizations {
   /// No description provided for @libraryEmpty.
   ///
   /// In en, this message translates to:
-  /// **'Botler will fill this as you talk.'**
+  /// **'No notebooks yet. Ask Botler to start one for a trip, a project or a list.'**
   String get libraryEmpty;
 
   /// No description provided for @libraryMain.

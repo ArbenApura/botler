@@ -410,7 +410,12 @@ void main() {
 
     testWidgets('says so when there are none yet', (tester) async {
       await pump(tester, FakeBotler(), const LibraryScreen());
-      expect(find.text('Botler will fill this as you talk.'), findsOneWidget);
+      expect(
+        find.text(
+          'No notebooks yet. Ask Botler to start one for a trip, a project or a list.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

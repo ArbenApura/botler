@@ -1249,6 +1249,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatNotNow => 'Not now';
 
   @override
+  String get chatNotebookAlready => 'Already in your notebook';
+
+  @override
+  String chatNotebookChanged(String what) {
+    return 'Updated $what';
+  }
+
+  @override
+  String get chatNotebookChangedPlain => 'Updated your notebooks';
+
+  @override
+  String chatNotebookMade(String what) {
+    return 'Made $what';
+  }
+
+  @override
+  String chatNotebookRemoved(String what) {
+    return 'Deleted $what';
+  }
+
+  @override
+  String chatNotebookRestored(String what) {
+    return 'Put back $what';
+  }
+
+  @override
+  String chatNotebookSaved(String where) {
+    return 'Saved to your notebook · $where';
+  }
+
+  @override
+  String get chatNotebookSavedPlain => 'Saved to your notebook';
+
+  @override
   String get chatNoticeFailed =>
       'The assistant could not finish that. Try again.';
 
@@ -1264,6 +1298,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatOutputShowLess => 'Show less';
+
+  @override
+  String chatPageSaved(String page, String notebook) {
+    return 'Saved to $page in $notebook';
+  }
 
   @override
   String get chatPasteNothing => 'There is no picture on the clipboard.';
@@ -1411,6 +1450,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatRunningScript => 'Running a script on your phone';
+
+  @override
+  String get chatSavingNotebook => 'Updating your notebooks';
 
   @override
   String get chatScriptFailed => 'The script did not finish';
@@ -3142,7 +3184,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get libraryAsk => 'Ask Botler to file something';
 
   @override
-  String get libraryEmpty => 'Botler will fill this as you talk.';
+  String get libraryEmpty =>
+      'No notebooks yet. Ask Botler to start one for a trip, a project or a list.';
 
   @override
   String get libraryMain => 'Main notebook';

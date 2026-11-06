@@ -3,6 +3,7 @@
 
 // -- MODULES -- //
 import 'chat_state.dart';
+import 'notebook_rows.dart';
 
 // -- TYPES -- //
 
@@ -31,11 +32,13 @@ const Set<String> _drawnTools = <String>{
 
 // -- FUNCTIONS -- //
 
+/// A save in a notebook names its own section or page, so each one keeps its own line: three saves in a row are three lines, never "+2".
 bool _isQuiet(ChatItem i) =>
     i is ToolItem &&
     !i.running &&
     i.status == 'ok' &&
-    !_drawnTools.contains(i.name);
+    !_drawnTools.contains(i.name) &&
+    !isNotebookWrite(i.name);
 
 /// The same tool, from the same place (this run or an earlier one).
 bool _sameKind(ToolItem a, ToolItem b) =>
