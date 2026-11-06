@@ -323,6 +323,13 @@ describe('the assistant edits by exact text', () => {
 			replacement: '- Short answers.\n- Sweet endings are gone.'
 		});
 		expect('similar' in block).toBe(false);
+		// The same words on one line would have been listed
+		const oneLine = await editNotebook(agentOf(c), {
+			op: 'replace',
+			find: '- Short answers.\n- Sweet endings are gone.',
+			replacement: '- Sweet endings are gone, warm and plain.'
+		});
+		expect(JSON.stringify(oneLine)).toContain('similar');
 	});
 
 	it('works for the person too (the card the person approves runs as them)', async () => {

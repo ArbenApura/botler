@@ -884,6 +884,8 @@ describe('searching, the outline, links, pins and activity', () => {
 			'Work/Far'
 		]);
 		expect(out.moreLinks).toBeUndefined();
+		// The page body is left out of the assistant's answer, so the list always fits in a tool answer
+		expect(out.text).toBeUndefined();
 		// A replay returns the first answer, with the same list, and renames nothing twice
 		const again = await renamePage(sameRequest, {
 			notebook: 'Trip',
@@ -894,6 +896,7 @@ describe('searching, the outline, links, pins and activity', () => {
 		// The person's answer keeps its shape: no list of links
 		const mine = await renamePage(as(c), { notebook: 'Trip', page: 'Zebra', newTitle: 'Zebra 2' });
 		expect('linkedFrom' in mine).toBe(false);
+		expect(mine.text).toBe('x');
 		// A rename to the same title has nothing to fix and says nothing about links
 		const same = await renamePage(agentOf(c), {
 			notebook: 'Trip',

@@ -842,7 +842,9 @@ export async function renamePage(
 	ctx: Ctx,
 	raw: unknown
 ): Promise<
-	PageView & {
+	Omit<PageView, 'text'> & {
+		/** The text of the page; the assistant's answer leaves it out so the list of links below always fits in a tool answer. */
+		text?: string;
 		/** For the assistant only: the pages that still point at the old title, found before the rename. */
 		linkedFrom?: { notebook: string; page: string; snippet: string }[];
 		/** True when the list was cut, so it is at least these. */
@@ -865,18 +867,22 @@ export async function renamePage(
 				: null;
 			throw new OpsError('CONFLICT', clashMessage(title, book.title, parent));
 		}
-		// Found before the update, inside this same write, so a replay of the request returns the same list. Only the assistant gets it
-		const stale = isAgent(ctx)
-			? await pagesLinkingTo(tx, userId, page, book.title, LINKS_FOR_AGENT)
-			: null;
+		// Found before the update, inside this same write, so a replay of the request returns the same list. Only the model's own call gets it
+		// (a card the person approves runs as the assistant too, but nobody reads its answer as a model)
+		const stale =
+			ctx.actor.kind === 'agent'
+				? await pagesLinkingTo(tx, userId, page, book.title, LINKS_FOR_AGENT)
+				: null;
 		await tx
 			.update(notebookPage)
 			.set({ title, updatedBy: actorOf(ctx), updatedAt: sql`now()` })
 			.where(and(eq(notebookPage.userId, userId), eq(notebookPage.id, page.id)));
 		const view = await loadPageView(tx, userId, page.id);
+		// The page body is left out of the assistant's answer: a long page would push the links past the size cap of a tool answer
+		const { text: _body, ...slim } = view;
 		return stale
 			? {
-					...view,
+					...slim,
 					linkedFrom: stale.links.map((l) => ({
 						notebook: l.notebook,
 						page: l.page,
