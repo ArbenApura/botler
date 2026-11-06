@@ -1,9 +1,9 @@
 ---
 name: flow-verify
 description: Use when the user types /flow-verify or asks to check, test, lint, format or typecheck the changes, right before any commit, and in autonomous execution (/flow phases, handed-off tasks) where the gate is required. Works out which files are in scope, picks only the gates those files need from the repo rulebook or package scripts, runs them scoped to those files, and reports pass or fail per gate. Reports "no gates found" and asks when the repo names none. Never runs during active engagement unless the user asks.
-afb-bundle: 1.1.13
-afb-version: 1.1.1
-afb-source-sha256: f8afde699facd7f4945e0b124e0ee22fe6a90ca50eec7f018ebfb4eef3e85749
+afb-bundle: 1.1.15
+afb-version: 1.1.2
+afb-source-sha256: 21d6797714dbfbc9c6244455b20013c2bebacd8e969892693a978963aa01658c
 ---
 
 # Verify
@@ -18,6 +18,7 @@ Run the right checks for what changed, and nothing more. A stylesheet tweak need
 - **Before a commit**: run it right before a commit the user asked for, including a commit made as part of autonomous execution. (Docs-only and test-only commits do not need it.) Never commit or push without the user's word.
 - **Autonomous execution**: run it after each finished change; run the full test suite at the end of a phase.
 - **Active engagement without a request**: do not run it. The user sees failures themselves while testing.
+- **After a merge, a pull or a rebase**: run the full test suite on the merged tree before any push the user asked for, and report which failing test files come from other sessions' commits and which from this work. A failure that predates this work is reported, not fixed quietly. The push itself is only on the user's word.
 
 ## Arguments
 

@@ -1,9 +1,9 @@
 ---
 name: flow-critic
 description: Use to have independent critic subagents attack a /flow plan before it is built, or review code after it is written, on Agent Flow Board. Picks the mode from the session, plan (the item's steps or spec written or changed on the board, nothing built) or code (implementation done, a phase finished, before commit sign-off, or after any change to server code, an endpoint, a migration, auth, a background worker or a screen), says which and why, and never asks, it picks code mode when the tree has code changes and plan mode otherwise and says which. Dispatches 1 subagent for a small diff and 3 otherwise (more when the user asks) with lenses chosen for what the work touches, runs pass 2 only after a BLOCKER, and verifies every finding before acting. Code mode applies to any code change, not only /flow items. Formerly /feat-plan-critic and /feat-code-critic (before that /plan-critic, /code-critic and requesting-code-review).
-afb-bundle: 1.1.13
-afb-version: 1.1.2
-afb-source-sha256: b6a629cacfc857ca4f24932db5991fc1a103790050d750cdafe29ffd1dad786f
+afb-bundle: 1.1.15
+afb-version: 1.1.3
+afb-source-sha256: 747789f0b3917eaa400a4d69a4bf32145a7cf305334d2dac3bc7fb8b6ebbd926
 ---
 
 # Flow Critic - Multi-Agent Adversarial Review
@@ -249,8 +249,8 @@ Critic output is a set of claims, not facts. Once all subagents report back:
    - `HIGH`: incorrect behaviour on a realistic path, unhandled error path, swallowed error, missing input validation, silent data truncation, a tenant table missing from the registry, a background job without its scope ids, missing test for new logic, an unmet requirement, deleted comments (where the rulebook asks to keep them), a literal colour or a forbidden variant where the repo has design tokens, a visible screen change that does not match its sibling pages. Resolve before commit sign-off, the next phase, or (plan mode) the build.
    - `MEDIUM` / `LOW`: advisory. Take them if trivial (and, in code mode, inside files already touched); otherwise log them with `record` (one log line) without blocking.
 6. **Resolve confirmed findings.**
-   - **Plan mode**: change the plan on the board for every confirmed `BLOCKER` and `HIGH` (`plan_add_steps` or `plan_add_phase` for new work, `step_update` to reword or remove an open step, an "amendments" section for anything the tools cannot express), record trade-offs as decisions (`item_update`, one per call), and record the pass with one `record` log line (at most 500 characters). Board only; no code. Never type a percent or status.
-   - **Code mode**: apply targeted fixes. Pin each fixed `BLOCKER` with a test where a test can express it (behavioural first, in the matching test folder; a source assertion only when behaviour is impractical to exercise). Re-run the Step 3 gates. For a `BLOCKER` fix, run Pass 2 on the fix (the only case where a second pass runs). Record the outcome with a `record` log line and anything left to check by hand in the `validation` section (`item_update`) or as a manual check (`plan_add_checks`).
+   - **Plan mode**: change the plan on the board for every confirmed `BLOCKER` and `HIGH` (`plan_add_steps` or `plan_add_phase` for new work, only after the user confirms the added steps; `step_update` to reword or remove an open step, an "amendments" section for anything the tools cannot express), record trade-offs as decisions (`item_update`, one per call), and record the pass with one `record` log line (at most 500 characters). Board only; no code. Never type a percent or status.
+   - **Code mode**: apply targeted fixes. Pin each fixed `BLOCKER` with a test where a test can express it (behavioural first, in the matching test folder; a source assertion only when behaviour is impractical to exercise). Re-run the Step 3 gates. For a `BLOCKER` fix, run Pass 2 on the fix (the only case where a second pass runs). Record the outcome with a `record` log line and anything left to check by hand in the `validation` section (`item_update`) or, only after the user confirms, as a manual check (`plan_add_checks`).
 7. **Do not commit or push** (see `/flow` safety rules).
 8. **Report briefly and honestly to the user.** Plan mode: the loopholes found and how the plan changed, with the item link. Code mode, before asking for commit sign-off:
 

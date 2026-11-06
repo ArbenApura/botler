@@ -1,9 +1,9 @@
 ---
 name: flow-interview
 description: Use when the user asks to be grilled or interviewed about an Agent Flow Board plan, or to double check what will be built, and after a /flow plan is drafted but before it is approved or built. Also works with no plan at all, as a brainstorm (an idea typed after /flow-interview, or no open item on the board), where it asks the same plain multiple-choice questions to shape the idea and offers to hand the result to /flow. Reads the item from Agent Flow Board (spec, steps, decisions, resume note) plus the code it touches, then asks the user plain, detailed, multiple-choice questions in rounds until every gap, assumption and open choice is settled, and writes each answer back to the board as a decision and a plan change. Board only, no code. Complements /flow (writes the plan), /flow-critic (agents attack the plan) and /flow-audit (checks the build is recorded). Formerly /feat-interview.
-afb-bundle: 1.1.13
-afb-version: 1.1.2
-afb-source-sha256: d17d79db42f93aa574ab39a93bd09871c881d2f9c42851f502ee2f087283d5be
+afb-bundle: 1.1.15
+afb-version: 1.1.3
+afb-source-sha256: a90e01486988bd68883db4f40f9fe66df277b554a7d7cbef9668650cf32c367b
 ---
 
 # Plan Interview
@@ -82,7 +82,7 @@ Between rounds: record the answers (Step 4), add any new questions they open, re
 Write answers to the board as you go, not at the end. **One decision per `item_update` call and one section per call, with a `requestId`, and read back with `item_get` after the round** (a server older than the multi-write fix saves only the first decision of a call).
 
 - **Decisions**: one `adr` for each decision that shapes the design (context, decision, alternatives, consequences), titled with the date and "the user (plan interview)" plus their name when the session knows it in its context; a proposed value is recorded with the word PROPOSED in its title. Questions you settled from the documents are `settled` decisions with `answer` and `source`.
-- **Plan**: if an answer changes steps, follow `/flow` section 3 step 7: `plan_add_steps` or `plan_add_phase` for new work, `step_update` to reword or remove an open step, `record` (waived with a reason, or superseded) for steps that are already closed.
+- **Plan**: if an answer changes steps, follow `/flow` section 3 step 7 (the user's answer is the confirmation for the change it names, nothing more; a step you infer beyond the answer is asked first): `plan_add_steps` or `plan_add_phase` for new work, `step_update` to reword or remove an open step, `record` (waived with a reason, or superseded) for steps that are already closed.
 - **Spec and validation**: update the affected sections with `item_update`, one per call. Add the checks the user described for "Done" to `validation`, and keep manual checks as `M` checks with `plan_add_checks`.
 - **Log and notes**: one `record` call with `log` "Plan interview: N questions answered, M left open" (at most 500 characters, with the Checked-before-asking list in short form), and the open ones in the `blockers` or `resume-here` section.
 

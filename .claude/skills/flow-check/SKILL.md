@@ -1,9 +1,9 @@
 ---
 name: flow-check
 description: "Use when a browser check must be written, run or read for an Agent Flow Board item, or when the user types /flow-check. The agent does all of it itself through the MCP tools and the afb-checks tool on this machine: it connects, registers, repairs and upgrades the tool without asking anyone, writes the check, saves it on the board, runs it, waits for the result and reads it. It stops only before touching a shared database, a local server it did not start, or a live site. Never edits the tool's template folder and never reads saved sign-ins."
-afb-bundle: 1.1.13
-afb-version: 1.1.8
-afb-source-sha256: a1c5aa252745dfe896ceea8c8b4bdf9459368daea167a68e0098732383f2583b
+afb-bundle: 1.1.15
+afb-version: 1.1.10
+afb-source-sha256: d1a464c564d3adbfcc6d7bea0f7c6c1ea005d98e229841a76fb80230be0e5754
 ---
 
 # Browser checks with afb-checks: the agent does all of it
@@ -49,7 +49,7 @@ On the machine that runs the tool, in the tool folder:
 
 ## Take one check from words to a result
 
-1. Name the item and the check key (a manual check such as `M1`). Start the session and claim the item as usual (`session_start`, `work_start`). If the item has no manual check for it, add one with `plan_add_checks`.
+1. Name the item and the check key (a manual check such as `M1`). Start the session and claim the item as usual (`session_start`, `work_start`). If the item has no manual check for it, tell the user and add one with `plan_add_checks` only after they confirm (running a check the user named is already their request).
 2. Write `checks/<ORG-SLUG>/<ITEM-REF>/<CHECK-KEY>.mjs` in the tool folder with `step(name, fn)` and `shot(caption)`. A check gets `page`, `step`, `shot`, `expect`, `log` and `baseUrl`, and nothing else.
 3. Save **the same text** on the board with `check_save` (item, check, script, target `preview`). It also marks the manual check automatic. The tool runs only the local file; if the board's text differs, the report says so.
 4. Ask `runner_status` for the project. If a tool is online, go on. If not, it answers with an `agentAction` (steps for you): do them (doctor first, or the connect steps above) and ask again.
@@ -59,6 +59,26 @@ On the machine that runs the tool, in the tool folder:
 8. When a run ends with a **code**, apply its `fix` line and ask again, once. The codes are `PREVIEW_ENV_MISSING`, `PREVIEW_NEEDS_OWNER_URL`, `PREVIEW_HOST_UNREACHABLE`, `PREVIEW_PORT_BUSY`, `DB_NOT_THROWAWAY`, `TOOL_OFFLINE`, `TOOL_OUTDATED`, `TARGET_UNAVAILABLE`, `RUN_TIMED_OUT`, `SANDBOX_FAILED` and `DOCKER_DOWN`. If the same code comes back, stop and tell the person what the fix line says and what you tried. A busy port means something else holds it: find out what, and stop and ask before stopping a local server you did not start.
 
 You can run a check on this machine without the board too: `node afb-checks.mjs run <ITEM-REF> <CHECK-KEY>` (exit code 0 pass, 1 fail, 2 could not run; the last line is `RESULT <path>`).
+
+## What a check script may not do, and how to fix one fast (read before writing a check)
+
+Every one of these cost a run of 3 to 4 minutes when it was found by failing. Read them before the first run.
+
+- **Blocked calls.** `page.addInitScript(...)` and navigating to `about:blank` are blocked by the tool. `check_save` refuses a script that holds one at once (`SCRIPT_BLOCKED`, with the fix), and saves nothing. Set state after the page has loaded with `page.evaluate`, and go straight to the page under test.
+- **Time.** A check script may not run past 2 minutes; a longer one is stopped. Split a long measurement (for example ten pages) into several checks. A whole run is stopped after 40 minutes.
+- **Writes.** A page's writes (POST, PUT, DELETE) are stopped and counted unless the site is made for testing. A write path is proved with a write-enabled run on this machine (`--allow-writes`), never on a live site.
+- **A signed-in registration.** A run needs a registration with a saved sign-in. Without one the page is a logged-out 404. Check the registration is signed in (`status --json`, `doctor`) before the first run, not after a failed one.
+- **Data the page needs.** A page that shows a sample event, a list or a setting needs that data to exist in the throwaway database. Confirm it is there before you write the check.
+- **Several runs at once.** The tool takes up to 3 runs at once. A run that shared the machine with another run of the organisation shows `sharedCpu: true` in `check_status`: its time is not a speed measurement. Run a speed comparison alone (`work --parallel 1`, no other run), once, on a quiet machine, and say so with the number.
+- **Fixing a saved check.** Read it with `check_get`, and change it with `check_save` and `edit: { old, new }` (the old text must appear exactly once; nothing is saved when it does not). Do not resend the whole script for a small fix. Update the local file in the tool folder with the same change.
+- **Reading the result.** `check_status` answers with the newest run of each check in short form (no evidence ids or file lists) and `olderRuns`; ask for `detail: true` only when you need the files.
+
+## Prove the risky path first, and write the check from facts
+
+- **The write path and the dialog that closes first.** Before the read-only checks, prove the riskiest interaction (a form that writes, a reset or confirm dialog, anything that must close with Escape, the X and a click outside) with a write-enabled run on this machine. Read-only checks passing prove nothing about it. Do not report the work as done before that run has passed.
+- **Facts before a check.** Take every number, label and button from the real source (the component, the data, the running page), never from a comment, and never from memory of which buttons exist. Confirm the registration is signed in and the sample data exists (the limits above). A guess found by a failed run costs 3 to 4 minutes.
+- **One measurement, alone.** A speed or size comparison is run once, alone, on a quiet machine, and the number is reported with that fact. A comparison taken while other runs shared the CPU is thrown away.
+- **Do not widen the work.** Run only the checks the plan has or the user asked for. A mockup, an extra measurement or an extra check that nobody asked for is not part of the request.
 
 ## Several registrations for one board project (two repo folders, two branches)
 

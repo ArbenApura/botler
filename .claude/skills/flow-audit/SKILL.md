@@ -1,9 +1,9 @@
 ---
 name: flow-audit
 description: Use when implementation of a /flow item or phase on Agent Flow Board is finished, before asking the user for commit sign-off, alongside /flow-critic, or when the user asks whether everything done is recorded in the plan. Compares what was actually built (the working tree, untracked files, commits since the plan's base, database migrations) against the item on Agent Flow Board (steps, decisions, sections, history) in both directions, then fixes the board so it tells the truth. Board only; never changes code or ticks anything unverified.
-afb-bundle: 1.1.13
-afb-version: 1.1.2
-afb-source-sha256: 08b14e5936402014bf81ab68ef8ddabaaab9e9cdaeed3171999d1685a6f51771
+afb-bundle: 1.1.15
+afb-version: 1.1.3
+afb-source-sha256: f299a277ab2cab898d21f04fa41be20a80fd0cc80c8c805a7f33dcb6e815cdb4
 ---
 
 # Progress Audit
@@ -80,7 +80,7 @@ Correct every gap in the same pass:
 
 - Tick verified steps with `step_done` and reopen `CLAIMED, NOT BUILT` ones with `record` (mark `open`), with a log line saying why (at most 500 characters).
 - Add an "As built" section (`item_update`, slug `as-built`) for every `DIFFERS` item. If the difference is a real decision, add a decision with its number and title.
-- A step that no longer fits: add the replacement with `plan_add_steps`, reword an open one with `step_update`, and waive or supersede a closed one with `record`. Never edit a done step.
+- A step that no longer fits: name the replacement to the user and add it with `plan_add_steps` only after they confirm (never insert steps or tasks on your own), reword an open one with `step_update`, and waive or supersede a closed one with `record`. Never edit a done step.
 - Rewrite `resume-here` (at most 15 lines, kept true) and `blockers`.
 - Change the status only with `item_status`.
 - Fill in `validation` results that ran, and `references` entries that are missing.
