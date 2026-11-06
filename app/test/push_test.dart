@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:botler/core/api.dart';
+import 'package:botler/core/clock.dart' show ClockPrefs, clockPrefs;
 import 'package:botler/core/push.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -77,6 +78,26 @@ void main() {
       expect(body['platform'], 'android');
       expect(body['pushToken'], 'token-aaaaaaaaaa');
       expect(prefs.getString('push.deviceId'), 'dev-1');
+    },
+  );
+
+  test(
+    'reports the clock the phone reads, so reminder times follow it',
+    () async {
+      // The person's own choice decides what the phone reads
+      clockPrefs = const ClockPrefs(timeFormat: '24');
+      await make().register();
+      expect(
+        (jsonDecode(sent.last.body) as Map<String, Object?>)['clock'],
+        '24',
+      );
+      clockPrefs = const ClockPrefs(timeFormat: '12');
+      await make().register();
+      expect(
+        (jsonDecode(sent.last.body) as Map<String, Object?>)['clock'],
+        '12',
+      );
+      clockPrefs = const ClockPrefs();
     },
   );
 

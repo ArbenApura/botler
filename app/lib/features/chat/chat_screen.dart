@@ -736,6 +736,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final showStart = shown.isEmpty && !working;
     // The summary card, then (in a branch) the line that says where it came from
     final forked = chat.forkedFrom != null;
+    final otherChatWaits = ref.watch(otherChatWaitsProvider);
     final lead = forked ? 2 : 1;
     return Scaffold(
       drawer: ChatsDrawer(onOpened: _opened),
@@ -744,7 +745,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           builder: (bar) => IconButton(
             tooltip: bar.t.chatsOpen,
             onPressed: () => Scaffold.of(bar).openDrawer(),
-            icon: const Icon(Icons.forum_outlined),
+            // A small accent dot when another chat has a new answer or a card waiting: the list says which one
+            icon: Badge(
+              isLabelVisible: otherChatWaits,
+              smallSize: 9,
+              backgroundColor: c.accent,
+              child: const Icon(Icons.forum_outlined),
+            ),
           ),
         ),
         title: (chat.title ?? '').trim().isEmpty

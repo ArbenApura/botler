@@ -8,10 +8,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderOrFamily;
 
 // -- MODULES -- //
 import '../../core/api.dart';
 import '../../core/chat_photos.dart';
+import '../../core/clock.dart' show uses24Hour;
 import '../../core/json.dart';
 import '../../core/reminders.dart';
 import '../../l10n/l10n.dart';
@@ -221,6 +223,7 @@ class ChatState {
     this.busy = false,
     this.phase = TurnPhase.idle,
     this.toolName,
+    this.unseen = false,
   });
 
   /// The conversation on screen. Null until the server has said which one it is (the first start, or a first message).
@@ -243,6 +246,9 @@ class ChatState {
   /// The tool in use while [phase] is [TurnPhase.tool].
   final String? toolName;
 
+  /// An answer arrived in this chat while another one was on screen, and has not been looked at yet.
+  final bool unseen;
+
   ChatState copyWith({
     String? chatId,
     String? title,
@@ -253,6 +259,7 @@ class ChatState {
     TurnPhase? phase,
     String? toolName,
     bool clearTool = false,
+    bool? unseen,
   }) => ChatState(
     chatId: chatId ?? this.chatId,
     title: title ?? this.title,
@@ -263,6 +270,7 @@ class ChatState {
     busy: busy ?? this.busy,
     phase: phase ?? this.phase,
     toolName: clearTool ? null : (toolName ?? this.toolName),
+    unseen: unseen ?? this.unseen,
   );
 }
 
@@ -322,7 +330,14 @@ bool looksLikeExpense(String text) {
   return false;
 }
 
-class ChatNotifier extends Notifier<ChatState> {
+/// One conversation and the turn it is running. Every chat has its own session, so one can keep working while another is on screen
+/// (BTL-20261106-1502-b). The [ChatNotifier] below is the door the screens use: it hands each call to the session on screen.
+class ChatSession extends Notifier<ChatState> {
+  ChatSession(this.key);
+
+  /// Which session this is. Not the chat's id: a session starts before the server has named its chat, and can be shown another chat later.
+  final String key;
+
   int _next = 0;
 
   // The turn being shown. All of it is reset when a turn starts over or ends.
@@ -456,7 +471,8 @@ class ChatNotifier extends Notifier<ChatState> {
   void stop() {
     // Nothing left to stop once the answer is complete
     if (!state.busy || _sawDone) return;
-    ref.read(deviceToolRunnerProvider).stopAll();
+    // Only this chat's phone calls are given up on: another chat that is working keeps its own
+    ref.read(deviceToolRunnerProvider).stopChat(state.chatId);
     _stopped = true;
     final abort = _abort;
     if (abort != null && !abort.isCompleted) abort.complete();
@@ -480,8 +496,9 @@ class ChatNotifier extends Notifier<ChatState> {
     ..invalidate(archivedChatsProvider)
     ..invalidate(chatSearchProvider);
 
-  /// Starts a new chat. The earlier conversation stays in the list. Needs a connection. A turn being answered is not interrupted.
-  Future<void> startNew() async {
+  /// Starts a new chat in this session. The earlier conversation stays in the list. Needs a connection. A turn being answered is not
+  /// interrupted: the door gives a new chat its own session when this one is working.
+  Future<void> showNew() async {
     if (state.busy || _forking) return;
     final answer = asJson(await ref.read(apiProvider).verb('chat_new'));
     // A message sent while the request was on its way is a live turn: it is not wiped
@@ -494,8 +511,8 @@ class ChatNotifier extends Notifier<ChatState> {
     _listsChanged();
   }
 
-  /// Opens another conversation and shows its recent messages. Waits for the current answer to end first.
-  Future<void> openChat(String chatId) async {
+  /// Shows another conversation and its recent messages in this session (the door only does this when the session is not working).
+  Future<void> showChat(String chatId) async {
     if (state.busy || _forking || chatId == state.chatId) return;
     await ref.read(apiProvider).verb('chat_open', <String, Object?>{
       'chatId': chatId,
@@ -945,6 +962,7 @@ class ChatNotifier extends Notifier<ChatState> {
                     chatId: state.chatId,
                     abort: abort.future,
                     scripts: true,
+                    clock: uses24Hour ? '24' : '12',
                   )) {
             if (generation != _generation) return false;
             _handle(e);
@@ -1035,10 +1053,15 @@ class ChatNotifier extends Notifier<ChatState> {
         if (picturesSwapped && _sawDone && photoTexts.isNotEmpty) {
           _add(NoticeItem(_id(), _words.chatPicturesNoted));
         }
+        final answered = _sawDone;
         _closeTurn();
         if (_stopped) _add(NoticeItem(_id(), _words.chatStopped));
         _stopped = false;
         if (identical(_abort, abort)) _abort = null;
+        // The answer came while another chat was on screen: the list and the menu button say so until this chat is opened
+        if (ref.read(activeChatKeyProvider) != key && answered) {
+          state = state.copyWith(unseen: true);
+        }
       }
     }
     return accepted && generation == _generation;
@@ -1229,6 +1252,14 @@ class ChatNotifier extends Notifier<ChatState> {
 
   void notice(String text) => _add(NoticeItem(_id(), text));
 
+  /// The answer waiting in this chat has been looked at (the chat is on screen).
+  void markSeen() {
+    if (state.unseen) state = state.copyWith(unseen: false);
+  }
+
+  /// Said when too many chats are working to start one more.
+  String get limitWords => _words.chatsLimit;
+
   /// The words of the message being sent, for naming a chat that has no name yet.
   String _userWords() {
     for (final i in state.items.reversed) {
@@ -1238,5 +1269,209 @@ class ChatNotifier extends Notifier<ChatState> {
   }
 }
 
+// -- SESSIONS -- //
+
+/// Which session is on screen. The first one is called "main"; more are made when a chat is opened or started while another is working.
+class ActiveChatKey extends Notifier<String> {
+  @override
+  String build() => 'main';
+
+  void show(String key) => state = key;
+}
+
+final NotifierProvider<ActiveChatKey, String> activeChatKeyProvider =
+    NotifierProvider<ActiveChatKey, String>(ActiveChatKey.new);
+
+/// Every session that exists, in the order they were made.
+class ChatKeys extends Notifier<List<String>> {
+  int _made = 0;
+
+  @override
+  List<String> build() => const <String>['main'];
+
+  /// Makes room for one more session and says its key.
+  String add() {
+    final key = 'chat${++_made}';
+    state = <String>[...state, key];
+    return key;
+  }
+}
+
+final NotifierProvider<ChatKeys, List<String>> chatKeysProvider =
+    NotifierProvider<ChatKeys, List<String>>(ChatKeys.new);
+
+/// One chat's own state and turn, by session key.
+final chatSessionProvider =
+    NotifierProvider.family<ChatSession, ChatState, String>(ChatSession.new);
+
+/// How many chats may work at the same time: more would use the monthly allowance of the assistant and the phone's data too fast.
+const int maxWorkingChats = 3;
+
+/// What the screens use. Its state is the state of the session on screen, and every call goes to that session, so a screen never has to
+/// know there are several. Opening or starting a chat is never refused because another chat is working: that chat keeps working in its own
+/// session while the new one is shown in another.
+class ChatNotifier extends Notifier<ChatState> {
+  ChatSession get _session =>
+      ref.read(chatSessionProvider(ref.read(activeChatKeyProvider)).notifier);
+
+  @override
+  ChatState build() =>
+      ref.watch(chatSessionProvider(ref.watch(activeChatKeyProvider)));
+
+  /// How many other chats are working right now.
+  int get _othersWorking {
+    final active = ref.read(activeChatKeyProvider);
+    var n = 0;
+    for (final k in ref.read(chatKeysProvider)) {
+      if (k != active && ref.read(chatSessionProvider(k)).busy) n++;
+    }
+    return n;
+  }
+
+  /// Shows the session [key], and says the answer waiting there has been looked at.
+  void _show(String key) {
+    ref.read(activeChatKeyProvider.notifier).show(key);
+    final session = ref.read(chatSessionProvider(key).notifier);
+    session.markSeen();
+  }
+
+  /// The session that already shows [chatId], if there is one.
+  String? _keyOf(String chatId) {
+    for (final k in ref.read(chatKeysProvider)) {
+      if (ref.read(chatSessionProvider(k)).chatId == chatId) return k;
+    }
+    return null;
+  }
+
+  Future<void> startNew() async {
+    final active = ref.read(activeChatKeyProvider);
+    if (!ref.read(chatSessionProvider(active)).busy) {
+      await _session.showNew();
+      return;
+    }
+    final key = ref.read(chatKeysProvider.notifier).add();
+    await ref.read(chatSessionProvider(key).notifier).showNew();
+    _show(key);
+  }
+
+  Future<void> openChat(String chatId) async {
+    final active = ref.read(activeChatKeyProvider);
+    if (ref.read(chatSessionProvider(active)).chatId == chatId) {
+      _session.markSeen();
+      return;
+    }
+    // A chat that already has a session (working, or finished meanwhile) is shown as it is, with no waiting
+    final have = _keyOf(chatId);
+    if (have != null) {
+      _show(have);
+      return;
+    }
+    if (!ref.read(chatSessionProvider(active)).busy) {
+      await _session.showChat(chatId);
+      return;
+    }
+    final key = ref.read(chatKeysProvider.notifier).add();
+    await ref.read(chatSessionProvider(key).notifier).showChat(chatId);
+    _show(key);
+  }
+
+  /// Sends one message in the chat on screen. False, and a plain notice in that chat, when [maxWorkingChats] chats are already working.
+  Future<bool> send(
+    String text, {
+    List<String> photoTexts = const <String>[],
+    List<String> photoPaths = const <String>[],
+    List<String> images = const <String>[],
+    List<String>? imagePaths,
+    List<String>? textPaths,
+  }) {
+    if (text.trim().isNotEmpty &&
+        !state.busy &&
+        _othersWorking >= maxWorkingChats) {
+      _session.notice(_session.limitWords);
+      return Future<bool>.value(false);
+    }
+    return _session.send(
+      text,
+      photoTexts: photoTexts,
+      photoPaths: photoPaths,
+      images: images,
+      imagePaths: imagePaths,
+      textPaths: textPaths,
+    );
+  }
+
+  void stop() => _session.stop();
+
+  void answer(int id, {Object? data}) => _session.answer(id, data: data);
+
+  void setCard(int id, CardState s, {String? note}) =>
+      _session.setCard(id, s, note: note);
+
+  Future<bool> branch(String turnId) => _session.branch(turnId);
+
+  Future<bool> branchBefore(String turnId) => _session.branchBefore(turnId);
+
+  Future<bool> rewindFrom(String turnId) => _session.rewindFrom(turnId);
+
+  Future<void> rename(String title) => _session.rename(title);
+
+  Future<void> restore() => _session.restore();
+
+  Future<void> syncCards() => _session.syncCards();
+
+  void notice(String text) => _session.notice(text);
+}
+
 final NotifierProvider<ChatNotifier, ChatState> chatProvider =
     NotifierProvider<ChatNotifier, ChatState>(ChatNotifier.new);
+
+/// Every provider that holds a chat's state. Invalidate all of them for a fresh start (another person signs in): no session, no answer
+/// still on its way, and no chat on screen is kept from before.
+List<ProviderOrFamily> get chatProviders => <ProviderOrFamily>[
+  chatSessionProvider,
+  chatKeysProvider,
+  activeChatKeyProvider,
+  chatProvider,
+];
+
+/// What one chat is doing, for its row in the list.
+enum ChatActivity { working, needsOk, newAnswer }
+
+/// The activity of every chat that has a session, by chat id. A chat with nothing to say is not in it.
+final Provider<Map<String, ChatActivity>> chatActivityProvider =
+    Provider<Map<String, ChatActivity>>((ref) {
+      final active = ref.watch(activeChatKeyProvider);
+      final out = <String, ChatActivity>{};
+      for (final k in ref.watch(chatKeysProvider)) {
+        final s = ref.watch(chatSessionProvider(k));
+        final id = s.chatId;
+        if (id == null) continue;
+        final waiting = [...s.restored, ...s.items].any(
+          (i) => i is CardItem && i.state == CardState.waiting && !i.readOnly,
+        );
+        if (s.busy) {
+          out[id] = ChatActivity.working;
+        } else if (waiting) {
+          out[id] = ChatActivity.needsOk;
+        } else if (s.unseen && k != active) {
+          out[id] = ChatActivity.newAnswer;
+        }
+      }
+      return out;
+    });
+
+/// True when a chat that is not on screen has something for the person: a new answer, or a card waiting. The menu button shows a dot.
+final Provider<bool> otherChatWaitsProvider = Provider<bool>((ref) {
+  final active = ref.watch(activeChatKeyProvider);
+  for (final k in ref.watch(chatKeysProvider)) {
+    if (k == active) continue;
+    final s = ref.watch(chatSessionProvider(k));
+    if (s.unseen) return true;
+    final waiting = [
+      ...s.restored,
+      ...s.items,
+    ].any((i) => i is CardItem && i.state == CardState.waiting && !i.readOnly);
+    if (waiting) return true;
+  }
+  return false;
+});

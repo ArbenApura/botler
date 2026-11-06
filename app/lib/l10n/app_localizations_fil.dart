@@ -1546,10 +1546,6 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatsBranchedUntitled => 'mas naunang chat';
 
   @override
-  String get chatsBusy =>
-      'Sumasagot pa si Botler. Hintayin o ihinto ito para magpalit ng chat.';
-
-  @override
   String get chatsEmpty => 'Dito lalabas ang mga usapan mo.';
 
   @override
@@ -1568,10 +1564,20 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatsGroupYesterday => 'Kahapon';
 
   @override
+  String get chatsLimit =>
+      'Tatlong chat na ang gumagana. Hintayin munang matapos ang isa, tapos ipadala ulit ito.';
+
+  @override
   String get chatsMore => 'Iba pa tungkol sa chat na ito';
 
   @override
+  String get chatsNeedsOk => 'Kailangan ang OK mo';
+
+  @override
   String get chatsNew => 'Bagong chat';
+
+  @override
+  String get chatsNewAnswer => 'Bagong sagot';
 
   @override
   String get chatsNoResults => 'Walang chat na tumutugma.';
@@ -1623,6 +1629,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatsUntitled => 'Bagong usapan';
+
+  @override
+  String get chatsWorking => 'Ginagawa pa';
 
   @override
   String get close => 'Isara';

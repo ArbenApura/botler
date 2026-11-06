@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // -- MODULES -- //
 import 'api.dart';
+import 'clock.dart' show uses24Hour;
 import 'json.dart';
 import 'reminders.dart';
 
@@ -113,6 +114,8 @@ class PushService {
         'platform': 'android',
         'pushToken': token,
         'label': 'Android phone',
+        // The clock this phone reads: the server writes reminder times by it when the person left the clock on auto
+        'clock': uses24Hour ? '24' : '12',
       });
       final id = str(asJson(answer['device'])['id']);
       if (id.isNotEmpty) await prefs.setString(_deviceKey, id);

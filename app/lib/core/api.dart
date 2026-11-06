@@ -295,6 +295,7 @@ class ApiClient {
     Duration idle = _idle,
     bool scripts = false,
     String? foodCamera,
+    String? clock,
   }) async* {
     // Stopped by the person (abort) or when the first answer takes too long: either way the socket is closed
     final stop = Completer<void>();
@@ -318,6 +319,8 @@ class ApiClient {
             if (scripts) 'scripts': true,
             // The food camera sent this: the server refuses a meal photo at once when the model could not see it
             'foodCamera': ?foodCamera,
+            // The clock this phone reads (12 or 24), so the assistant writes times the way the person reads them
+            'clock': ?clock,
             if (ocrTexts.isNotEmpty) 'ocrTexts': ocrTexts,
             // The pictures themselves, as JPEG base64. Sent only when the server has said it will use them (an older server refuses the key)
             if (images.isNotEmpty)

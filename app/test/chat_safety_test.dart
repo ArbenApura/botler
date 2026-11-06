@@ -121,7 +121,7 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 50));
       // Another person signs in: the chat starts over
-      c.invalidate(chatProvider);
+      chatProviders.forEach(c.invalidate);
       c.read(chatProvider);
       body
         ..add(

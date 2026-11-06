@@ -73,6 +73,12 @@ class DeviceToolRunner {
   /// Counts the times Stop was pressed. A call that began before the last Stop does not start its script when it gets to it.
   int _stops = 0;
 
+  /// The same, for Stop pressed in one chat: another chat that is working keeps its scripts (chats work side by side).
+  final Map<String?, int> _stopsOfChat = <String?, int>{};
+
+  /// The chat each running call belongs to.
+  final Map<String, String?> _chatOfCall = <String, String?>{};
+
   // -- FUNCTIONS -- //
 
   /// Whether a call is running now (for the stop button).
@@ -83,6 +89,14 @@ class DeviceToolRunner {
     _stops++;
     for (final run in _active.values.toList()) {
       run.stop();
+    }
+  }
+
+  /// Stop was pressed in one chat: only the scripts that chat started are given up on.
+  void stopChat(String? chatId) {
+    _stopsOfChat[chatId] = (_stopsOfChat[chatId] ?? 0) + 1;
+    for (final e in _active.entries.toList()) {
+      if (_chatOfCall[e.key] == chatId) e.value.stop();
     }
   }
 
@@ -157,6 +171,7 @@ class DeviceToolRunner {
       });
     }
     final stops = _stops;
+    final chatStops = _stopsOfChat[chatId] ?? 0;
     if (!_swept) {
       _swept = true;
       unawaited(storage.sweep());
@@ -166,7 +181,7 @@ class DeviceToolRunner {
     if (tainted) await storage.markUntrusted(chatId);
     final input = args['input'];
     final scratch = await storage.scratchFor(chatId);
-    if (stops != _stops) {
+    if (stops != _stops || chatStops != (_stopsOfChat[chatId] ?? 0)) {
       return _answer(callId, false, <String, Object?>{
         'error': 'Stopped by the person.',
       });
@@ -178,6 +193,7 @@ class DeviceToolRunner {
       photos: photos,
     );
     _active[callId] = run;
+    _chatOfCall[callId] = chatId;
     try {
       final result = await run.result;
       await _answer(
@@ -187,6 +203,7 @@ class DeviceToolRunner {
       );
     } finally {
       _active.remove(callId);
+      _chatOfCall.remove(callId);
     }
   }
 

@@ -354,7 +354,7 @@ void main() {
         final c = await containerFor(s);
         final late = c.read(chatProvider.notifier).restore();
         await settle(20);
-        c.invalidate(chatProvider);
+        chatProviders.forEach(c.invalidate);
         expect(c.read(chatProvider).restored, isEmpty);
         s.historyGate!.complete();
         await late;
@@ -434,7 +434,7 @@ void main() {
         final c = await containerFor(s);
         await c.read(chatProvider.notifier).restore();
         expect(c.read(chatProvider).restored, isNotEmpty);
-        c.invalidate(chatProvider);
+        chatProviders.forEach(c.invalidate);
         expect(c.read(chatProvider).restored, isEmpty);
         await c.read(chatProvider.notifier).restore();
         expect(s.historyCalls, 2);

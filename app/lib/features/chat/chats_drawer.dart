@@ -306,7 +306,8 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                 child: FilledButton.icon(
-                  onPressed: chat.busy ? null : _new,
+                  // Another chat starts at once even while one is answering: that chat keeps working in its own session
+                  onPressed: _new,
                   icon: const Icon(Icons.add_comment_outlined),
                   label: Text(t.chatsNew),
                 ),
@@ -333,24 +334,6 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
                 ),
               ),
             ],
-            if (chat.busy)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        t.chatsBusy,
-                        style: TextStyle(color: c.muted),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: ref.read(chatProvider.notifier).stop,
-                      child: Text(t.chatStop),
-                    ),
-                  ],
-                ),
-              ),
             Expanded(
               child: AsyncBody<List<ChatSummary>>(
                 value: list,
@@ -378,7 +361,7 @@ class _ChatsDrawerState extends ConsumerState<ChatsDrawer> {
                     // A search lists its results newest first, without sections
                     grouped: !_archive && !searching,
                     activeId: chat.chatId,
-                    busy: chat.busy,
+                    activity: ref.watch(chatActivityProvider),
                     onOpen: _open,
                     onMore: _actions,
                   );
@@ -404,7 +387,7 @@ class _ChatRows extends StatelessWidget {
     required this.chats,
     required this.grouped,
     required this.activeId,
-    required this.busy,
+    required this.activity,
     required this.onOpen,
     required this.onMore,
   });
@@ -412,7 +395,9 @@ class _ChatRows extends StatelessWidget {
   final List<ChatSummary> chats;
   final bool grouped;
   final String? activeId;
-  final bool busy;
+
+  /// What the chats that have something to say are doing, by chat id. Every row opens whatever it is doing.
+  final Map<String, ChatActivity> activity;
   final void Function(ChatSummary chat) onOpen;
   final void Function(ChatSummary chat) onMore;
 
@@ -441,7 +426,7 @@ class _ChatRows extends StatelessWidget {
     key: ValueKey<String>('chat.${chat.id}'),
     chat: chat,
     active: chat.id == activeId,
-    enabled: !busy,
+    activity: activity[chat.id],
     onTap: () => onOpen(chat),
     onMore: () => onMore(chat),
   );
@@ -451,7 +436,7 @@ class _ChatRow extends StatelessWidget {
   const _ChatRow({
     required this.chat,
     required this.active,
-    required this.enabled,
+    required this.activity,
     required this.onTap,
     required this.onMore,
     super.key,
@@ -459,7 +444,9 @@ class _ChatRow extends StatelessWidget {
 
   final ChatSummary chat;
   final bool active;
-  final bool enabled;
+
+  /// What this chat is doing, or null when it has nothing to say.
+  final ChatActivity? activity;
   final VoidCallback onTap;
   final VoidCallback onMore;
 
@@ -480,75 +467,73 @@ class _ChatRow extends StatelessWidget {
               container: true,
               button: true,
               selected: active,
-              enabled: enabled,
-              label: context.t.chatsRowLabel(name, when),
+              label: _rowLabel(context, name, when, activity),
               excludeSemantics: true,
-              onTap: enabled ? onTap : null,
+              onTap: onTap,
               onLongPress: onMore,
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                onTap: enabled ? onTap : null,
+                onTap: onTap,
                 onLongPress: onMore,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 56),
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
-                    child: Opacity(
-                      opacity: enabled || active ? 1 : 0.5,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Row(
-                            children: <Widget>[
-                              if (chat.pinned)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(
-                                    Icons.push_pin,
-                                    size: 14,
-                                    color: c.muted,
-                                  ),
-                                ),
-                              if (chat.forked)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(
-                                    Icons.call_split,
-                                    size: 14,
-                                    color: c.muted,
-                                  ),
-                                ),
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.bodyLarge?.copyWith(
-                                    fontWeight: active
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                when,
-                                style: theme.bodySmall?.copyWith(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            if (chat.pinned)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  Icons.push_pin,
+                                  size: 14,
                                   color: c.muted,
-                                  fontFeatures: tabular,
                                 ),
                               ),
-                            ],
-                          ),
-                          if (chat.preview.isNotEmpty)
-                            Text(
-                              plainFromMarkdown(chat.preview),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.bodySmall?.copyWith(color: c.muted),
+                            if (chat.forked)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(
+                                  Icons.call_split,
+                                  size: 14,
+                                  color: c.muted,
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.bodyLarge?.copyWith(
+                                  fontWeight: active
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
                             ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            Text(
+                              when,
+                              style: theme.bodySmall?.copyWith(
+                                color: c.muted,
+                                fontFeatures: tabular,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (activity != null)
+                          _ActivityLine(activity!)
+                        else if (chat.preview.isNotEmpty)
+                          Text(
+                            plainFromMarkdown(chat.preview),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.bodySmall?.copyWith(color: c.muted),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -564,4 +549,97 @@ class _ChatRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One quiet line under a chat's name that says what the chat is doing: working (three soft dots), a new answer (a dot), or a card that needs
+/// the person's OK (a small square in the warning colour). The same dots and colours as the chat itself; nothing here moves.
+class _ActivityLine extends StatelessWidget {
+  const _ActivityLine(this.activity);
+
+  final ChatActivity activity;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    final theme = Theme.of(context).textTheme;
+    final (String words, Color color, Widget mark) = switch (activity) {
+      ChatActivity.working => (
+        t.chatsWorking,
+        c.muted,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final o in const <double>[0.85, 0.6, 0.35])
+              Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: c.accent.withValues(alpha: o),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      ChatActivity.newAnswer => (
+        t.chatsNewAnswer,
+        c.accentText,
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+        ),
+      ),
+      ChatActivity.needsOk => (
+        t.chatsNeedsOk,
+        c.warning,
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: c.warning,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: <Widget>[
+          mark,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              words,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.bodySmall?.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What a screen reader says for a chat row: its name and when, then what it is doing.
+String _rowLabel(
+  BuildContext context,
+  String name,
+  String when,
+  ChatActivity? activity,
+) {
+  final t = context.t;
+  final base = t.chatsRowLabel(name, when);
+  return switch (activity) {
+    ChatActivity.working => '$base. ${t.chatsWorking}',
+    ChatActivity.newAnswer => '$base. ${t.chatsNewAnswer}',
+    ChatActivity.needsOk => '$base. ${t.chatsNeedsOk}',
+    null => base,
+  };
 }

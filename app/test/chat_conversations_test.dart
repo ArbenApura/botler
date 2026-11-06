@@ -384,41 +384,63 @@ void main() {
       container.dispose();
     });
 
-    testWidgets('waits while Botler is answering, and offers Stop', (
-      tester,
-    ) async {
-      final s = twoChats();
-      await open(tester, s);
-      await tester.enterText(find.byType(TextField).first, 'one more thing');
-      await tester.tap(find.byTooltip('Send'));
-      await settle(tester);
-      s.emit(<String, Object?>{
-        'type': 'start',
-        'turnId': 't9',
-        'chatId': 'c1',
-      });
-      await settle(tester);
-      await openDrawer(tester);
-      expect(
-        find.text(
-          'Botler is answering. Wait for it, or stop it, to change chats.',
-        ),
-        findsOneWidget,
-      );
-      final button = tester.widget<ButtonStyleButton>(
-        find.widgetWithText(FilledButton, 'New chat'),
-      );
-      expect(button.onPressed, isNull);
-      expect(find.text('Stop'), findsOneWidget);
-      expect(s.count('chat_open'), 0);
-      s.emit(<String, Object?>{
-        'type': 'done',
-        'reply': 'ok',
-        'toolsRun': <Object?>[],
-      });
-      unawaited(s.streams.last.close());
-      await settle(tester);
-    });
+    testWidgets(
+      'opens another chat while Botler is answering, and its row says it is working (BTL-20261106-1502-b)',
+      (tester) async {
+        final s = twoChats();
+        await open(tester, s);
+        await tester.enterText(find.byType(TextField).first, 'one more thing');
+        await tester.tap(find.byTooltip('Send'));
+        await settle(tester);
+        s.emit(<String, Object?>{
+          'type': 'start',
+          'turnId': 't9',
+          'chatId': 'c1',
+        });
+        await settle(tester);
+        await openDrawer(tester);
+        // No banner and nothing disabled: another chat can be started or opened at once
+        expect(find.textContaining('Botler is answering'), findsNothing);
+        final button = tester.widget<ButtonStyleButton>(
+          find.widgetWithText(FilledButton, 'New chat'),
+        );
+        expect(button.onPressed, isNotNull);
+        // The working chat says so in its own row
+        expect(
+          find.descendant(
+            of: find.byType(Drawer),
+            matching: find.text('Working on it'),
+          ),
+          findsOneWidget,
+        );
+        s.history = <String, Object?>{
+          'chat': head('c2', 'Groceries'),
+          'turns': <Object?>[],
+        };
+        await tester.tap(find.text('Groceries'));
+        await settle(tester);
+        await settle(tester);
+        expect(s.count('chat_open'), 1);
+        expect(find.text('Weekly plan'), findsNothing);
+        // The first chat is still working in its own session, and the menu button has no dot until it has an answer
+        s.emit(<String, Object?>{
+          'type': 'done',
+          'reply': 'ok',
+          'toolsRun': <Object?>[],
+        });
+        unawaited(s.streams.last.close());
+        await settle(tester);
+        await settle(tester);
+        await openDrawer(tester);
+        expect(
+          find.descendant(
+            of: find.byType(Drawer),
+            matching: find.text('New answer'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('messages', () {

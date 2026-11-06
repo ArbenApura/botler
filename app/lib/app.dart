@@ -364,7 +364,12 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
       prev,
       next,
     ) {
-      if (prev != next) ref.invalidate(chatProvider);
+      // Another person signed in (or nobody): every chat session goes, and the answers still on their way are thrown away
+      if (prev != next) {
+        for (final p in chatProviders) {
+          ref.invalidate(p);
+        }
+      }
     });
     return MaterialApp.router(
       title: 'Botler',

@@ -388,6 +388,29 @@ void main() {
       expect(r.started, hasLength(1));
     });
 
+    test('Stop in one chat leaves the scripts of another chat alone', () async {
+      final r = rig();
+      final a = r.runner.handle(
+        callId: 'dc_a',
+        tool: 'script_run',
+        args: <String, Object?>{'code': 'print(1)'},
+        chatId: 'chat-a',
+      );
+      final b = r.runner.handle(
+        callId: 'dc_b',
+        tool: 'script_run',
+        args: <String, Object?>{'code': 'print(2)'},
+        chatId: 'chat-b',
+      );
+      r.runner.stopChat('chat-a');
+      await Future.wait<void>(<Future<void>>[a, b]);
+      // chat-a's call was stopped before it started; chat-b's ran
+      expect(r.started, hasLength(1));
+      final byCall = <String, bool>{for (final s in r.sent) s.callId: s.ok};
+      expect(byCall['dc_a'], isFalse);
+      expect(byCall['dc_b'], isTrue);
+    });
+
     test('a script that ran while untrusted text was in the message makes its folder untrusted for good', () async {
       final r = rig();
       await r.runner.handle(

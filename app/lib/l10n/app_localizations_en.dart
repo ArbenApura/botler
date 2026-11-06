@@ -1536,10 +1536,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsBranchedUntitled => 'an earlier chat';
 
   @override
-  String get chatsBusy =>
-      'Botler is answering. Wait for it, or stop it, to change chats.';
-
-  @override
   String get chatsEmpty => 'Your conversations will show here.';
 
   @override
@@ -1558,10 +1554,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatsGroupYesterday => 'Yesterday';
 
   @override
+  String get chatsLimit =>
+      'Three chats are already working. Wait for one to finish, then send this again.';
+
+  @override
   String get chatsMore => 'More about this chat';
 
   @override
+  String get chatsNeedsOk => 'Needs your OK';
+
+  @override
   String get chatsNew => 'New chat';
+
+  @override
+  String get chatsNewAnswer => 'New answer';
 
   @override
   String get chatsNoResults => 'No chat matches that.';
@@ -1612,6 +1618,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatsUntitled => 'New conversation';
+
+  @override
+  String get chatsWorking => 'Working on it';
 
   @override
   String get close => 'Close';

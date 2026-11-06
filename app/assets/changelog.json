@@ -606,5 +606,21 @@
       "Sumusunod na ang Ngayon sa time zone mo, kaya nagpapalit ng araw ang kalendaryo, mga bayarin, pagkain, timbang at tulog sa hatinggabi mo, at ang mga paalala at ang assistant ay gumagamit ng orasan mo.",
       "Pare-pareho na ang sulat ng oras at petsa sa lahat ng screen. Dati, may 12 oras ang ilan at 24 oras ang iba, at ang ilan ay naka-Manila lang."
     ]
+  },
+  {
+    "versionCode": 55,
+    "versionName": "1.7.0",
+    "en": [
+      "Chats now work side by side. While Botler answers in one chat you can open or start another, and the first keeps working. The chat list says what each one is doing: Working on it, New answer, or Needs your OK, and the chats button shows a dot when another chat has something for you. Up to three chats work at once.",
+      "Botler now writes times and dates the way you read them: your 12 or 24 hour clock and your date order, in your time zone. Reminders on a phone left on Auto follow the phone's clock.",
+      "Next-week and month forecasts now explain themselves: a rule that saves for a bill but is not linked to it is named (the pay was asked for both), a wallet that goes below zero says which bill did it, and overdue bills are called overdue.",
+      "Botler keeps one rule when you change a preference, warns when a food is not in the database instead of showing a different product, and says where a long answer was cut."
+    ],
+    "fil": [
+      "Magkasabay nang gumagana ang mga chat. Habang sumasagot si Botler sa isang chat, puwede kang magbukas o magsimula ng isa pa, at tuloy pa rin ang una. Sinasabi ng listahan ng chat kung ano ang ginagawa ng bawat isa: Ginagawa pa, Bagong sagot, o Kailangan ang OK mo, at may tuldok ang button ng chat kapag may para sa iyo sa ibang chat. Hanggang tatlong chat ang sabay na gumagana.",
+      "Isinusulat na ni Botler ang oras at petsa ayon sa nakasanayan mong basahin: ang 12 o 24 oras mong orasan at ang ayos ng petsa mo, sa time zone mo. Ang mga paalala sa phone na naka-Auto ay sumusunod sa orasan ng phone.",
+      "Ipinapaliwanag na ng forecast ng susunod na linggo at buwan ang sarili nito: pinangangalanan ang rule na nag-iipon para sa bayarin pero hindi nakakabit dito (hiningan ang sweldo ng dalawang beses), sinasabi ng wallet na bumababa sa zero kung aling bayarin ang dahilan, at tinatawag na overdue ang mga lampas na sa takdang araw.",
+      "Isang rule na lang ang iniingatan ni Botler kapag nagpalit ka ng gusto mo, nagbababala kapag wala sa database ang isang pagkain sa halip na magpakita ng ibang produkto, at sinasabi kung saan pinutol ang mahabang sagot."
+    ]
   }
 ]

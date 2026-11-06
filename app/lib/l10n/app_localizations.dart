@@ -2581,12 +2581,6 @@ abstract class AppLocalizations {
   /// **'an earlier chat'**
   String get chatsBranchedUntitled;
 
-  /// No description provided for @chatsBusy.
-  ///
-  /// In en, this message translates to:
-  /// **'Botler is answering. Wait for it, or stop it, to change chats.'**
-  String get chatsBusy;
-
   /// No description provided for @chatsEmpty.
   ///
   /// In en, this message translates to:
@@ -2623,17 +2617,35 @@ abstract class AppLocalizations {
   /// **'Yesterday'**
   String get chatsGroupYesterday;
 
+  /// No description provided for @chatsLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Three chats are already working. Wait for one to finish, then send this again.'**
+  String get chatsLimit;
+
   /// No description provided for @chatsMore.
   ///
   /// In en, this message translates to:
   /// **'More about this chat'**
   String get chatsMore;
 
+  /// No description provided for @chatsNeedsOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs your OK'**
+  String get chatsNeedsOk;
+
   /// No description provided for @chatsNew.
   ///
   /// In en, this message translates to:
   /// **'New chat'**
   String get chatsNew;
+
+  /// No description provided for @chatsNewAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'New answer'**
+  String get chatsNewAnswer;
 
   /// No description provided for @chatsNoResults.
   ///
@@ -2730,6 +2742,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New conversation'**
   String get chatsUntitled;
+
+  /// No description provided for @chatsWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on it'**
+  String get chatsWorking;
 
   /// No description provided for @close.
   ///
