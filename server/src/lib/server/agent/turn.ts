@@ -21,21 +21,23 @@ import type {
 	ToolCall
 } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
-import type { ReplyLanguage } from '../db/schema/settings';
+import type { DateStyle, ReplyLanguage } from '../db/schema/settings';
 import type { AgentTool, WebDeps } from './tools';
 import type { DeviceOutcome } from './device';
 import type { TranscriptMessage } from './transcript';
 // -- DEP-MODULES -- //
 import { createHash } from 'node:crypto';
 // -- MODULES -- //
+import { DEFAULT_ZONE, isZone } from '../../finance/dates';
 import { createAction } from '../ops/actions';
 import { OpsError } from '../ops/context';
 import { checkMarkFromPhoto } from '../ops/markPhoto';
 import { checkMarkFromWeb } from '../ops/markWeb';
 import { invokeVerb } from '../ops/registry';
-import { defaultSettingsView, getSettings } from '../ops/settings';
+import { defaultSettingsView, effectiveClock, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { expectDevice, newCallId, shapeDeviceResult } from './device';
+import { localizeInstants } from './instants';
 import { buildMessages, photoTexts } from './prompt';
 import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
 import { shortenResult, untrustedStub } from './transcript';
@@ -117,6 +119,10 @@ export type TurnParams = {
 	replyLanguage?: ReplyLanguage;
 	/** The person's IANA time zone, for tests that skip the settings read. */
 	timeZone?: string;
+	/** The clock the phone reads right now (12 or 24 hour), sent with the message. Wins over the person's own setting for how times are written. */
+	clock?: '12' | '24';
+	/** The person's date order, for tests that skip the settings read. */
+	dateStyle?: DateStyle;
 	signal?: AbortSignal;
 	now?: Date;
 	tools?: AgentTool[];
@@ -183,6 +189,8 @@ export const DELETE_VERBS: ReadonlySet<string> = new Set([
 
 export class TurnState {
 	tainted = false;
+	/** The person's zone: verb results are shown to the model with their instants written in it. */
+	zone = DEFAULT_ZONE;
 	/** Web searches started in this message, counted before each runs so a failed or slow one still counts. */
 	searches = 0;
 	/** Pages opened in this message, counted before each runs for the same reason. */
@@ -314,11 +322,29 @@ function couldNotFinish(toolsRun: string[]): string {
 const CAPPED_NOTE =
 	'The chat allowance for this month is used up, so I cannot answer now. Your expenses, bills and schedule still work, and chat opens again on the first of the month.';
 
-function capJson(value: unknown, max: number): string {
+/**
+ * A result as text, never longer than max. A longer one is cut with a marker that says where: after how many of how many characters, and what
+ * to ask for instead (in the chat of 6 Nov a day-by-day answer was cut before the week that mattered and the assistant did not know it).
+ */
+export function capJson(value: unknown, max: number): string {
 	const text = JSON.stringify(value) ?? 'null';
-	return text.length <= max
-		? text
-		: JSON.stringify({ truncated: true, preview: text.slice(0, max - 80) });
+	if (text.length <= max) return text;
+	const mark = (keep: number) =>
+		JSON.stringify({
+			truncated: true,
+			cutAfter: keep,
+			ofCharacters: text.length,
+			note: `This result was longer than the limit and is cut after ${keep} of ${text.length} characters: what follows is missing, so do not quote anything past the cut. Ask again for a shorter range, a coarser grouping (week or month) or fewer items.`,
+			preview: text.slice(0, keep)
+		});
+	// The preview is escaped inside the marker, so it is shortened until the whole marker fits
+	let keep = Math.max(0, max - 380);
+	let out = mark(keep);
+	while (out.length > max && keep > 0) {
+		keep = Math.max(0, keep - Math.max(10, out.length - max));
+		out = mark(keep);
+	}
+	return out;
 }
 
 /** A call to the phone that is on its way, or why it was not sent. The wait is registered before the call leaves, and never rejects. */
@@ -670,7 +696,7 @@ async function executeTool(
 		return {
 			status: 'ok',
 			data: result,
-			forModel: capJson(trimForModel(result), limits.maxResultChars)
+			forModel: capJson(localizeInstants(trimForModel(result), state.zone), limits.maxResultChars)
 		};
 	} catch (e) {
 		if (e instanceof OpsError) {
@@ -713,8 +739,21 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	// The person's currency and reply language. A settings read that fails never stops a chat: it falls back to the defaults
 	const settings =
 		p.currency && p.replyLanguage
-			? { currency: p.currency, replyLanguage: p.replyLanguage, timeZone: p.timeZone }
+			? {
+					currency: p.currency,
+					replyLanguage: p.replyLanguage,
+					timeZone: p.timeZone,
+					timeFormat: p.clock ?? ('12' as const),
+					dateStyle: p.dateStyle ?? ('auto' as const)
+				}
 			: await getSettings(p.ctx).catch(() => defaultSettingsView());
+	if (settings.timeZone && isZone(settings.timeZone)) state.zone = settings.timeZone;
+	// How times are written: what the phone sent, else the person's choice, else the last clock a phone reported, else 12 hour
+	const clock =
+		p.clock ??
+		(settings.timeFormat === 'auto'
+			? await effectiveClock(p.ctx).catch(() => '12' as const)
+			: settings.timeFormat);
 	const messages = buildMessages({
 		now: p.now ?? new Date(),
 		persona: p.persona,
@@ -729,7 +768,9 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		images: p.images,
 		currency: settings.currency,
 		replyLanguage: settings.replyLanguage,
-		timeZone: settings.timeZone
+		timeZone: settings.timeZone,
+		clock,
+		dateStyle: settings.dateStyle
 	});
 	// The system message and the history: the part of the request that is the same from one call to the next
 	// The extra system messages sit inside it, so the host's history breakpoint lands on the real end of the history

@@ -29,6 +29,11 @@ export type CalcLineOutput =
 	  }
 	| { line: number; name: string | null; ok: false; error: string; position: number | null };
 
+// -- CONSTANTS -- //
+
+/** Names of lines that are about food, the body or counts, never pesos. */
+const NOT_MONEY_NAME = /(kcal|calor|protein|prot_|carb|gram|steps|weight)/i;
+
 // -- FUNCTIONS -- //
 
 /** Works out the lines. The caller must be signed in; nothing is read or written. */
@@ -65,7 +70,17 @@ export async function runCalc(ctx: Ctx, raw: unknown): Promise<{ lines: CalcLine
 				);
 				return minor === null
 					? { ...out, note: 'That amount is too large to write as money.' }
-					: { ...out, minor, money: formatMoney(minor, asked.currency) };
+					: {
+							...out,
+							minor,
+							money: formatMoney(minor, asked.currency),
+							// A line named like a food or body figure is probably not money (494 kcal came back as a peso amount in the chat of 6 Nov)
+							...(NOT_MONEY_NAME.test(asked.name ?? '')
+								? {
+										note: `Formatted as money only because a currency was given. "${asked.name}" does not look like an amount of money: quote value, not money.`
+									}
+								: {})
+						};
 			}
 			return out;
 		})

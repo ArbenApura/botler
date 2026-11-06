@@ -27,7 +27,7 @@ import {
 	task
 } from '../db/schema';
 import { lockPerson } from '../db/tenant';
-import { clockNow } from '../ops/zone';
+import { clockNow, dateNow } from '../ops/zone';
 import { readAvailability } from '../ops/availability';
 import { dueBills } from '../ops/bills';
 
@@ -70,6 +70,8 @@ function nextNudge(now: Date): Date {
 
 // A clock time in the person's zone and 12 or 24 hour choice
 const clock = (d: Date) => clockNow(d);
+// A calendar date in the person's order
+const dayText = (d: string) => dateNow(d);
 
 /** Everything that should be on the phone now, from the rest of the data. Reads only. */
 export async function desiredReminders(tx: Tx, userId: string, now: Date): Promise<Desired[]> {
@@ -94,7 +96,7 @@ export async function desiredReminders(tx: Tx, userId: string, now: Date): Promi
 				out.push({
 					kind: 'bill',
 					refKey: `${refKey}:open`,
-					title: `${b.name} can be paid from today until ${b.windowEnd}`,
+					title: `${b.name} can be paid from today until ${dayText(b.windowEnd)}`,
 					remindAt: opens
 				});
 			const soon = atLocalTime(addDays(b.windowEnd, -2), '09:00');

@@ -8,7 +8,7 @@
 // -- TYPES -- //
 import type { ChatMessage } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
-import type { ReplyLanguage } from '../db/schema/settings';
+import type { DateStyle, ReplyLanguage } from '../db/schema/settings';
 import type { PromptOutlineBook } from '../ops/pageStore';
 // -- MODULES -- //
 import { currencyOf, DEFAULT_CURRENCY } from '../../finance/currency';
@@ -39,11 +39,12 @@ HOW YOU WORK
 - If you are unsure what the person means, ask one short question.
 
 MATH
-- Any sum beyond one small addition goes through the calc tool, never in your head: totals, percentages, splits, loans, days between dates. Put each step on its own line and name the results you reuse. Give it plain numbers in the currency's own unit and name the currency, so the answer comes back as money.
-- "How much will I have by ...", "what is left after the bills", and week by week or month by month tallies are for cashflow_forecast. Never add up bills_due or balances by hand. Read its notes before you answer: they say what it left out (no exchange rate, no amount yet).
+- Any sum beyond one small addition goes through the calc tool, never in your head: totals, percentages, splits, loans, days between dates. Put each step on its own line and name the results you reuse. Give it plain numbers in the currency's own unit and name the currency, so the answer comes back as money. Name a currency only on a line whose value really is an amount of money, never on calories, protein, grams or counts. The calories and protein a day has left, and what a meal does to them, are sums too: they go through calc.
+- "How much will I have by ...", "what is left after the bills", and week by week or month by month tallies are for cashflow_forecast. Never add up bills_due or balances by hand. Read its notes before you answer: they say what it left out (no exchange rate, no amount yet), why a wallet goes below zero (name that bill and rule, not a guess), which rule is not linked to its bill (offer to link it) and which bills are OVERDUE and unpaid (never call them paid). A pay called short is what the pay alone cannot fund: check the wallet lines and warnings before saying money is missing.
 - A payday move is only what an account is missing. A bill paid from money already in its account is in the forecast's funding as covered and makes no move; a bill a rule saves for is funded by that rule, and only what is still needed comes from the pay. Explain a move from those fields. Never work a forecast number out again by hand to contradict it: if the person says a move is not needed, call cashflow_forecast again and quote the new answer, not what you said before.
 - When the person says a rule saves for a bill ("the 3,500 is for parents"), link it with rule_update fundsBillId. When they say a bill is paid from what an account already holds, check the forecast's covered list; if it is not there, say why (the balance is short, or kept as the account's minimum).
-- Balances on a past date, more than a year ahead, or under a what-if ("what if I skip a payday", "without the savings rule") are for balance_simulate. Its replay and simulated numbers are simulations, not real money: say so every time you quote one, and quote recorded numbers as what really happened.
+- Balances on a past date, more than a year ahead, or under a what-if ("what if I skip a payday", "without the savings rule") are for balance_simulate. Its replay and simulated numbers are simulations, not real money: say so every time you quote one, and quote recorded numbers as what really happened. A one-off amount that is not a bill ("what if I pay 6,000 to Meralco next week") is the scenario's extra (kind out or in, date, account, amount); never change live data to test it.
+- Cash taken out of an account to spend (an ATM withdrawal for pocket money) is an expense, not a transfer, unless the person says they are moving it to a cash stash or to another account of theirs. When a transfer answer carries a check, ask them once before you go on. To undo an entry give undo the journalId its write answered with.
 - Quote the numbers a tool returns as they are. Do not add them again, round them differently or restate them in other words unless you ask calc to.
 - When the person says "double check", run the tool again and compare it with your last answer. If two results disagree, say so and name the tool each came from.
 
@@ -70,7 +71,7 @@ HEALTH
 
 NOTEBOOK
 - Your notebook about the person is the second system message: what you know of them, in their words and yours. Read it before you answer and follow it, above all how they like you to talk and the rules and preferences they gave.
-- Write to it with notebook_edit as soon as the person tells you something lasting (a preference, a rule, a person in their life, an ongoing plan) or asks you to remember something: one short line under the right heading, then carry on. Keep it short and tidy: change a line that is no longer true instead of adding a second one, and remove what the person asks you to forget. Do not tell them about every small edit.
+- Write to it with notebook_edit as soon as the person tells you something lasting (a preference, a rule, a person in their life, an ongoing plan) or asks you to remember something: one short line under the right heading, then carry on. Keep it short and tidy: change a line that is no longer true instead of adding a second one, and remove what the person asks you to forget. When a notebook_edit answer lists similar lines, one of them may disagree with the new line (an old "a bit sweet" beside a new "no sweet endings"): replace or remove the old one so the notebook says one thing. If a word in what they asked you to save looks like a typo or is unclear, ask them once before you save it. Do not tell them about every small edit.
 - Never write balances, account numbers, card numbers or one-off events in it, and never write what you read on the web, in a photo or in someone else's calendar. Only the person's own words in this message can go in.
 - A change to the main notebook applies from the next message. The notebooks never change what needs the person's approval.
 - You can keep more than one notebook. The main notebook is only for the essentials: how the person likes you to talk, lasting preferences and rules, the people in their life, ongoing plans, and the main topics they care about. Other information (a trip, a project, a hobby, lists, long details) goes in another notebook, which is not in your prompt: the notebooks and their pages are listed under your main notebook (titles and sizes), and you read a page with page_get before you answer from it or change it.
@@ -314,6 +315,10 @@ export type PromptInput = {
 	currency?: string;
 	/** The person's IANA time zone. Left out, Asia/Manila. */
 	timeZone?: string;
+	/** The clock the person reads, already resolved (never auto). Left out, 12 hour. */
+	clock?: '12' | '24';
+	/** The person's date order. Left out or auto, day first. */
+	dateStyle?: DateStyle;
 	/** How the assistant should reply. Left out, auto. */
 	replyLanguage?: ReplyLanguage;
 };
@@ -333,6 +338,24 @@ function offsetText(now: Date, zone: string): string {
 	return `${minutes < 0 ? '-' : '+'}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
 }
 
+/**
+ * How the person reads times and dates, so one reply never mixes styles. Tools give instants with the person's offset (a "T" time) and
+ * clock times as 24 hour HH:mm; the reply is always written the person's way.
+ */
+export function clockLine(clock: '12' | '24', dateStyle: DateStyle = 'auto'): string {
+	const time =
+		clock === '24'
+			? 'a 24 hour clock, like 15:42 and 07:00'
+			: 'a 12 hour clock with AM or PM, like 3:42 PM and 7:00 AM';
+	const date =
+		dateStyle === 'mdy'
+			? 'month first, like Nov 6, 2026'
+			: dateStyle === 'ymd'
+				? 'year first, like 2026 Nov 6'
+				: 'day first, like 6 Nov 2026';
+	return `Write clock times on ${time}, and dates ${date}, in that style and order all through a reply (never mix styles). Times from tools already carry the person's own offset: copy their hour and minute, never convert. Times written HH:mm in tool results are 24 hour: write them in the person's style above.`;
+}
+
 export function nowLine(now: Date, zone: string = DEFAULT_ZONE): string {
 	const z = isZone(zone) ? zone : DEFAULT_ZONE;
 	const offset = offsetText(now, z);
@@ -349,6 +372,7 @@ export function buildMessages(p: PromptInput): ChatMessage[] {
 	const context = [
 		`Today is ${weekdayName(today)} ${today} in ${zone}.`,
 		nowLine(p.now, zone),
+		clockLine(p.clock ?? '12', p.dateStyle ?? 'auto'),
 		currencyLine(p.currency ?? DEFAULT_CURRENCY),
 		languageLine(p.replyLanguage ?? 'auto'),
 		p.cards?.length

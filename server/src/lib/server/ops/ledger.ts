@@ -49,7 +49,12 @@ import { mapped, parse, plain, requireActiveAccount, requirePerson } from './sha
 
 // -- TYPES -- //
 
-export type TxnView = Plain<typeof ledgerTxn.$inferSelect>;
+export type TxnView = Plain<typeof ledgerTxn.$inferSelect> & {
+	/** The id `undo` takes for this entry; what a write answers, never stored on the row. */
+	journalId?: string;
+	/** A hint for the assistant on a write that may not be what the person meant. Never stored. */
+	check?: string;
+};
 
 /** What the person is asked to confirm before an amount is saved. */
 export type Chip = {
@@ -197,15 +202,16 @@ export async function insertTxn(
 	await ensureWallet(tx, userId, row.accountId, row.currency);
 	if (row.toAccountId && row.toCurrency)
 		await ensureWallet(tx, userId, row.toAccountId, row.toCurrency);
-	if (options.journal !== false)
-		await recordUndo(tx, userId, requestId, {
-			verb: `ledger.${row.type}`,
-			entity: 'ledger_txn',
-			entityId: row.id,
-			before: null,
-			after: row
-		});
-	return row;
+	if (options.journal === false) return row;
+	const journalId = await recordUndo(tx, userId, requestId, {
+		verb: `ledger.${row.type}`,
+		entity: 'ledger_txn',
+		entityId: row.id,
+		before: null,
+		after: row
+	});
+	// The id to give undo: the entry's own id is not the journal's (in the chat of 6 Nov the first undo failed on it)
+	return journalId ? { ...row, journalId } : row;
 }
 
 // -- EXPENSES -- //
@@ -365,6 +371,20 @@ export const recordIncome = (ctx: Ctx, input: IncomeRecordInput) =>
 export const recordRefund = (ctx: Ctx, input: IncomeRecordInput) =>
 	recordSimple(ctx, 'refund.record', 'refund', input);
 
+/** Words that say money is for spending, and words that say it is being kept (a cash stash). */
+const SPEND_WORDS = /\b(pocket money|allowance|to spend|for spending|expenses?|baon|gastos)\b/i;
+const KEEP_WORDS = /\b(stash|savings?|keep|safe|reserve)\b/i;
+
+/**
+ * A hint, never a refusal: a move into a cash account whose note says the money is for spending is usually an expense (in the chat of 6 Nov an
+ * ATM withdrawal for pocket money was first booked as a move into the cash stash). The assistant asks once; a note that says the money is
+ * being kept gets nothing.
+ */
+export function spendingTransferHint(toKind: string, note: string): string | null {
+	if (toKind !== 'cash' || !SPEND_WORDS.test(note) || KEEP_WORDS.test(note)) return null;
+	return 'This moved money into a cash account, and the note says it is for spending. Money for pocket money or expenses is spending, not a move: ask the person once whether it should be an expense instead (undo this entry with its journalId and log the expense), unless they meant to keep it in the cash account.';
+}
+
 /** A move between the person's own accounts. Never spending; its fee is. */
 export async function recordTransfer(ctx: Ctx, raw: TransferRecordInput): Promise<TxnView> {
 	const input = parse(transferRecordInput, raw);
@@ -407,7 +427,8 @@ export async function recordTransfer(ctx: Ctx, raw: TransferRecordInput): Promis
 				occurredAt,
 				source: 'manual'
 			});
-			return plain(row);
+			const hint = spendingTransferHint(to.kind, input.note ?? '');
+			return { ...plain(row), ...(hint ? { check: hint } : {}) };
 		})
 	);
 }

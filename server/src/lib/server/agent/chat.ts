@@ -87,7 +87,9 @@ export const chatInput = z.strictObject({
 	/** The food camera sent this: a meal photo needs the model to see the picture, so it is refused at once when it cannot. */
 	foodCamera: z.enum(['meal', 'label']).optional(),
 	/** The app can run the tools that run on the phone (scripts, the toolbox) and answer them at the device-result route. */
-	scripts: z.boolean().optional()
+	scripts: z.boolean().optional(),
+	/** The clock the phone reads (12 or 24 hour), so the assistant writes times the way the person reads them. */
+	clock: z.enum(['12', '24']).optional()
 });
 
 const STALE_RUNNING_MS = 120_000;
@@ -397,6 +399,7 @@ export async function* handleChat(
 			now: deps.now?.(),
 			tools: deps.tools,
 			device: input.scripts === true,
+			clock: input.clock,
 			web: deps.web,
 			limits: deps.limits
 		});

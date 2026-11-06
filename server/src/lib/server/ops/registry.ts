@@ -623,7 +623,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'balance_simulate',
 		kind: 'read',
 		description:
-			"The balance timeline on any dates from 5 years back to 5 years ahead, grouped by day (up to 62 days), week (up to 2 years), month or year. Every number says its source: recorded (the real ledger), replay (what today's plan would have done in a past period, from the recorded balance at its start; gap is recorded minus replay) or simulated (the future from today's balances, paydays, bills and payday rules). missed counts paydays and bills the plan expected but nobody recorded. view detail (at most 366 days) adds every entry. scenario is a what-if that is never saved: off (ids of paydays, bills, rules or goals to switch off), amounts (a payday or bill id with another amount), skipDates (paydays that do not come), lateDays (every bill paid that many days late), defer (deferrable bills wait for the next payday), extra (pretend money in or out in the main currency, at most 50). Use it for past balances (what did I have in March), dates more than a year ahead and what-ifs (what if I skip my next payday); for today to a date use cashflow_forecast. Always say that replay and simulated numbers are simulations, not real money, and read its notes before you answer.",
+			"The balance timeline on any dates from 5 years back to 5 years ahead, grouped by day (up to 62 days), week (up to 2 years), month or year. Every number says its source: recorded (the real ledger), replay (what today's plan would have done in a past period, from the recorded balance at its start; gap is recorded minus replay) or simulated (the future from today's balances, paydays, bills and payday rules). missed counts paydays and bills the plan expected but nobody recorded. view detail (at most 366 days) adds every entry. scenario is a what-if that is never saved: off (ids of paydays, bills, rules or goals to switch off), amounts (a payday or bill id with another amount), skipDates (paydays that do not come), lateDays (every bill paid that many days late), defer (deferrable bills wait for the next payday), extra (pretend money in or out in the main currency, at most 50, each with date, in or out, accountId, amount and label: use it for a one-off such as paying 6,000 more to a bill). Use it for past balances (what did I have in March), dates more than a year ahead and what-ifs (what if I skip my next payday); for today to a date use cashflow_forecast. Always say that replay and simulated numbers are simulations, not real money, and read its notes before you answer.",
 		input: balanceSimulateInput,
 		agentOmit: ['offset', 'limit', 'groupKey'],
 		run: (ctx, a) => balanceSimulate(ctx, a)
@@ -1057,7 +1057,8 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'undo',
 		kind: 'free',
-		description: 'Undo a recent entry by its journal id.',
+		description:
+			'Undo a recent entry by its journal id: the journalId that the write answered with (expense, income, transfer), or the id from ledger_undoable. The row id of the entry is not a journal id.',
 		input: undoInput,
 		run: (ctx, a) => undo(ctx, a)
 	}),

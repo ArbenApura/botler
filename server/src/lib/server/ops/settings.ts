@@ -12,6 +12,7 @@ import type { DateStyle, PhotoMode, ReplyLanguage, TimeFormat } from '../db/sche
 import { eq } from 'drizzle-orm';
 // -- MODULES -- //
 import { DEFAULT_CURRENCY } from '../../finance/currency';
+import { resolveClock } from '../../finance/clockText';
 import { DEFAULT_ZONE } from '../../finance/dates';
 import { pictureProviderFor } from '../../providers';
 import { userSetting } from '../db/schema';
@@ -20,7 +21,7 @@ import { effectiveProvider, providerSetup } from '../proxy/provider';
 import { reconcileReminders } from '../schedule/reminders';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, requirePerson } from './shared';
-import { withClock } from './zone';
+import { reportedClock, withClock } from './zone';
 
 // -- TYPES -- //
 
@@ -130,6 +131,18 @@ export async function getSettings(ctx: Ctx): Promise<SettingsView> {
 	return run(ctx, (tx, userId) => readSettings(tx, userId));
 }
 
+/** The clock the person reads, 12 or 24 hour: their own choice, else the newest phone's report, else 12. The assistant writes times by it. */
+export async function effectiveClock(ctx: Ctx): Promise<'12' | '24'> {
+	return run(ctx, async (tx, userId) => {
+		const [row] = await tx
+			.select({ timeFormat: userSetting.timeFormat })
+			.from(userSetting)
+			.where(eq(userSetting.userId, userId));
+		const setting = row?.timeFormat ?? 'auto';
+		return resolveClock(setting, setting === 'auto' ? await reportedClock(tx, userId) : null);
+	});
+}
+
 /** Changes the fields given and keeps the rest. A change of currency answers a notice: amounts are relabelled, never converted. */
 export async function setSettings(
 	ctx: Ctx,
@@ -186,9 +199,14 @@ export async function setSettings(
 				...changes
 			});
 			// A new zone or clock moves the hours of the reminders and what they say: the server's list is right now, before the phone asks
-			if (settings.timeZone !== before.timeZone || settings.timeFormat !== before.timeFormat)
-				await withClock({ zone: settings.timeZone, timeFormat: settings.timeFormat }, () =>
-					reconcileReminders(tx, userId)
+			// The clock that counts is the resolved one: a switch between auto and the phone's own choice changes nothing
+			const phone = await reportedClock(tx, userId);
+			const clockBefore = resolveClock(before.timeFormat, phone);
+			const clockAfter = resolveClock(settings.timeFormat, phone);
+			if (settings.timeZone !== before.timeZone || clockAfter !== clockBefore)
+				await withClock(
+					{ zone: settings.timeZone, timeFormat: clockAfter, dateStyle: settings.dateStyle },
+					() => reconcileReminders(tx, userId)
 				);
 			const notice =
 				settings.currency !== before.currency

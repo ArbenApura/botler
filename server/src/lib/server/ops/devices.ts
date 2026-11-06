@@ -9,7 +9,9 @@ import { and, eq, sql } from 'drizzle-orm';
 import { device, pushTokenOwner } from '../db/schema';
 import { deviceRegisterInput, deviceUnregisterInput } from '../db/zod';
 import { hashToken } from '../push/send';
+import { reconcileReminders } from '../schedule/reminders';
 import { OpsError, run, runWrite } from './context';
+import { inPersonZone, reportedClock } from './zone';
 
 // -- TYPES -- //
 
@@ -35,14 +37,23 @@ export async function registerDevice(ctx: Ctx, input: DeviceRegisterInput): Prom
 	const parsed = deviceRegisterInput.safeParse(input);
 	if (!parsed.success)
 		throw new OpsError('INVALID', parsed.error.issues[0]?.message ?? 'Invalid device');
-	const { platform, pushToken, label } = parsed.data;
+	const { platform, pushToken, label, clock } = parsed.data;
 	return runWrite(ctx, 'device.register', parsed.data, async (tx, userId) => {
+		// The clock the phones reported until now, to tell below whether this registration changes it
+		const clockBefore = clock ? await reportedClock(tx, userId) : null;
 		const [row] = await tx
 			.insert(device)
-			.values({ userId, platform, pushToken, label })
+			.values({ userId, platform, pushToken, label, clock })
 			.onConflictDoUpdate({
 				target: [device.userId, device.pushToken],
-				set: { label, platform, lastSeenAt: sql`now()`, updatedAt: sql`now()` }
+				// A registration with no clock (an older app) keeps the clock this phone reported before
+				set: {
+					label,
+					platform,
+					...(clock ? { clock } : {}),
+					lastSeenAt: sql`now()`,
+					updatedAt: sql`now()`
+				}
 			})
 			.returning({
 				id: device.id,
@@ -51,6 +62,9 @@ export async function registerDevice(ctx: Ctx, input: DeviceRegisterInput): Prom
 				lastSeenAt: device.lastSeenAt
 			});
 		if (!row) throw new OpsError('CONFLICT', 'The device could not be saved');
+		// A new clock moves how the reminders already planned read ("at 3:30 PM" or "at 15:30"): rebuilt now, not at some later rebuild
+		if (clock && clock !== clockBefore)
+			await inPersonZone(tx, userId, () => reconcileReminders(tx, userId));
 		// The newest registration owns the token. A phone shared with someone who registered it earlier now belongs to this
 		// person, and a push for the earlier one is dropped (see push/send.ts)
 		await tx

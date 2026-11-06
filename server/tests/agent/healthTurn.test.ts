@@ -7,7 +7,7 @@ import type { Fixture, Step } from './support';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 // -- MODULES -- //
-import { addDays, toLocalDate } from '../../src/lib/finance/dates';
+import { addDays, atLocalTime, toLocalDate } from '../../src/lib/finance/dates';
 import { chat, chatTurn } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { purgeOld } from '../../src/lib/server/jobs/handlers';
@@ -168,8 +168,9 @@ describe('food beside money and the calendar', () => {
 			'event_create',
 			{
 				title: 'Dinner out',
-				startsAt: new Date(Date.now() + 3_600_000).toISOString(),
-				endsAt: new Date(Date.now() + 7_200_000).toISOString()
+				// Today at noon and one in the afternoon: an hour from now crosses midnight when the suite runs late in the evening
+				startsAt: atLocalTime(toLocalDate(new Date()), '12:00').toISOString(),
+				endsAt: atLocalTime(toLocalDate(new Date()), '13:00').toISOString()
 			}
 		);
 		const d = (await invokeVerb(f.ctx, 'health_day', {})) as {

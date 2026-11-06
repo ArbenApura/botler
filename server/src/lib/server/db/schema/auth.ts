@@ -3,7 +3,12 @@
 // -- DEP-MODULES -- //
 import { bigint, boolean, index, integer, text, timestamp, unique } from 'drizzle-orm/pg-core';
 // -- MODULES -- //
-import { id, plainTable, stamps, userTable } from './helpers';
+import { id, oneOf, plainTable, stamps, userTable } from './helpers';
+
+// -- CONSTANTS -- //
+
+/** The clocks a phone can report: 12 or 24 hour. */
+export const DEVICE_CLOCKS = ['12', '24'] as const;
 
 // -- PEOPLE AND BETTER AUTH MODELS (not user scoped: a sign in happens before any user is known) -- //
 
@@ -93,12 +98,16 @@ export const device = userTable(
 		/** The FCM registration token. Rotates; the newest value replaces the old one. */
 		pushToken: text('push_token'),
 		label: text('label').notNull(),
+		/** The clock this phone reads (12 or 24 hour), reported when it registers. Null until it has. The server cannot ask a phone, so a clock left on auto follows the newest report. */
+		clock: text('clock'),
 		lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 		...stamps()
 	},
 	// One row per person and token: a token seen under two people is two rows, and each is removed on its own sign out
 	(t) => [
 		index('device_user_idx').on(t.userId),
-		unique('device_user_push_token_uq').on(t.userId, t.pushToken)
+		unique('device_user_push_token_uq').on(t.userId, t.pushToken),
+		// A null passes a CHECK: a phone that has not reported yet has no clock
+		oneOf('device_clock_chk', t.clock, DEVICE_CLOCKS)
 	]
 );

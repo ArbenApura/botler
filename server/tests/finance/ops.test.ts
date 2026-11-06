@@ -477,6 +477,8 @@ describe('the ledger', () => {
 		const entry = (await listUndoable(anna())).find(
 			(u) => (u.after as { id?: string } | null)?.id === r.txn.id
 		);
+		// The write hands back the id undo takes, so the assistant never has to look for it (BTL-20261106-1502)
+		expect((r.txn as { journalId?: string }).journalId).toBe(entry?.id);
 		await undo(as(anna()), { journalId: entry?.id ?? '' });
 		expect(await balance()).toBe(0);
 		await expect(undo(as(anna()), { journalId: entry?.id ?? '' })).rejects.toMatchObject({

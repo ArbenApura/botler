@@ -190,6 +190,86 @@ export function addLine(
 	return { text: next, section: sectionAt(next, placed) ?? bullet, changed: true };
 }
 
+/** Words too common to say a line is about the same thing. */
+const COMMON = new Set([
+	'that',
+	'this',
+	'with',
+	'when',
+	'then',
+	'them',
+	'they',
+	'will',
+	'have',
+	'only',
+	'never',
+	'always',
+	'every',
+	'about',
+	'from',
+	'into',
+	'your',
+	'what',
+	'there',
+	'their',
+	'does',
+	'dont',
+	'not',
+	'user',
+	'person',
+	'reply',
+	'replies'
+]);
+
+/** Words that mean the same kind of preference: how the assistant sounds. Two lines that both touch one of these may disagree. */
+const VOICE_WORDS = new Set([
+	'sweet',
+	'sweetness',
+	'love',
+	'affectionate',
+	'heart',
+	'hearts',
+	'emoji',
+	'tone',
+	'voice',
+	'warm',
+	'casual',
+	'format',
+	'short'
+]);
+
+const wordsOf = (line: string): Set<string> =>
+	new Set(
+		(line.toLowerCase().match(/\p{L}{3,}/gu) ?? []).filter((w) => w.length >= 4 && !COMMON.has(w))
+	);
+
+/**
+ * The lines already in a notebook that are about the same thing as a new line, so the assistant can replace one instead of keeping two that
+ * may disagree (in the chat of 6 Nov "stop the sweet endings" was added beside an old line that asked for sweetness, and the old one won).
+ * A hint, never a refusal: shared words, and a bonus when both lines are about how the assistant sounds. At most three, best first.
+ */
+export function similarLines(text: string, line: string, limit = 3): string[] {
+	const mine = wordsOf(cleanLine(line));
+	if (mine.size < 2) return [];
+	const mineVoice = [...mine].some((w) => VOICE_WORDS.has(w));
+	const scored: { line: string; score: number }[] = [];
+	for (const l of linesOf(text)) {
+		if (l.heading) continue;
+		const existing = cleanLine(l.text);
+		if (!existing || normalize(existing) === normalize(cleanLine(line))) continue;
+		const theirs = wordsOf(existing);
+		let shared = 0;
+		for (const w of mine) if (theirs.has(w)) shared++;
+		const bonus = mineVoice && [...theirs].some((w) => VOICE_WORDS.has(w)) ? 1 : 0;
+		const score = shared + bonus;
+		if (shared >= 1 && score >= 2) scored.push({ line: existing, score });
+	}
+	return scored
+		.sort((a, b) => b.score - a.score)
+		.slice(0, limit)
+		.map((s) => (s.line.length > 200 ? `${s.line.slice(0, 197)}...` : s.line));
+}
+
 /** The positions of every exact occurrence of `find`, without overlaps. */
 function occurrences(text: string, find: string): number[] {
 	const out: number[] = [];

@@ -8,6 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { device, user } from '../../src/lib/server/db/schema';
 import { OpsError } from '../../src/lib/server/ops/context';
 import { listDevices, registerDevice, unregisterDevice } from '../../src/lib/server/ops/devices';
+import { effectiveClock, setSettings } from '../../src/lib/server/ops/settings';
+import { readClockPrefs } from '../../src/lib/server/ops/zone';
 import { createTestDb } from '../support/testDb';
 
 // -- STATES -- //
@@ -39,6 +41,40 @@ afterAll(async () => {
 });
 
 // -- TESTS -- //
+
+describe('the clock a phone reports', () => {
+	it('is used on auto, and a clock the person chose wins', async () => {
+		const carl: Ctx = { handle: t.handle, actor: { userId: 'user_carl_0001', kind: 'person' } };
+		await t.handle.db
+			.insert(user)
+			.values({ id: 'user_carl_0001', name: 'Carl', email: 'carl@example.com' });
+		const read = () =>
+			t.handle.db.transaction(async (tx) => {
+				await tx.execute(sql`select set_config('app.user_id', 'user_carl_0001', true)`);
+				return readClockPrefs(tx, 'user_carl_0001');
+			});
+		// No phone has reported: 12 hour, day first
+		expect((await read()).timeFormat).toBe('12');
+		await registerDevice(w(carl), {
+			platform: 'android',
+			pushToken: 'token-carl-0123456789',
+			label: 'Carl phone',
+			clock: '24'
+		});
+		expect((await read()).timeFormat).toBe('24');
+		expect(await effectiveClock(carl)).toBe('24');
+		// An older app registers with no clock: the report it made before stays
+		await registerDevice(w(carl), {
+			platform: 'android',
+			pushToken: 'token-carl-0123456789',
+			label: 'Carl phone'
+		});
+		expect(await effectiveClock(carl)).toBe('24');
+		// A clock the person chose in Settings wins over the phone
+		await setSettings(w(carl), { timeFormat: '12' });
+		expect(await effectiveClock(carl)).toBe('12');
+	});
+});
 
 describe('device verbs', () => {
 	it('registers a phone and never returns the push token', async () => {

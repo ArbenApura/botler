@@ -19,11 +19,11 @@ import type { Rates } from './fx';
 import type { OverrideLike } from './occurrence';
 import type { Rule } from './rules';
 import type { Schedule, WeekendRule } from './schedule';
-import type { BrokenLink } from './funding';
+import type { BrokenLink, UnlinkedSaver } from './funding';
 import type { Commitment, CoveredLine, FundedLine, SplitLink, UnfundedLine } from './split';
 // -- MODULES -- //
 import { billOccurrences } from './billWindows';
-import { availableFor, checkLinks, reservedFor } from './funding';
+import { availableFor, checkLinks, findUnlinkedSavers, reservedFor } from './funding';
 import { addDays } from './dates';
 import { canConvert, convertUp } from './fx';
 import { occurrencesBetween } from './schedule';
@@ -175,6 +175,8 @@ export type PlanFlows = {
 	funding?: PaydayFunding[];
 	/** Rules that point at a bill but cannot save for it, and why. Only with balances. */
 	brokenLinks?: BrokenLink[];
+	/** Rules that fill the account paying a bill of the same name without being linked to it. Only with balances. */
+	unlinkedSavers?: UnlinkedSaver[];
 };
 
 // -- CONSTANTS -- //
@@ -326,20 +328,22 @@ function datedBills(
 
 /** The links of the plan's rules to bills, checked (finance/funding.ts). */
 export function planLinks(plan: PlanData) {
-	return checkLinks(
-		plan.rules.map((r) => ({
-			id: r.id,
-			label: r.ownLabel ?? r.label ?? null,
-			mode: r.mode,
-			status: 'active',
-			amount: r.amount,
-			targetAccountId: r.target.kind === 'account' ? r.target.id : null,
-			effectiveFrom: r.effectiveFrom,
-			fundsBillId: r.fundsBillId ?? null
-		})),
-		plan.bills.map((b) => ({ ...b, active: true })),
-		plan.main
-	);
+	const rules = plan.rules.map((r) => ({
+		id: r.id,
+		label: r.ownLabel ?? r.label ?? null,
+		mode: r.mode,
+		status: 'active',
+		amount: r.amount,
+		targetAccountId: r.target.kind === 'account' ? r.target.id : null,
+		effectiveFrom: r.effectiveFrom,
+		fundsBillId: r.fundsBillId ?? null
+	}));
+	const bills = plan.bills.map((b) => ({ ...b, active: true }));
+	return {
+		...checkLinks(rules, bills, plan.main),
+		/** Rules that fill the account paying a bill of the same name but are not linked to it: the pay is asked for both. */
+		unlinked: findUnlinkedSavers(rules, bills, plan.main)
+	};
 }
 
 /**
@@ -667,6 +671,13 @@ export function planFlows(plan: PlanData, opts: PlanFlowsOptions): PlanFlows {
 		});
 	}
 	return funded
-		? { flows, unknown, notes, funding, brokenLinks: planLinks(plan).broken }
+		? {
+				flows,
+				unknown,
+				notes,
+				funding,
+				brokenLinks: planLinks(plan).broken,
+				unlinkedSavers: planLinks(plan).unlinked
+			}
 		: { flows, unknown, notes };
 }

@@ -55,7 +55,8 @@ import {
 	EditError,
 	peopleNames,
 	removeOnce,
-	replaceOnce
+	replaceOnce,
+	similarLines
 } from '../notebook/text';
 import { OpsError, run, runWrite } from './context';
 import {
@@ -111,6 +112,16 @@ const DRAFT_FACTS = 400;
 
 /** The note the assistant reads after an edit: the prompt holds the notebook as it was when the message began. */
 const APPLIES_NEXT = 'The change is saved. It applies from the next message.';
+
+/** What the assistant is told when a line it just added is about the same thing as lines already there. Nothing when there are none. */
+const similarNote = (similar: readonly string[]) =>
+	similar.length > 0
+		? {
+				similar,
+				similarNote:
+					'The notebook already has lines about the same thing (see similar). If they disagree with the new line, replace or remove the old one so the notebook does not say two things.'
+			}
+		: {};
 
 // -- FUNCTIONS -- //
 
@@ -600,6 +611,8 @@ export async function editNotebook(
 		const current = row.kind === 'main' ? row.text : (page?.text ?? '');
 		const limit = row.kind === 'main' ? NOTEBOOK_MAX_CHARS : NOTEBOOK_PAGE_MAX_CHARS;
 		let result: { text: string; section: string; changed?: boolean };
+		// Lines already there about the same thing: told to the assistant after an add, never a refusal
+		let similar: string[] = [];
 		try {
 			if (input.op === 'add') {
 				if (!input.heading || !input.line)
@@ -611,6 +624,7 @@ export async function editNotebook(
 				// The heading is one line and has its numbers taken out too, like the line
 				const heading = lineFor(ctx, input.heading);
 				if (!heading) throw new OpsError('INVALID', 'The heading is empty.');
+				similar = similarLines(current, line);
 				result = addLine(current, heading, line, limit);
 			} else if (input.op === 'replace') {
 				if (!input.find || input.replacement === undefined)
@@ -667,7 +681,8 @@ export async function editNotebook(
 				note:
 					others > 0
 						? 'The change is saved on the Overview page. This notebook has other pages: see notebook_outline.'
-						: 'The change is saved.'
+						: 'The change is saved.',
+				...similarNote(similar)
 			};
 		}
 		const next = await applyChange(tx, userId, row, result.text, actorOf(ctx), refOf(ctx));
@@ -677,7 +692,8 @@ export async function editNotebook(
 			section: result.section,
 			changed: true,
 			// The main notebook is in the prompt of the next message; an extra one is read on demand, so its change is there at once
-			note: APPLIES_NEXT
+			note: APPLIES_NEXT,
+			...similarNote(similar)
 		};
 	});
 }

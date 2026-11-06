@@ -52,7 +52,8 @@ export function untrustedStub(tool: string): string {
 	return JSON.stringify({
 		untrusted: true,
 		source: tool,
-		note: 'The text this tool returned was not kept. Run the tool again if it is needed.'
+		// Not "verified" and not "stands": a page can be wrong, and nothing of it is kept. The figures the assistant quoted came from the live read
+		note: 'Old read, text not stored. Numbers the assistant quoted in its replies came from it; run the tool again only to re-check them.'
 	});
 }
 

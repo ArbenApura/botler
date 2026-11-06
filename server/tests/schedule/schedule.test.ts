@@ -127,7 +127,7 @@ describe('reminders follow what needs action', () => {
 		const open = all.find((r) => r.refKey.endsWith(':open'));
 		const soon = all.find((r) => r.refKey.endsWith(':soon'));
 		expect(open?.remindAt.toISOString()).toBe(atLocalTime('2030-03-05', '08:00').toISOString());
-		expect(open?.title).toBe('Internet can be paid from today until 2030-03-11');
+		expect(open?.title).toBe('Internet can be paid from today until 11 Mar 2030');
 		expect(soon?.remindAt.toISOString()).toBe(atLocalTime('2030-03-09', '09:00').toISOString());
 		expect(soon?.title).toBe('Internet is due in 2 days');
 		// No amount in the words (the date is fine)

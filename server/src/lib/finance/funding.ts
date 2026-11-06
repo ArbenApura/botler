@@ -55,7 +55,63 @@ export type BrokenLink = {
 	reason: string;
 };
 
+/** A rule that probably saves for a bill but is not linked to it, so the pay is asked for both. */
+export type UnlinkedSaver = {
+	ruleId: string;
+	ruleLabel: string;
+	billId: string;
+	billName: string;
+	/** What the rule puts in on each payday, minor units of the main currency. */
+	perPayday: number;
+};
+
 // -- FUNCTIONS -- //
+
+/** The first word of a name, lower case, when it is long enough to mean something. */
+const firstWord = (name: string | null): string | null => {
+	const w = (name ?? '').trim().split(/\s+/)[0]?.toLowerCase() ?? '';
+	return w.length >= 3 ? w : null;
+};
+
+/**
+ * The fixed rules that fill the account which pays a bill of the same first word (a rule "Parents" and a bill "Parents allowance" both on
+ * RCBC) but are not linked to it. Such a rule is meant to save for that bill, yet the split asks the pay for the bill AND for the rule, so the
+ * same money is counted twice (BTL-20261106-1502). A hint only: the person or the assistant links the rule to the bill and it counts once.
+ * A bill another rule already saves for is not offered again.
+ */
+export function findUnlinkedSavers(
+	rules: readonly LinkRuleLike[],
+	bills: readonly LinkBillLike[],
+	main: string
+): UnlinkedSaver[] {
+	const taken = new Set(
+		rules.flatMap((r) => (r.status === 'active' && r.fundsBillId ? [r.fundsBillId] : []))
+	);
+	const out: UnlinkedSaver[] = [];
+	for (const r of rules) {
+		const word = firstWord(r.label);
+		if (!word || r.status !== 'active' || r.fundsBillId) continue;
+		if (r.mode !== 'fixed' || !r.amount || r.amount <= 0 || !r.targetAccountId) continue;
+		const bill = bills.find(
+			(b) =>
+				b.active &&
+				!taken.has(b.id) &&
+				b.accountId === r.targetAccountId &&
+				b.currency === main &&
+				firstWord(b.name) === word
+		);
+		if (!bill) continue;
+		taken.add(bill.id);
+		out.push({
+			ruleId: r.id,
+			ruleLabel: r.label ?? 'A rule',
+			billId: bill.id,
+			billName: bill.name,
+			perPayday: r.amount
+		});
+	}
+	return out;
+}
 
 /** The name a rule is shown by: its label, or the bill it saves for. */
 const ruleName = (r: LinkRuleLike, bill: LinkBillLike | undefined) =>

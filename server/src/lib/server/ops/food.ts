@@ -180,6 +180,60 @@ async function usdaHits(tx: Tx, query: string): Promise<FoodHit[]> {
 	}));
 }
 
+/** Words that say how much or how, not which food. */
+const FILLER_WORDS = new Set([
+	'and',
+	'the',
+	'with',
+	'for',
+	'cup',
+	'cups',
+	'glass',
+	'piece',
+	'pieces',
+	'small',
+	'large',
+	'medium',
+	'regular',
+	'plain',
+	'serving',
+	'bowl',
+	'plate',
+	'some',
+	'one',
+	'two'
+]);
+
+/** The words of a food name that say which food it is, lower case, with a trailing s taken off. */
+const foodWords = (text: string): string[] =>
+	(text.toLowerCase().match(/\p{L}{3,}/gu) ?? [])
+		.filter((w) => !FILLER_WORDS.has(w))
+		.map((w) => w.replace(/s$/, ''));
+
+/**
+ * The words of the searched name that no listed hit holds, or null when some hit holds all of them (in the name as typed or in its English
+ * form). "Greek yogurt Pascual" against "Yogurt, Greek, plain, nonfat" is missing pascual: a brand miss. Pure.
+ */
+export function missingWords(
+	query: string,
+	english: string,
+	hitNames: readonly string[]
+): string[] | null {
+	const asked = foodWords(query);
+	if (asked.length === 0) return null;
+	const inEnglish = foodWords(english);
+	let closest: string[] = asked;
+	for (const hit of hitNames) {
+		const have = foodWords(hit).join(' ');
+		const lack = (words: string[]) => words.filter((w) => !have.includes(w));
+		const a = lack(asked);
+		const e = lack(inEnglish);
+		if (a.length === 0 || (inEnglish.length > 0 && e.length === 0)) return null;
+		if (a.length < closest.length) closest = a;
+	}
+	return closest;
+}
+
 /** The person's own saved foods, then the Filipino list, then the public data, at most five for each name. */
 export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 	const { names } = parse(foodSearchInput, raw);
@@ -217,7 +271,24 @@ export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 					portions: [{ label: 'serving', grams: f.servingG }]
 				});
 			if (hits.length < MAX_HITS) hits.push(...(await usdaHits(tx, name)));
-			results.push({ name, hits: hits.slice(0, MAX_HITS) });
+			const shown = hits.slice(0, MAX_HITS);
+			const missing = missingWords(
+				name,
+				englishTerm(name),
+				shown.map((h) => h.name)
+			);
+			results.push({
+				name,
+				hits: shown,
+				// No hit holds every word of the name: they are the closest names only, perhaps a different product (a brand search that
+				// returned the plain food). The assistant is told so and goes to the web
+				...(missing
+					? {
+							matched: 'partial' as const,
+							note: `No food in the database matches every word of "${name}" (missing: ${missing.join(', ')}). ${shown.length > 0 ? 'The hits are only the closest names and may be a different product: do not present one as the exact food. ' : ''}Search the web for the exact product (web_search), or ask the person for its label.`
+						}
+					: {})
+			});
 		}
 		return results;
 	});
@@ -556,7 +627,16 @@ export async function mealCardSummary(ctx: Ctx, args: MealLogInput): Promise<str
 		(i) =>
 			`${i.name}${i.grams ? ` ${i.grams} g` : ''}, about ${i.kcal} kcal${i.sourceKind === 'estimate' ? ' (an AI estimate)' : ''}`
 	);
-	return `Log this food: ${parts.join('; ')}. About ${p.kcal} kcal in all (could be ${p.lowKcal} to ${p.highKcal}), from a photo or a label, so check the amounts.`;
+	return `Log this food: ${parts.join('; ')}. About ${p.kcal} kcal in all (could be ${p.lowKcal} to ${p.highKcal}), ${mealSourceWords(p.items.map((i) => i.sourceKind))}, so check the amounts.`;
+}
+
+/** Where a meal's numbers came from, in words for its card: not "from a photo" for a meal the assistant only worked out from the person's words. */
+export function mealSourceWords(kinds: readonly string[]): string {
+	if (kinds.length > 0 && kinds.every((k) => k === 'estimate'))
+		return 'an AI estimate from what you said';
+	if (kinds.some((k) => k === 'estimate'))
+		return 'partly an AI estimate, partly from a photo, a label or the food list';
+	return 'from a photo, a label or the food list';
 }
 
 /** A barcode: the person's saved food first, then the outside sources. Numbers and a short clean name only. */

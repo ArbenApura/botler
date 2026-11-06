@@ -165,13 +165,18 @@ export async function recordUndo(
 	requestId: string | undefined,
 	e: UndoEntry
 ) {
-	await tx.insert(undoJournal).values({
-		userId,
-		verb: e.verb,
-		requestId: requestId ?? null,
-		entity: e.entity,
-		entityId: e.entityId,
-		before: e.before === undefined ? null : plain(e.before),
-		after: e.after === undefined ? null : plain(e.after)
-	});
+	const [entry] = await tx
+		.insert(undoJournal)
+		.values({
+			userId,
+			verb: e.verb,
+			requestId: requestId ?? null,
+			entity: e.entity,
+			entityId: e.entityId,
+			before: e.before === undefined ? null : plain(e.before),
+			after: e.after === undefined ? null : plain(e.after)
+		})
+		.returning({ id: undoJournal.id });
+	// The id undo takes, so a write can hand it back (a row's own id is not it)
+	return entry?.id ?? null;
 }

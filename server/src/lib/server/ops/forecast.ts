@@ -11,8 +11,8 @@
 
 // -- TYPES -- //
 import type { Ctx } from './context';
-import type { Forecast, ForecastFlow, ForecastWallet } from '../../finance/forecast';
-import type { BrokenLink } from '../../finance/funding';
+import type { Forecast, ForecastFlow, ForecastWallet, Warning } from '../../finance/forecast';
+import type { BrokenLink, UnlinkedSaver } from '../../finance/funding';
 import type { PaydayFunding, PlanNote } from '../../finance/planFlows';
 // -- MODULES -- //
 import { diffDays, dayStart, toLocalDate } from '../../finance/dates';
@@ -60,7 +60,7 @@ export function noteText(n: PlanNote): string {
 		case 'unrated':
 			return `The payday split of ${n.payday} is not in the moves: ${n.currency} has no exchange rate.`;
 		case 'shortfall':
-			return `The pay of ${n.payday} is short by ${n.gap} (smallest unit): its moves fund bills and goals first, then the rules in their order until the pay runs out.`;
+			return `The pay of ${n.payday} is short by ${n.gap} (smallest unit): its moves fund bills and goals first, then the rules in their order until the pay runs out. That is what the pay alone cannot fund: money already in an account may still cover a bill, so read the warnings and the wallet lines before saying money is missing.`;
 		case 'split_error':
 			return `The payday split of ${n.payday} could not be worked out: ${n.message}`;
 	}
@@ -95,8 +95,17 @@ export function shortFunding(
 }
 
 /** The sentences that tell the reader where to find what the pay did not fund, and which links to bills cannot count. */
-export function fundingNotes(funding: readonly PaydayFunding[], broken: readonly BrokenLink[]) {
+export function fundingNotes(
+	funding: readonly PaydayFunding[],
+	broken: readonly BrokenLink[],
+	unlinked: readonly UnlinkedSaver[] = []
+) {
 	const out: string[] = [];
+	// A rule that saves into the account that pays a bill of its name, not linked to it: the pay is asked for the bill and for the rule
+	for (const u of unlinked)
+		out.push(
+			`The rule "${u.ruleLabel}" saves ${u.perPayday} (smallest unit) every payday into the account that pays "${u.billName}", but it is not linked to that bill, so the pay is asked for the bill AND for the rule: the same money counted twice, and a pay can look short when it is not. Offer to link the rule to the bill (rule_update, fundsBillId), and it counts once.`
+		);
 	if (funding.length > 0)
 		out.push(
 			'funding: per payday, bill money already in its account (covered, nothing moves), saved by a rule (funded) or still needed. Quote it.'
@@ -106,6 +115,59 @@ export function fundingNotes(funding: readonly PaydayFunding[], broken: readonly
 			`The rule "${b.ruleLabel}" points at "${b.billName ?? 'a bill'}" but cannot save for it: ${b.reason}. That bill is funded from the pay.`
 		);
 	return out;
+}
+
+/**
+ * Why each wallet that goes below zero does: the bills that leave it that day and what came in before. The model quotes this and never
+ * has to trace it by hand (in the chat of 6 Nov the first guess at GCash was the wrong bill, and it took three answers to find the right one).
+ */
+export function warningNotes(
+	warnings: readonly Warning[],
+	flows: readonly ForecastFlow[],
+	wallets: readonly ForecastWallet[],
+	from: string
+): string[] {
+	const out: string[] = [];
+	for (const w of warnings) {
+		if (w.already) {
+			out.push(`${w.accountName} is already below zero today (${w.balance}, smallest unit).`);
+			continue;
+		}
+		const sameWallet = (f: ForecastFlow) =>
+			f.accountId === w.accountId && f.currency === w.currency;
+		const leaving = flows.filter((f) => f.kind === 'out' && f.date === w.date && sameWallet(f));
+		const movedAway = flows.filter((f) => f.kind === 'move' && f.date === w.date && sameWallet(f));
+		const moves = flows.filter(
+			(f) =>
+				f.kind === 'move' &&
+				f.toAccountId === w.accountId &&
+				f.currency === w.currency &&
+				f.date >= from &&
+				f.date <= w.date
+		);
+		const started = wallets.find((x) => x.accountId === w.accountId && x.currency === w.currency);
+		const days = [...new Set(moves.map((m) => m.date))];
+		const putIn = moves.reduce((s, m) => s + m.amount, 0);
+		const pays = [...leaving, ...movedAway].map((f) => `${f.label} ${f.amount}`);
+		out.push(
+			`${w.accountName} goes below zero on ${w.date} (${w.balance}, smallest unit). It held ${started?.balance ?? 0} today; ` +
+				`${days.length > 0 ? `${putIn} was put in on ${days.length} payday${days.length > 1 ? 's' : ''} before it (${days.join(', ')})` : 'nothing is put in before it'}; ` +
+				`that day it pays ${pays.length > 0 ? pays.join(', ') : 'nothing listed'}. ` +
+				`If a rule saves for that bill, it needs more paydays or a bigger amount, or the bill belongs on another account.`
+		);
+	}
+	return out;
+}
+
+/** The bills the plan counts as paid today although they are overdue and still unpaid (finance/planFlows.ts words them "(late, was due DATE)"). */
+export function overdueNotes(flows: readonly ForecastFlow[]): string[] {
+	const late = flows.filter(
+		(f) => f.kind === 'out' && /\(late, was due \d{4}-\d{2}-\d{2}\)/.test(f.label)
+	);
+	if (late.length === 0) return [];
+	return [
+		`OVERDUE and still unpaid, counted as going out today so the totals are safe: ${late.map((f) => `${f.label} ${f.amount}`).join(', ')}. Say they are overdue, never that they are paid.`
+	];
 }
 
 /**
@@ -159,7 +221,7 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 		const names = new Map(accounts.map((a) => [a.id, a.name]));
 		const funding = shortFunding(made.funding ?? [], (id) => names.get(id) ?? 'an account');
 		const brokenLinks = made.brokenLinks ?? [];
-		notes.push(...fundingNotes(made.funding ?? [], brokenLinks));
+		notes.push(...fundingNotes(made.funding ?? [], brokenLinks, made.unlinkedSavers ?? []));
 		return {
 			settings,
 			status,
@@ -204,6 +266,8 @@ export async function cashflowForecast(ctx: Ctx, raw: unknown): Promise<Forecast
 	notes.push(
 		'Paid bills are not counted. Bills late by up to 31 days count today. A pay already recorded today is not counted again.'
 	);
+	notes.push(...warningNotes(result.warnings, gathered.flows, gathered.wallets, today));
+	notes.push(...overdueNotes(gathered.flows));
 	const view: ForecastView = {
 		...result,
 		today,

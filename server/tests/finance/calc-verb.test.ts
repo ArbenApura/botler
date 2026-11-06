@@ -21,6 +21,18 @@ const run = async (ctx: Ctx, lines: unknown[]) => (await invokeVerb(ctx, 'calc',
 
 // -- TESTS -- //
 
+describe('a currency on a line that is not money', () => {
+	it('warns when a line named like calories comes back as pesos, and leaves a money line alone (BTL-20261106-1502)', async () => {
+		const out = await run(agent, [
+			{ name: 'kcal_after', expr: '817 - 836 + 513', currency: 'PHP' },
+			{ name: 'rent_left', expr: '1500 - 400', currency: 'PHP' }
+		]);
+		expect(out.lines[0]?.note).toMatch(/does not look like an amount of money/);
+		expect(out.lines[1]?.note).toBeUndefined();
+		expect(out.lines[1]?.money).toBeDefined();
+	});
+});
+
 describe('the calc verb', () => {
 	it('is a read verb the assistant may call, with a description that teaches its use', () => {
 		const v = verbByName('calc');

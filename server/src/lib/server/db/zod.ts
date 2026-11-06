@@ -57,8 +57,9 @@ const PLATFORMS = ['android', 'ios', 'web'] as const;
 export const deviceRegisterInput = createInsertSchema(device, {
 	platform: z.enum(PLATFORMS),
 	pushToken: z.string().min(10).max(4096),
-	label: z.string().trim().min(1).max(80)
-}).pick({ platform: true, pushToken: true, label: true });
+	label: z.string().trim().min(1).max(80),
+	clock: z.enum(['12', '24']).optional()
+}).pick({ platform: true, pushToken: true, label: true, clock: true });
 
 /** Input of the device unregister verb. */
 export const deviceUnregisterInput = z.object({ deviceId: z.uuid() });
