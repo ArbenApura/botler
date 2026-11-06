@@ -10,7 +10,7 @@ import type { ChatMessage } from '../proxy/deepseek';
 import type { TurnEvent, TurnModel, TurnParams } from './turn';
 import type { TranscriptProvider } from './transcript';
 // -- DEP-MODULES -- //
-import { and, asc, eq, gt, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, lt, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 // -- MODULES -- //
 import { chat, chatTurn } from '../db/schema';
@@ -189,7 +189,9 @@ async function history(
 		const state = await summaryState(tx, userId, self.chatId);
 		const filter = and(
 			eq(chatTurn.userId, userId),
-			eq(chatTurn.status, 'done'),
+			// A message that failed or was stopped stays known: the person sent it and may refer to it or send it again
+			inArray(chatTurn.status, ['done', 'failed']),
+			ne(chatTurn.userText, ''),
 			eq(chatTurn.chatId, self.chatId),
 			lt(chatTurn.createdAt, self.at),
 			afterTurn(state?.after ?? null)
@@ -205,7 +207,8 @@ async function history(
 			.select({
 				userText: chatTurn.userText,
 				reply: chatTurn.reply,
-				transcript: chatTurn.transcript
+				transcript: chatTurn.transcript,
+				status: chatTurn.status
 			})
 			.from(chatTurn)
 			.where(filter)
@@ -216,7 +219,8 @@ async function history(
 	});
 	if (!found) return { messages: [], summary: null };
 	// A turn that ended in the fallback text has no reply and no rounds: it is left out, an empty assistant message would be refused
-	return { messages: buildHistory(found.rows, options).messages, summary: found.summary };
+	const turns = found.rows.map((r) => ({ ...r, failed: r.status === 'failed' }));
+	return { messages: buildHistory(turns, options).messages, summary: found.summary };
 }
 
 /** The summary as a system message: the model is told it was written by itself and may be stale. */

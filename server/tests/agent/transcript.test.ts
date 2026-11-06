@@ -122,6 +122,26 @@ describe('what comes back', () => {
 		const unfinished = turnMessages({ ...t, reply: '' }, 'anthropic');
 		expect(unfinished.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
 	});
+
+	it('keeps a failed or stopped message, so it can be referred to', () => {
+		const lost = turnMessages(
+			{ userText: 'pay rent 500', reply: '', transcript: null, failed: true },
+			'deepseek'
+		);
+		expect(lost.map((m) => m.role)).toEqual(['user', 'assistant']);
+		expect(lost[0]?.content).toBe('pay rent 500');
+		expect(String(lost[1]?.content)).toContain('no answer');
+		// A stopped message with a partial reply keeps that reply as it was
+		const partial = turnMessages(
+			{ userText: 'q', reply: 'half an', transcript: null, failed: true },
+			'deepseek'
+		);
+		expect(partial[1]?.content).toBe('half an');
+		// An empty failed message is still nothing
+		expect(
+			turnMessages({ userText: ' ', reply: '', transcript: null, failed: true }, 'deepseek')
+		).toEqual([]);
+	});
 });
 
 describe('the token window', () => {

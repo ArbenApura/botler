@@ -30,6 +30,8 @@ export type HistoryTurn = {
 	reply: string;
 	/** The stored column: unknown until checked. */
 	transcript: unknown;
+	/** The message failed or was stopped: its words stay in history, marked as unanswered when there is no reply at all. */
+	failed?: boolean;
 };
 
 // -- CONSTANTS -- //
@@ -39,6 +41,9 @@ const SHORTENED = ' ...[shortened: read again for current data]';
 const STEP = 5;
 /** What a message with tool rounds but no written answer says in history, so the work it did stays in view. */
 const NO_ANSWER = 'I stopped before I could answer this one.';
+/** What a message that failed or was stopped, with nothing written, says in history: the person sent it, so it can be referred to. */
+const FAILED_NOTE =
+	'(This message got no answer: it failed or was stopped. Some of it may already have been done, and what was done is not shown here: read the data with a read tool before repeating any write, so nothing is recorded twice. The person may refer to it or send it again.)';
 
 // -- FUNCTIONS -- //
 
@@ -138,7 +143,13 @@ export function turnMessages(
 ): ChatMessage[] {
 	const stored = textOnly ? null : readTranscript(turn.transcript);
 	const rounds = stored ? replayRounds(stored, provider) : null;
-	const reply = turn.reply.trim() ? turn.reply : rounds ? NO_ANSWER : '';
+	const reply = turn.reply.trim()
+		? turn.reply
+		: rounds
+			? NO_ANSWER
+			: turn.failed && turn.userText.trim()
+				? FAILED_NOTE
+				: '';
 	if (!reply) return [];
 	return [
 		{ role: 'user', content: turn.userText },
