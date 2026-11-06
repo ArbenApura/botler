@@ -622,5 +622,17 @@
       "Ipinapaliwanag na ng forecast ng susunod na linggo at buwan ang sarili nito: pinangangalanan ang rule na nag-iipon para sa bayarin pero hindi nakakabit dito (hiningan ang sweldo ng dalawang beses), sinasabi ng wallet na bumababa sa zero kung aling bayarin ang dahilan, at tinatawag na overdue ang mga lampas na sa takdang araw.",
       "Isang rule na lang ang iniingatan ni Botler kapag nagpalit ka ng gusto mo, nagbababala kapag wala sa database ang isang pagkain sa halip na magpakita ng ibang produkto, at sinasabi kung saan pinutol ang mahabang sagot."
     ]
+  },
+  {
+    "versionCode": 56,
+    "versionName": "1.7.1",
+    "en": [
+      "A message that failed or was stopped is no longer forgotten: Botler can see it in your next message and you can refer to it.",
+      "You can now edit and send again any message of yours, even one that never reached Botler."
+    ],
+    "fil": [
+      "Hindi na nalilimutan ang mensaheng pumalya o itinigil: nakikita ito ni Botler sa susunod mong mensahe at maaari mo itong banggitin.",
+      "Puwede mo nang i-edit at ipadalang muli ang kahit anong mensahe mo, kahit ang hindi nakarating kay Botler."
+    ]
   }
 ]

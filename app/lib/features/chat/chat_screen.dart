@@ -326,9 +326,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       // The words stay in the box until the server has taken the old messages out of this chat; a failure leaves them there to try again
       final bool opened;
       try {
-        opened = await ref
-            .read(chatProvider.notifier)
-            .rewindFrom(editing.turnId);
+        final turn = editing.turnId;
+        final item = editing.itemId;
+        // A message the server never took has nothing to rewind: it just leaves the screen
+        opened = turn != null
+            ? await ref.read(chatProvider.notifier).rewindFrom(turn)
+            : item != null && ref.read(chatProvider.notifier).dropUnsent(item);
       } catch (e) {
         if (mounted) say(context, errorWords(e, context));
         return;

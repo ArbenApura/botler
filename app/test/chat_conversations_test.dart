@@ -730,5 +730,40 @@ void main() {
       );
       expect(s.count('chat_rewind'), 0);
     });
+
+    testWidgets(
+      'a message the server never took can still be edited and sent again, with nothing to rewind',
+      (tester) async {
+        final s = twoChats();
+        await open(tester, s);
+        await tester.enterText(find.byType(TextField).first, 'lost words');
+        await tester.tap(find.byTooltip('Send'));
+        await settle(tester);
+        // The stream fails before the server reports a start: the message has no turn
+        s.emit(<String, Object?>{'type': 'error'});
+        unawaited(s.streams.last.close());
+        await settle(tester);
+        await tester.longPress(find.text('lost words'));
+        await settle(tester);
+        await tester.tap(find.text('Edit and resend'));
+        await settle(tester);
+        final box = find.byType(TextField).first;
+        expect(tester.widget<TextField>(box).controller?.text, 'lost words');
+        await tester.enterText(box, 'found words');
+        await tester.tap(find.byTooltip('Send'));
+        await settle(tester);
+        await settle(tester);
+        expect(s.count('chat_rewind'), 0);
+        expect(s.sentBodies.last['text'], 'found words');
+        expect(find.text('lost words'), findsNothing);
+        s.emit(<String, Object?>{
+          'type': 'done',
+          'reply': 'ok',
+          'toolsRun': <Object?>[],
+        });
+        unawaited(s.streams.last.close());
+        await settle(tester);
+      },
+    );
   });
 }

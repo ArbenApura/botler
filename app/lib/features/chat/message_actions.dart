@@ -16,9 +16,11 @@ import 'chat_state.dart';
 
 /// A message being edited: the composer holds its words until the new version is accepted.
 class EditTarget {
-  const EditTarget(this.turnId, this.text);
+  const EditTarget(this.turnId, this.text, {this.itemId});
 
-  final String turnId;
+  /// Null for a message the server never accepted: then [itemId] is the message on screen.
+  final String? turnId;
+  final int? itemId;
   final String text;
 }
 
@@ -43,10 +45,13 @@ Future<void> showMessageSheet(
   required String text,
   required String? turnId,
   required bool mine,
+  int? itemId,
 }) async {
   final t = context.t;
   final busy = ref.read(chatProvider).busy;
   final canBranch = turnId != null && !busy;
+  // A message of the person's own can be edited even when the server never took it (a failed send has no turn)
+  final canEdit = mine && !busy && (turnId != null || itemId != null);
   final pick = await showModalBottomSheet<String>(
     context: context,
     showDragHandle: true,
@@ -61,7 +66,7 @@ Future<void> showMessageSheet(
               title: Text(t.chatMsgBranch),
               onTap: () => Navigator.of(s).pop('branch'),
             ),
-          if (canBranch && mine)
+          if (canEdit)
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: Text(t.chatMsgEdit),
@@ -82,9 +87,9 @@ Future<void> showMessageSheet(
       await Clipboard.setData(ClipboardData(text: text));
       if (context.mounted) say(context, t.chatMsgCopied);
     case 'edit':
-      if (turnId != null) {
-        ref.read(editProvider.notifier).start(EditTarget(turnId, text));
-      }
+      ref
+          .read(editProvider.notifier)
+          .start(EditTarget(turnId, text, itemId: itemId));
     case 'branch':
       if (turnId == null) return;
       try {

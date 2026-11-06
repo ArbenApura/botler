@@ -534,6 +534,28 @@ class ChatSession extends Notifier<ChatState> {
   /// "Edit and resend", in the same chat: the server removes the message and the ones after it, and the chat is loaded again (no new chat is
   /// made). The screen sends the new words next. True when the chat was rewound and shown; false when nothing was done (a second tap, a reply
   /// being written, the account changed). Throws when the server refuses or cannot be reached: nothing was removed then and the words stay.
+  /// "Edit and resend" of a message the server never accepted (it failed before it was taken): there is nothing on the server to remove, so
+  /// the message and the notices right after it (the failure line) leave the screen and the words are sent again as a new message.
+  /// False when nothing was done (a reply being written, a rewind running, the message is not on screen or the server knows it).
+  bool dropUnsent(int itemId) {
+    if (state.busy || _rewinding) return false;
+    final at = state.items.indexWhere((i) => i.id == itemId);
+    if (at < 0) return false;
+    final item = state.items[at];
+    if (item is! UserItem || item.turnId != null) return false;
+    var end = at + 1;
+    while (end < state.items.length && state.items[end] is NoticeItem) {
+      end++;
+    }
+    state = state.copyWith(
+      items: <ChatItem>[
+        ...state.items.sublist(0, at),
+        ...state.items.sublist(end),
+      ],
+    );
+    return true;
+  }
+
   Future<bool> rewindFrom(String turnId) async {
     final from = state.chatId;
     if (state.busy || _forking || from == null) return false;
@@ -1412,6 +1434,8 @@ class ChatNotifier extends Notifier<ChatState> {
   Future<bool> branchBefore(String turnId) => _session.branchBefore(turnId);
 
   Future<bool> rewindFrom(String turnId) => _session.rewindFrom(turnId);
+
+  bool dropUnsent(int itemId) => _session.dropUnsent(itemId);
 
   Future<void> rename(String title) => _session.rename(title);
 

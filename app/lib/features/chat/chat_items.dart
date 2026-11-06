@@ -77,6 +77,7 @@ class ChatItemView extends ConsumerWidget {
           child: _Actionable(
             text: text,
             turnId: turnId,
+            itemId: item.id,
             mine: true,
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -162,17 +163,26 @@ class _Actionable extends ConsumerWidget {
     required this.turnId,
     required this.mine,
     required this.child,
+    this.itemId,
   });
 
   final String text;
   final String? turnId;
+  final int? itemId;
   final bool mine;
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     void open() => unawaited(
-      showMessageSheet(context, ref, text: text, turnId: turnId, mine: mine),
+      showMessageSheet(
+        context,
+        ref,
+        text: text,
+        turnId: turnId,
+        mine: mine,
+        itemId: itemId,
+      ),
     );
     return Semantics(
       customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
