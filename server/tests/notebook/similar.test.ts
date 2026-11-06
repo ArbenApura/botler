@@ -29,6 +29,13 @@ describe('similarLines', () => {
 		expect(found.join(' ')).toContain('a bit sweet');
 		expect(found.join(' ')).not.toContain('rent');
 	});
+	it('finds a Filipino line about the same kind of preference', () => {
+		const text =
+			'# Preferences\n- Gusto niya ng maikli at malambing na tono.\n- Magbayad ng upa sa lima.\n';
+		const found = similarLines(text, 'Huwag na malambing, tamang tono lang at maikli.');
+		expect(found.join(' ')).toContain('malambing');
+		expect(found.join(' ')).not.toContain('upa');
+	});
 	it('says nothing for a line about something else, a line already there, or a line with no real words', () => {
 		expect(similarLines(NOTEBOOK, 'His dentist is on Rizal Avenue.')).toEqual([]);
 		expect(

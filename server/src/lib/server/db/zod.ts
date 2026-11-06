@@ -1340,7 +1340,8 @@ export const notebookRestoreInput = z.object({ revisionId: idField });
 export const notebookCreateInput = z.object({
 	title: z.string().trim().min(1).max(NOTEBOOK_TITLE_MAX),
 	summary: z.string().trim().max(NOTEBOOK_SUMMARY_MAX).optional(),
-	text: z.string().max(NOTEBOOK_MAX_CHARS).optional()
+	// The text becomes the Overview page, which holds what any page holds
+	text: z.string().max(NOTEBOOK_PAGE_MAX_CHARS).optional()
 });
 
 /** Rename an extra notebook or change its one-line summary. */

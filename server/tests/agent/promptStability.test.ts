@@ -9,7 +9,12 @@ import type { ChatMessage } from '../../src/lib/server/proxy/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // -- MODULES -- //
 import { buildHistory } from '../../src/lib/server/agent/transcript';
-import { buildMessages, SYSTEM_PREFIX } from '../../src/lib/server/agent/prompt';
+import {
+	buildMessages,
+	notebookMessage,
+	sizeNote,
+	SYSTEM_PREFIX
+} from '../../src/lib/server/agent/prompt';
 import { buildTools, toDefs } from '../../src/lib/server/agent/tools';
 import { maskMessages } from '../../src/lib/server/proxy/core';
 import { createMasker } from '../../src/lib/server/proxy/mask';
@@ -252,7 +257,38 @@ describe('the math rules', () => {
 		const { buildTools } = await import('../../src/lib/server/agent/tools');
 		const names = new Set(buildTools().map((t) => t.name));
 		const mentioned =
-			SYSTEM_PREFIX.match(/\b(?:calc|cashflow_forecast|bills_due|notebook_edit)\b/g) ?? [];
+			SYSTEM_PREFIX.match(
+				/\b(?:calc|cashflow_forecast|bills_due|(?:notebook|page|task|reminder)_[a-z]+)\b/g
+			) ?? [];
 		for (const n of mentioned) expect(names.has(n), n).toBe(true);
+	});
+});
+
+describe('the notebook rules', () => {
+	it('reads a saved rule back, scopes the money rule and keeps one precedence sentence', () => {
+		expect(SYSTEM_PREFIX).toContain('quote its saved line in one short sentence');
+		expect(SYSTEM_PREFIX).toContain('it wins over the style hints in this prompt');
+		expect(SYSTEM_PREFIX).toContain('warm and plain, unless the notebook says otherwise');
+		expect(SYSTEM_PREFIX).toContain('task_create, reminder_create');
+		expect(SYSTEM_PREFIX).toContain('Write [[Page]] links only inside a notebook page');
+		expect(SYSTEM_PREFIX).toContain('at most 8 edits');
+		// One rule about balances for the main notebook, one for pages: neither is written twice
+		expect(SYSTEM_PREFIX.match(/Never write balances/g)).toHaveLength(1);
+	});
+
+	it('says nothing about the size of a small notebook and steers a nearly full one, with the same bytes every time', () => {
+		expect(sizeNote(0)).toBe('');
+		expect(sizeNote(7_999)).toBe('');
+		expect(sizeNote(8_000)).toContain('8000 of 16000 characters (50%)');
+		expect(sizeNote(8_000)).not.toContain('nearly full');
+		expect(sizeNote(12_800)).toContain('nearly full');
+		expect(sizeNote(12_800)).not.toContain('offer to tidy');
+		expect(sizeNote(14_400)).toContain('offer to tidy it');
+		expect(sizeNote(14_891)).toBe(sizeNote(14_891));
+		expect(sizeNote(16_000)).toContain('(100%)');
+		expect(notebookMessage('# Hi')).not.toContain('Main notebook size');
+		const full = notebookMessage('x'.repeat(14_891));
+		expect(full).toContain('Main notebook size: 14891 of 16000 characters (93%)');
+		expect(full).toBe(notebookMessage('x'.repeat(14_891)));
 	});
 });

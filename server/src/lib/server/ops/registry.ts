@@ -932,7 +932,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'page_rename',
 		kind: 'free',
 		description:
-			'Give a page another title (newTitle). Titles are unique among the pages that share a parent, ignoring case. Links written as [[Old title]] in other pages are not changed: fix them with page_edit.',
+			'Give a page another title (newTitle). Titles are unique among the pages that share a parent, ignoring case. Links written as [[Old title]] in other pages are not changed: the answer lists them in linkedFrom (and moreLinks true when the list is cut), and you fix each with page_edit replace.',
 		input: pageRenameInput,
 		agentOmit: ['pageId'],
 		agentStrict: true,

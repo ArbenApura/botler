@@ -47,6 +47,7 @@ import {
 	notebookTargetInput,
 	notebookUpdateInput
 } from '../db/zod';
+import { NEAR_FULL_PERCENT } from '../agent/prompt';
 import { enqueue } from '../jobs/queue';
 import { redactSecrets } from '../memory/pure';
 import {
@@ -114,7 +115,7 @@ const DRAFT_FACTS = 400;
 const APPLIES_NEXT = 'The change is saved. It applies from the next message.';
 
 /** What the assistant is told when a line it just added is about the same thing as lines already there. Nothing when there are none. */
-const similarNote = (similar: readonly string[]) =>
+export const similarNote = (similar: readonly string[]) =>
 	similar.length > 0
 		? {
 				similar,
@@ -597,7 +598,19 @@ export async function saveNotebook(
 export async function editNotebook(
 	ctx: Ctx,
 	raw: unknown
-): Promise<{ notebook: string; version: number; section: string; changed: boolean; note: string }> {
+): Promise<{
+	notebook: string;
+	version: number;
+	section: string;
+	changed: boolean;
+	note: string;
+	/** The line as it was stored (numbers taken out), for add and replace: the assistant quotes it back to the person. */
+	saved?: string;
+	/** The live size of the main notebook after the change, so a message that edits it sees the real number, not the one it began with. */
+	chars?: number;
+	maxChars?: number;
+	nearFull?: boolean;
+}> {
 	const input = parse(notebookEditInput, raw);
 	return runWrite(ctx, 'notebook.edit', input, async (tx, userId) => {
 		const row = await resolveNotebook(tx, userId, input);
@@ -613,6 +626,8 @@ export async function editNotebook(
 		let result: { text: string; section: string; changed?: boolean };
 		// Lines already there about the same thing: told to the assistant after an add, never a refusal
 		let similar: string[] = [];
+		// What was written for an add or a replace, as stored
+		let saved: string | undefined;
 		try {
 			if (input.op === 'add') {
 				if (!input.heading || !input.line)
@@ -625,6 +640,7 @@ export async function editNotebook(
 				const heading = lineFor(ctx, input.heading);
 				if (!heading) throw new OpsError('INVALID', 'The heading is empty.');
 				similar = similarLines(current, line);
+				saved = line;
 				result = addLine(current, heading, line, limit);
 			} else if (input.op === 'replace') {
 				if (!input.find || input.replacement === undefined)
@@ -635,6 +651,13 @@ export async function editNotebook(
 						: input.replacement
 					: '';
 				if (replacement === null) throw new OpsError('INVALID', 'The replacement is empty.');
+				// Lines about the same thing in the rest of the text, without the span that is being replaced
+				// A merged block (a tidy) is many lines by design, so only a one-line replacement is checked
+				if (replacement) {
+					if (!replacement.includes('\n'))
+						similar = similarLines(current.replace(input.find, ''), replacement);
+					saved = replacement;
+				}
 				result = replaceOnce(current, input.find, replacement, limit);
 			} else {
 				if (!input.find) throw new OpsError('INVALID', 'To remove text give the exact text.');
@@ -682,6 +705,7 @@ export async function editNotebook(
 					others > 0
 						? 'The change is saved on the Overview page. This notebook has other pages: see notebook_outline.'
 						: 'The change is saved.',
+				...(saved ? { saved } : {}),
 				...similarNote(similar)
 			};
 		}
@@ -691,6 +715,11 @@ export async function editNotebook(
 			version: next.version,
 			section: result.section,
 			changed: true,
+			...(saved ? { saved } : {}),
+			// The live size, so a message that edits the notebook sees the real number and not the one it began with
+			chars: next.text.length,
+			maxChars: NOTEBOOK_MAX_CHARS,
+			nearFull: next.text.length * 100 >= NOTEBOOK_MAX_CHARS * NEAR_FULL_PERCENT,
 			// The main notebook is in the prompt of the next message; an extra one is read on demand, so its change is there at once
 			note: APPLIES_NEXT,
 			...similarNote(similar)
@@ -831,10 +860,10 @@ export async function createNotebook(ctx: Ctx, raw: unknown): Promise<NotebookVi
 			? (lineFor(ctx, input.summary) ?? '').slice(0, NOTEBOOK_SUMMARY_MAX)
 			: '';
 		const text = bodyFor(ctx, input.text ?? '');
-		if (text.length > NOTEBOOK_MAX_CHARS)
+		if (text.length > NOTEBOOK_PAGE_MAX_CHARS)
 			throw new OpsError(
 				'INVALID',
-				`The text would be longer than ${NOTEBOOK_MAX_CHARS} characters. Make it shorter.`
+				`The text would be longer than ${NOTEBOOK_PAGE_MAX_CHARS} characters. Make it shorter.`
 			);
 		const live = await liveTitles(tx, userId);
 		if (live.length >= NOTEBOOK_MAX_EXTRA)

@@ -420,8 +420,8 @@ export async function* handleChat(
 							reply,
 							// After untrusted text the answer is marked, so a summary later treats it as untrusted data
 							events: e.tainted ? [...kept, TAINTED_MARK] : kept,
-							// The tool rounds stay for the next messages of the chat; a cancelled or cut-off message keeps none
-							transcript: ended && e.transcript ? e.transcript : null,
+							// The tool rounds stay for the next messages of the chat, a stopped message too: the work it did is not lost
+							transcript: e.transcript ? e.transcript : null,
 							finishedAt: sql`now()`,
 							updatedAt: sql`now()`
 						})

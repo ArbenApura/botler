@@ -851,6 +851,58 @@ describe('searching, the outline, links, pins and activity', () => {
 		});
 	});
 
+	it('tells the assistant which pages still link to the old title when it renames a page, and the person gets no such list', async () => {
+		const c = await withTrip();
+		await createNotebook(as(c), { title: 'Work', summary: 'Jobs' });
+		await createPage(as(c), { notebook: 'Trip', title: 'Zed', text: 'x' });
+		await createPage(as(c), { notebook: 'Trip', title: 'Plain', text: 'see [[Zed]] here' });
+		await createPage(as(c), {
+			notebook: 'Trip',
+			title: 'Labelled',
+			text: 'see [[Zed|the zed page]]'
+		});
+		await createPage(as(c), { notebook: 'Trip', title: 'Padded', text: 'see [[ Zed ]] here' });
+		await createPage(as(c), { notebook: 'Work', title: 'Far', text: 'also [[Trip/Zed]]' });
+		// Not links: another title that starts the same, a link inside code, and a plain [[Zed]] from another notebook
+		await createPage(as(c), {
+			notebook: 'Trip',
+			title: 'Longer',
+			text: 'no [[Zeds]] and `[[Zed]]`'
+		});
+		await createPage(as(c), { notebook: 'Work', title: 'Other book', text: 'no [[Zed]] here' });
+		const sameRequest = { ...agentOf(c), requestId: 'rename-zed-0001' };
+		const out = await renamePage(sameRequest, {
+			notebook: 'Trip',
+			page: 'Zed',
+			newTitle: 'Zebra'
+		});
+		expect(out.title).toBe('Zebra');
+		expect(out.linkedFrom?.map((l) => `${l.notebook}/${l.page}`).sort()).toEqual([
+			'Trip/Labelled',
+			'Trip/Padded',
+			'Trip/Plain',
+			'Work/Far'
+		]);
+		expect(out.moreLinks).toBeUndefined();
+		// A replay returns the first answer, with the same list, and renames nothing twice
+		const again = await renamePage(sameRequest, {
+			notebook: 'Trip',
+			page: 'Zed',
+			newTitle: 'Zebra'
+		});
+		expect(again.linkedFrom).toHaveLength(4);
+		// The person's answer keeps its shape: no list of links
+		const mine = await renamePage(as(c), { notebook: 'Trip', page: 'Zebra', newTitle: 'Zebra 2' });
+		expect('linkedFrom' in mine).toBe(false);
+		// A rename to the same title has nothing to fix and says nothing about links
+		const same = await renamePage(agentOf(c), {
+			notebook: 'Trip',
+			page: 'Zebra 2',
+			newTitle: 'Zebra 2'
+		});
+		expect('linkedFrom' in same).toBe(false);
+	});
+
 	it('pins pages and notebooks for the person and lists what the assistant changed', async () => {
 		const c = await withTrip();
 		const page = await asAgent(c, 'Trip', 'By agent', 'x');

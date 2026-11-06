@@ -48,9 +48,16 @@ import {
 	pageUndeleteInput
 } from '../db/zod';
 import { redactSecrets } from '../memory/pure';
-import { addLine, EditError, linksTo, removeOnce, replaceOnce } from '../notebook/text';
+import {
+	addLine,
+	EditError,
+	linksTo,
+	removeOnce,
+	replaceOnce,
+	similarLines
+} from '../notebook/text';
 import { OpsError, run, runWrite } from './context';
-import { actorOf, redactText, refOf, resolveNotebook } from './notebook';
+import { actorOf, redactText, refOf, resolveNotebook, similarNote } from './notebook';
 import {
 	applyPageChange,
 	liveSubpageCount,
@@ -523,46 +530,62 @@ export async function pageBacklinks(ctx: Ctx, raw: unknown) {
 	const input = parse(pageIdInput, raw);
 	return run(ctx, async (tx, userId) => {
 		const { page, book } = await resolvePage(tx, userId, { pageId: input.pageId });
-		const plain = `[[${page.title}]]`;
-		const full = `[[${book.title}/${page.title}]]`;
-		const rows = await tx
-			.select({ page: notebookPage, book: notebook.title })
-			.from(notebookPage)
-			.innerJoin(
-				notebook,
-				and(eq(notebook.userId, notebookPage.userId), eq(notebook.id, notebookPage.notebookId))
-			)
-			.where(
-				and(
-					eq(notebookPage.userId, userId),
-					isNull(notebookPage.deletedAt),
-					isNull(notebook.deletedAt),
-					sql`${notebookPage.id} <> ${page.id}`,
-					or(
-						ilike(notebookPage.text, likeAround(plain)),
-						ilike(notebookPage.text, likeAround(full))
-					)
-				)
-			)
-			.orderBy(asc(sql`lower(${notebook.title})`), asc(sql`lower(${notebookPage.title})`))
-			.limit(200);
-		// The database found the pages that hold the words; the text is read again here, outside code, to see which really link
-		const real = rows
-			.filter((r) =>
-				linksTo(r.page.text, book.title, page.title, r.page.notebookId === page.notebookId)
-			)
-			.slice(0, 50);
-		return {
-			links: real.map((r) => ({
-				pageId: r.page.id,
-				notebookId: r.page.notebookId,
-				notebook: r.book,
-				page: r.page.title,
-				snippet: snippetOf(r.page.text, lower(r.page.text).includes(lower(full)) ? full : plain)
-			}))
-		};
+		const { links } = await pagesLinkingTo(tx, userId, page, book.title);
+		return { links };
 	});
 }
+
+/** The most links the assistant is told about after a rename: it stays well under the size cap of a tool answer. */
+const LINKS_FOR_AGENT = 50;
+
+/**
+ * The live pages that link to a page, found by its title as it is now. The database prefilter asks only for the words of the title and a "[[" in
+ * the same text, so a link with a label ([[Title|words]]) or with spaces inside the brackets is found too; the text is then read again,
+ * outside code, to see which really link. `more` says the list was cut (by the database cap or by `cap`), so a caller never reads a short list
+ * as a complete one. It runs inside the caller's transaction and does not check who the caller is: the verbs that use it do.
+ */
+async function pagesLinkingTo(tx: Tx, userId: string, page: PageRow, bookTitle: string, cap = 50) {
+	const plain = `[[${page.title}]]`;
+	const full = `[[${bookTitle}/${page.title}]]`;
+	const rows = await tx
+		.select({ page: notebookPage, book: notebook.title })
+		.from(notebookPage)
+		.innerJoin(
+			notebook,
+			and(eq(notebook.userId, notebookPage.userId), eq(notebook.id, notebookPage.notebookId))
+		)
+		.where(
+			and(
+				eq(notebookPage.userId, userId),
+				isNull(notebookPage.deletedAt),
+				isNull(notebook.deletedAt),
+				sql`${notebookPage.id} <> ${page.id}`,
+				// The words of the title and an opening of a link anywhere: a link with a label or spaces inside is found too, the text is read again below
+				ilike(notebookPage.text, likeAround(page.title)),
+				ilike(notebookPage.text, '%[[%')
+			)
+		)
+		.orderBy(asc(sql`lower(${notebook.title})`), asc(sql`lower(${notebookPage.title})`))
+		.limit(DB_LINK_ROWS + 1);
+	const real = rows
+		.slice(0, DB_LINK_ROWS)
+		.filter((r) =>
+			linksTo(r.page.text, bookTitle, page.title, r.page.notebookId === page.notebookId)
+		);
+	return {
+		links: real.slice(0, cap).map((r) => ({
+			pageId: r.page.id,
+			notebookId: r.page.notebookId,
+			notebook: r.book,
+			page: r.page.title,
+			snippet: snippetOf(r.page.text, lower(r.page.text).includes(lower(full)) ? full : plain)
+		})),
+		more: rows.length > DB_LINK_ROWS || real.length > cap
+	};
+}
+
+/** The pages the database hands back before the text is read again to see which really link. */
+const DB_LINK_ROWS = 200;
 
 /**
  * The pages the assistant touched in the last 14 days, newest first, for the app's "what changed" list. Two flags say what an undo may do, both
@@ -737,6 +760,9 @@ export async function editPage(ctx: Ctx, raw: unknown) {
 	return runWrite(ctx, 'page.edit', input, async (tx, userId) => {
 		const { page, book } = await resolvePage(tx, userId, input);
 		let result: { text: string; section: string; changed?: boolean };
+		// Lines already on the page about the same thing: told to the assistant after a change, never a refusal
+		let similar: string[] = [];
+		let saved: string | undefined;
 		try {
 			if (input.op === 'add') {
 				if (!input.heading || !input.line)
@@ -747,11 +773,19 @@ export async function editPage(ctx: Ctx, raw: unknown) {
 					? redactSecrets(input.heading.replace(/\s+/g, ' '))
 					: input.heading.replace(/\s+/g, ' ');
 				if (!heading) throw new OpsError('INVALID', 'The heading is empty.');
+				similar = similarLines(page.text, line);
+				saved = line;
 				result = addLine(page.text, heading, line, NOTEBOOK_PAGE_MAX_CHARS);
 			} else if (input.op === 'replace') {
 				if (!input.find || input.replacement === undefined)
 					throw new OpsError('INVALID', 'To replace text give the exact text and its replacement.');
 				const replacement = input.replacement ? cleanText(ctx, input.replacement) : '';
+				// A one-line replacement is checked against the rest of the page; a block is many lines by design
+				if (replacement) {
+					if (!replacement.includes('\n'))
+						similar = similarLines(page.text.replace(input.find, ''), replacement);
+					saved = replacement;
+				}
 				result = replaceOnce(page.text, input.find, replacement, NOTEBOOK_PAGE_MAX_CHARS);
 			} else {
 				if (!input.find) throw new OpsError('INVALID', 'To remove text give the exact text.');
@@ -778,7 +812,9 @@ export async function editPage(ctx: Ctx, raw: unknown) {
 			version: next.version,
 			section: result.section,
 			changed: true,
-			note: 'The change is saved.'
+			note: 'The change is saved.',
+			...(saved ? { saved } : {}),
+			...similarNote(similar)
 		};
 	});
 }
@@ -802,7 +838,17 @@ export async function savePage(ctx: Ctx, raw: unknown): Promise<PageView & { cha
 }
 
 /** Gives a page another title. Two live pages that share a parent cannot share a title, ignoring case. */
-export async function renamePage(ctx: Ctx, raw: unknown): Promise<PageView> {
+export async function renamePage(
+	ctx: Ctx,
+	raw: unknown
+): Promise<
+	PageView & {
+		/** For the assistant only: the pages that still point at the old title, found before the rename. */
+		linkedFrom?: { notebook: string; page: string; snippet: string }[];
+		/** True when the list was cut, so it is at least these. */
+		moreLinks?: boolean;
+	}
+> {
 	const input = parse(pageRenameInput, raw);
 	return runWrite(ctx, 'page.rename', input, async (tx, userId) => {
 		const { page, book } = await resolvePage(tx, userId, input);
@@ -819,11 +865,26 @@ export async function renamePage(ctx: Ctx, raw: unknown): Promise<PageView> {
 				: null;
 			throw new OpsError('CONFLICT', clashMessage(title, book.title, parent));
 		}
+		// Found before the update, inside this same write, so a replay of the request returns the same list. Only the assistant gets it
+		const stale = isAgent(ctx)
+			? await pagesLinkingTo(tx, userId, page, book.title, LINKS_FOR_AGENT)
+			: null;
 		await tx
 			.update(notebookPage)
 			.set({ title, updatedBy: actorOf(ctx), updatedAt: sql`now()` })
 			.where(and(eq(notebookPage.userId, userId), eq(notebookPage.id, page.id)));
-		return loadPageView(tx, userId, page.id);
+		const view = await loadPageView(tx, userId, page.id);
+		return stale
+			? {
+					...view,
+					linkedFrom: stale.links.map((l) => ({
+						notebook: l.notebook,
+						page: l.page,
+						snippet: l.snippet
+					})),
+					...(stale.more ? { moreLinks: true } : {})
+				}
+			: view;
 	});
 }
 

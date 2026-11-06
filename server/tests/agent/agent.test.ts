@@ -589,6 +589,9 @@ describe('loop limits and the error contract', () => {
 		const events = await play({ f: fx, model, text: 'lunch', signal: controller.signal });
 		expect(doneEvent(events)).toMatchObject({ stopped: 'cancelled', toolsRun: [] });
 		expect(await listTransactions(fx.ctx)).toHaveLength(0);
+		// The stopped round is still kept and pairs up (the call has an answer), so the next message can read the work done so far
+		const kept = (doneEvent(events) as { transcript?: { role: string }[] }).transcript;
+		expect(kept?.map((m) => m.role)).toEqual(['assistant', 'tool']);
 		// A request that was cancelled before it began never calls the model
 		const before = new AbortController();
 		before.abort();

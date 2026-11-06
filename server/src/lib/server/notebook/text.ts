@@ -235,7 +235,16 @@ const VOICE_WORDS = new Set([
 	'warm',
 	'casual',
 	'format',
-	'short'
+	'short',
+	// The same kind of preference in Filipino
+	'tamis',
+	'matamis',
+	'lambing',
+	'malambing',
+	'tono',
+	'boses',
+	'ikli',
+	'maikli'
 ]);
 
 const wordsOf = (line: string): Set<string> =>

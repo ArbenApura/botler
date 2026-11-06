@@ -80,9 +80,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		},
 		cancel() {
+			// The turn is told to stop but is NOT closed from outside: the loop in start() keeps reading it (nothing is sent any more) until it
+			// reaches its own end, which stores what was said and run (the tool rounds too), so the next message knows the work. Closing it
+			// here left the message "running" with nothing kept
 			stopTurn.abort();
 			stop();
-			void events.return(undefined);
 		}
 	});
 	return new Response(stream, {

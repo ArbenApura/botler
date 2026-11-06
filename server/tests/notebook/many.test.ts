@@ -105,6 +105,15 @@ describe('making and reading notebooks', () => {
 		});
 	});
 
+	it('takes a first text as long as a page can hold, and refuses one character more', async () => {
+		const c = await newUser();
+		const made = await createNotebook(as(c), { title: 'Long', text: 'x'.repeat(30_000) });
+		expect(made.chars).toBe(30_000);
+		await expect(
+			createNotebook(as(c), { title: 'Longer', text: 'x'.repeat(30_001) })
+		).rejects.toMatchObject({ code: 'INVALID' });
+	});
+
 	it('keeps a title unique ignoring case, refuses "main", and caps the number of notebooks', async () => {
 		const c = await newUser();
 		await createNotebook(as(c), { title: 'Garden' });
@@ -526,7 +535,7 @@ describe('what the assistant and the person may do', () => {
 		const made = await createNotebook(as(c), { title: `${'a'.repeat(60)} 4111 1111 1111 1111` });
 		expect(made.title.length).toBeLessThanOrEqual(80);
 		await expect(
-			createNotebook(as(c), { title: 'Long', text: 'x'.repeat(16_001) })
+			createNotebook(as(c), { title: 'Long', text: 'x'.repeat(30_001) })
 		).rejects.toMatchObject({ code: 'INVALID' });
 		await expect(undeleteNotebook(as(c), { notebook: 'main' })).rejects.toMatchObject({
 			code: 'INVALID'

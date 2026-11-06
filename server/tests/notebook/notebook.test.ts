@@ -286,6 +286,45 @@ describe('the assistant edits by exact text', () => {
 		).rejects.toMatchObject({ code: 'INVALID', message: expect.stringMatching(/16000/) });
 	});
 
+	it('answers with the stored line and the live size, so a message that edits sees the real number', async () => {
+		const c = await booked(`# Rules\n${'x'.repeat(12_900)}\n`);
+		const out = await editNotebook(agentOf(c), {
+			op: 'add',
+			heading: 'Rules',
+			line: 'Rent goes to account 1234567890123'
+		});
+		// The assistant quotes what was stored, with the number taken out, not what it typed
+		expect(out.saved).toContain('details removed');
+		expect(out.saved).not.toContain('1234567890123');
+		expect(out).toMatchObject({ maxChars: 16_000, nearFull: true });
+		expect(out.chars).toBe((await getNotebook(c)).text.length);
+		const small = await booked('# Rules\n- a\n');
+		const again = await editNotebook(agentOf(small), { op: 'add', heading: 'Rules', line: 'b' });
+		expect(again.nearFull).toBe(false);
+		// Nothing written, nothing quoted
+		const same = await editNotebook(agentOf(small), { op: 'add', heading: 'Rules', line: 'b' });
+		expect(same).toMatchObject({ changed: false });
+		expect(same.saved).toBeUndefined();
+	});
+
+	it('lists lines about the same thing after a one-line replace, but not for a merged block', async () => {
+		const c = await booked(
+			'# Talk\n- A bit sweet, warm and casual.\n- Always short answers.\n- Pays rent on the fifth.\n'
+		);
+		const one = await editNotebook(agentOf(c), {
+			op: 'replace',
+			find: 'Pays rent on the fifth.',
+			replacement: 'No sweet endings, keep it warm and plain.'
+		});
+		expect(JSON.stringify(one)).toContain('A bit sweet');
+		const block = await editNotebook(agentOf(c), {
+			op: 'replace',
+			find: '- Always short answers.',
+			replacement: '- Short answers.\n- Sweet endings are gone.'
+		});
+		expect('similar' in block).toBe(false);
+	});
+
 	it('works for the person too (the card the person approves runs as them)', async () => {
 		const c = await booked('# A\n');
 		await editNotebook(as(c), { op: 'add', heading: 'A', line: 'one' });

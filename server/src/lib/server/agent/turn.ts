@@ -986,9 +986,18 @@ ${note}`
 				...roundResults
 			);
 		for (const tc of completion.toolCalls) {
-			if (p.signal?.aborted) {
+			if (p.signal?.aborted || stopped === 'cancelled') {
 				stopped = 'cancelled';
-				break;
+				// The calls not run get an answer too, so the stored round pairs up and the next message can read what the earlier ones found
+				roundResults.push({
+					role: 'tool',
+					tool_call_id: tc.id,
+					content: JSON.stringify({
+						error: 'cancelled',
+						message: 'Stopped by the person before this ran.'
+					})
+				});
+				continue;
 			}
 			if (seq >= limits.maxToolCalls) {
 				stopped = 'tools';

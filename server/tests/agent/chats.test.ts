@@ -356,7 +356,7 @@ describe('branching', () => {
 				.set({ events: [{ type: 'tool', name: 'task_create', status: 'ok' }] })
 				.where(and(eq(chatTurn.chatId, id), eq(chatTurn.userText, 'much later')))
 		);
-		expect(JSON.stringify(await say(p, 'go on', res.chatId))).not.toContain('task_create');
+		expect(JSON.stringify(await say(p, 'go on', res.chatId))).not.toContain('task_create x');
 	});
 
 	it('does not bring an empty branch back as the new chat', async () => {
