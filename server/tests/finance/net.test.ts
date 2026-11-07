@@ -155,6 +155,24 @@ describe('net balance', () => {
 		).toBe(NET);
 	});
 
+	it('marks late bills, lists bills before rules, and names set-aside money that was already spent', () => {
+		const p = rawPlan({ rules: [...rawPlan().rules, SAVES_FOR_NET] });
+		const r = of(p, [wallet('gcash', 5_000_000)]);
+		const holds = gcash(r)?.holds ?? [];
+		expect(holds.filter((h) => h.overdue).map((h) => h.dueDate)).toEqual([
+			'2025-12-05',
+			'2025-12-20'
+		]);
+		expect(holds.find((h) => h.dueDate === '2026-01-05')?.overdue).toBeUndefined();
+		const kinds = holds.map((h) => h.kind);
+		expect(kinds.lastIndexOf('bill')).toBeLessThan(kinds.indexOf('rule'));
+		expect(gcash(r)?.spentSetAside).toBe(0);
+		// Only the rent's worth is in the wallet: all of the 100 000 the rule set aside is gone
+		const q = plan({ rules: [...plan().rules, SAVES_FOR_NET] });
+		expect(gcash(of(q, [wallet('gcash', RENT + 30_000)]))?.spentSetAside).toBe(70_000);
+		expect(gcash(of(q, [wallet('gcash', RENT)]))?.spentSetAside).toBe(100_000);
+	});
+
 	it('does not hold a bill due on the payday itself, and does not hold a due bill a second time through its rule', () => {
 		const base = plan();
 		// Internet falls on the 15th, the payday: the pay arrives that day, so it is not held before it

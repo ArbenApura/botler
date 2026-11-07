@@ -11,6 +11,8 @@
 //   holds nothing and is named). It lowers net but is never a shortfall: the bill is not due yet.
 // - An account that holds a goal keeps its whole main wallet for the goal (the payday split gives nothing from it), so that wallet's net is
 //   zero and any bill due from it is a shortfall.
+// - The holds come bills first (by date, a late one marked `overdue`), then what the rules set aside, so the screen can group them "owed now" and
+//   "set aside for later". `spentSetAside` is the part of the rule holds the balance no longer covers (money set aside and then spent).
 // - net = max(0, balance - held). shortfall = what the bills due before the next payday still lack: max(0, due - max(balance, 0)).
 //   The minimum balance is NOT subtracted: it is a floor the person chose, not a promise, and stays its own line.
 
@@ -39,6 +41,8 @@ export type NetHold = {
 	amount: number;
 	/** The bill's due date, for a bill. */
 	dueDate?: ManilaDate;
+	/** True (only ever set to true) for an unpaid bill whose due date is before today, so the screen can name it as late. */
+	overdue?: true;
 };
 
 export type NetWallet = NetWalletInput & {
@@ -47,6 +51,8 @@ export type NetWallet = NetWalletInput & {
 	net: number;
 	shortfall: number;
 	holds: NetHold[];
+	/** Money the linked rules set aside here that the balance no longer holds (it was spent): what the rule holds exceed the free balance by. Zero for a goal wallet. */
+	spentSetAside: number;
 };
 
 /** A bill that holds money in a currency the account has no wallet in. */
@@ -146,7 +152,13 @@ export function computeNet(
 			});
 			continue;
 		}
-		push(bills, key, { kind: 'bill', label: b.name, amount: b.amount, dueDate: b.dueDate });
+		push(bills, key, {
+			kind: 'bill',
+			label: b.name,
+			amount: b.amount,
+			dueDate: b.dueDate,
+			...(b.dueDate < today ? { overdue: true as const } : {})
+		});
 	}
 
 	// What a linked rule has set aside for a bill that is not due before the next payday
@@ -198,7 +210,8 @@ export function computeNet(
 			.join(', ');
 	const out: NetWallet[] = wallets.map((w) => {
 		const key = keyOf(w.accountId, w.currency);
-		const dueHolds = bills[key] ?? [];
+		const byDate = (a: NetHold, b: NetHold) => (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
+		const dueHolds = [...(bills[key] ?? [])].sort(byDate);
 		const dueSum = dueHolds.reduce((n, h) => n + h.amount, 0);
 		const isGoal = w.currency === plan.main && goalAccounts.has(w.accountId);
 		const own = Math.max(w.balance, 0);
@@ -209,16 +222,20 @@ export function computeNet(
 				net: 0,
 				// The goal's money never pays a bill, so a bill due from here has to come from the pay
 				shortfall: dueSum,
-				holds: [{ kind: 'goal', label: goalName(w.accountId), amount: own }, ...dueHolds]
+				holds: [{ kind: 'goal', label: goalName(w.accountId), amount: own }, ...dueHolds],
+				spentSetAside: 0
 			};
 		const ruleHolds = rules[key] ?? [];
-		const held = dueSum + ruleHolds.reduce((n, h) => n + h.amount, 0);
+		const ruleSum = ruleHolds.reduce((n, h) => n + h.amount, 0);
+		const held = dueSum + ruleSum;
 		return {
 			...w,
 			held,
 			net: Math.max(0, w.balance - held),
 			shortfall: Math.max(0, dueSum - own),
-			holds: [...dueHolds, ...ruleHolds]
+			// Bills first (late ones lead, then by date), then what the rules saved, by the date of the bill each saves for
+			holds: [...dueHolds, ...[...ruleHolds].sort(byDate)],
+			spentSetAside: Math.min(ruleSum, Math.max(0, ruleSum - Math.max(0, own - dueSum)))
 		};
 	});
 	return { wallets: out, unmatched, notes, until };
