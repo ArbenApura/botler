@@ -144,7 +144,11 @@ Future<void> flushAndSync(ProviderContainer container) async {
       // A pin, rename or move may have gone out (or been refused): the notebooks are read again
       container
         ..invalidate(libraryProvider)
-        ..invalidate(pageProvider);
+        ..invalidate(pageProvider)
+        // A queued expense or transfer has gone out: the Accounts screen must show it
+        ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider)
+        ..invalidate(syncProvider);
     }
     await syncReminders(api, prefs);
   } on ApiException catch (e) {

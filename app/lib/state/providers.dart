@@ -2,6 +2,7 @@
 // Business rules are not here and not in widgets: they live on the server and the screens call them through the client.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -18,6 +19,7 @@ import '../core/clock.dart';
 import '../core/config.dart';
 import '../core/file_actions.dart';
 import '../core/json.dart';
+import '../core/money_verbs.dart';
 import '../core/outbox.dart';
 import '../core/page_cache.dart';
 import '../core/person_data.dart';
@@ -185,7 +187,26 @@ final Provider<ApiClient> apiProvider = Provider<ApiClient>((ref) {
     base: apiBase,
     token: () async => (await store.read())?.token,
   );
-  ref.onDispose(api.close);
+  // Any saved money change, from any screen or from the outbox, makes the shared lists read again. A short wait joins a burst (an outbox
+  // flush of many items) into one refresh, and nothing runs after the provider is gone.
+  Timer? pending;
+  var gone = false;
+  api.onWrite = (verb) {
+    if (gone || !changesMoney(verb)) return;
+    pending?.cancel();
+    pending = Timer(const Duration(milliseconds: 300), () {
+      if (gone) return;
+      ref
+        ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider)
+        ..invalidate(syncProvider);
+    });
+  };
+  ref.onDispose(() {
+    gone = true;
+    pending?.cancel();
+    api.close();
+  });
   return api;
 });
 

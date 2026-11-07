@@ -69,6 +69,9 @@ class ApiClient {
   final TokenReader token;
   final http.Client _http;
 
+  /// Called with the verb name after every successful operation call (the outbox sends through the same path). The app uses it to refresh lists.
+  void Function(String verb)? onWrite;
+
   Future<Map<String, String>> _headers({
     String? key,
     bool json = false,
@@ -235,6 +238,15 @@ class ApiClient {
       key: key ?? newRequestId(),
       channel: channel,
     );
+    // Told only after the server accepted it, so a refused or unreached write never refreshes anything
+    final told = onWrite;
+    if (told != null) {
+      try {
+        told(name);
+      } on Object {
+        // A listener that fails must never turn a saved write into an error
+      }
+    }
     return answer['result'];
   }
 

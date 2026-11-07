@@ -670,5 +670,17 @@
       "Ang net balance ay sumasaklaw na lang sa mga bayarin na due bago ang susunod na sahod at sa mga huli na. Hindi na ito binabawasan ng perang itinabi ng mga rule mo para sa mga susunod na bayarin.",
       "Tinatawag nang huli ang mga huling bayarin at nasa unahan sila ng listahan."
     ]
+  },
+  {
+    "versionCode": 60,
+    "versionName": "1.7.5",
+    "en": [
+      "The Accounts screen now shows a transfer, an expense or a paid bill right away, including ones that waited for a connection and went out later.",
+      "Coming back to the app refreshes your balances."
+    ],
+    "fil": [
+      "Ipinapakita na agad ng Accounts screen ang transfer, gastos o nabayarang bill, kasama ang mga naghintay ng koneksyon at saka lang naipadala.",
+      "Kapag bumalik ka sa app, nare-refresh ang mga balanse mo."
+    ]
   }
 ]

@@ -310,7 +310,10 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
     });
     // A silent push while the app is open: send what waits and bring the alarms in line, like coming back to the front
     ref.read(pushServiceProvider).onSync = () {
-      ref.invalidate(syncProvider);
+      ref
+        ..invalidate(syncProvider)
+        ..invalidate(balancesProvider)
+        ..invalidate(assetsProvider);
       unawaited(flushAndSync(ref.container));
     };
     if (ref.read(sessionProvider).value != null) {
@@ -330,7 +333,11 @@ class _BotlerAppState extends ConsumerState<BotlerApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     if (ref.read(sessionProvider).value == null) return;
-    ref.invalidate(syncProvider);
+    // The background task may have sent writes while the app was away, and "late" depends on the clock: read the money lists again
+    ref
+      ..invalidate(syncProvider)
+      ..invalidate(balancesProvider)
+      ..invalidate(assetsProvider);
     unawaited(flushAndSync(ref.container));
   }
 
