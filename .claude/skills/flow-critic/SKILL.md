@@ -1,8 +1,8 @@
 ---
 name: flow-critic
 description: Use to have independent critic subagents attack a /flow plan before it is built, or review code after it is written, on Agent Flow Board. Picks the mode from the session, plan (the item's steps or spec written or changed on the board, nothing built) or code (implementation done, a phase finished, before commit sign-off, or after any change to server code, an endpoint, a migration, auth, a background worker or a screen), says which and why, and never asks, it picks code mode when the tree has code changes and plan mode otherwise and says which. Dispatches 1 subagent for a small diff and 3 otherwise (more when the user asks) with lenses chosen for what the work touches, runs pass 2 only after a BLOCKER, and verifies every finding before acting. Code mode applies to any code change, not only /flow items. Formerly /feat-plan-critic and /feat-code-critic (before that /plan-critic, /code-critic and requesting-code-review).
-afb-bundle: 1.1.15
-afb-version: 1.1.3
+afb-bundle: 1.1.16
+afb-version: 1.1.4
 afb-source-sha256: 747789f0b3917eaa400a4d69a4bf32145a7cf305334d2dac3bc7fb8b6ebbd926
 ---
 

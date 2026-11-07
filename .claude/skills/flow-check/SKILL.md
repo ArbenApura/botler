@@ -1,9 +1,9 @@
 ---
 name: flow-check
 description: "Use when a browser check must be written, run or read for an Agent Flow Board item, or when the user types /flow-check. The agent does all of it itself through the MCP tools and the afb-checks tool on this machine: it connects, registers, repairs and upgrades the tool without asking anyone, writes the check, saves it on the board, runs it, waits for the result and reads it. It stops only before touching a shared database, a local server it did not start, or a live site. Never edits the tool's template folder and never reads saved sign-ins."
-afb-bundle: 1.1.15
-afb-version: 1.1.10
-afb-source-sha256: d1a464c564d3adbfcc6d7bea0f7c6c1ea005d98e229841a76fb80230be0e5754
+afb-bundle: 1.1.16
+afb-version: 1.1.11
+afb-source-sha256: 686e9db00d8620b7ef2c0393d7fec8d35dc62d1ac08fbf39d95e9ddebed7d665
 ---
 
 # Browser checks with afb-checks: the agent does all of it
@@ -78,7 +78,7 @@ Every one of these cost a run of 3 to 4 minutes when it was found by failing. Re
 - **The write path and the dialog that closes first.** Before the read-only checks, prove the riskiest interaction (a form that writes, a reset or confirm dialog, anything that must close with Escape, the X and a click outside) with a write-enabled run on this machine. Read-only checks passing prove nothing about it. Do not report the work as done before that run has passed.
 - **Facts before a check.** Take every number, label and button from the real source (the component, the data, the running page), never from a comment, and never from memory of which buttons exist. Confirm the registration is signed in and the sample data exists (the limits above). A guess found by a failed run costs 3 to 4 minutes.
 - **One measurement, alone.** A speed or size comparison is run once, alone, on a quiet machine, and the number is reported with that fact. A comparison taken while other runs shared the CPU is thrown away.
-- **Do not widen the work.** Run only the checks the plan has or the user asked for. A mockup, an extra measurement or an extra check that nobody asked for is not part of the request.
+- **Do not widen the work.** Run only the checks the plan has or the user asked for. A mockup the user did not say yes to, an extra measurement or an extra check that nobody asked for is not part of the request.
 
 ## Several registrations for one board project (two repo folders, two branches)
 

@@ -1,9 +1,9 @@
 ---
 name: flow-interview
 description: Use when the user asks to be grilled or interviewed about an Agent Flow Board plan, or to double check what will be built, and after a /flow plan is drafted but before it is approved or built. Also works with no plan at all, as a brainstorm (an idea typed after /flow-interview, or no open item on the board), where it asks the same plain multiple-choice questions to shape the idea and offers to hand the result to /flow. Reads the item from Agent Flow Board (spec, steps, decisions, resume note) plus the code it touches, then asks the user plain, detailed, multiple-choice questions in rounds until every gap, assumption and open choice is settled, and writes each answer back to the board as a decision and a plan change. Board only, no code. Complements /flow (writes the plan), /flow-critic (agents attack the plan) and /flow-audit (checks the build is recorded). Formerly /feat-interview.
-afb-bundle: 1.1.15
-afb-version: 1.1.3
-afb-source-sha256: a90e01486988bd68883db4f40f9fe66df277b554a7d7cbef9668650cf32c367b
+afb-bundle: 1.1.16
+afb-version: 1.1.4
+afb-source-sha256: 3d657ac0573f6e765ce229299f296d4e8d576b5d671d3d058559b4013fdd2bb2
 ---
 
 # Plan Interview
@@ -73,7 +73,7 @@ Use `AskUserQuestion`. Each call holds 1 to 4 questions, each with 2 to 4 option
 - **Recommend when you can.** Put your recommended option first with " (Recommended)" and the reason in its description. Never recommend a user-facing limit or number; that is their call.
 - **Show, don't describe**, when it is visual: use `preview` with a small text sketch or example.
 - **`header`** is a chip of 12 characters or fewer. Use `multiSelect` only when the choices are not exclusive.
-- **Visible changes.** When the plan adds or visibly changes a screen, read its `design-brief` section first (`/flow` section 2, step 4a). Ask what the brief cannot source, and never offer a look you made up or one an existing component already settles. When the mockup question is still unanswered and `/flow` section 2, step 6a applies, ask it; where that step does not apply, do not mention artifacts or a mockup.
+- **Visible changes.** When the plan adds or visibly changes a screen, read its `design-brief` section first (`/flow` section 2, step 4a). Ask what the brief cannot source, and never offer a look you made up or one an existing component already settles. When the mockup line of `/flow` section 2, step 6a applies and is still unanswered, ask it once with the other questions of the round, never as a question of its own; where that step does not apply, do not mention mockups.
 
 Between rounds: record the answers (Step 4), add any new questions they open, re-rank, and start the next round with one line saying what you recorded. Stop when the list is empty or the user says stop (usually 3 to 6 rounds). "Skip" or "later" is recorded as open, not decided. If `AskUserQuestion` is not available, write the round as a numbered list with the same structure and stop until they answer.
 
