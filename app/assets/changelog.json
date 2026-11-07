@@ -646,5 +646,17 @@
       "Kapag itinigil mo si Botler sa kalagitnaan ng gawain, naaalala na niya ang mga nahanap at nagawa na niya, kaya puwede mo siyang pagpatuloy at magpapatuloy siya mula doon.",
       "Sinasabi na ng chat kapag nag-save o nagbago si Botler sa mga notebook mo, at mas malinaw na ang walang laman na screen ng mga notebook."
     ]
+  },
+  {
+    "versionCode": 58,
+    "versionName": "1.7.3",
+    "en": [
+      "The net balance is easier to read: what a wallet holds back is now split into bills you owe now (late ones first) and money your rules set aside for later bills.",
+      "When money a rule set aside has already been spent, the wallet says so with the amount."
+    ],
+    "fil": [
+      "Mas madaling basahin ang net balance: ang nakalaan sa wallet ay hinati na sa mga bayarin na dapat bayaran na (una ang mga huli na) at sa perang itinabi ng mga rule mo para sa mga susunod na bayarin.",
+      "Kapag nagastos na ang perang itinabi ng isang rule, sasabihin ito ng wallet kasama ang halaga."
+    ]
   }
 ]

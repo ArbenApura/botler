@@ -58,9 +58,13 @@ String holdWords(BuildContext context, Json h) {
   return switch (str(h['kind'])) {
     'goal' => t.netHeldGoal(label),
     'rule' => t.netHeldRule(label, date),
+    _ when h['overdue'] == true => t.netHeldBillLate(label, date),
     _ => t.netHeldBill(label, date),
   };
 }
+
+/// A hold that is owed now (a bill or a goal) as against money a rule has only set aside for a later bill.
+bool holdIsOwed(Json h) => str(h['kind']) != 'rule';
 
 /// Every hold of every wallet of an account, each with the currency of its own wallet, in the order the server sent them. Only wallets that
 /// have a net count: an older answer or one the server could not work out has no holds to show.
@@ -111,6 +115,7 @@ class NetAmount extends StatelessWidget {
       );
     }
     final short = netInt(wallet, 'shortfall') ?? 0;
+    final spent = netInt(wallet, 'spentSetAside') ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
@@ -131,6 +136,15 @@ class NetAmount extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: _shortWidth),
             child: Text(
               context.t.netShortfall(context.moneyIn(short, currency)),
+              textAlign: TextAlign.end,
+              style: TextStyle(color: c.warning, fontFeatures: tabular),
+            ),
+          ),
+        if (spent > 0)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _shortWidth),
+            child: Text(
+              context.t.netSpentSetAside(context.moneyIn(spent, currency)),
               textAlign: TextAlign.end,
               style: TextStyle(color: c.warning, fontFeatures: tabular),
             ),
@@ -196,6 +210,31 @@ class NetHolds extends StatelessWidget {
     final net = netInt(wallet, 'netBalance');
     if (net == null) return const SizedBox.shrink();
     final holds = asJsonList(wallet['holds']);
+    final owed = holds.where(holdIsOwed).toList();
+    final saved = holds.where((h) => !holdIsOwed(h)).toList();
+    final spent = netInt(wallet, 'spentSetAside') ?? 0;
+    // One line per hold, with its amount
+    Widget row(Json h) => Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(child: Text(holdWords(context, h))),
+          const SizedBox(width: 8),
+          Text(
+            context.moneyIn(intOf(h['amount']), currency),
+            style: TextStyle(fontFeatures: tabular),
+          ),
+        ],
+      ),
+    );
+    Widget heading(String text) => Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(text, style: TextStyle(color: c.muted)),
+      ),
+    );
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -215,10 +254,15 @@ class NetHolds extends StatelessWidget {
         ],
       ),
       children: <Widget>[
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(t.netHeldTitle, style: TextStyle(color: c.muted)),
-        ),
+        // Above the scrolling list, so a long list never hides it
+        if (spent > 0)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              t.netSpentSetAside(context.moneyIn(spent, currency)),
+              style: TextStyle(color: c.warning),
+            ),
+          ),
         if (holds.isEmpty)
           Align(
             alignment: Alignment.centerLeft,
@@ -229,22 +273,13 @@ class NetHolds extends StatelessWidget {
             constraints: const BoxConstraints(maxHeight: _maxListHeight),
             child: SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  for (final h in holds)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Expanded(child: Text(holdWords(context, h))),
-                          const SizedBox(width: 8),
-                          Text(
-                            context.moneyIn(intOf(h['amount']), currency),
-                            style: TextStyle(fontFeatures: tabular),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Owed now first (late ones lead, the server sorts them), then what the rules only set aside
+                  if (owed.isNotEmpty) heading(t.netGroupOwed),
+                  for (final h in owed) row(h),
+                  if (saved.isNotEmpty) heading(t.netGroupSetAside),
+                  for (final h in saved) row(h),
                 ],
               ),
             ),

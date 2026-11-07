@@ -3622,8 +3622,19 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get netGroupOwed => 'Dapat bayaran na';
+
+  @override
+  String get netGroupSetAside => 'Nakatabi para sa susunod';
+
+  @override
   String netHeldBill(String label, String date) {
     return '$label, due sa $date';
+  }
+
+  @override
+  String netHeldBillLate(String label, String date) {
+    return '$label, huli na mula $date';
   }
 
   @override
@@ -3655,6 +3666,11 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get netShowNet => 'Ipakita ang net na balanse';
+
+  @override
+  String netSpentSetAside(String amount) {
+    return '$amount na nakatabi rito ay nagastos na';
+  }
 
   @override
   String get netTakenBy => 'Kinuha rito ng';
