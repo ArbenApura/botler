@@ -454,7 +454,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'accounts_balances',
 		kind: 'read',
 		description:
-			'The balance of every account right now, and its net: netBalance is what is left of the wallet after money already owed to bills due before the next payday (held, with holds naming each bill or linked rule with its date) and money kept for a goal. shortfall is what a bill due before the next payday still lacks. The minimum balance is separate (belowMinimum). Say that a figure is net and name what is held.',
+			'The balance of every account right now, and its net: netBalance is what is left of the wallet after money already owed to bills due before the next payday (held, with holds naming each bill with its date, late ones marked overdue) and money kept for a goal. shortfall is what a bill due before the next payday still lacks. The minimum balance is separate (belowMinimum). Say that a figure is net and name what is held.',
 		input: emptyInput,
 		run: (ctx) => accountBalancesWithNet(ctx)
 	}),

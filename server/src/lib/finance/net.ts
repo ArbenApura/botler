@@ -7,12 +7,11 @@
 //   recorded (`incomeDays`), since a recorded pay is already in the balance. With no payday ahead the horizon is 30 days.
 // - An unpaid bill date before the next payday (or up to 31 days late) holds its full amount, from the same dates the forecast and the split
 //   use (finance/billWindows.ts: overrides, windows, payments). A bill with no amount yet holds nothing and is named.
-// - For a later bill, money a linked rule has set aside holds it (finance/funding.ts reservedFor as of today, valid links only; a broken link
-//   holds nothing and is named). It lowers net but is never a shortfall: the bill is not due yet.
+// - Owner decision of 2026-11-07: money a payday rule has set aside for a LATER bill does not lower net. Only the payday window (bills due before
+//   the next payday) and late bills are covered; the rule's money is the owner's to see on the rule, not a deduction. A broken link is still named.
 // - An account that holds a goal keeps its whole main wallet for the goal (the payday split gives nothing from it), so that wallet's net is
 //   zero and any bill due from it is a shortfall.
-// - The holds come bills first (by date, a late one marked `overdue`), then what the rules set aside, so the screen can group them "owed now" and
-//   "set aside for later". `spentSetAside` is the part of the rule holds the balance no longer covers (money set aside and then spent).
+// - The holds come by date, a late one marked `overdue`.
 // - net = max(0, balance - held). shortfall = what the bills due before the next payday still lack: max(0, due - max(balance, 0)).
 //   The minimum balance is NOT subtracted: it is a floor the person chose, not a promise, and stays its own line.
 
@@ -23,7 +22,6 @@ import type { PlanData } from './planFlows';
 // -- MODULES -- //
 import { billOccurrences } from './billWindows';
 import { addDays } from './dates';
-import { reservedFor } from './funding';
 import { OVERDUE_DAYS, planLinks, recordedPays } from './planFlows';
 import { occurrencesBetween } from './schedule';
 
@@ -34,8 +32,8 @@ export type NetWalletInput = { accountId: string; currency: string; balance: num
 
 /** Why money in a wallet is held. */
 export type NetHold = {
-	kind: 'bill' | 'rule' | 'goal';
-	/** The bill, the rule or the goal named for the person. */
+	kind: 'bill' | 'goal';
+	/** The bill or the goal named for the person. */
 	label: string;
 	/** Minor units of the wallet's currency. */
 	amount: number;
@@ -51,8 +49,6 @@ export type NetWallet = NetWalletInput & {
 	net: number;
 	shortfall: number;
 	holds: NetHold[];
-	/** Money the linked rules set aside here that the balance no longer holds (it was spent): what the rule holds exceed the free balance by. Zero for a goal wallet. */
-	spentSetAside: number;
 };
 
 /** A bill that holds money in a currency the account has no wallet in. */
@@ -115,7 +111,6 @@ export function computeNet(
 	const active = new Set(plan.accounts.filter((a) => !a.archived).map((a) => a.id));
 	const amounts = new Map(plan.bills.map((b) => [b.id, b.usualAmount]));
 	const bills: Record<string, NetHold[]> = {};
-	const rules: Record<string, NetHold[]> = {};
 	const unmatched: NetUnmatched[] = [];
 	const push = (into: Record<string, NetHold[]>, key: string, hold: NetHold) => {
 		(into[key] ??= []).push(hold);
@@ -161,46 +156,9 @@ export function computeNet(
 		});
 	}
 
-	// What a linked rule has set aside for a bill that is not due before the next payday
-	const { links, broken } = planLinks(plan);
-	for (const l of broken)
+	// A rule that cannot save for its bill is still named, though no rule holds money here any more (owner decision of 2026-11-07)
+	for (const l of planLinks(plan).broken)
 		notes.push({ kind: 'broken_link', rule: l.ruleLabel, bill: l.billName, reason: l.reason });
-	const paydaysBetween = (from: ManilaDate, to: ManilaDate) =>
-		from > to
-			? []
-			: plan.incomes
-					.filter((i) => (i.expectedAmount ?? 0) > 0)
-					.flatMap((i) => occurrencesBetween(i.schedule, from, to, { weekend: i.weekendRule }));
-	const dueIds = new Set(due.map((b) => b.billId));
-	for (const l of links) {
-		const b = plan.bills.find((x) => x.id === l.billId);
-		if (!b || !active.has(l.accountId)) continue;
-		const dates = billOccurrences(
-			[b],
-			addDays(today, -400),
-			addDays(today, 400),
-			plan.overrides,
-			plan.settled,
-			new Map([[b.id, b.usualAmount]])
-		);
-		const next = dates.find((d) => d.dueDate >= today);
-		if (!next) continue;
-		// An occurrence before the next payday already holds its full amount above
-		if (next.dueDate < until && dueIds.has(b.id)) continue;
-		const previous = [...dates].reverse().find((d) => d.dueDate < next.dueDate);
-		const since = previous ? addDays(previous.dueDate, 1) : l.effectiveFrom;
-		const set = reservedFor(
-			l,
-			next.amount ?? 0,
-			previous?.dueDate ?? null,
-			paydaysBetween(since, addDays(today, -1)),
-			today,
-			next.paid
-		);
-		const key = keyOf(l.accountId, plan.main);
-		if (set > 0 && walletKeys.has(key))
-			push(rules, key, { kind: 'rule', label: l.ruleLabel, amount: set, dueDate: next.dueDate });
-	}
 
 	const goalAccounts = new Set(plan.goals.map((g) => g.accountId));
 	const goalName = (accountId: string) =>
@@ -222,20 +180,15 @@ export function computeNet(
 				net: 0,
 				// The goal's money never pays a bill, so a bill due from here has to come from the pay
 				shortfall: dueSum,
-				holds: [{ kind: 'goal', label: goalName(w.accountId), amount: own }, ...dueHolds],
-				spentSetAside: 0
+				holds: [{ kind: 'goal', label: goalName(w.accountId), amount: own }, ...dueHolds]
 			};
-		const ruleHolds = rules[key] ?? [];
-		const ruleSum = ruleHolds.reduce((n, h) => n + h.amount, 0);
-		const held = dueSum + ruleSum;
 		return {
 			...w,
-			held,
-			net: Math.max(0, w.balance - held),
+			held: dueSum,
+			net: Math.max(0, w.balance - dueSum),
 			shortfall: Math.max(0, dueSum - own),
-			// Bills first (late ones lead, then by date), then what the rules saved, by the date of the bill each saves for
-			holds: [...dueHolds, ...[...ruleHolds].sort(byDate)],
-			spentSetAside: Math.min(ruleSum, Math.max(0, ruleSum - Math.max(0, own - dueSum)))
+			// Late bills lead, then by date
+			holds: dueHolds
 		};
 	});
 	return { wallets: out, unmatched, notes, until };

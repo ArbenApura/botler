@@ -140,37 +140,25 @@ describe('net balance', () => {
 		expect(gcash(r)?.held).toBe(RENT * 2 + NET);
 	});
 
-	it('holds what a linked rule has set aside for a later bill, lowering net but never raising a shortfall', () => {
+	it('does not hold what a linked rule has set aside for a later bill: only the payday window and late bills count', () => {
 		const p = plan({ rules: [...plan().rules, SAVES_FOR_NET] });
-		// One payday (30 Dec) since the Internet bill of 20 Dec: 100 000 set aside, on top of the rent due
+		// One payday (30 Dec) since the Internet bill of 20 Dec set 100 000 aside, but that bill is after the next payday: not held
 		const r = of(p, [wallet('gcash', 2_000_000)]);
-		expect(gcash(r)).toMatchObject({ held: RENT + 100_000, net: 400_000, shortfall: 0 });
-		expect(gcash(r)?.holds.map((h) => h.kind)).toEqual(['bill', 'rule']);
-		// With too little money the rule's hold is not a shortfall: the bill is not due yet
-		expect(gcash(of(p, [wallet('gcash', RENT)]))).toMatchObject({ net: 0, shortfall: 0 });
-		// A rule never holds more than the bill
-		const rich = plan({ rules: [...plan().rules, { ...SAVES_FOR_NET, amount: 900_000 }] });
-		expect(
-			gcash(of(rich, [wallet('gcash', 5_000_000)]))?.holds.find((h) => h.kind === 'rule')?.amount
-		).toBe(NET);
+		expect(gcash(r)).toMatchObject({ held: RENT, net: 500_000, shortfall: 0 });
+		expect(gcash(r)?.holds.map((h) => h.kind)).toEqual(['bill']);
+		// The same wallet as without the rule
+		expect(gcash(r)?.net).toBe(gcash(of(plan(), [wallet('gcash', 2_000_000)]))?.net);
 	});
 
-	it('marks late bills, lists bills before rules, and names set-aside money that was already spent', () => {
-		const p = rawPlan({ rules: [...rawPlan().rules, SAVES_FOR_NET] });
-		const r = of(p, [wallet('gcash', 5_000_000)]);
+	it('marks late bills as overdue and lists the holds by date', () => {
+		const r = of(rawPlan(), [wallet('gcash', 5_000_000)]);
 		const holds = gcash(r)?.holds ?? [];
 		expect(holds.filter((h) => h.overdue).map((h) => h.dueDate)).toEqual([
 			'2025-12-05',
 			'2025-12-20'
 		]);
 		expect(holds.find((h) => h.dueDate === '2026-01-05')?.overdue).toBeUndefined();
-		const kinds = holds.map((h) => h.kind);
-		expect(kinds.lastIndexOf('bill')).toBeLessThan(kinds.indexOf('rule'));
-		expect(gcash(r)?.spentSetAside).toBe(0);
-		// Only the rent's worth is in the wallet: all of the 100 000 the rule set aside is gone
-		const q = plan({ rules: [...plan().rules, SAVES_FOR_NET] });
-		expect(gcash(of(q, [wallet('gcash', RENT + 30_000)]))?.spentSetAside).toBe(70_000);
-		expect(gcash(of(q, [wallet('gcash', RENT)]))?.spentSetAside).toBe(100_000);
+		expect(holds.map((h) => h.dueDate)).toEqual([...holds.map((h) => h.dueDate)].sort());
 	});
 
 	it('does not hold a bill due on the payday itself, and does not hold a due bill a second time through its rule', () => {

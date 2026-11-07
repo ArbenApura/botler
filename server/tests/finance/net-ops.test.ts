@@ -1,7 +1,7 @@
 // NET BALANCE READS (BTL-20261030-0546): accounts_balances AND assets_summary CARRY WHAT EACH WALLET HOLDS BACK FOR BILLS AND GOALS, THE GROSS FIELDS STAY
 // AS THEY WERE, A SCHEDULE THAT CANNOT BE READ LEAVES THE NET OUT WITHOUT BREAKING THE BALANCES, AND THE ASSISTANT MAY READ BOTH. RUN AS app_runtime IN THE TENANT CONTEXT.
 // The plan is read as of 2027-01-21 (after the 15 Jan pay, next pay 30 Jan): Rent of 1 Jan (late) and Meralco of 20 Jan (late) are held, Rent of 1 Feb
-// is not due before the next pay (the 30th is a Saturday: the pay moves to Fri 29 Jan), so only what the rule for it has set aside (one pay, 15 Jan) is held.
+// is not due before the next pay (the 30th is a Saturday: the pay moves to Fri 29 Jan), so it is not held, and neither is what the rule for it has set aside.
 
 // -- TYPES -- //
 import type { Fixture } from '../agent/support';
@@ -53,7 +53,7 @@ afterAll(async () => {
 // -- TESTS -- //
 
 describe('net balance reads', () => {
-	it('holds the bills due before the next payday, what a rule saved for a later bill, and a goal account, per wallet and in the total', async () => {
+	it('holds the bills due before the next payday and a goal account, never what a rule saved for a later bill, per wallet and in the total', async () => {
 		const f = await seedPerson(t);
 		// A fixed rule into RCBC that saves for the rent
 		const rule = await proposeRule(w(f), {
@@ -71,21 +71,20 @@ describe('net balance reads', () => {
 
 		const rows = await accountBalancesWithNet(f.ctx, NOW);
 		const rcbc = rows.find((r) => r.id === f.rcbc);
-		// Gross is untouched; net is balance less 800 000 + 300 000 due and 40 000 saved for the rent
+		// Gross is untouched; net is balance less 800 000 + 300 000 due (the 40 000 the rule saved for the rent of 1 Feb is not held)
 		expect(rcbc).toMatchObject({
 			balance: 1_500_000,
-			netBalance: 360_000,
-			held: 1_140_000,
+			netBalance: 400_000,
+			held: 1_100_000,
 			shortfall: 0,
 			netUntil: '2027-01-29',
 			netNotice: null
 		});
 		expect(rcbc?.holds.map((h) => [h.kind, h.label, h.amount, h.dueDate])).toEqual([
 			['bill', 'Rent', 800_000, '2027-01-01'],
-			['bill', 'Meralco', 300_000, '2027-01-20'],
-			['rule', 'Rent fund', 40_000, '2027-02-01']
+			['bill', 'Meralco', 300_000, '2027-01-20']
 		]);
-		expect(rcbc?.wallets[0]).toMatchObject({ balance: 1_500_000, netBalance: 360_000 });
+		expect(rcbc?.wallets[0]).toMatchObject({ balance: 1_500_000, netBalance: 400_000 });
 		// The goal account keeps its whole balance for the goal
 		expect(rows.find((r) => r.id === f.maya)).toMatchObject({
 			balance: 200_000,
@@ -101,11 +100,11 @@ describe('net balance reads', () => {
 		});
 
 		const view = await assetsSummaryWithNet(f.ctx, NOW);
-		// 360 000 + 0 + 50 000 + 50.00 dollars at 56 (280 000), and the gross total is unchanged
-		expect(view.netTotal).toBe(360_000 + 50_000 + 280_000);
+		// 400 000 + 0 + 50 000 + 50.00 dollars at 56 (280 000), and the gross total is unchanged
+		expect(view.netTotal).toBe(400_000 + 50_000 + 280_000);
 		expect(view.shortfallTotal).toBe(0);
 		expect(view.total).toBe(1_500_000 + 200_000 + 50_000 + 280_000);
-		expect(view.accounts.find((a) => a.accountId === f.rcbc)?.netSubtotal).toBe(360_000);
+		expect(view.accounts.find((a) => a.accountId === f.rcbc)?.netSubtotal).toBe(400_000);
 		expect(view.wallets.find((x) => x.accountId === f.gcash && x.currency === 'USD')).toMatchObject(
 			{ netBalance: 5_000, netValue: 280_000 }
 		);
