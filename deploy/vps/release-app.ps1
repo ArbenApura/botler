@@ -84,6 +84,11 @@ Push-Location "$root\app"
 Remove-Item "$root\app\build\app\outputs\flutter-apk\*.apk" -Force -ErrorAction SilentlyContinue
 & $FlutterBin build apk --release --split-per-abi "--dart-define=GOOGLE_WEB_CLIENT_ID=$clientId"
 Check 'flutter build apk --split-per-abi'
+# The universal build below can clear the split files of the folder, so they are kept aside first
+$stash = "$root\app\build\release-split"
+Remove-Item $stash -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $stash | Out-Null
+foreach ($abi in @('arm64-v8a', 'armeabi-v7a', 'x86_64')) { Copy-Item "$root\app\build\app\outputs\flutter-apk\app-$abi-release.apk" "$stash\app-$abi-release.apk" -Force }
 & $FlutterBin build apk --release "--dart-define=GOOGLE_WEB_CLIENT_ID=$clientId"
 Check 'flutter build apk (universal)'
 Pop-Location
@@ -95,7 +100,7 @@ $abis = @('arm64-v8a', 'armeabi-v7a', 'x86_64')
 $builds = [ordered]@{ "botler-$versionName+$versionCode.apk" = '' }
 foreach ($abi in $abis) { $builds["botler-$versionName+$versionCode-$abi.apk"] = $abi }
 Copy-Item "$root\app\build\app\outputs\flutter-apk\app-release.apk" "$out\botler-$versionName+$versionCode.apk" -Force
-foreach ($abi in $abis) { Copy-Item "$root\app\build\app\outputs\flutter-apk\app-$abi-release.apk" "$out\botler-$versionName+$versionCode-$abi.apk" -Force }
+foreach ($abi in $abis) { Copy-Item "$stash\app-$abi-release.apk" "$out\botler-$versionName+$versionCode-$abi.apk" -Force }
 
 # -- CHECK EVERY APK ITSELF -- #
 $tools = Get-ChildItem "$env:LOCALAPPDATA\Android\Sdk\build-tools" -Directory | Sort-Object Name -Descending | Where-Object { Test-Path "$($_.FullName)\aapt2.exe" } | Select-Object -First 1
