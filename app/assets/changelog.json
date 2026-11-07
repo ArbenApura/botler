@@ -658,5 +658,17 @@
       "Mas madaling basahin ang net balance: ang nakalaan sa wallet ay hinati na sa mga bayarin na dapat bayaran na (una ang mga huli na) at sa perang itinabi ng mga rule mo para sa mga susunod na bayarin.",
       "Kapag nagastos na ang perang itinabi ng isang rule, sasabihin ito ng wallet kasama ang halaga."
     ]
+  },
+  {
+    "versionCode": 59,
+    "versionName": "1.7.4",
+    "en": [
+      "The net balance now covers only bills due before your next payday and late bills. Money your payday rules set aside for later bills no longer lowers it.",
+      "Late bills are named as late and listed first."
+    ],
+    "fil": [
+      "Ang net balance ay sumasaklaw na lang sa mga bayarin na due bago ang susunod na sahod at sa mga huli na. Hindi na ito binabawasan ng perang itinabi ng mga rule mo para sa mga susunod na bayarin.",
+      "Tinatawag nang huli ang mga huling bayarin at nasa unahan sila ng listahan."
+    ]
   }
 ]

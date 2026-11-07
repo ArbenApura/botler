@@ -2620,8 +2620,6 @@
       }
     }
   },
-  "netGroupOwed": "Owed now",
-  "netGroupSetAside": "Set aside for later",
   "netHeldBill": "{label}, due {date}",
   "@netHeldBill": {
     "placeholders": {
@@ -2676,14 +2674,6 @@
   },
   "netShowGross": "Show the balance as counted",
   "netShowNet": "Show net balance",
-  "netSpentSetAside": "{amount} set aside here was already spent",
-  "@netSpentSetAside": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
   "netTakenBy": "Taken from this by",
   "netTakenMore": "+{count} more, open the account to see all",
   "@netTakenMore": {

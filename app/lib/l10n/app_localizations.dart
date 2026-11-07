@@ -6103,18 +6103,6 @@ abstract class AppLocalizations {
   /// **'Balance {amount}'**
   String netGross(String amount);
 
-  /// No description provided for @netGroupOwed.
-  ///
-  /// In en, this message translates to:
-  /// **'Owed now'**
-  String get netGroupOwed;
-
-  /// No description provided for @netGroupSetAside.
-  ///
-  /// In en, this message translates to:
-  /// **'Set aside for later'**
-  String get netGroupSetAside;
-
   /// No description provided for @netHeldBill.
   ///
   /// In en, this message translates to:
@@ -6174,12 +6162,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show net balance'**
   String get netShowNet;
-
-  /// No description provided for @netSpentSetAside.
-  ///
-  /// In en, this message translates to:
-  /// **'{amount} set aside here was already spent'**
-  String netSpentSetAside(String amount);
 
   /// No description provided for @netTakenBy.
   ///
