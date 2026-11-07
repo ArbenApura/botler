@@ -682,5 +682,17 @@
       "Ipinapakita na agad ng Accounts screen ang transfer, gastos o nabayarang bill, kasama ang mga naghintay ng koneksyon at saka lang naipadala.",
       "Kapag bumalik ka sa app, nare-refresh ang mga balanse mo."
     ]
+  },
+  {
+    "versionCode": 61,
+    "versionName": "1.7.6",
+    "en": [
+      "The net balance holds again the money your payday rules have saved so far for a later bill, like Parents and Meralco, so you do not spend it by mistake.",
+      "Late bills are named as late, and the list is grouped into what you owe now and what is set aside for later."
+    ],
+    "fil": [
+      "Hawak na ulit ng net balance ang perang naipon na ng mga payday rule mo para sa susunod na bayarin, tulad ng Parents at Meralco, para hindi mo ito magastos nang hindi sinasadya.",
+      "Tinatawag nang huli ang mga huling bayarin, at hinati ang listahan sa dapat bayaran na at sa nakatabi para sa susunod."
+    ]
   }
 ]

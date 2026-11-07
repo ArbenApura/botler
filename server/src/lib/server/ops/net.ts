@@ -27,6 +27,8 @@ export type NetFields = {
 	held: number | null;
 	shortfall: number | null;
 	holds: NetHold[];
+	/** Set aside by rules here but no longer in the balance (spent); null when the net is unknown. */
+	spentSetAside: number | null;
 };
 
 type Balances = Awaited<ReturnType<typeof balancesIn>>;
@@ -89,7 +91,13 @@ async function netOf(
 	}
 }
 
-const empty: NetFields = { netBalance: null, held: null, shortfall: null, holds: [] };
+const empty: NetFields = {
+	netBalance: null,
+	held: null,
+	shortfall: null,
+	holds: [],
+	spentSetAside: null
+};
 
 /** The balances of every active account with the net of each wallet and account. */
 export async function accountBalancesWithNet(ctx: Ctx, now: Date = new Date()) {
@@ -103,7 +111,13 @@ export async function accountBalancesWithNet(ctx: Ctx, now: Date = new Date()) {
 			const wallets = a.wallets.map((w) => {
 				const n = net?.wallets.find((x) => x.accountId === a.id && x.currency === w.currency);
 				const fields: NetFields = n
-					? { netBalance: n.net, held: n.held, shortfall: n.shortfall, holds: n.holds }
+					? {
+							netBalance: n.net,
+							held: n.held,
+							shortfall: n.shortfall,
+							holds: n.holds,
+							spentSetAside: n.spentSetAside
+						}
 					: empty;
 				return { ...w, ...fields };
 			});
@@ -116,6 +130,7 @@ export async function accountBalancesWithNet(ctx: Ctx, now: Date = new Date()) {
 				held: own.held,
 				shortfall: own.shortfall,
 				holds: own.holds,
+				spentSetAside: own.spentSetAside,
 				netUnmatched: (net?.unmatched ?? []).filter((u) => u.accountId === a.id),
 				netMissing: notes.flatMap((x) =>
 					x.kind === 'missing_amount' && x.accountId === a.id

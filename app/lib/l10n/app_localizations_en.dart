@@ -3601,6 +3601,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get netGroupOwed => 'Owed now';
+
+  @override
+  String get netGroupSetAside => 'Set aside for later';
+
+  @override
   String netHeldBill(String label, String date) {
     return '$label, due $date';
   }
@@ -3639,6 +3645,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get netShowNet => 'Show net balance';
+
+  @override
+  String netSpentSetAside(String amount) {
+    return '$amount set aside here was already spent';
+  }
 
   @override
   String get netTakenBy => 'Taken from this by';
