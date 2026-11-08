@@ -39,7 +39,7 @@ Widget host(
 );
 
 void main() {
-  group('the stop chip', () {
+  group('the status strip', () {
     testWidgets('shows a labelled Stop, presses once and then waits', (
       tester,
     ) async {
@@ -47,48 +47,102 @@ void main() {
         var presses = 0;
         await tester.pumpWidget(
           host(
-            StopChip(key: ValueKey(mode), onStop: () => presses++),
+            StatusStrip(
+              key: ValueKey(mode),
+              phase: TurnPhase.thinking,
+              onStop: () => presses++,
+            ),
             mode: mode,
             still: true,
           ),
         );
-        // No dots or words of its own: the conversation already says what is happening
-        expect(find.text('Working on it'), findsNothing);
-        expect(find.byType(PulsingDots), findsNothing);
+        expect(find.text('Thinking'), findsOneWidget);
+        expect(find.text('0:00'), findsOneWidget);
         expect(find.text('Stop'), findsOneWidget);
-        final box = tester.getSize(find.byType(InkWell));
+        final box = tester.getSize(
+          find.ancestor(of: find.text('Stop'), matching: find.byType(InkWell)),
+        );
         expect(box.height, greaterThanOrEqualTo(48));
-        await tester.tap(find.byType(InkWell));
+        await tester.tap(find.text('Stop'));
         await tester.pump();
-        await tester.tap(find.byType(InkWell), warnIfMissed: false);
+        await tester.tap(find.text('Stopping...'), warnIfMissed: false);
         await tester.pump();
         expect(presses, 1);
         expect(find.text('Stopping...'), findsOneWidget);
         expect(find.text('Stop'), findsNothing);
       }
     });
-  });
 
-  group('the working row', () {
-    testWidgets('says the stage in words, in light and in dark', (
+    testWidgets('says the stage in words and the time it has run', (
       tester,
     ) async {
       for (final mode in Brightness.values) {
         for (final (phase, tool, words) in <(TurnPhase, String?, String)>[
           (TurnPhase.waiting, null, 'Working on it'),
           (TurnPhase.thinking, null, 'Thinking'),
+          (TurnPhase.writing, null, 'Writing'),
           (TurnPhase.tool, 'accounts_list', 'Checking accounts list'),
         ]) {
           await tester.pumpWidget(
             host(
-              WorkingRow(phase: phase, tool: tool),
+              StatusStrip(
+                key: ValueKey('$mode$phase'),
+                phase: phase,
+                tool: tool,
+                waiting: 2,
+                onStop: () {},
+              ),
               mode: mode,
             ),
           );
           await tester.pump(const Duration(milliseconds: 300));
           expect(find.text(words), findsOneWidget);
+          expect(find.text('0:00 · 2 waiting'), findsOneWidget);
         }
       }
+    });
+
+    testWidgets('keeps Stop in view at large text with a long tool name', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: buildTheme(Brightness.light),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              textScaler: TextScaler.linear(1.3),
+              size: Size(360, 640),
+            ),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 360,
+                  child: StatusStrip(
+                    phase: TurnPhase.tool,
+                    tool: 'a_really_long_tool_name_for_reading_a_page',
+                    onStop: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Stop'), findsOneWidget);
+      final right = tester.getTopRight(find.text('Stop')).dx;
+      expect(right, lessThanOrEqualTo(360));
+    });
+
+    test('writes the time it has run as minutes and seconds', () {
+      expect(elapsedWords(Duration.zero), '0:00');
+      expect(elapsedWords(const Duration(seconds: 8)), '0:08');
+      expect(elapsedWords(const Duration(seconds: 75)), '1:15');
     });
 
     testWidgets('the dots move, and stand still when animations are off', (
@@ -495,11 +549,11 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello there');
         await tester.tap(find.byTooltip('Send'));
         await tester.pump(const Duration(milliseconds: 100));
-        // Send stays Send, and Stop is a labelled chip floating over the conversation
-        expect(find.byType(StopChip), findsOneWidget);
+        // Send stays Send, and Stop sits in the status strip docked above the box
+        expect(find.byType(StatusStrip), findsOneWidget);
         expect(find.text('Stop'), findsOneWidget);
         expect(find.byTooltip('Send'), findsOneWidget);
-        // Only the conversation's own row says it is working
+        // The strip is the one place that says it is working
         expect(find.text('Working on it'), findsOneWidget);
 
         // Words sent while it runs wait their turn as a chip
@@ -510,7 +564,7 @@ void main() {
         expect(find.text('Waiting'), findsOneWidget);
         expect(container.read(chatProvider).queue, hasLength(1));
 
-        await tester.tap(find.byType(StopChip));
+        await tester.tap(find.text('Stop'));
         await tester.pump(const Duration(milliseconds: 100));
         // Pressed once: the button waits, reading Stopping...
         expect(find.text('Stopping...'), findsOneWidget);
@@ -520,9 +574,9 @@ void main() {
         );
         await tester.pump();
         expect(container.read(chatProvider).busy, false);
-        // The chip fades out
+        // The strip folds away
         await tester.pump(const Duration(milliseconds: 200));
-        expect(find.byType(StopChip), findsNothing);
+        expect(find.byType(StatusStrip), findsNothing);
         expect(find.text('Stopping...'), findsNothing);
         expect(find.byTooltip('Send'), findsOneWidget);
         expect(find.text('Stopped.'), findsOneWidget);

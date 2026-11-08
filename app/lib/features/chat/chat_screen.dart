@@ -761,7 +761,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         itemCount:
                             rows.length +
                             lead +
-                            (working || showStart ? 1 : 0) +
+                            (showStart ? 1 : 0) +
                             chat.queue.length +
                             (chat.queuePaused && chat.queue.isNotEmpty ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 14),
@@ -775,10 +775,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           }
                           // The messages waiting for their turn, after everything else, then the one line of a paused queue
                           final waiting =
-                              i -
-                              lead -
-                              rows.length -
-                              (working || showStart ? 1 : 0);
+                              i - lead - rows.length - (showStart ? 1 : 0);
                           if (waiting >= 0) {
                             if (waiting < chat.queue.length) {
                               final m = chat.queue[waiting];
@@ -811,12 +808,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               ),
                             );
                           }
-                          if (i - lead == rows.length) {
-                            return WorkingRow(
-                              phase: chat.phase,
-                              tool: chat.toolName,
-                            );
-                          }
                           final row = rows[i - lead];
                           return ChatItemView(
                             row.item,
@@ -827,25 +818,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 : ValueKey<int>(row.item.id),
                           );
                         },
-                      ),
-                    ),
-                  ),
-                  // Stop, there for as long as a turn runs; it adds no row, so nothing in the conversation or the box moves
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: AnimatedSwitcher(
-                        duration: MediaQuery.disableAnimationsOf(context)
-                            ? Duration.zero
-                            : const Duration(milliseconds: 150),
-                        child: chat.busy
-                            ? StopChip(
-                                key: const ValueKey<String>('stopChip'),
-                                onStop: ref.read(chatProvider.notifier).stop,
-                              )
-                            : const SizedBox.shrink(),
                       ),
                     ),
                   ),
@@ -890,6 +862,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                 ],
               ),
+            ),
+            // The status strip with Stop, docked in the layout for as long as a turn runs, so it never covers a word of the conversation
+            AnimatedSize(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 150),
+              alignment: Alignment.bottomCenter,
+              child: chat.busy
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                      child: StatusStrip(
+                        key: const ValueKey<String>('statusStrip'),
+                        phase: chat.phase,
+                        tool: chat.toolName,
+                        waiting: chat.queue.length,
+                        onStop: ref.read(chatProvider.notifier).stop,
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
             if (stripShown)
               PhotoStrip(
@@ -1078,8 +1069,8 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. Stop floats over the
-    // conversation, not here: the pill never changes, and Send stays Send, so the next message can be written and sent (it waits its turn).
+    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. Stop lives in the status
+    // strip above the box, not here: the pill never changes, and Send stays Send, so the next message can be written and sent (it waits its turn).
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
       child: _pill(context, c),

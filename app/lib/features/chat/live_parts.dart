@@ -1,8 +1,10 @@
-// THE LIVE PARTS OF THE CHAT: THE "WORKING ON IT" ROW, THE ASSISTANT'S THINKING, AND A TOOL THAT IS STILL RUNNING.
+// THE LIVE PARTS OF THE CHAT: THE STATUS STRIP WITH STOP, THE ASSISTANT'S THINKING, AND A TOOL THAT IS STILL RUNNING.
 // Everything here is quiet: soft dots in the accent colour, muted small text, nothing that jumps. With "remove animations" on the dots stand still.
 // The thinking is the model's own words and untrusted, so it is drawn as plain text, never as markdown.
 
 // -- DEP-MODULES -- //
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // -- MODULES -- //
@@ -111,22 +113,59 @@ class _PulsingDotsState extends State<PulsingDots>
   double _wave(double t) => t < 0.5 ? t * 2 : (1 - t) * 2;
 }
 
-/// The labelled Stop that floats over the bottom of the conversation while a turn runs. It carries no dots or words of its own: the
-/// conversation already shows what is happening. Once pressed it waits, reading "Stopping...", until the turn ends and it leaves.
-/// Stop is ink on paper, never danger red (red is for recording).
-class StopChip extends StatefulWidget {
-  const StopChip({required this.onStop, super.key});
+/// How long a turn has run, as minutes and seconds ("0:08"). A length of time, not a clock time, so it does not go through clock.dart.
+String elapsedWords(Duration d) {
+  final s = d.inSeconds;
+  return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+}
 
+/// The docked status strip that sits between the conversation and the message box while a turn runs. It is part of the layout, never
+/// drawn over the conversation, so no word is hidden. Left: a mark for the stage and the stage in words with the time it has run;
+/// right: the labelled Stop. Once pressed Stop waits, reading "Stopping...", until the turn ends and the strip leaves.
+/// Stop is ink on paper, never danger red (red is for recording).
+class StatusStrip extends StatefulWidget {
+  const StatusStrip({
+    required this.phase,
+    required this.onStop,
+    this.tool,
+    this.waiting = 0,
+    super.key,
+  });
+
+  final TurnPhase phase;
+  final String? tool;
+
+  /// Messages waiting for their turn; shown as "1 waiting" beside the time.
+  final int waiting;
   final VoidCallback onStop;
 
   @override
-  State<StopChip> createState() => _StopChipState();
+  State<StatusStrip> createState() => _StatusStripState();
 }
 
-class _StopChipState extends State<StopChip> {
+class _StatusStripState extends State<StatusStrip> {
   // -- STATES -- //
 
   bool _stopping = false;
+  final Stopwatch _clock = Stopwatch()..start();
+  Timer? _tick;
+
+  // -- LIFECYCLES -- //
+
+  @override
+  void initState() {
+    super.initState();
+    // Once a second is enough for the time it has run
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
 
   // -- FUNCTIONS -- //
 
@@ -136,10 +175,112 @@ class _StopChipState extends State<StopChip> {
     widget.onStop();
   }
 
+  /// The mark for the stage: soft dots while it thinks or waits, a magnifier while a tool runs, a pen while it writes.
+  Widget _lead(BotlerColors c) => SizedBox(
+    width: 30,
+    child: Center(
+      child: switch (widget.phase) {
+        TurnPhase.tool => Icon(Icons.search, size: 20, color: c.accentText),
+        TurnPhase.writing => Icon(
+          Icons.edit_outlined,
+          size: 20,
+          color: c.accentText,
+        ),
+        _ => const PulsingDots(),
+      },
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.t;
+    final still = MediaQuery.disableAnimationsOf(context);
+    final words = phaseWords(context, widget.phase, widget.tool);
+    final time = elapsedWords(_clock.elapsed);
+    final second = widget.waiting > 0
+        ? '$time · ${t.chatQueuePaused(widget.waiting)}'
+        : time;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        // Flat like the jump-to-latest button: no shadow (a light shadow in dark mode looked broken)
+        color: c.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: c.line),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(23),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 52),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
+                child: Row(
+                  children: <Widget>[
+                    ExcludeSemantics(child: _lead(c)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          // The stage is the live region; the ticking time is left out so a screen reader is not read to every second
+                          Semantics(
+                            liveRegion: true,
+                            label: words,
+                            child: ExcludeSemantics(
+                              child: Text(
+                                words,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: c.ink,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                          ExcludeSemantics(
+                            child: Text(
+                              second,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: c.muted,
+                                fontSize: 12,
+                                fontFeatures: const <FontFeature>[
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _stopButton(c, t),
+                  ],
+                ),
+              ),
+            ),
+            // A thin line that moves while work goes on and holds still, muted, while stopping or with animations off
+            ExcludeSemantics(
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                value: still || _stopping ? 1 : null,
+                color: _stopping ? c.muted : c.accent,
+                backgroundColor: c.line,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _stopButton(BotlerColors c, AppLocalizations t) {
     return Semantics(
       button: true,
       enabled: !_stopping,
@@ -147,25 +288,29 @@ class _StopChipState extends State<StopChip> {
       excludeSemantics: true,
       onTap: _stopping ? null : _press,
       child: Material(
-        // Flat like the jump-to-latest button: no shadow (a light shadow in dark mode looked broken)
         color: c.chip,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: c.line),
-        ),
+        shape: StadiumBorder(side: BorderSide(color: c.line)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          customBorder: const StadiumBorder(),
           onTap: _stopping ? null : _press,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: EdgeInsets.fromLTRB(_stopping ? 16 : 12, 0, 16, 0),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   if (!_stopping) ...<Widget>[
-                    Icon(Icons.stop_rounded, size: 20, color: c.ink),
+                    SizedBox.square(
+                      dimension: 12,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: c.ink,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
                   ],
                   Text(
@@ -179,35 +324,6 @@ class _StopChipState extends State<StopChip> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "Working on it", "Thinking" or "Writing" with the soft dots, under the conversation while the assistant has not started its answer.
-class WorkingRow extends StatelessWidget {
-  const WorkingRow({required this.phase, this.tool, super.key});
-
-  final TurnPhase phase;
-  final String? tool;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = phaseWords(context, phase, tool);
-    return Semantics(
-      liveRegion: true,
-      label: label,
-      child: ExcludeSemantics(
-        child: Row(
-          children: <Widget>[
-            const PulsingDots(),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(color: context.colors.muted, fontSize: 13),
-            ),
-          ],
         ),
       ),
     );
