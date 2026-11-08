@@ -736,5 +736,15 @@
       "Ang Stop button sa chat ay maliit na button na may label na lumulutang sa ibaba ng usapan habang gumagana si Botler. Wala nang inuulit na tuldok sa itaas ng kahon ng mensahe.",
       "Pagkatapos mong pindutin ang Stop, \"Hinihinto...\" ang nakasulat sa button hanggang tumigil si Botler."
     ]
+  },
+  {
+    "versionCode": 65,
+    "versionName": "1.8.3",
+    "en": [
+      "The Stop button in the chat is now flat, with no shadow, so it looks clean in both light and dark."
+    ],
+    "fil": [
+      "Flat na ang Stop button sa chat at wala nang anino, kaya malinis itong tingnan sa light at dark."
+    ]
   }
 ]

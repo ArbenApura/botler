@@ -147,9 +147,9 @@ class _StopChipState extends State<StopChip> {
       excludeSemantics: true,
       onTap: _stopping ? null : _press,
       child: Material(
-        color: c.surface,
-        elevation: 2,
-        shadowColor: c.ink,
+        // Flat like the jump-to-latest button: no shadow (a light shadow in dark mode looked broken)
+        color: c.chip,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: c.line),
