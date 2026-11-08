@@ -724,5 +724,17 @@
       "Mas malinaw na ang Stop button sa chat: habang gumagana si Botler, may strip sa itaas ng kahon ng mensahe na nagsasabing gumagana ito at may Stop button na may label. Hindi na lumiliit ang kahon ng mensahe kapag lumitaw ito.",
       "Pagkatapos mong pindutin ang Stop, \"Hinihinto...\" ang nakasulat sa button hanggang tumigil si Botler."
     ]
+  },
+  {
+    "versionCode": 64,
+    "versionName": "1.8.2",
+    "en": [
+      "The Stop button in the chat is now a small labelled button that floats at the bottom of the conversation while Botler works. Nothing above the message box repeats the working dots any more.",
+      "After you press Stop, the button reads \"Stopping...\" until Botler has stopped."
+    ],
+    "fil": [
+      "Ang Stop button sa chat ay maliit na button na may label na lumulutang sa ibaba ng usapan habang gumagana si Botler. Wala nang inuulit na tuldok sa itaas ng kahon ng mensahe.",
+      "Pagkatapos mong pindutin ang Stop, \"Hinihinto...\" ang nakasulat sa button hanggang tumigil si Botler."
+    ]
   }
 ]

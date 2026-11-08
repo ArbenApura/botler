@@ -830,6 +830,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       ),
                     ),
                   ),
+                  // Stop, there for as long as a turn runs; it adds no row, so nothing in the conversation or the box moves
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: MediaQuery.disableAnimationsOf(context)
+                            ? Duration.zero
+                            : const Duration(milliseconds: 150),
+                        child: chat.busy
+                            ? StopChip(
+                                key: const ValueKey<String>('stopChip'),
+                                onStop: ref.read(chatProvider.notifier).stop,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
                   // Back to the newest words, there only while the person has scrolled well above them
                   Positioned(
                     bottom: 12,
@@ -1059,26 +1078,11 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. While a turn runs, a working
-    // strip with a labelled Stop sits above the pill: the pill keeps its width and Send stays Send, so the next message can be written and sent.
+    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. Stop floats over the
+    // conversation, not here: the pill never changes, and Send stays Send, so the next message can be written and sent (it waits its turn).
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          AnimatedSize(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 160),
-            alignment: Alignment.bottomCenter,
-            child: busy
-                ? WorkingStrip(onStop: onStop)
-                : const SizedBox(width: double.infinity),
-          ),
-          _pill(context, c),
-        ],
-      ),
+      child: _pill(context, c),
     );
   }
 
