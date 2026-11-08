@@ -758,5 +758,15 @@
       "Habang gumagana si Botler, may status bar na ngayon sa itaas mismo ng kahon ng mensahe sa halip na button na lumulutang sa chat. Ipinapakita nito kung ano ang ginagawa ni Botler at kung gaano na katagal, at nandoon ang Stop button, kaya laging nababasa ang live na usapan.",
       "Wala na ang dating linyang \"Working on it\" sa loob ng usapan; minsan na lang sinasabi ng status bar."
     ]
+  },
+  {
+    "versionCode": 67,
+    "versionName": "1.8.5",
+    "en": [
+      "The Stop button in the status bar now has even space above and below it, and the moving line under the bar is gone, so it looks calm and lines up with the message box."
+    ],
+    "fil": [
+      "May pantay nang espasyo sa itaas at ibaba ang Stop button sa status bar, at wala na ang gumagalaw na linya sa ilalim, kaya mas kalmado itong tingnan at tugma sa kahon ng mensahe."
+    ]
   }
 ]

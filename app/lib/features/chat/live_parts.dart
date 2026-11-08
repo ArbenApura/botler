@@ -147,6 +147,9 @@ class _StatusStripState extends State<StatusStrip> {
   // -- STATES -- //
 
   bool _stopping = false;
+
+  /// The finger is down on Stop: the pill takes a pressed tone.
+  bool _down = false;
   final Stopwatch _clock = Stopwatch()..start();
   Timer? _tick;
 
@@ -171,7 +174,10 @@ class _StatusStripState extends State<StatusStrip> {
 
   void _press() {
     if (_stopping) return;
-    setState(() => _stopping = true);
+    setState(() {
+      _stopping = true;
+      _down = false;
+    });
     widget.onStop();
   }
 
@@ -195,7 +201,6 @@ class _StatusStripState extends State<StatusStrip> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.t;
-    final still = MediaQuery.disableAnimationsOf(context);
     final words = phaseWords(context, widget.phase, widget.tool);
     final time = elapsedWords(_clock.elapsed);
     final second = widget.waiting > 0
@@ -208,73 +213,57 @@ class _StatusStripState extends State<StatusStrip> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: c.line),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(23),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 52),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
-                child: Row(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          // The same space above and below the labelled Stop as at its sides
+          padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
+          child: Row(
+            children: <Widget>[
+              ExcludeSemantics(child: _lead(c)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    ExcludeSemantics(child: _lead(c)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          // The stage is the live region; the ticking time is left out so a screen reader is not read to every second
-                          Semantics(
-                            liveRegion: true,
-                            label: words,
-                            child: ExcludeSemantics(
-                              child: Text(
-                                words,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: c.ink,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
+                    // The stage is the live region; the ticking time is left out so a screen reader is not read to every second
+                    Semantics(
+                      liveRegion: true,
+                      label: words,
+                      child: ExcludeSemantics(
+                        child: Text(
+                          words,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: c.ink,
+                            fontWeight: FontWeight.w500,
                           ),
-                          ExcludeSemantics(
-                            child: Text(
-                              second,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: c.muted,
-                                fontSize: 12,
-                                fontFeatures: const <FontFeature>[
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _stopButton(c, t),
+                    ExcludeSemantics(
+                      child: Text(
+                        second,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: c.muted,
+                          fontSize: 12,
+                          fontFeatures: const <FontFeature>[
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            // A thin line that moves while work goes on and holds still, muted, while stopping or with animations off
-            ExcludeSemantics(
-              child: LinearProgressIndicator(
-                minHeight: 2,
-                value: still || _stopping ? 1 : null,
-                color: _stopping ? c.muted : c.accent,
-                backgroundColor: c.line,
-              ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              _stopButton(c, t),
+            ],
+          ),
         ),
       ),
     );
@@ -287,40 +276,50 @@ class _StatusStripState extends State<StatusStrip> {
       label: _stopping ? t.chatStopping : t.chatStop,
       excludeSemantics: true,
       onTap: _stopping ? null : _press,
-      child: Material(
-        color: c.chip,
-        elevation: 0,
-        shape: StadiumBorder(side: BorderSide(color: c.line)),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: _stopping ? null : _press,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(_stopping ? 16 : 12, 0, 16, 0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  if (!_stopping) ...<Widget>[
-                    SizedBox.square(
-                      dimension: 12,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: c.ink,
-                          borderRadius: BorderRadius.circular(3),
+      // The pill you see is 40 tall; the tap area around it is 48 so it stays easy to hit without crowding the strip
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: _stopping ? null : (_) => setState(() => _down = true),
+        onTapCancel: () => setState(() => _down = false),
+        onTap: _stopping ? null : _press,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+          child: Center(
+            widthFactor: 1,
+            child: DecoratedBox(
+              decoration: ShapeDecoration(
+                color: _down ? c.line : c.chip,
+                shape: StadiumBorder(side: BorderSide(color: c.line)),
+              ),
+              child: SizedBox(
+                height: 40,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(_stopping ? 16 : 14, 0, 16, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if (!_stopping) ...<Widget>[
+                        SizedBox.square(
+                          dimension: 12,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: c.ink,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _stopping ? t.chatStopping : t.chatStop,
+                        style: TextStyle(
+                          color: _stopping ? c.muted : c.ink,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Text(
-                    _stopping ? t.chatStopping : t.chatStop,
-                    style: TextStyle(
-                      color: _stopping ? c.muted : c.ink,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

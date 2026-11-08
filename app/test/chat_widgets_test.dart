@@ -60,7 +60,10 @@ void main() {
         expect(find.text('0:00'), findsOneWidget);
         expect(find.text('Stop'), findsOneWidget);
         final box = tester.getSize(
-          find.ancestor(of: find.text('Stop'), matching: find.byType(InkWell)),
+          find.ancestor(
+            of: find.text('Stop'),
+            matching: find.byType(GestureDetector),
+          ),
         );
         expect(box.height, greaterThanOrEqualTo(48));
         await tester.tap(find.text('Stop'));
