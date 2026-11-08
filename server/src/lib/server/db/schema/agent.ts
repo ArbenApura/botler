@@ -78,6 +78,8 @@ export const chat = userTable(
 		/** The last message the summary covers: history carries every done message after it. A plain id, so erasing a turn never blocks. */
 		summaryThroughTurnId: uuid('summary_through_turn_id'),
 		summaryAt: timestamp('summary_at', { withTimezone: true }),
+		/** The prompt size, in tokens, the host reported at the last good answer of this chat, for the context meter. Null means unknown: the meter stays hidden. */
+		lastPromptTokens: integer('last_prompt_tokens'),
 		/**
 		 * What the messages cut off from this chat had already done: writing verb names with counts, e.g. {"expense_log": 2}. Set by a fork (the
 		 * messages it left behind) and added to by every rewind (edit and resend). Names only, never message text. Null on a chat that was

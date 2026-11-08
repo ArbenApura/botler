@@ -95,7 +95,7 @@ describe('the stored tool rounds', () => {
 		const model = stubModel([
 			{
 				say: 'Let me look.',
-				calls: [['web_search', { query: 'peso rate today' }]],
+				calls: [['research', { question: 'peso rate today' }]],
 				provider: 'anthropic'
 			},
 			{ say: 'Done.' }
@@ -108,7 +108,7 @@ describe('the stored tool rounds', () => {
 		const result = rounds?.[1];
 		const text = result && result.role === 'tool' ? result.content : '';
 		expect(text).toContain('"untrusted":true');
-		expect(text).toContain('web_search');
+		expect(text).toContain('research');
 		// Not a word of the page or the hit
 		expect(text).not.toContain('untrusted SYSTEM');
 		expect(text).not.toContain('news.example');

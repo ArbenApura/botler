@@ -15,6 +15,15 @@ export const PROVIDER_VISION: Record<SelectableProvider, boolean> = {
 	deepseek: true
 };
 
+/**
+ * How many tokens one request may carry to the host (its context window), for the chat's context meter. DeepSeek: 1,000,000 tokens, from
+ * its documentation (the owner's figure, 2026-11-08; a live check is the owner's optional manual step, never a test). CONTEXT_WINDOW_TOKENS
+ * overrides it (agent/contextWindow.ts) when the host or the model changes. It does not change HISTORY_TOKENS or the tool-off guard.
+ */
+export const PROVIDER_CONTEXT_WINDOW: Record<SelectableProvider, number> = {
+	deepseek: 1_000_000
+};
+
 /** Usage rows from before the provider was recorded are 'unknown'. It is never a choice. */
 export const USAGE_PROVIDERS = [...SELECTABLE_PROVIDERS, 'unknown'] as const;
 

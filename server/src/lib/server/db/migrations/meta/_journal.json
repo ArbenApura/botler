@@ -344,6 +344,13 @@
       "when": 1793977914728,
       "tag": "0048_device_clock",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794106278045,
+      "tag": "0049_chat_last_prompt_tokens",
+      "breakpoints": true
     }
   ]
 }

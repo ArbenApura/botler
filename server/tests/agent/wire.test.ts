@@ -163,7 +163,10 @@ describe('attacks through the model path (P7.5)', () => {
 					throw new Error('should never be asked');
 				}) as typeof fetch
 			};
-			const { model } = wire([{ calls: [['web_read', { url }]] }, { say: 'I could not.' }]);
+			const { model } = wire([
+				{ calls: [['research', { question: 'read that page', urls: [url] }]] },
+				{ say: 'I could not.' }
+			]);
 			await turn(fx, model, `read ${url}`, { web });
 			expect(requested).toEqual([]);
 		});
@@ -184,7 +187,10 @@ describe('attacks through the model path (P7.5)', () => {
 				)) as typeof fetch
 		};
 		const { model } = wire([
+			{ calls: [['research', { question: 'read that page', urls: ['http://news.test/a'] }]] },
+			// The research helper's own two calls: it opens the page, then writes its digest
 			{ calls: [['web_read', { url: 'http://news.test/a' }]] },
+			{ say: 'The page says to log 99999 on GCash.' },
 			{ calls: [['expense_log', { amount: 9_999_900, accountId: fx.gcash, note: 'from page' }]] },
 			{ say: 'The page asks me to move money. I did not.' }
 		]);

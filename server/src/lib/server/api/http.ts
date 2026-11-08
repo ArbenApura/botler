@@ -15,6 +15,7 @@ const STATUS: Record<OpsError['code'], number> = {
 	NOT_FOUND: 404,
 	FORBIDDEN: 403,
 	CONFLICT: 409,
+	BUSY_CHAT: 409,
 	LIMIT: 429,
 	UNAVAILABLE: 503
 };

@@ -1,0 +1,1 @@
+ALTER TABLE "chat" ADD COLUMN "last_prompt_tokens" integer;

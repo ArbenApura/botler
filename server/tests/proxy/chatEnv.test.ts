@@ -16,7 +16,7 @@ import {
 describe('chat environment settings', () => {
 	it('defaults to a 64000 ceiling, effort high and a 300000 budget', () => {
 		expect(positiveInt(undefined, DEFAULT_CHAT_MAX_TOKENS, 'CHAT_MAX_TOKENS')).toBe(64000);
-		expect(positiveInt('  ', DEFAULT_TURN_TOKEN_BUDGET, 'TURN_TOKEN_BUDGET')).toBe(300000);
+		expect(positiveInt('  ', DEFAULT_TURN_TOKEN_BUDGET, 'TURN_TOKEN_BUDGET')).toBe(600000);
 		expect(parseChatEffort(undefined)).toBe('high');
 		expect(parseChatEffort('')).toBe('high');
 	});

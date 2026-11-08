@@ -63,12 +63,15 @@ describe('live events', () => {
 		expect(types(events)).toEqual([
 			'phase',
 			'reasoning',
+			// The size of the prompt after each model call (the context meter), live only
+			'usage',
 			'tool_start',
 			'tool',
 			'phase',
 			'reasoning',
 			'phase',
 			'delta',
+			'usage',
 			'done'
 		]);
 		const start = events.find((e) => e.type === 'tool_start');
@@ -92,14 +95,16 @@ describe('live events', () => {
 		expect(doneEvent(events)?.reply).toBe('Done.');
 	});
 
-	it('tool_start holds only the id and the name, never the arguments', async () => {
+	it('tool_start holds only the id, the name and the label, never the arguments', async () => {
 		const model = stubModel([
 			{ calls: [['accounts_list', { secret: 'https://private.example/x' }]] },
 			{ say: 'ok' }
 		]);
 		const events = await play({ f, model, text: 'accounts?' });
 		const start = events.find((e) => e.type === 'tool_start');
-		expect(Object.keys(start ?? {}).sort()).toEqual(['id', 'name', 'type']);
+		// The label is the kind of call alone here: this tool has no title or query to name
+		expect(Object.keys(start ?? {}).sort()).toEqual(['id', 'label', 'name', 'type']);
+		expect(start).toMatchObject({ label: { family: 'lookup' } });
 		expect(JSON.stringify(start)).not.toContain('private.example');
 	});
 

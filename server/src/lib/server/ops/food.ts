@@ -285,7 +285,7 @@ export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 				...(missing
 					? {
 							matched: 'partial' as const,
-							note: `No food in the database matches every word of "${name}" (missing: ${missing.join(', ')}). ${shown.length > 0 ? 'The hits are only the closest names and may be a different product: do not present one as the exact food. ' : ''}Search the web for the exact product (web_search), or ask the person for its label.`
+							note: `No food in the database matches every word of "${name}" (missing: ${missing.join(', ')}). ${shown.length > 0 ? 'The hits are only the closest names and may be a different product: do not present one as the exact food. ' : ''}Search the web for the exact product (research), or ask the person for its label.`
 						}
 					: {})
 			});

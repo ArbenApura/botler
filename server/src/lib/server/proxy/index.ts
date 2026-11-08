@@ -26,7 +26,7 @@ import {
 // -- MODULES -- //
 import { OpsError } from '../ops/context';
 import { createModelClient } from './deepseek';
-import { createRateLimiter } from './limits';
+import { configureLimits, createRateLimiter } from './limits';
 import { createProviderRouter } from './router';
 import { assertProviderKeys, configureProviders, providersWithKeys } from './provider';
 
@@ -57,6 +57,8 @@ function keys(): Record<SelectableProvider, string> {
 /** Fails loudly when the default provider has no key, then tells the ops layer which providers a person may choose. Called at server start. */
 export function assertModelConfigured(): void {
 	assertProviderKeys(MODEL_PROVIDER, keys());
+	// The ops layer reads the same caps the model calls are held to (the chat meter shows the monthly share)
+	configureLimits(LIMITS);
 	configureProviders({
 		available: providersWithKeys(keys()),
 		fallback: MODEL_PROVIDER as SelectableProvider

@@ -11,6 +11,7 @@ import { z } from 'zod';
 // -- MODULES -- //
 import { agentAction, chat, chatTurn } from '../db/schema';
 import { chatHistoryInput } from '../db/zod';
+import { contextWindow } from '../agent/contextWindow';
 import { activeChatId } from './chats';
 import { run } from './context';
 import { parse, requirePerson } from './shared';
@@ -27,6 +28,9 @@ type ToolOut = {
 	status: 'ok' | 'error' | 'needs_approval' | 'blocked';
 	message?: string;
 	data?: unknown;
+	/** What the call was doing (its kind and, when safe, its subject), and how long it took. Missing on events stored before they existed. */
+	label?: { family: string; subject?: string };
+	ms?: number;
 };
 type CardRead = { type: 'card'; actionId: string; summary: string; verb?: string };
 type FallbackOut = { type: 'fallback'; reason: string };
@@ -38,6 +42,12 @@ export type HistoryChat = {
 	id: string;
 	title: string | null;
 	forkedFrom: { id: string; title: string | null } | null;
+	/** The prompt size the host reported at the last good answer, or null when unknown (the meter stays hidden). Numbers only, never text. */
+	contextTokens: number | null;
+	/** The context window the meter measures against. */
+	contextWindow: number;
+	/** When the earlier part of the chat was last folded into its summary, or null. */
+	summarizedAt: string | null;
 };
 
 export type HistoryTurn = {
@@ -71,7 +81,13 @@ const toolEvent = z.object({
 	name: z.string().min(1).max(100),
 	status: z.enum(['ok', 'error', 'needs_approval', 'blocked']),
 	message: z.string().optional(),
-	data: z.unknown().optional()
+	data: z.unknown().optional(),
+	// A label that does not fit is dropped alone: the row keeps its old wording
+	label: z
+		.object({ family: z.string().min(1).max(40), subject: z.string().max(80).optional() })
+		.optional()
+		.catch(undefined),
+	ms: z.number().int().min(0).max(86_400_000).optional().catch(undefined)
 });
 const cardEvent = z.object({
 	type: z.literal('card'),
@@ -93,7 +109,7 @@ function readEvents(raw: unknown): (ToolOut | CardRead | FallbackOut)[] {
 		if (out.length >= MAX_EVENTS) break;
 		const tool = toolEvent.safeParse(e);
 		if (tool.success) {
-			const { id, name, status, message, data } = tool.data;
+			const { id, name, status, message, data, label, ms } = tool.data;
 			let keep: unknown;
 			try {
 				keep = data !== undefined && sizeOf(data) <= MAX_DATA_CHARS ? data : undefined;
@@ -106,7 +122,9 @@ function readEvents(raw: unknown): (ToolOut | CardRead | FallbackOut)[] {
 				status,
 				...(id ? { id } : {}),
 				...(message ? { message: message.slice(0, MAX_MESSAGE_CHARS) } : {}),
-				...(keep !== undefined ? { data: keep } : {})
+				...(keep !== undefined ? { data: keep } : {}),
+				...(label ? { label } : {}),
+				...(ms !== undefined ? { ms } : {})
 			});
 			continue;
 		}
@@ -137,7 +155,13 @@ export async function chatHistory(
 		const wanted = chatId ?? (await activeChatId(tx, userId));
 		const [head] = wanted
 			? await tx
-					.select({ id: chat.id, title: chat.title, from: chat.forkedFromChatId })
+					.select({
+						id: chat.id,
+						title: chat.title,
+						from: chat.forkedFromChatId,
+						tokens: chat.lastPromptTokens,
+						summaryAt: chat.summaryAt
+					})
 					.from(chat)
 					.where(and(eq(chat.userId, userId), eq(chat.id, wanted)))
 			: [];
@@ -151,7 +175,10 @@ export async function chatHistory(
 		const chatHead: HistoryChat = {
 			id: head.id,
 			title: head.title,
-			forkedFrom: origin ? { id: origin.id, title: origin.title } : null
+			forkedFrom: origin ? { id: origin.id, title: origin.title } : null,
+			contextTokens: head.tokens,
+			contextWindow: contextWindow(),
+			summarizedAt: head.summaryAt ? head.summaryAt.toISOString() : null
 		};
 		// A turn still running is not shown, unless it was left behind long ago (then it counts as failed). An empty message is not a turn.
 		// A failed one with no answer still is: the person's words stay

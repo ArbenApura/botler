@@ -59,6 +59,8 @@ export class OpsError extends Error {
 			| 'NOT_FOUND'
 			| 'FORBIDDEN'
 			| 'CONFLICT'
+			/** Another message of the same chat is still being answered. Retryable: the caller asks again shortly. */
+			| 'BUSY_CHAT'
 			/** A rate limit or a monthly cap was reached. The caller should wait or use the manual path. */
 			| 'LIMIT'
 			/** The model or another outside service is down. Non-model actions still work. */

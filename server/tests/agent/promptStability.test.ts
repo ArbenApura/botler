@@ -223,7 +223,7 @@ describe('the efficient work lines', () => {
 			n === 0
 				? {
 						calls: [
-							['web_read', { url: 'https://news.example/page' }],
+							['research', { question: 'read that page', urls: ['https://news.example/page'] }],
 							['expense_log', { accountId: f.gcash, amount: 5000, note: 'lunch' }]
 						]
 					}

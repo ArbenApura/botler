@@ -11,7 +11,8 @@ export const CHAT_EFFORTS: readonly ChatEffort[] = ['low', 'medium', 'high', 'ma
 
 export const DEFAULT_CHAT_MAX_TOKENS = 64_000;
 
-export const DEFAULT_TURN_TOKEN_BUDGET = 300_000;
+// Raised from 300000 on 2026-11-08 (BTL-20261108-0230): the research helpers draw from it. Not measured yet; the owner tunes it after a heavy turn.
+export const DEFAULT_TURN_TOKEN_BUDGET = 600_000;
 
 // -- FUNCTIONS -- //
 

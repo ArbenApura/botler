@@ -192,7 +192,11 @@ export function createModelClient(config: ModelConfig) {
 						...readUsage(wire.usage, estimated),
 						completionTokens: wire.usage.completion_tokens ?? estimateTokens(content.length)
 					}
-				: { promptTokens: estimated, completionTokens: estimateTokens(content.length) };
+				: {
+						promptTokens: estimated,
+						completionTokens: estimateTokens(content.length),
+						estimated: true
+					};
 			await core.record(ctx, req.bucket, usage);
 			core.log(ctx, req.bucket, Date.now() - started, usage, true, toolDetail(req));
 			const written = readWrittenCalls(
@@ -301,7 +305,8 @@ export function createModelClient(config: ModelConfig) {
 				await reader.cancel().catch(() => undefined);
 				final = reported ?? {
 					promptTokens: estimateJsonTokens(body.messages),
-					completionTokens: estimateTokens(content.length + reasoning.length)
+					completionTokens: estimateTokens(content.length + reasoning.length),
+					estimated: true
 				};
 				await core.record(ctx, req.bucket, final);
 				core.log(ctx, req.bucket, Date.now() - started, final, completed, toolDetail(req));

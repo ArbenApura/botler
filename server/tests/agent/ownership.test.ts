@@ -308,7 +308,7 @@ describe('the rate limit after writes', () => {
 describe('untrusted text marks the rest of the message', () => {
 	const searchRound = () =>
 		stubModel([
-			{ calls: [['web_search', { query: 'peso rate today' }]] },
+			{ calls: [['research', { question: 'peso rate today' }]] },
 			{ say: 'The rate is about 58.' }
 		]);
 

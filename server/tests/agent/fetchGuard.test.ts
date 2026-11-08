@@ -107,3 +107,32 @@ describe('checking a page address before it is sent', () => {
 		}
 	});
 });
+
+// -- RESEARCH MODE -- //
+// Owner decision of 2026-11-08 (BTL-20261108-0230): research alone may open any port. Every other refusal stays.
+
+describe('research mode: any port, nothing else loosened', () => {
+	it.each([
+		'https://example.com:8443/a',
+		'http://example.com:8080/',
+		'https://example.com:9000/x?y=1'
+	])('opens %s only with anyPort', (u) => {
+		expect(() => checkPublicUrl(u), u).toThrow(FetchRefused);
+		expect(checkPublicUrl(u, { anyPort: true })).toBe(new URL(u).href);
+	});
+
+	it.each([
+		'https://user:pw@example.com:8443/',
+		'http://localhost:3000/',
+		'http://127.0.0.1:5280/',
+		'http://printer.local:631/',
+		'http://db.internal:5432/',
+		'http://10.0.0.5:8080/',
+		'http://192.168.1.1:80/',
+		'http://[::1]:8443/',
+		'http://169.254.169.254:80/latest/meta-data/',
+		'ftp://example.com:21/'
+	])('still refuses %s', (u) => {
+		expect(() => checkPublicUrl(u, { anyPort: true }), u).toThrow(FetchRefused);
+	});
+});

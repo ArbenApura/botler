@@ -132,7 +132,12 @@ describe('many chats', () => {
 
 	it('makes one chat when two first messages arrive together', async () => {
 		const p = await seedPerson(t);
-		await Promise.all([say(p, 'first a'), say(p, 'first b')]);
+		// The second one meets the first still running in that same chat and is told to wait (BUSY_CHAT); it never makes a second chat
+		const results = await Promise.allSettled([say(p, 'first a'), say(p, 'first b')]);
+		for (const r of results) {
+			if (r.status === 'rejected') expect(r.reason).toMatchObject({ code: 'BUSY_CHAT' });
+		}
+		expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
 		expect((await chatList(p.ctx, {})).chats).toHaveLength(1);
 	});
 });

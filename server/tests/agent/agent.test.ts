@@ -93,6 +93,7 @@ describe('the verb registry', () => {
 			'audit_export',
 			'chat_archive',
 			'chat_clear',
+			'chat_compact',
 			'chat_fork',
 			'chat_history',
 			'chat_list',
@@ -213,8 +214,8 @@ describe('the verb registry', () => {
 				'workout_swap'
 			].sort()
 		);
-		// 43 since picture_get, a read verb for the app only (it is not offered to the assistant)
-		expect(by('read')).toHaveLength(62);
+		// 43 since picture_get, a read verb for the app only (it is not offered to the assistant); chat_usage (the context meter) is another
+		expect(by('read')).toHaveLength(63);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {
@@ -285,7 +286,10 @@ describe('identity binding', () => {
 		expect(names).not.toContain('split_approve');
 		expect(names).not.toContain('settings_set');
 		expect(names).toContain('settings_get');
-		expect(names).toEqual(expect.arrayContaining(['web_search', 'web_read', 'expense_log']));
+		expect(names).toEqual(expect.arrayContaining(['research', 'expense_log']));
+		// The two page tools belong to the research helper alone
+		expect(names).not.toContain('web_search');
+		expect(names).not.toContain('web_read');
 		// Several currencies: the assistant converts and totals with the stored rates, and cannot change the main currency or the rates
 		expect(names).toEqual(
 			expect.arrayContaining(['assets_summary', 'fx_convert', 'account_wallet_add'])
@@ -390,6 +394,9 @@ describe('approval cards', () => {
 				'clearImage'
 			);
 		expect(tools.map((t) => t.name)).not.toContain('picture_get');
+		// The context meter's verbs are the person's: never offered to the assistant
+		expect(tools.map((t) => t.name)).not.toContain('chat_usage');
+		expect(tools.map((t) => t.name)).not.toContain('chat_compact');
 		expect(JSON.stringify(tools.map((t) => t.parameters))).not.toContain('imageData');
 	});
 

@@ -1,7 +1,17 @@
 // -- DEP-TYPES -- //
 import type { RequestHandler } from './$types';
 // -- ENVS -- //
-import { HISTORY_TOKENS, TURN_TOKEN_BUDGET } from '$app/env/private';
+import {
+	HISTORY_TOKENS,
+	RESEARCH_CALL_TOKENS,
+	RESEARCH_CALLS_AT_ONCE,
+	RESEARCH_READS,
+	RESEARCH_ROUNDS,
+	RESEARCH_SEARCHES,
+	RESEARCH_SECONDS,
+	RESEARCH_TOOL_PARALLEL,
+	TURN_TOKEN_BUDGET
+} from '$app/env/private';
 // -- MODULES -- //
 import { callerCtx, fail, json, readJson } from '#lib/server/api/http.js';
 import { chatStatus, handleChat } from '#lib/server/agent/chat.js';
@@ -38,7 +48,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			web: webDeps(),
 			provider: getProviderOf(),
 			historyTokens: HISTORY_TOKENS,
-			limits: { turnTokenBudget: TURN_TOKEN_BUDGET }
+			limits: {
+				turnTokenBudget: TURN_TOKEN_BUDGET,
+				researchCallsAtOnce: RESEARCH_CALLS_AT_ONCE,
+				researchToolParallel: RESEARCH_TOOL_PARALLEL,
+				researchRounds: RESEARCH_ROUNDS,
+				researchSearches: RESEARCH_SEARCHES,
+				researchReads: RESEARCH_READS,
+				researchCallTokens: RESEARCH_CALL_TOKENS,
+				researchSeconds: RESEARCH_SECONDS
+			}
 		});
 		first = await events.next();
 	} catch (e) {

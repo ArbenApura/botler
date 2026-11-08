@@ -70,8 +70,18 @@ services:
       CHAT_MAX_TOKENS: ${CHAT_MAX_TOKENS:-}
       # How hard the chat model thinks: low, medium, high or max. Empty means high
       CHAT_EFFORT: ${CHAT_EFFORT:-}
-      # The most charged tokens one chat message may use over all its model calls. Empty means 300000
+      # The most charged tokens one chat message may use over all its model calls, research helpers included. Empty means 600000
       TURN_TOKEN_BUDGET: ${TURN_TOKEN_BUDGET:-}
+      # Research helper ceilings (runaway guards, not per message caps). Empty means 3 helpers at once, 6 tools at once, 12 rounds, 40 searches, 80 pages, 150000 tokens, 120 seconds
+      RESEARCH_CALLS_AT_ONCE: ${RESEARCH_CALLS_AT_ONCE:-}
+      RESEARCH_TOOL_PARALLEL: ${RESEARCH_TOOL_PARALLEL:-}
+      RESEARCH_ROUNDS: ${RESEARCH_ROUNDS:-}
+      RESEARCH_SEARCHES: ${RESEARCH_SEARCHES:-}
+      RESEARCH_READS: ${RESEARCH_READS:-}
+      RESEARCH_CALL_TOKENS: ${RESEARCH_CALL_TOKENS:-}
+      RESEARCH_SECONDS: ${RESEARCH_SECONDS:-}
+      # The context window the chat meter measures against, in tokens. Empty means the host default (DeepSeek 1000000)
+      CONTEXT_WINDOW_TOKENS: ${CONTEXT_WINDOW_TOKENS:-}
       # The most tokens of earlier messages sent with a chat message, before the oldest drop and the chat is summarised. Empty means 40000
       HISTORY_TOKENS: ${HISTORY_TOKENS:-}
       # The DeepSeek key the agent runs on. env.ts stops the server at start when it is empty

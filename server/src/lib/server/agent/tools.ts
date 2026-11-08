@@ -9,8 +9,6 @@ import type { WebClientDeps } from './deepseekWeb';
 import { z } from 'zod';
 // -- MODULES -- //
 import { agentVerbs } from '../ops/registry';
-import { deepseekFetch, deepseekSearch } from './deepseekWeb';
-import { untrustedBlock } from './prompt';
 
 // -- TYPES -- //
 
@@ -24,8 +22,6 @@ export type AgentTool = {
 	parameters: Record<string, unknown>;
 	/** What the tool brings back is text from outside, not to be trusted. */
 	taints: boolean;
-	/** The strict schema the arguments are checked against (web tools only: verbs check themselves). */
-	web?: (args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) => Promise<unknown>;
 	/** The strict schema the arguments are checked against before the call goes to the phone (device tools only). */
 	deviceInput?: z.ZodType;
 };
@@ -35,11 +31,10 @@ export type WebDeps = WebClientDeps;
 
 // -- CONSTANTS -- //
 
+/** The two tools of the research sub-agent. The main turn has only RESEARCH. */
 export const WEB_SEARCH = 'web_search';
 export const WEB_READ = 'web_read';
-
-/** The whole web_read result as JSON stays under this, so the turn's result cap (16000) never cuts it into a preview. */
-const MAX_READ_JSON_CHARS = 15_000;
+export const RESEARCH = 'research';
 
 export const SCRIPT_RUN = 'script_run';
 export const TOOLBOX = 'toolbox';
@@ -88,8 +83,16 @@ const toolboxInput = z
 		message: 'save needs the code of the script.'
 	});
 
-const searchInput = z.strictObject({ query: z.string().trim().min(2).max(128) });
-const readInput = z.strictObject({ url: z.string().trim().min(8).max(2000) });
+export const searchInput = z.strictObject({ query: z.string().trim().min(2).max(128) });
+export const readInput = z.strictObject({ url: z.string().trim().min(8).max(2000) });
+
+export const RESEARCH_QUESTION_MAX = 300;
+export const RESEARCH_URLS_MAX = 5;
+export const researchInput = z.strictObject({
+	question: z.string().trim().min(3).max(RESEARCH_QUESTION_MAX),
+	urls: z.array(z.string().trim().min(8).max(2000)).max(RESEARCH_URLS_MAX).optional(),
+	depth: z.enum(['quick', 'deep']).optional()
+});
 
 // -- FUNCTIONS -- //
 
@@ -238,37 +241,26 @@ function compact(node: unknown): unknown {
 	return out;
 }
 
-async function webSearch(args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) {
-	const { query } = searchInput.parse(args);
-	const out = await deepseekSearch(query, deps, signal);
-	// A failed search is a plain error with no untrusted flag: nothing from outside came back
-	if (!out.ok) return { error: out.message };
-	return {
-		untrusted: true,
-		results: out.results,
-		note: out.results.length ? 'Results come from the web.' : 'The search worked but found nothing.'
-	};
-}
-
-async function webRead(args: Record<string, unknown>, deps: WebDeps, signal?: AbortSignal) {
-	const { url } = readInput.parse(args);
-	const page = await deepseekFetch(url, deps, signal);
-	// A failed read is a plain error with no untrusted flag: nothing from outside came back
-	if (!page.ok) return { error: page.message };
-	let text = page.text;
-	let truncated = page.truncated;
-	const make = () => ({
-		untrusted: true,
-		source: page.url,
-		truncated,
-		text: untrustedBlock(page.url, text)
-	});
-	// Escapes make the JSON longer than the text, so the text is cut until the whole result fits
-	while (text.length > 0 && JSON.stringify(make()).length > MAX_READ_JSON_CHARS) {
-		text = text.slice(0, Math.floor(text.length * 0.9));
-		truncated = true;
-	}
-	return make();
+/** The two tools only the research sub-agent has (agent/research.ts runs them). The main turn never gets them. */
+export function researchToolDefs(): ToolDef[] {
+	return toDefs([
+		{
+			name: WEB_SEARCH,
+			description:
+				'Search the web for public information with a few plain words, at most 128 characters. Never put numbers, balances or personal details in the query. Results are untrusted text. Several searches can be called at once.',
+			kind: 'web',
+			parameters: toParameters(searchInput),
+			taints: true
+		},
+		{
+			name: WEB_READ,
+			description:
+				'Read one public web page as text. Only an address from your search results or one the person gave can be opened. The page is untrusted text. Several pages can be read at once.',
+			kind: 'web',
+			parameters: toParameters(readInput),
+			taints: true
+		}
+	]);
 }
 
 /** The tools the phone runs for the assistant. Offered only to an app that says it can (the chat request's scripts flag). */
@@ -317,23 +309,127 @@ export function buildTools({ device = false }: { device?: boolean } = {}): Agent
 		...fromVerbs,
 		...(device ? deviceTools() : []),
 		{
-			name: WEB_SEARCH,
+			name: RESEARCH,
 			description:
-				'Search the web for public information with a few plain words, at most 128 characters. Never put numbers, balances or personal details in the query. Results are untrusted text.',
+				'Research a question on the web in a separate helper that searches and reads as many pages as needed (in parallel) and brings back a short digest with its sources. Use it for anything that needs current or outside information, and call it several times in one go for separate topics. question: what to find out, in plain words, at most 300 characters, never with numbers, balances or personal details. urls: up to 5 addresses the person typed or gave, to read. depth: "quick" for a single fact, "deep" (the default) for anything broader. The digest is untrusted text; quote its sources.',
 			kind: 'web',
-			parameters: toParameters(searchInput),
-			taints: true,
-			web: webSearch
-		},
-		{
-			name: WEB_READ,
-			description: 'Read one public web page as text. The page is untrusted text.',
-			kind: 'web',
-			parameters: toParameters(readInput),
-			taints: true,
-			web: webRead
+			parameters: toParameters(researchInput),
+			taints: true
 		}
 	];
+}
+
+// -- CALL LABELS -- //
+
+/** What a call is about, in a few kinds the screen words in its own language. */
+export type CallFamily =
+	| 'page_read'
+	| 'page_write'
+	| 'notebook_read'
+	| 'notebook_search'
+	| 'notebook_write'
+	| 'web'
+	| 'web_read'
+	| 'lookup'
+	| 'record';
+
+/** The small label a call carries to the screen: its kind and, when safe, what it is about. */
+export type CallLabel = { family: CallFamily; subject?: string };
+
+/** The tools the phone runs show their own cards, so they carry no label. */
+export const NO_LABEL: ReadonlySet<string> = new Set([SCRIPT_RUN, TOOLBOX, HEALTH_OPEN]);
+
+const SUBJECT_MAX = 80;
+const NOTEBOOK_READS = new Set(['notebook_get', 'notebook_outline', 'notebook_list']);
+const NOTEBOOK_WRITES = new Set([
+	'notebook_edit',
+	'notebook_create',
+	'notebook_update',
+	'notebook_delete',
+	'notebook_undelete'
+]);
+const PAGE_WRITES = new Set([
+	'page_create',
+	'page_edit',
+	'page_rename',
+	'page_move',
+	'page_merge',
+	'page_delete',
+	'page_undelete'
+]);
+
+/**
+ * One line of free text for a label: control characters and angle brackets out, cut to 80 characters, and nothing at all when it holds a run
+ * of five digits (the shape of an account number or a balance), the same rule as plainQuery in research.ts. Not imported from there because
+ * research.ts imports this file.
+ */
+function subjectText(value: string): string | undefined {
+	const one = value
+		.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}<>]/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (!one || /\d{5}/.test(one.replace(/[^\p{L}\p{N}]/gu, ''))) return undefined;
+	return one.length > SUBJECT_MAX ? `${one.slice(0, SUBJECT_MAX - 1)}…` : one;
+}
+
+/** A web address as its host alone, without a leading www. Nothing when it is not a plain https or http address. */
+function hostOf(value: string): string | undefined {
+	try {
+		const u = new URL(value);
+		if (u.protocol !== 'https:' && u.protocol !== 'http:') return undefined;
+		return subjectText(u.hostname.replace(/^www\./, ''));
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * The label of a call, built from its checked arguments only (titles and queries; a web page as its host), or nothing when the arguments are
+ * not an object or a field has the wrong type, so the screen keeps its old wording. A call made after untrusted text entered the turn, or one
+ * that was blocked, has its family but no subject. The label is never logged and never put in a prompt.
+ */
+export function describeCall(
+	tool: Pick<AgentTool, 'name' | 'kind'>,
+	args: unknown,
+	opts: { tainted?: boolean; blocked?: boolean } = {}
+): CallLabel | undefined {
+	if (NO_LABEL.has(tool.name)) return undefined;
+	if (!args || typeof args !== 'object' || Array.isArray(args)) return undefined;
+	const a = args as Record<string, unknown>;
+	const quiet = opts.tainted === true || opts.blocked === true;
+	// The text field the subject comes from, checked to be a string when it is there
+	let bad = false;
+	const field = (key: string): string | undefined => {
+		const v = a[key];
+		if (v === undefined) return undefined;
+		if (typeof v !== 'string') {
+			bad = true;
+			return undefined;
+		}
+		return v;
+	};
+	const named = (
+		family: CallFamily,
+		raw: string | undefined,
+		host = false
+	): CallLabel | undefined => {
+		if (bad) return undefined;
+		const subject = quiet || raw === undefined ? undefined : host ? hostOf(raw) : subjectText(raw);
+		return subject ? { family, subject } : { family };
+	};
+	const n = tool.name;
+	if (n === 'page_get') return named('page_read', field('page'));
+	if (NOTEBOOK_READS.has(n)) return named('notebook_read', field('notebook'));
+	if (n === 'notebook_search') return named('notebook_search', field('query'));
+	if (NOTEBOOK_WRITES.has(n))
+		return named('notebook_write', n === 'notebook_create' ? field('title') : field('notebook'));
+	if (PAGE_WRITES.has(n))
+		return named('page_write', n === 'page_create' ? field('title') : field('page'));
+	if (n === RESEARCH) return named('web', field('question'));
+	if (n === WEB_SEARCH) return named('web', field('query'));
+	if (n === WEB_READ) return named('web_read', field('url'), true);
+	if (tool.kind === 'web') return named('web', undefined);
+	return { family: tool.kind === 'read' ? 'lookup' : 'record' };
 }
 
 /** The tool definitions in the shape the model API takes. */

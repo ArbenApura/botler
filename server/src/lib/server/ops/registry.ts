@@ -157,6 +157,7 @@ import {
 	wipeInput
 } from '../db/zod';
 import { accountHistory, exportAudit, verifyAudit } from './audit';
+import { chatCompact, chatUsage } from './chatContext';
 import { chatHistory } from './chatHistory';
 import {
 	chatArchive,
@@ -1314,7 +1315,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'mark_from_web',
 		kind: 'gated',
 		description:
-			'Make the picture of an account or a bill from a logo found on the web, when the person asks you to find an icon or logo for it (for example "find an icon for my RCBC account"). It always becomes a card the person approves in the app: their phone downloads the candidates itself, trims and fits them, shows them, and the person picks one and can zoom or move it before approving; you never get the picture. name is the exact name of the account or bill. domain is the site of the organisation, without https:// (rcbc.com): the phone looks for its icon in fixed places, so a correct domain is usually enough. If you are not sure of the domain, use web_search first. urls (at most 4) are optional plain https addresses of logo pictures you found, with no query string. fit contain (the default) keeps the whole logo, cover fills the badge. If the person asks for another logo, call this again with a different domain or addresses. Say in one short line what you looked for. Do not say it is done until they approve.',
+			'Make the picture of an account or a bill from a logo found on the web, when the person asks you to find an icon or logo for it (for example "find an icon for my RCBC account"). It always becomes a card the person approves in the app: their phone downloads the candidates itself, trims and fits them, shows them, and the person picks one and can zoom or move it before approving; you never get the picture. name is the exact name of the account or bill. domain is the site of the organisation, without https:// (rcbc.com): the phone looks for its icon in fixed places, so a correct domain is usually enough. If you are not sure of the domain, use research (depth quick) first. urls (at most 4) are optional plain https addresses of logo pictures you found, with no query string. fit contain (the default) keeps the whole logo, cover fills the badge. If the person asks for another logo, call this again with a different domain or addresses. Say in one short line what you looked for. Do not say it is done until they approve.',
 		input: markFromWebInput,
 		agentOmit: ['imageData'],
 		agentStrict: true,
@@ -1375,6 +1376,23 @@ export const VERBS: readonly Verb[] = [
 			'The list of conversations, newest first, with a search over titles and messages. Never handed to the assistant.',
 		input: chatListPageInput,
 		run: (ctx, a) => chatList(ctx, a)
+	}),
+	verb({
+		name: 'chat_usage',
+		kind: 'read',
+		agent: false,
+		description:
+			'This month, the charged tokens the person has used in the chat and the chat cap, for the context meter. Counts only. For the app only.',
+		input: emptyInput,
+		run: (ctx) => chatUsage(ctx)
+	}),
+	verb({
+		name: 'chat_compact',
+		kind: 'person',
+		description:
+			'Summarize the earlier part of a conversation now (the full messages stay). Queues the same background summary the long chat uses. Only the person can do this.',
+		input: chatIdInput,
+		run: (ctx, a) => chatCompact(ctx, a)
 	}),
 	verb({
 		name: 'chat_new',

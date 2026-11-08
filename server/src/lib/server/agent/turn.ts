@@ -4,11 +4,13 @@
 // - Reads run. Records and changes to the money plan (free verbs) run, including deletes (owner decision 2026-10-28), but only three deletes
 //   per message: the fourth and later become cards. A balance count (gated) only ever becomes an approval card. Person-only verbs are not offered.
 // - Once untrusted text enters the turn (a web page, a photo's text, anything a tool marks untrusted), every write verb for the rest of
-//   the turn becomes a card too, and web reading is closed except for addresses the person typed themselves, so the model cannot carry
-//   private text out in an address. Web search stays open but short: a plain query of a few words, none with a run of digits.
-// - Bounded: at most 20 model calls, 40 tool calls, 3 web searches, a time limit per tool, a token budget for the whole message and a guard on
-//   how big the prompt may grow. When tools, the budget or the guard run out, the last call is told to answer from what it has and say what it
-//   could not check. A cancelled request stops the model call and runs no more tools.
+//   the turn becomes a card too, and research is narrowed: its question must be a plain query of a few words, none with a run of digits,
+//   and it may open only addresses the person typed themselves, so the model cannot carry private text out in a question or an address.
+// - The web is reached only through the research tool (agent/research.ts, a sub-agent with its own small context): no count of searches or
+//   reads per message, but every research call has runaway ceilings, shares the message's token budget and returns only a short digest.
+// - Bounded: at most 20 model calls, 40 tool calls, a time limit per tool, a token budget for the whole message (the research helpers
+//   draw from it too) and a guard on how big the prompt may grow. When tools, the budget or the guard run out, the last call is told to
+//   answer from what it has and say what it could not check. A cancelled request stops the model call and runs no more tools.
 // - A model that is down or over its cap ends the turn with a fallback event: the app shows the manual form, and the verbs still work.
 
 // -- TYPES -- //
@@ -22,8 +24,15 @@ import type {
 } from '../proxy/deepseek';
 import type { ChatImage } from '../proxy/types';
 import type { DateStyle, ReplyLanguage } from '../db/schema/settings';
-import type { AgentTool, WebDeps } from './tools';
+import type { AgentTool, CallLabel, WebDeps } from './tools';
 import type { DeviceOutcome } from './device';
+import type {
+	ResearchEvent,
+	ResearchInput,
+	ResearchLimits,
+	ResearchResult,
+	ResearchStop
+} from './research';
 import type { TranscriptMessage } from './transcript';
 // -- DEP-MODULES -- //
 import { createHash } from 'node:crypto';
@@ -37,9 +46,11 @@ import { invokeVerb } from '../ops/registry';
 import { defaultSettingsView, effectiveClock, getSettings } from '../ops/settings';
 import { createMasker } from '../proxy/mask';
 import { expectDevice, newCallId, shapeDeviceResult } from './device';
+import { FetchRefused, checkPublicUrl } from './fetchGuard';
 import { localizeInstants } from './instants';
-import { buildMessages, photoTexts } from './prompt';
-import { buildTools, toDefs, WEB_READ, WEB_SEARCH } from './tools';
+import { buildMessages, photoTexts, untrustedBlock } from './prompt';
+import { EventQueue, QUICK_LIMITS, Slots, normalizeUrl, plainQuery, runResearch } from './research';
+import { RESEARCH, buildTools, describeCall, researchInput, toDefs } from './tools';
 import { shortenResult, untrustedStub } from './transcript';
 
 // -- TYPES -- //
@@ -51,14 +62,21 @@ export type TurnEvent =
 	| { type: 'pictures'; used: false }
 	| { type: 'phase'; phase: 'thinking' | 'writing' }
 	| { type: 'reasoning'; text: string }
+	// Live only: the counts of a research call while it runs, so the screen can show it counting up. Never stored or replayed
+	| ResearchEvent
 	| {
 			type: 'tool_start';
 			id: string;
 			name: string;
+			/** What the call is doing, built from its checked arguments only (see describeCall). Left out for a tool with no label. */
+			label?: CallLabel;
 			/** Only for a tool the phone runs: the call id its answer is posted under, and the arguments. Live only, never stored. */
 			device?: { callId: string; args: Record<string, unknown>; tainted: boolean };
 	  }
 	| { type: 'delta'; text: string }
+	// Live only: the size of the prompt of the model call that just ended, as the host reported it (never an estimate, never text). The chat
+	// service adds the window and keeps the last figure for the chat. Never stored or replayed
+	| { type: 'usage'; promptTokens: number; window?: number }
 	| {
 			type: 'tool';
 			/** The model's call id, so the screen can match this to its tool_start. Missing on events stored before it existed. */
@@ -67,6 +85,9 @@ export type TurnEvent =
 			status: 'ok' | 'error' | 'needs_approval' | 'blocked';
 			data?: unknown;
 			message?: string;
+			/** The label the call started with (without its subject when the call was blocked), and how long it took in milliseconds. */
+			label?: CallLabel;
+			ms?: number;
 	  }
 	| {
 			type: 'card';
@@ -85,6 +106,8 @@ export type TurnEvent =
 			transcript?: TranscriptMessage[];
 			/** Untrusted text (a web page, a photo, someone else's calendar) entered the turn, so what the assistant wrote is stored marked. Never sent to the app. */
 			tainted?: boolean;
+			/** Added by the chat service, not the loop: the last reported prompt size of this message and the window, left out on a cancelled or failed message. */
+			context?: { promptTokens: number; window: number };
 	  };
 
 export type TurnModel = { stream(ctx: Ctx, req: CompletionRequest): AsyncGenerator<StreamEvent> };
@@ -146,15 +169,20 @@ export const LIMITS = {
 	maxModelCalls: 20,
 	maxToolCalls: 40,
 	/** Charged tokens (as the monthly cap counts them) one message may use over all its model calls. The server sets it from TURN_TOKEN_BUDGET. */
-	turnTokenBudget: 300_000,
+	turnTokenBudget: 600_000,
 	/** When the last call's prompt was this big, tools are closed: the next call answers from what it has, before a provider refuses the size. */
 	contextGuardTokens: 100_000,
 	/** From this share of the tool calls used on, every tool result says how many are left. */
 	toolsLeftNoteShare: 0.75,
-	/** Web searches in one message, so a poor result can be tried again with other words but quota and what a search can carry out stay small. */
-	maxWebSearches: 3,
-	/** Pages opened in one message. Each one is a paid call to DeepSeek, so a loop of reads cannot run up the balance. */
-	maxWebReads: 5,
+	/** Research (agent/research.ts): there is no count of searches or reads per message, only runaway ceilings per call. The server sets them from the RESEARCH_* variables. */
+	researchCallsAtOnce: 3,
+	researchToolParallel: 6,
+	researchRounds: 12,
+	researchSearches: 40,
+	researchReads: 80,
+	researchCallTokens: 150_000,
+	researchSeconds: 120,
+	researchPageChars: 8000,
 	/** Deletes the assistant may make in one message before the rest become cards, so one misread message cannot empty the money plan. */
 	maxDeletes: 3,
 	/** Script and toolbox calls in one message: each one keeps the phone busy, so a loop of them cannot run it down. */
@@ -164,7 +192,6 @@ export const LIMITS = {
 	/** After untrusted text was read, a search this long or longer is blocked, and so is one holding a run of digits like an account number. */
 	maxTaintedQueryChars: 80,
 	toolTimeoutMs: 15_000,
-	webTimeoutMs: 25_000,
 	maxResultChars: 16_000,
 	maxEventChars: 20_000
 };
@@ -191,10 +218,6 @@ export class TurnState {
 	tainted = false;
 	/** The person's zone: verb results are shown to the model with their instants written in it. */
 	zone = DEFAULT_ZONE;
-	/** Web searches started in this message, counted before each runs so a failed or slow one still counts. */
-	searches = 0;
-	/** Pages opened in this message, counted before each runs for the same reason. */
-	reads = 0;
 	/** Deletes started in this message: past the limit they wait for the person. */
 	deletes = 0;
 	/** Calls sent to the phone in this message, counted before each is sent. */
@@ -245,34 +268,6 @@ export function urlsIn(text: string): Set<string> {
 		}
 	}
 	return out;
-}
-
-const normalizeUrl = (u: unknown): string | null => {
-	try {
-		return new URL(String(u)).toString();
-	} catch {
-		return null;
-	}
-};
-
-/** A search query that is short and holds no run of five digits (the shape of an account number or a balance). */
-function plainQuery(query: unknown, max: number): boolean {
-	return (
-		typeof query === 'string' &&
-		query.length <= max &&
-		!/\d{5}/.test(query.replace(/[^\p{L}\p{N}]/gu, ''))
-	);
-}
-
-/** A tool result that is only an error text the tool wrote itself. Checked on the object's own keys, never by searching its text. */
-function isPlainError(result: unknown): boolean {
-	if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
-	const keys = Object.keys(result);
-	return (
-		keys.length === 1 &&
-		keys[0] === 'error' &&
-		typeof (result as { error: unknown }).error === 'string'
-	);
 }
 
 /** Keys that are null when there is nothing to say, and mean nothing to the model then. A null that carries meaning is never on this list. */
@@ -451,6 +446,203 @@ function stableJson(value: unknown): string {
 	return JSON.stringify(order(value)) ?? 'null';
 }
 
+// -- RESEARCH -- //
+
+/** A research call that is running (its answer arrives through `promise`, which never rejects), or why it was not started. */
+type ResearchStart =
+	| { ok: true; promise: Promise<ResearchResult>; depth: 'quick' | 'deep' }
+	| { ok: false; outcome: Outcome };
+
+/** What the turn shares between its research calls: the places for running helpers, the live events and the token meter. */
+type ResearchShared = {
+	slots: Slots;
+	queue: EventQueue<ResearchEvent>;
+	meter: { charged: number };
+	masker: ReturnType<typeof createMasker>;
+};
+
+/** What the main model is told when research stopped before it ended by itself. */
+const RESEARCH_STOP_NOTES: Record<ResearchStop, string> = {
+	rounds: 'The research reached its round limit, so the digest may miss some things.',
+	tokens: 'The research reached its size limit, so the digest may miss some things.',
+	budget:
+		'This message ran out of its budget while researching, so the digest is only what was found so far.',
+	rate: 'The research was slowed down by a rate limit and stopped early, so the digest is only what was found so far.',
+	down: 'The model was not available during the research, so the digest is only what was found so far.',
+	time: 'The research ran out of time, so the digest is only what was found so far.',
+	errors: 'Searches and page reads kept failing, so the digest is only what was found.',
+	cancelled: 'The research was stopped.',
+	error: 'The research ended with a problem, so the digest is only what was found so far.'
+};
+
+/**
+ * Checks a research call and starts it. Nothing is awaited here: the call runs on its own and the turn loop collects it in order, so the
+ * research calls of one round run side by side. After untrusted text the question must be a plain query and only addresses the person
+ * typed may be given; before that, every address given must pass the public address check (any port).
+ */
+function startResearch(
+	p: TurnParams,
+	limits: typeof LIMITS,
+	state: TurnState,
+	shared: ResearchShared,
+	call: ToolCall
+): ResearchStart {
+	const refuse = (
+		code: string,
+		message: string,
+		status: Outcome['status'] = 'error'
+	): ResearchStart => ({
+		ok: false,
+		outcome: { status, message, forModel: JSON.stringify({ error: code, message }) }
+	});
+	let raw: unknown;
+	try {
+		raw = JSON.parse(call.function.arguments || '{}');
+	} catch {
+		return refuse(
+			'invalid_arguments',
+			'The arguments were not a JSON object. Call the tool again with valid JSON.'
+		);
+	}
+	const parsed = researchInput.safeParse(raw);
+	if (!parsed.success)
+		return refuse(
+			'invalid_arguments',
+			parsed.error.issues[0]?.message ?? 'The arguments do not match the tool.'
+		);
+	const { question, depth = 'deep' } = parsed.data;
+	const given = parsed.data.urls ?? [];
+	const urls: string[] = [];
+	if (state.tainted) {
+		// Untrusted text was read: the question may not carry text out, and only the person's own addresses may be opened
+		if (!plainQuery(question, limits.maxTaintedQueryChars))
+			return refuse(
+				'blocked',
+				'Untrusted text was already read in this message, so only a short question with plain words is allowed now. Do not put numbers or personal details in it.',
+				'blocked'
+			);
+		for (const u of given) {
+			const n = normalizeUrl(u);
+			if (!n || !state.userUrls.has(n))
+				return refuse(
+					'blocked',
+					'Untrusted text was already read in this message, so only an address the person typed can be opened.',
+					'blocked'
+				);
+			urls.push(n);
+		}
+	} else {
+		for (const u of given) {
+			try {
+				urls.push(checkPublicUrl(u, { anyPort: true }));
+			} catch (e) {
+				if (e instanceof FetchRefused) return refuse('invalid_arguments', e.message);
+				throw e;
+			}
+		}
+	}
+	const base: ResearchLimits = {
+		rounds: limits.researchRounds,
+		searches: limits.researchSearches,
+		reads: limits.researchReads,
+		callTokens: limits.researchCallTokens,
+		seconds: limits.researchSeconds,
+		toolParallel: limits.researchToolParallel,
+		pageChars: limits.researchPageChars
+	};
+	const input: ResearchInput = { id: call.id, question, urls, depth };
+	const promise = runResearch(input, {
+		model: p.model,
+		ctx: p.ctx,
+		masker: shared.masker,
+		web: p.web ?? {},
+		signal: p.signal,
+		limits: depth === 'quick' ? { ...base, ...QUICK_LIMITS } : base,
+		meter: shared.meter,
+		turnBudget: limits.turnTokenBudget,
+		contextGuard: limits.contextGuardTokens,
+		slots: shared.slots,
+		plainOnly: state.tainted,
+		emit: (e) => shared.queue.push(e)
+	}).then((res) => {
+		// Counts only, never text
+		console.info(
+			JSON.stringify({
+				event: 'research_done',
+				depth,
+				searches: res.searches,
+				reads: res.reads,
+				sources: res.sources.length,
+				...(res.stopped ? { stopped: res.stopped } : {})
+			})
+		);
+		return res;
+	});
+	return { ok: true, promise, depth };
+}
+
+/** Waits for a research call, handing out the live events of every running call as they arrive. */
+async function* awaitResearch(
+	promise: Promise<ResearchResult>,
+	queue: EventQueue<ResearchEvent>
+): AsyncGenerator<ResearchEvent, ResearchResult> {
+	let result: ResearchResult | undefined;
+	const settled = promise.then((r) => {
+		result = r;
+	});
+	while (result === undefined) {
+		for (const e of queue.drain()) yield e;
+		if (result !== undefined) break;
+		await Promise.race([settled, queue.next()]);
+	}
+	for (const e of queue.drain()) yield e;
+	return result;
+}
+
+/** The digest and its sources as the main model reads them, and what the screen gets. The digest is outside text: it taints the turn. */
+function researchOutcome(res: ResearchResult, state: TurnState, limits: typeof LIMITS): Outcome {
+	// Nothing came back from the web (a plain failure the helper reported itself): nothing from outside came in, so nothing is tainted
+	if (res.touchedWeb) state.taint('research');
+	const data = {
+		sources: res.sources,
+		searches: res.searches,
+		reads: res.reads,
+		...(res.stopped ? { stopped: res.stopped } : {})
+	};
+	const failed = !res.touchedWeb && res.stopped !== undefined;
+	return {
+		status: failed ? 'error' : 'ok',
+		data,
+		...(failed ? { message: RESEARCH_STOP_NOTES[res.stopped as ResearchStop] } : {}),
+		forModel: capJson(
+			{
+				untrusted: res.touchedWeb,
+				source: 'research',
+				digest: res.touchedWeb ? untrustedBlock('research', res.digest) : res.digest,
+				sources: res.sources,
+				searches: res.searches,
+				pagesRead: res.reads,
+				...(res.stopped ? { stopped: res.stopped, note: RESEARCH_STOP_NOTES[res.stopped] } : {})
+			},
+			limits.maxResultChars
+		)
+	};
+}
+
+/** The label of a call from its raw arguments, or nothing when they are not JSON or the tool has no label. Never throws. */
+function labelOf(
+	tool: AgentTool | undefined,
+	call: ToolCall,
+	tainted: boolean
+): CallLabel | undefined {
+	if (!tool) return undefined;
+	try {
+		return describeCall(tool, JSON.parse(call.function.arguments || '{}'), { tainted });
+	} catch {
+		return undefined;
+	}
+}
+
 async function executeTool(
 	p: TurnParams,
 	limits: typeof LIMITS,
@@ -525,70 +717,9 @@ async function executeTool(
 		};
 	}
 
-	// -- WEB -- //
-	if (tool.kind === 'web' && tool.web) {
-		if (tool.name === WEB_SEARCH) {
-			// Counted before the call, tainted or not, and a blocked or failed search still counts
-			state.searches += 1;
-			if (state.searches > limits.maxWebSearches)
-				return err(
-					'blocked',
-					`At most ${limits.maxWebSearches} searches are allowed in one message. Answer with what you have.`,
-					'blocked'
-				);
-			// After untrusted text, a query may not be a way to carry text out: it must be short and hold nothing like an account number
-			if (state.tainted && !plainQuery(args.query, limits.maxTaintedQueryChars))
-				return err(
-					'blocked',
-					'Untrusted text was already read in this message, so only a short search with plain words is allowed now. Do not put numbers or personal details in it.',
-					'blocked'
-				);
-		} else {
-			// Each page read is a paid call, so it is counted before it runs, blocked or failed ones included
-			state.reads += 1;
-			if (state.reads > limits.maxWebReads)
-				return err(
-					'blocked',
-					`At most ${limits.maxWebReads} pages can be opened in one message. Answer with what you have.`,
-					'blocked'
-				);
-			if (state.tainted) {
-				const typed = tool.name === WEB_READ && state.userUrls.has(normalizeUrl(args.url) ?? '');
-				if (!typed)
-					return err(
-						'blocked',
-						'Untrusted text was already read in this message, so opening addresses is turned off. Only an address the person typed can be opened.',
-						'blocked'
-					);
-			}
-		}
-		try {
-			const web = tool.web;
-			const result = await withTimeout(
-				(signal) => web(args, p.web ?? {}, signal),
-				limits.webTimeoutMs,
-				'The web',
-				p.signal,
-				true
-			);
-			// Whatever came back from the web closes the door on writes. The one exception is a plain error the tool wrote itself (an own
-			// "error" text and no "untrusted" key): nothing from outside came back. Anything else fails closed and taints
-			if (!isPlainError(result)) state.taint(tool.name === WEB_SEARCH ? 'web-search' : 'web-page');
-			return { status: 'ok', forModel: capJson(result, limits.maxResultChars) };
-		} catch (e) {
-			if (e instanceof OpsError) return err('unavailable', e.message);
-			if (e instanceof Error && e.name === 'ZodError')
-				return err('invalid_arguments', 'The arguments do not match the tool.');
-			console.error(
-				JSON.stringify({
-					event: 'web_tool_error',
-					tool: tool.name,
-					error: e instanceof Error ? e.name : 'Error'
-				})
-			);
-			return err('internal', 'That did not work.');
-		}
-	}
+	// -- RESEARCH -- //
+	// Research is started and awaited by the turn loop itself (startResearch), which also shows its live counts; it never gets here
+	if (tool.name === RESEARCH) return err('unavailable', 'Research is not available here.');
 
 	// -- A CHANGE THE PERSON MUST APPROVE -- //
 	const asCard = async (why: string): Promise<Outcome> => {
@@ -796,7 +927,18 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 	// Whether a call cut off by the model's limit was already given its one second try
 	let continued = false;
 	// What the message has used so far, from the model's own usage reports
-	let charged = 0;
+	// Shared with the research helpers, so their model calls count against the same budget
+	const meter = { charged: 0 };
+	const research: ResearchShared = {
+		slots: new Slots(limits.researchCallsAtOnce),
+		queue: new EventQueue<ResearchEvent>(),
+		meter,
+		masker
+	};
+	// The research calls of the round that are running, by tool call id
+	const researchRuns = new Map<string, ResearchStart>();
+	// When each call of the round started and its label, to put both on its tool event
+	const callStarts = new Map<string, { at: number; label?: CallLabel }>();
 	let lastPrompt = 0;
 
 	for (let call = 0; call < limits.maxModelCalls; call++) {
@@ -807,7 +949,7 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 		// Out of room (the token budget, the size of the prompt, or the last model call): tools close and the model is told once to answer
 		if (
 			!toolsOff &&
-			(charged >= limits.turnTokenBudget ||
+			(meter.charged >= limits.turnTokenBudget ||
 				lastPrompt >= limits.contextGuardTokens ||
 				call === limits.maxModelCalls - 1)
 		) {
@@ -889,9 +1031,12 @@ export async function* runTurn(p: TurnParams): AsyncGenerator<TurnEvent> {
 			throw e;
 		}
 		if (!completion) throw new Error('The model ended without an answer.');
-		charged +=
+		meter.charged +=
 			completion.charged ?? completion.usage.promptTokens + completion.usage.completionTokens;
 		lastPrompt = completion.usage.promptTokens;
+		// The context meter only ever shows what the host reported
+		if (!completion.usage.estimated && completion.usage.promptTokens > 0)
+			yield { type: 'usage', promptTokens: completion.usage.promptTokens };
 		// The model ran out of room (its thinking shares the limit with the answer). Cut-off tool arguments are never run. The first
 		// cut-off is given one carry-on; the second, or one with no model call left, says so and is not read for memory
 		if (
@@ -985,9 +1130,44 @@ ${note}`
 				},
 				...roundResults
 			);
+		// The research calls of this round start together and run side by side: the helpers are checked and started here, and their results
+		// are taken below in the order of the calls. The check of each uses the taint of the round's start: the model chose all of these
+		// calls before it read any page of this round
+		let slot = seq;
+		for (const tc of completion.toolCalls) {
+			if (tc.function.name === RESEARCH && byName.has(RESEARCH) && !p.signal?.aborted) {
+				if (slot < limits.maxToolCalls) {
+					const label = labelOf(byName.get(RESEARCH), tc, state.tainted);
+					callStarts.set(tc.id, { at: Date.now(), ...(label ? { label } : {}) });
+					yield { type: 'tool_start', id: tc.id, name: RESEARCH, ...(label ? { label } : {}) };
+					researchRuns.set(tc.id, startResearch(p, limits, state, research, tc));
+				}
+				slot++;
+			} else if (!p.signal?.aborted) slot++;
+		}
 		for (const tc of completion.toolCalls) {
 			if (p.signal?.aborted || stopped === 'cancelled') {
 				stopped = 'cancelled';
+				// A research call that was already running ends on its own with what it found: its live events are handed out and its card closes
+				const running = researchRuns.get(tc.id);
+				if (running) {
+					researchRuns.delete(tc.id);
+					if (running.ok) {
+						const res = yield* awaitResearch(running.promise, research.queue);
+						yield {
+							type: 'tool',
+							id: tc.id,
+							name: RESEARCH,
+							status: 'ok',
+							data: {
+								sources: res.sources,
+								searches: res.searches,
+								reads: res.reads,
+								stopped: 'cancelled'
+							}
+						};
+					}
+				}
 				// The calls not run get an answer too, so the stored round pairs up and the next message can read what the earlier ones found
 				roundResults.push({
 					role: 'tool',
@@ -1015,16 +1195,31 @@ ${note}`
 			// sends its checked arguments, to the person's own phone, with the id the answer comes back under
 			const called = byName.get(tc.function.name);
 			const dev = called?.kind === 'device' ? startDevice(p, limits, state, called, tc) : undefined;
-			if (called)
+			const started = researchRuns.get(tc.id);
+			// A research call's tool_start was sent when it started. The label is built from the checked arguments only, and its subject is
+			// left out once untrusted text has entered the turn
+			if (called && !started) {
+				const label = labelOf(called, tc, state.tainted);
+				callStarts.set(tc.id, { at: Date.now(), ...(label ? { label } : {}) });
+			}
+			const began = callStarts.get(tc.id);
+			if (called && !started)
 				yield {
 					type: 'tool_start',
 					id: tc.id,
 					name: tc.function.name,
+					...(began?.label ? { label: began.label } : {}),
 					...(dev?.ok
 						? { device: { callId: dev.callId, args: dev.args, tainted: state.tainted } }
 						: {})
 				};
-			const out = await executeTool(p, limits, state, byName, tc, seq, dev);
+			let out: Outcome;
+			if (started) {
+				researchRuns.delete(tc.id);
+				out = started.ok
+					? researchOutcome(yield* awaitResearch(started.promise, research.queue), state, limits)
+					: started.outcome;
+			} else out = await executeTool(p, limits, state, byName, tc, seq, dev);
 			toolsRun.push(tc.function.name);
 			yield {
 				type: 'tool',
@@ -1034,8 +1229,16 @@ ${note}`
 				...(out.message ? { message: out.message } : {}),
 				...(out.data !== undefined && JSON.stringify(out.data).length <= limits.maxEventChars
 					? { data: out.data }
-					: {})
+					: {}),
+				// A blocked call shows what kind of call it was and nothing it asked for
+				...(began?.label
+					? {
+							label: out.status === 'blocked' ? { family: began.label.family } : began.label
+						}
+					: {}),
+				...(began ? { ms: Math.max(0, Date.now() - began.at) } : {})
 			};
+			callStarts.delete(tc.id);
 			if (out.card)
 				yield {
 					type: 'card',

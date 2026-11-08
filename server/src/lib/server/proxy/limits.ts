@@ -41,6 +41,8 @@ export type Usage = {
 	cacheWriteTokens?: number;
 	/** The part of cacheWriteTokens written with the 1 hour lifetime, which the host bills at twice the input price. */
 	cacheWrite1hTokens?: number;
+	/** True when the host reported no usage and promptTokens is our own estimate: the context meter never shows an estimate. */
+	estimated?: true;
 };
 
 /** Why a call was refused, with the numbers, for the log. Counts only. */
@@ -136,6 +138,39 @@ export function createRateLimiter(max: number, windowMs = 60_000, clock: () => n
 	};
 }
 
+/** The limits the server runs with, set once at start by the model client (see configureLimits). Until then the defaults. */
+let configured: Limits = DEFAULT_LIMITS;
+
+/** Called once at start with the limits built from the environment, so the ops layer reads the same caps the model calls are held to. */
+export function configureLimits(limits: Limits): void {
+	configured = limits;
+}
+
+/** The limits the model calls are held to. */
+export function configuredLimits(): Limits {
+	return configured;
+}
+
+/** Charged tokens one person used this month in a bucket, over every provider, so switching provider cannot reset the cap. */
+export async function monthlyUsed(
+	tx: Tx,
+	userId: string,
+	bucket: Bucket,
+	now: Date = new Date()
+): Promise<number> {
+	const [mine] = await tx
+		.select({ tokens: sql<number>`coalesce(sum(${modelUsage.chargedTokens}), 0)` })
+		.from(modelUsage)
+		.where(
+			and(
+				eq(modelUsage.userId, userId),
+				eq(modelUsage.bucket, bucket),
+				eq(modelUsage.month, monthKey(now))
+			)
+		);
+	return Number(mine?.tokens ?? 0);
+}
+
 /** Throws LIMIT when the person or the whole service has used its tokens for the month. Runs inside the person's transaction. */
 export async function assertBudget(
 	tx: Tx,
@@ -145,15 +180,8 @@ export async function assertBudget(
 	now: Date = new Date()
 ): Promise<void> {
 	const month = monthKey(now);
-	// Charged tokens over every provider the person used this month, so switching provider cannot reset the cap
-	const [mine] = await tx
-		.select({ tokens: sql<number>`coalesce(sum(${modelUsage.chargedTokens}), 0)` })
-		.from(modelUsage)
-		.where(
-			and(eq(modelUsage.userId, userId), eq(modelUsage.bucket, bucket), eq(modelUsage.month, month))
-		);
 	const cap = bucket === 'chat' ? limits.chatTokenCap : limits.memoryTokenCap;
-	const used = Number(mine?.tokens ?? 0);
+	const used = await monthlyUsed(tx, userId, bucket, now);
 	if (used >= cap)
 		throw new BudgetError('The monthly model limit for this account has been reached.', {
 			reason: 'person_cap',

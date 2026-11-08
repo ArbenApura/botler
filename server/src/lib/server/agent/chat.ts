@@ -35,6 +35,7 @@ import {
 	queueCompactionIfDue,
 	summaryState
 } from './compact';
+import { contextWindow } from './contextWindow';
 import { imagesInput, readImages } from './images';
 import { MAX_PHOTO_CHARS, MAX_PHOTOS, MAX_PHOTOS_TOTAL_CHARS, notebookMessage } from './prompt';
 import { buildHistory } from './transcript';
@@ -129,6 +130,26 @@ async function claim(ctx: Ctx, input: z.infer<typeof chatInput>, staleMs: number
 			const target = await resolveChat(tx, userId, input.chatId, {
 				hidden: input.foodCamera !== undefined
 			});
+			// One turn at a time in a chat: a new message (not a replay of its own id, handled below) waits while another message of this chat is
+			// still being answered. The wait is the app's, so no lock is held across a model call. A turn that stopped heartbeating (stale) does not
+			// hold the chat
+			const [busy] = await tx
+				.select({ id: chatTurn.id })
+				.from(chatTurn)
+				.where(
+					and(
+						eq(chatTurn.userId, userId),
+						eq(chatTurn.chatId, target.id),
+						eq(chatTurn.status, 'running'),
+						gt(chatTurn.updatedAt, new Date(Date.now() - staleMs))
+					)
+				)
+				.limit(1);
+			if (busy)
+				throw new OpsError(
+					'BUSY_CHAT',
+					'The earlier message in this chat is still being answered. Try again in a moment.'
+				);
 			const [fresh] = await tx
 				.insert(chatTurn)
 				.values({
@@ -407,13 +428,22 @@ export async function* handleChat(
 			web: deps.web,
 			limits: deps.limits
 		});
+		// The prompt size the host reported at the last model call of this message (never an estimate)
+		let promptTokens: number | null = null;
+		const window = contextWindow(provider);
 		for await (const e of turn) {
+			// Live only: the size after each model call, with the window. Never stored (STORED leaves it out) and never replayed
+			if (e.type === 'usage') {
+				promptTokens = e.promptTokens;
+				yield { ...e, window };
+				continue;
+			}
 			// The text arrives in pieces for the screen; the stored copy keeps the tool results, cards and fallback only
 			if (e.type === 'done') {
 				reply = e.reply;
 				const ended = e.stopped !== 'cancelled' && e.stopped !== 'length';
-				const written = await run(ctx, (tx, userId) =>
-					tx
+				const written = await run(ctx, async (tx, userId) => {
+					const rows = await tx
 						.update(chatTurn)
 						.set({
 							status: ended ? 'done' : 'failed',
@@ -427,8 +457,16 @@ export async function* handleChat(
 						})
 						// Only the run that owns the message writes its end: a run that was taken over leaves the new run's result alone
 						.where(and(eq(chatTurn.userId, userId), mine))
-						.returning({ id: chatTurn.id })
-				);
+						.returning({ id: chatTurn.id });
+					// The size of the last prompt is kept for the chat once, with the end of the message, and only for a message that ended well.
+					// A cancelled or failed one leaves the figure of the last good answer
+					if (ended && rows.length > 0 && promptTokens !== null)
+						await tx
+							.update(chat)
+							.set({ lastPromptTokens: promptTokens })
+							.where(and(eq(chat.userId, userId), eq(chat.id, claimed.chatId)));
+					return rows;
+				});
 				// A long chat is folded into its summary in the background, never inside a message. A failure here never stops the reply
 				if (ended && written.length > 0)
 					await run(ctx, (tx, userId) =>
@@ -442,9 +480,13 @@ export async function* handleChat(
 					).catch(() => undefined);
 			} else if (STORED.has(e.type)) kept.push(forStorage(e));
 			// The tool rounds are for the database only: the app never gets them
-			if (e.type === 'done' && (e.transcript || e.tainted)) {
+			if (e.type === 'done') {
 				const { transcript: _kept, tainted: _tainted, ...rest } = e;
-				yield rest;
+				// The figure "at the last answer": only from a message that ended well and had a reported size, so a stopped one shows nothing new
+				const ended = e.stopped !== 'cancelled' && e.stopped !== 'length';
+				yield ended && promptTokens !== null
+					? { ...rest, context: { promptTokens, window } }
+					: rest;
 			} else yield e;
 		}
 	} catch (e) {

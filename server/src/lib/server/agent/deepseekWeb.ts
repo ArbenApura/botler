@@ -253,14 +253,15 @@ export async function deepseekSearch(
 export async function deepseekFetch(
 	rawUrl: string,
 	deps: WebClientDeps,
-	signal?: AbortSignal
+	signal?: AbortSignal,
+	opts: { anyPort?: boolean; maxChars?: number } = {}
 ): Promise<PageOutcome> {
 	const key = deps.deepseekKey?.trim();
 	if (!key) return pageUnavailable('it is not set up on this server.');
 	// The address is checked here and the checked form is what is sent
 	let checked: string;
 	try {
-		checked = checkPublicUrl(rawUrl);
+		checked = checkPublicUrl(rawUrl, { anyPort: opts.anyPort });
 	} catch (e) {
 		if (e instanceof FetchRefused) return pageUnavailable(e.message);
 		throw e;
@@ -294,7 +295,7 @@ export async function deepseekFetch(
 		ok: true,
 		url: checked,
 		title: clean(parsed.title, MAX_TITLE_CHARS),
-		text: text.slice(0, MAX_PAGE_CHARS),
-		truncated: text.length > MAX_PAGE_CHARS
+		text: text.slice(0, Math.min(MAX_PAGE_CHARS, opts.maxChars ?? MAX_PAGE_CHARS)),
+		truncated: text.length > Math.min(MAX_PAGE_CHARS, opts.maxChars ?? MAX_PAGE_CHARS)
 	};
 }

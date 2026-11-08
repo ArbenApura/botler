@@ -141,7 +141,7 @@ describe('after untrusted text', () => {
 		await saveFirst(f, '# Preferences and rules\n');
 		const web = fakeWeb({});
 		const model = stubModel([
-			{ calls: [['web_search', { query: 'best savings tips' }]] },
+			{ calls: [['research', { question: 'best savings tips' }]] },
 			{
 				calls: [
 					[

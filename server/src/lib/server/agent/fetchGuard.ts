@@ -1,6 +1,7 @@
 // THE ADDRESS CHECK BEFORE A PAGE IS OPENED: WHAT THE ASSISTANT MAY ASK DEEPSEEK'S FETCH API TO READ
 // - The page is read by DeepSeek from its own network, so this server never connects to an address the model picked.
-// - Still, an address that only means this machine or a private network is never sent: http and https only, standard ports only, no login in
+// - Still, an address that only means this machine or a private network is never sent: http and https only, standard ports only (research
+//   passes { anyPort: true }, owner decision of 2026-11-08, BTL-20261108-0230; every other caller keeps the port refusal), no login in
 //   the address, no local names (localhost, .local, .internal and the like, with or without a trailing dot) and no private, loopback,
 //   link-local, carrier-grade NAT, multicast, documentation or cloud metadata IP written as a number (IPv4 and IPv6, including IPv4 hidden
 //   in IPv6 forms; numbers written as decimal, hex or octal are normalised by the URL parser first).
@@ -124,7 +125,7 @@ export function isBlockedAddress(addr: string): boolean {
  * that only means this machine or a private network, no private IP written as a number. Returns the parsed address, which is also the one
  * sent. Throws FetchRefused with a reason that is safe to show.
  */
-export function checkPublicUrl(rawUrl: string): string {
+export function checkPublicUrl(rawUrl: string, opts: { anyPort?: boolean } = {}): string {
 	let url: URL;
 	try {
 		url = new URL(rawUrl.trim());
@@ -136,7 +137,7 @@ export function checkPublicUrl(rawUrl: string): string {
 	if (url.username || url.password)
 		throw new FetchRefused('Addresses with a login are not allowed.');
 	// The default port reads as empty, so any port left is a non standard one
-	if (url.port && url.port !== '80' && url.port !== '443')
+	if (!opts.anyPort && url.port && url.port !== '80' && url.port !== '443')
 		throw new FetchRefused('Only the standard web ports can be read.');
 	// A trailing dot names the same host, so it must not slip past the name test
 	const host = url.hostname.replace(/^\[|\]$/g, '').replace(/\.+$/, '');

@@ -435,10 +435,13 @@ describe('bills in another currency in the plan', () => {
 	});
 
 	it('takes a dollar bill off the forecast at its rate, and counts one it cannot convert', async () => {
-		const range = await calendarRange(person(id), { from: '2026-11-01', to: '2026-11-07' });
+		// From today for 40 days, so the window always holds the bills' next date (a fixed week went stale once the clock passed it)
+		const from = new Date().toISOString().slice(0, 10);
+		const to = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
+		const range = await calendarRange(person(id), { from, to });
 		expect(range.forecast.unconvertedBills).toBe(0);
 		await t.handle.owner.exec("delete from fx_rate where code = 'ZAR'");
-		const missing = await calendarRange(person(id), { from: '2026-11-01', to: '2026-11-07' });
+		const missing = await calendarRange(person(id), { from, to });
 		expect(missing.forecast.unconvertedBills).toBeGreaterThan(0);
 		await setRates({ ZAR: '18' });
 	});

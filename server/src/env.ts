@@ -6,6 +6,7 @@ import { defineEnvVars } from '@sveltejs/kit/env';
 // -- MODULES -- //
 import { fxUrlFromEnv } from './lib/server/fx/config';
 import { DEFAULT_HISTORY_TOKENS } from './lib/server/agent/compact';
+import { windowOverride } from './lib/server/agent/contextWindow';
 import {
 	DEFAULT_CHAT_MAX_TOKENS,
 	DEFAULT_TURN_TOKEN_BUDGET,
@@ -136,8 +137,48 @@ export const variables = defineEnvVars({
 	},
 	TURN_TOKEN_BUDGET: {
 		description:
-			'The most charged tokens (cache reads and writes weighted, as the monthly cap counts them) one chat message may use over all its model calls. Default 300000. When it runs out the model is told to answer from what it has. A bad value stops the server.',
+			'The most charged tokens (cache reads and writes weighted, as the monthly cap counts them) one chat message may use over all its model calls, the research helpers included. Default 600000. When it runs out the model is told to answer from what it has. A bad value stops the server.',
 		schema: (value) => positiveInt(value, DEFAULT_TURN_TOKEN_BUDGET, 'TURN_TOKEN_BUDGET')
+	},
+	CONTEXT_WINDOW_TOKENS: {
+		description:
+			'The context window, in tokens, the chat meter measures against. Empty means the host default (DeepSeek 1000000). Set it only when the host or the model changes; it changes no limit, only the meter. A bad value stops the server.',
+		schema: (value) => windowOverride(value) ?? ''
+	},
+	RESEARCH_CALLS_AT_ONCE: {
+		description:
+			'How many research helpers of one chat message run at the same time. Default 3. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 3, 'RESEARCH_CALLS_AT_ONCE')
+	},
+	RESEARCH_TOOL_PARALLEL: {
+		description:
+			'How many searches and page reads of one research round run at the same time. Default 6. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 6, 'RESEARCH_TOOL_PARALLEL')
+	},
+	RESEARCH_ROUNDS: {
+		description:
+			'The most tool rounds of one deep research call. Default 12. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 12, 'RESEARCH_ROUNDS')
+	},
+	RESEARCH_SEARCHES: {
+		description:
+			'The most web searches of one deep research call (a runaway guard, not a per-message cap). Default 40. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 40, 'RESEARCH_SEARCHES')
+	},
+	RESEARCH_READS: {
+		description:
+			'The most pages one deep research call may open (a runaway guard, not a per-message cap). Default 80. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 80, 'RESEARCH_READS')
+	},
+	RESEARCH_CALL_TOKENS: {
+		description:
+			'The most charged tokens one deep research call may use before it must write its digest. Default 150000. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 150_000, 'RESEARCH_CALL_TOKENS')
+	},
+	RESEARCH_SECONDS: {
+		description:
+			'The longest a deep research call may run, in seconds, before it writes what it has. Default 120. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 120, 'RESEARCH_SECONDS')
 	},
 	HISTORY_TOKENS: {
 		description:

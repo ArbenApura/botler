@@ -71,6 +71,37 @@ describe('room for a long message', () => {
 	});
 });
 
+describe('the label of a tool call', () => {
+	it('goes out with tool_start and the tool event, with the time, and never holds the whole arguments', async () => {
+		const model = stubModel((_req, n) =>
+			n === 0
+				? { calls: [['notebook_search', { query: 'passport' }]] }
+				: { say: 'Found nothing about it.' }
+		);
+		const events = await play({ f, model, text: 'where is my passport note' });
+		const start = events.find((e) => e.type === 'tool_start');
+		expect(start).toMatchObject({
+			name: 'notebook_search',
+			label: { family: 'notebook_search', subject: 'passport' }
+		});
+		const [tool] = toolEvents(events);
+		expect(tool).toMatchObject({ label: { family: 'notebook_search', subject: 'passport' } });
+		expect(typeof tool?.ms).toBe('number');
+		// Nothing but the family and the checked subject is on the label
+		expect(Object.keys((start as { label: object }).label).sort()).toEqual(['family', 'subject']);
+	});
+
+	it('gives a call with no label field of its own the family of its kind and no subject', async () => {
+		const model = stubModel((_req, n) =>
+			n === 0 ? { calls: [['accounts_list', {}]] } : { say: 'Here they are.' }
+		);
+		const events = await play({ f, model, text: 'my accounts' });
+		const start = events.find((e) => e.type === 'tool_start');
+		expect(start).toMatchObject({ label: { family: 'lookup' } });
+		expect((start as { label: { subject?: string } }).label.subject).toBeUndefined();
+	});
+});
+
 describe('the note on tool calls left', () => {
 	it('starts at 75% of the tool calls and counts down', async () => {
 		const model = stubModel((_req, n) =>

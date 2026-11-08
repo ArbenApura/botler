@@ -155,6 +155,33 @@ describe('chat_history', () => {
 		expect(first?.events[1] && 'data' in first.events[1]).toBe(true);
 	});
 
+	it('keeps the label and the time of a tool event and drops a label that does not fit', async () => {
+		const p = await seedPerson(t);
+		await turn({
+			who: p,
+			events: [
+				{
+					type: 'tool',
+					id: 'c1',
+					name: 'page_get',
+					status: 'ok',
+					label: { family: 'page_read', subject: 'Trip plan' },
+					ms: 1200
+				},
+				{ type: 'tool', id: 'c2', name: 'page_get', status: 'ok', label: 'nonsense', ms: -5 },
+				{ type: 'tool', id: 'c3', name: 'accounts_list', status: 'ok' }
+			]
+		});
+		const [first] = (await history(p)).turns;
+		const [a, b, c] = first?.events ?? [];
+		expect(a).toMatchObject({ label: { family: 'page_read', subject: 'Trip plan' }, ms: 1200 });
+		// A bad label or time is dropped alone; the event itself stays
+		expect(b).toMatchObject({ type: 'tool', name: 'page_get' });
+		expect(b).not.toHaveProperty('label');
+		expect(b).not.toHaveProperty('ms');
+		expect(c).not.toHaveProperty('label');
+	});
+
 	it('tells the status a card has now', async () => {
 		const p = await seedPerson(t);
 		const live = await card(p, 'pending', 3_600_000);

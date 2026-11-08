@@ -36,7 +36,12 @@ export type Step = {
 };
 export type ScriptFn = (req: CompletionRequest, n: number) => Step;
 
-export type StubModel = TurnModel & { requests: CompletionRequest[] };
+export type StubModel = TurnModel & {
+	/** The calls of the main turn. */
+	requests: CompletionRequest[];
+	/** The calls of the research helper (the ones that carry web_search and web_read). They are kept apart so the main script's step count stays its own. */
+	helperRequests: CompletionRequest[];
+};
 
 export type Fixture = {
 	userId: string;
@@ -54,15 +59,49 @@ export type Fixture = {
 
 let ids = 0;
 
-/** A model that plays a script: step n answers call n. After the script it just says "ok". */
-export function stubModel(script: Step[] | ScriptFn): StubModel {
+/** The text of the last tool results of a request, as one string. */
+const toolTexts = (req: CompletionRequest): string[] =>
+	req.messages.flatMap((m) => (m.role === 'tool' ? [m.content] : []));
+
+/**
+ * The research helper when a test does not script it: its first step opens every address in its question (or searches for the question
+ * itself when there is none), its second writes a digest that repeats what the tools returned, so text from a page reaches the main turn.
+ */
+export function defaultHelper(req: CompletionRequest): Step {
+	const tools = toolTexts(req);
+	if (tools.length) return { say: `Digest of what I found: ${tools.join(' ')}` };
+	const user = req.messages.find((m) => m.role === 'user');
+	const text = user && 'content' in user ? String(user.content) : '';
+	const urls = [...new Set(text.match(/https?:\/\/[^\s"]+/g) ?? [])];
+	return urls.length
+		? { calls: urls.map((u): [string, unknown] => ['web_read', { url: u }]) }
+		: { calls: [['web_search', { query: text.split('\n')[0]?.slice(0, 128) || 'news' }]] };
+}
+
+/** Whether a request is the research helper's: it is the only caller that is offered web_search. */
+export const isHelperRequest = (req: CompletionRequest): boolean =>
+	req.tools?.some((x) => x.function.name === 'web_search') === true;
+
+/**
+ * A model that plays a script: step n answers call n of the main turn. After the script it just says "ok". Calls of the research helper
+ * are answered by `helper` (a script of its own, or defaultHelper) and never count as a step of the main script.
+ */
+export function stubModel(
+	script: Step[] | ScriptFn,
+	opts: { helper?: Step[] | ScriptFn } = {}
+): StubModel {
 	const requests: CompletionRequest[] = [];
+	const helperRequests: CompletionRequest[] = [];
 	return {
 		requests,
+		helperRequests,
 		async *stream(_ctx, req): AsyncGenerator<StreamEvent> {
-			const n = requests.length;
-			requests.push({ ...req, messages: [...req.messages] });
-			const step = typeof script === 'function' ? script(req, n) : (script[n] ?? { say: 'ok' });
+			const helping = isHelperRequest(req);
+			const own = helping ? helperRequests : requests;
+			const n = own.length;
+			own.push({ ...req, messages: [...req.messages] });
+			const play = helping ? (opts.helper ?? defaultHelper) : script;
+			const step = typeof play === 'function' ? play(req, n) : (play[n] ?? { say: 'ok' });
 			if (step.think) yield { type: 'reasoning', text: step.think };
 			if (step.say) yield { type: 'delta', text: step.say };
 			yield {

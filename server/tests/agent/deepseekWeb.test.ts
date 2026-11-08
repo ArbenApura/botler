@@ -358,68 +358,63 @@ describe('deepseek page read', () => {
 });
 
 describe('the web tools in a message', () => {
-	it('reads the key and address of this server, and says it is not set up without a key', async () => {
-		const tools = buildTools();
-		const read = tools.find((x) => x.name === 'web_read');
-		const search = tools.find((x) => x.name === 'web_search');
-		const none = await read?.web?.({ url: PAGE }, {});
-		expect(none).toEqual({ error: expect.stringMatching(/not set up/) });
-		const nothing = await search?.web?.({ query: QUERY }, { deepseekKey: '  ' });
-		expect(nothing).toEqual({ error: expect.stringMatching(/not set up/) });
+	it('offers the main turn the research tool and keeps the two page tools for the helper alone', () => {
+		const names = buildTools().map((x) => x.name);
+		expect(names).toContain('research');
+		expect(names).not.toContain('web_search');
+		expect(names).not.toContain('web_read');
 	});
 
-	it('keeps a long page, escapes included, under the result cap so it is never cut into a preview', async () => {
-		const read = buildTools().find((x) => x.name === 'web_read');
-		const f = fake(() => reply({ title: 'Big', content: '"quote"\n'.repeat(5_000) }));
-		const out = (await read?.web?.({ url: PAGE }, f.deps)) as {
-			text: string;
-			truncated: boolean;
-		};
-		expect(JSON.stringify(out).length).toBeLessThanOrEqual(LIMITS.maxResultChars);
-		expect(out.truncated).toBe(true);
-		expect(out.text.endsWith('</untrusted>')).toBe(true);
-	});
-
-	it('allows 5 page reads in one message and blocks the sixth', async () => {
-		const f = await seedPerson(t);
-		const urls = Array.from({ length: 6 }, (_, i) => `https://reads.example/${i + 1}`);
-		const web = fakeWeb(Object.fromEntries(urls.map((u) => [u, 'page text'])));
-		const model = stubModel((_r, n) => {
-			const u = urls[n];
-			return u ? { calls: [['web_read', { url: u }]] } : { say: 'That is all I could read.' };
-		});
-		const events = await play({ f, model, text: `read ${urls.join(' then ')}`, web: web.deps });
-		expect(toolEvents(events).map((e) => `${e.name}:${e.status}`)).toEqual([
-			'web_read:ok',
-			'web_read:ok',
-			'web_read:ok',
-			'web_read:ok',
-			'web_read:ok',
-			'web_read:blocked'
-		]);
-		expect(web.requested).toEqual(urls.slice(0, 5));
-	});
-
-	it('a failed read or search is a plain error: it does not close the door on writes', async () => {
+	it('a failed search and a failed read in research are plain errors: nothing came back from outside, so a write afterwards still saves', async () => {
 		const f = await seedPerson(t);
 		const web = fakeWeb({}, { searchFails: true });
-		const model = stubModel((_r, n) => {
-			if (n === 0) return { calls: [['web_search', { query: 'harbour news' }]] };
-			if (n === 1) return { calls: [['web_read', { url: 'https://missing.example/x' }]] };
-			if (n === 2)
-				return { calls: [['expense_log', { amount: 5000, accountId: f.gcash, note: 'coffee' }]] };
-			return { say: 'Logged.' };
-		});
+		const model = stubModel(
+			(_r, n) => {
+				if (n === 0) return { calls: [['research', { question: 'harbour news' }]] };
+				if (n === 1)
+					return { calls: [['expense_log', { amount: 5000, accountId: f.gcash, note: 'coffee' }]] };
+				return { say: 'Logged.' };
+			},
+			{
+				helper: (r, n) =>
+					n === 0
+						? {
+								calls: [
+									['web_search', { query: 'harbour news' }],
+									['web_read', { url: 'https://missing.example/x' }]
+								]
+							}
+						: { say: `Nothing found. ${JSON.stringify(r.messages.at(-1))}` }
+			}
+		);
 		const events = await play({
 			f,
 			model,
-			text: 'search for harbour news, read https://missing.example/x and log 50 coffee on gcash',
+			text: 'search for harbour news and log 50 coffee on gcash',
 			web: web.deps
 		});
 		expect(toolEvents(events).map((e) => `${e.name}:${e.status}`)).toEqual([
-			'web_search:ok',
-			'web_read:ok',
+			'research:ok',
 			'expense_log:ok'
 		]);
+	});
+
+	it('keeps the page text the helper reads to its own size and out of the main turn', async () => {
+		const f = await seedPerson(t);
+		const web = fakeWeb({ 'https://big.example/p': 'PAGEWORD '.repeat(5_000) });
+		const model = stubModel([
+			{ calls: [['research', { question: 'read it', urls: ['https://big.example/p'] }]] },
+			{ say: 'Done.' }
+		]);
+		await play({ f, model, text: 'read https://big.example/p', web: web.deps });
+		// The helper saw a page cut to its limit; the main model got the digest, which is at most 4000 characters
+		const helperPage = JSON.stringify(model.helperRequests.at(-1)?.messages ?? []);
+		expect(helperPage.length).toBeLessThan(LIMITS.researchPageChars * 3);
+		const mainTool = model.requests
+			.at(1)
+			?.messages.filter((m) => m.role === 'tool')
+			.map((m) => m.content)
+			.join('');
+		expect(mainTool?.length ?? 0).toBeLessThanOrEqual(LIMITS.maxResultChars);
 	});
 });

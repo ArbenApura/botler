@@ -86,6 +86,7 @@ describe('chat route', () => {
 		const gate = new Promise<void>((r) => (release = r));
 		model = {
 			requests: [],
+			helperRequests: [],
 			async *stream() {
 				await gate;
 				yield { type: 'delta', text: 'late' };

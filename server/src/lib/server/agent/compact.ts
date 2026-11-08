@@ -7,7 +7,7 @@
 import type { Tx } from '../db/client';
 import type { HistoryTurn } from './transcript';
 // -- DEP-MODULES -- //
-import { and, asc, eq, gt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, or, sql } from 'drizzle-orm';
 // -- MODULES -- //
 import { chat, chatTurn, job } from '../db/schema';
 import { enqueue } from '../jobs/queue';
@@ -92,6 +92,61 @@ export function turnTokens(t: HistoryTurn): number {
 	return Math.ceil(
 		(t.userText.length + t.reply.length + (rounds ? JSON.stringify(rounds).length : 0)) / 4
 	);
+}
+
+/** A manual compaction needs at least this many finished messages after the summary: the last two always stay, so two or more are folded. */
+export const MANUAL_MIN_TURNS = 4;
+
+/**
+ * The person asked to summarize now: queues the same chat.compact job at once for the whole finished chat, with no budget check and no
+ * failure cooldown. Not while one is queued or running ('busy'), and not when there is too little to fold ('short'). The key carries the
+ * request, so the same request never queues twice and an automatic job for the same message does not stand in its way.
+ */
+export async function queueManualCompaction(
+	tx: Tx,
+	userId: string,
+	chatId: string,
+	requestKey: string
+): Promise<'queued' | 'busy' | 'short' | 'missing'> {
+	const state = await summaryState(tx, userId, chatId);
+	if (!state) return 'missing';
+	const finished = and(
+		eq(chatTurn.userId, userId),
+		eq(chatTurn.chatId, chatId),
+		eq(chatTurn.status, 'done'),
+		afterTurn(state.after)
+	);
+	const [n] = await tx
+		.select({ n: sql<number>`count(*)::int` })
+		.from(chatTurn)
+		.where(finished);
+	const [latest] = await tx
+		.select({ id: chatTurn.id })
+		.from(chatTurn)
+		.where(finished)
+		.orderBy(desc(chatTurn.createdAt), desc(chatTurn.id))
+		.limit(1);
+	if (!latest || (n?.n ?? 0) < MANUAL_MIN_TURNS) return 'short';
+	const busy = await tx
+		.select({ id: job.id })
+		.from(job)
+		.where(
+			and(
+				eq(job.userId, userId),
+				eq(job.kind, 'chat.compact'),
+				sql`${job.payload}->>'chatId' = ${chatId}`,
+				sql`${job.status} in ('queued', 'running')`
+			)
+		)
+		.limit(1);
+	if (busy.length > 0) return 'busy';
+	const made = await enqueue(tx, {
+		userId,
+		kind: 'chat.compact',
+		key: `${chatId}:manual:${requestKey}`,
+		payload: { chatId, turnId: latest.id, manual: true }
+	});
+	return made ? 'queued' : 'busy';
 }
 
 /**

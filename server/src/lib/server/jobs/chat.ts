@@ -84,6 +84,8 @@ export function createChatHandlers(deps: ChatJobDeps): Record<string, JobHandler
 	const compact: JobHandler = async (job, tx, ctx) => {
 		const chatId = typeof job.payload.chatId === 'string' ? job.payload.chatId : '';
 		const turnId = typeof job.payload.turnId === 'string' ? job.payload.turnId : '';
+		// A summary the person asked for ("Summarize now"): folds at any size. The last two messages still stay as they are
+		const manual = job.payload.manual === true;
 		const state = chatId ? await summaryState(tx, job.userId, chatId) : null;
 		// A chat that was wiped or erased has nothing to summarise
 		if (!state) return;
@@ -112,7 +114,8 @@ export function createChatHandlers(deps: ChatJobDeps): Record<string, JobHandler
 			.orderBy(asc(chatTurn.createdAt), asc(chatTurn.id))
 			.limit(HISTORY_LOAD_MAX);
 		// Still over the budget? A newer compaction may already have brought it down. The last two messages always stay as they are
-		if (rows.reduce((sum, r) => sum + turnTokens(r), 0) <= budget || rows.length <= 2) return;
+		if (rows.length <= 2) return;
+		if (!manual && rows.reduce((sum, r) => sum + turnTokens(r), 0) <= budget) return;
 		// Bounded by the estimate as well as by the count: messages are taken oldest first until the input would pass the limit (always at
 		// least one), and the rest wait for the next compaction
 		const cut: ((typeof rows)[number] & { text: string })[] = [];
