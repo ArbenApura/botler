@@ -1059,23 +1059,24 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. While a turn runs, Stop is its
-    // own round button beside the pill: Send stays Send, so the next message can be written and sent (it waits its turn).
+    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. While a turn runs, a working
+    // strip with a labelled Stop sits above the pill: the pill keeps its width and Send stays Send, so the next message can be written and sent.
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Expanded(child: _pill(context, c)),
-          if (busy)
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: IconButton.outlined(
-                tooltip: context.t.chatStop,
-                onPressed: onStop,
-                icon: const Icon(Icons.stop_rounded),
-              ),
-            ),
+          AnimatedSize(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            alignment: Alignment.bottomCenter,
+            child: busy
+                ? WorkingStrip(onStop: onStop)
+                : const SizedBox(width: double.infinity),
+          ),
+          _pill(context, c),
         ],
       ),
     );

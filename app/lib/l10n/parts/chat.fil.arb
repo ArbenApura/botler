@@ -95,6 +95,7 @@
   "chatThoughtFor": "Nag-isip nang {seconds} s",
   "chatThoughtToggle": "Ipakita o itago ang naisip ng assistant",
   "chatStop": "Ihinto",
+  "chatStopping": "Hinihinto...",
   "chatStopped": "Itinigil.",
   "chatEarlier": "Mas maaga",
   "chatNoAnswer": "Walang naging sagot dito.",

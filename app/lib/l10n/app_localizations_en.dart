@@ -1577,6 +1577,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatStopped => 'Stopped.';
 
   @override
+  String get chatStopping => 'Stopping...';
+
+  @override
   String get chatSuggestDue => 'What is due this week?';
 
   @override

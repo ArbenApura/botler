@@ -712,5 +712,17 @@
       "Puwede mong i-type ang susunod mong mensahe habang sumasagot pa si Botler. Maghihintay ito ng turn nito.",
       "Inihahanda na sa background ang mga litrato pagkapili mo, kaya mas mabilis ang pagpapadala."
     ]
+  },
+  {
+    "versionCode": 63,
+    "versionName": "1.8.1",
+    "en": [
+      "The Stop button in the chat is clearer: while Botler works, a strip above the message box shows it is working and has a labelled Stop button. The message box no longer shrinks when it appears.",
+      "After you press Stop, the button reads \"Stopping...\" until Botler has stopped."
+    ],
+    "fil": [
+      "Mas malinaw na ang Stop button sa chat: habang gumagana si Botler, may strip sa itaas ng kahon ng mensahe na nagsasabing gumagana ito at may Stop button na may label. Hindi na lumiliit ang kahon ng mensahe kapag lumitaw ito.",
+      "Pagkatapos mong pindutin ang Stop, \"Hinihinto...\" ang nakasulat sa button hanggang tumigil si Botler."
+    ]
   }
 ]

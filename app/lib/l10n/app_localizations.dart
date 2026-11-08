@@ -2617,6 +2617,12 @@ abstract class AppLocalizations {
   /// **'Stopped.'**
   String get chatStopped;
 
+  /// No description provided for @chatStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping...'**
+  String get chatStopping;
+
   /// No description provided for @chatSuggestDue.
   ///
   /// In en, this message translates to:

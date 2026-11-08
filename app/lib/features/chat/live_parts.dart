@@ -111,6 +111,73 @@ class _PulsingDotsState extends State<PulsingDots>
   double _wave(double t) => t < 0.5 ? t * 2 : (1 - t) * 2;
 }
 
+/// The strip above the composer while a turn runs: soft dots, "Working on it" and a labelled Stop. Once Stop is pressed the button waits,
+/// reading "Stopping...", until the turn ends and the strip leaves. Stop is ink on paper, never danger red (red is for recording).
+class WorkingStrip extends StatefulWidget {
+  const WorkingStrip({required this.onStop, super.key});
+
+  final VoidCallback onStop;
+
+  @override
+  State<WorkingStrip> createState() => _WorkingStripState();
+}
+
+class _WorkingStripState extends State<WorkingStrip> {
+  // -- STATES -- //
+
+  bool _stopping = false;
+
+  // -- FUNCTIONS -- //
+
+  void _press() {
+    if (_stopping) return;
+    setState(() => _stopping = true);
+    widget.onStop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 4, bottom: 4),
+      child: Row(
+        children: <Widget>[
+          const PulsingDots(),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              t.chatWaiting,
+              style: TextStyle(color: c.muted, fontSize: 13),
+            ),
+          ),
+          Semantics(
+            button: true,
+            enabled: !_stopping,
+            label: _stopping ? t.chatStopping : t.chatStop,
+            excludeSemantics: true,
+            onTap: _stopping ? null : _press,
+            child: OutlinedButton.icon(
+              onPressed: _stopping ? null : _press,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                foregroundColor: c.ink,
+                disabledForegroundColor: c.muted,
+                side: BorderSide(color: c.line),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.stop_rounded, size: 20),
+              label: Text(_stopping ? t.chatStopping : t.chatStop),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// "Working on it", "Thinking" or "Writing" with the soft dots, under the conversation while the assistant has not started its answer.
 class WorkingRow extends StatelessWidget {
   const WorkingRow({required this.phase, this.tool, super.key});

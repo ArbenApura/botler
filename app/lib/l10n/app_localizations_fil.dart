@@ -1587,6 +1587,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatStopped => 'Itinigil.';
 
   @override
+  String get chatStopping => 'Hinihinto...';
+
+  @override
   String get chatSuggestDue => 'Ano ang due ngayong linggo?';
 
   @override

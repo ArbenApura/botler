@@ -125,6 +125,7 @@
   "@chatThoughtFor": {"placeholders": {"seconds": {"type": "int"}}},
   "chatThoughtToggle": "Show or hide what the assistant thought",
   "chatStop": "Stop",
+  "chatStopping": "Stopping...",
   "chatStopped": "Stopped.",
   "chatEarlier": "Earlier",
   "chatNoAnswer": "There was no answer to this one.",

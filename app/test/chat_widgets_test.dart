@@ -39,6 +39,34 @@ Widget host(
 );
 
 void main() {
+  group('the working strip', () {
+    testWidgets('shows a labelled Stop, presses once and then waits', (
+      tester,
+    ) async {
+      for (final mode in Brightness.values) {
+        var presses = 0;
+        await tester.pumpWidget(
+          host(
+            WorkingStrip(key: ValueKey(mode), onStop: () => presses++),
+            mode: mode,
+            still: true,
+          ),
+        );
+        expect(find.text('Working on it'), findsOneWidget);
+        expect(find.text('Stop'), findsOneWidget);
+        final box = tester.getSize(find.byType(OutlinedButton));
+        expect(box.height, greaterThanOrEqualTo(48));
+        await tester.tap(find.byType(OutlinedButton));
+        await tester.pump();
+        await tester.tap(find.byType(OutlinedButton), warnIfMissed: false);
+        await tester.pump();
+        expect(presses, 1);
+        expect(find.text('Stopping...'), findsOneWidget);
+        expect(find.text('Stop'), findsNothing);
+      }
+    });
+  });
+
   group('the working row', () {
     testWidgets('says the stage in words, in light and in dark', (
       tester,
@@ -465,10 +493,11 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello there');
         await tester.tap(find.byTooltip('Send'));
         await tester.pump(const Duration(milliseconds: 100));
-        // Send stays Send, and Stop is its own button beside it
-        expect(find.byTooltip('Stop'), findsOneWidget);
+        // Send stays Send, and Stop is a labelled button in the working strip above the pill
+        expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
         expect(find.byTooltip('Send'), findsOneWidget);
-        expect(find.text('Working on it'), findsOneWidget);
+        // The feed's row and the strip both say it
+        expect(find.text('Working on it'), findsNWidgets(2));
 
         // Words sent while it runs wait their turn as a chip
         await tester.enterText(find.byType(TextField), 'and another');
@@ -478,15 +507,18 @@ void main() {
         expect(find.text('Waiting'), findsOneWidget);
         expect(container.read(chatProvider).queue, hasLength(1));
 
-        await tester.tap(find.byTooltip('Stop'));
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Stop'));
         await tester.pump(const Duration(milliseconds: 100));
+        // Pressed once: the button waits, reading Stopping...
+        expect(find.text('Stopping...'), findsOneWidget);
         await tester.pump(const Duration(milliseconds: 100));
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 200)),
         );
         await tester.pump();
         expect(container.read(chatProvider).busy, false);
-        expect(find.byTooltip('Stop'), findsNothing);
+        expect(find.widgetWithText(OutlinedButton, 'Stop'), findsNothing);
+        expect(find.text('Stopping...'), findsNothing);
         expect(find.byTooltip('Send'), findsOneWidget);
         expect(find.text('Stopped.'), findsOneWidget);
         // The queue paused with its one quiet line, and nothing was sent unasked

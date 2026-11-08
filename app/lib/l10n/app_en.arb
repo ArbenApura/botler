@@ -1193,6 +1193,7 @@
   "chatStop": "Stop",
   "chatStopListening": "Stop listening",
   "chatStopped": "Stopped.",
+  "chatStopping": "Stopping...",
   "chatSuggestDue": "What is due this week?",
   "chatSuggestExpense": "Log an expense",
   "chatSuggestExpenseText": "I spent ",
