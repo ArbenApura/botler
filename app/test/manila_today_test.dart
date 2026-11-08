@@ -24,8 +24,8 @@ const Map<String, (int, String)> allowedNow = <String, (int, String)>{
     'a missing timestamp reads as a moment, shown in Manila',
   ),
   'features/chat/chat_state.dart': (
-    2,
-    'how long the model thought, in seconds',
+    4,
+    'how long the model thought, and how long a tool call took, in seconds',
   ),
   'features/money/account_detail_screen.dart': (
     2,

@@ -1,0 +1,14 @@
+{
+  "researchRunning": "Nagsasaliksik: {question}",
+  "researchRunningNone": "Nagsasaliksik",
+  "researchCounts": "{searches, plural, other{{searches} paghahanap}}, {reads, plural, other{{reads} pahina}}",
+  "researchDone": "Nasaliksik, {count, plural, other{{count} pinagmulan}}",
+  "researchDoneNone": "Nasaliksik",
+  "researchStoppedTime": "Naubusan ng oras, kaya ito ang nakita nito hanggang ngayon.",
+  "researchStoppedCancelled": "Huminto. Ito ang nakita nito hanggang ngayon.",
+  "researchStoppedOther": "Maaga itong huminto, kaya ito ang nakita nito hanggang ngayon.",
+  "researchFailed": "Hindi naabot ng pananaliksik ang web.",
+  "researchOpenLabel": "{label}, listahan ng mga pinagmulan, bukas",
+  "researchClosedLabel": "{label}, listahan ng mga pinagmulan, nakasara",
+  "researchOpenSource": "Buksan ang {title}, {host}"
+}

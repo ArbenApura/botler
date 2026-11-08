@@ -1177,7 +1177,86 @@ class AppLocalizationsFil extends AppLocalizations {
   }
 
   @override
+  String get chatContextAtLast => 'Sa huling sagot';
+
+  @override
+  String get chatContextDanger =>
+      'Halos puno na. Ibuod na ngayon para may espasyo ang susunod na sagot.';
+
+  @override
+  String get chatContextExplain =>
+      'Habang humahaba ang usapan, kusang binubuod ang mga naunang mensahe. Walang nawawala at wala kang kailangang gawin.';
+
+  @override
+  String get chatContextFailed => 'Hindi nabuod. Subukan ulit.';
+
+  @override
+  String chatContextFull(int percent) {
+    return '$percent porsyento na ang puno';
+  }
+
+  @override
+  String get chatContextLastSummary => 'Huling buod';
+
+  @override
+  String get chatContextMonth => 'Ngayong buwan, lahat ng usapan';
+
+  @override
+  String chatContextMonthShare(int percent) {
+    return '$percent porsyento ng buwanang limitasyon';
+  }
+
+  @override
+  String get chatContextNever => 'Wala pa';
+
+  @override
+  String get chatContextOffline => 'Kailangan ng koneksyon para makapagbuod.';
+
+  @override
+  String get chatContextShort =>
+      'Masyado pang maikli para buurin. Kailangan pa ng ilang mensahe.';
+
+  @override
+  String get chatContextSummarize => 'Ibuod na ngayon';
+
+  @override
+  String get chatContextSummarized =>
+      'Nabuod na. Mag-a-update ang bilog sa susunod mong mensahe.';
+
+  @override
+  String get chatContextSummarizing => 'Binubuod';
+
+  @override
+  String get chatContextTitle => 'Context';
+
+  @override
+  String chatContextTooltip(int percent) {
+    return 'Context, $percent porsyento na ang puno';
+  }
+
+  @override
+  String chatContextUsed(int used, int window) {
+    final intl.NumberFormat usedNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String usedString = usedNumberFormat.format(used);
+    final intl.NumberFormat windowNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String windowString = windowNumberFormat.format(window);
+
+    return 'Nagamit ang $usedString sa $windowString token';
+  }
+
+  @override
+  String get chatContextWarn =>
+      'Malapit nang mapuno. Mas gumagaan ang mga susunod na sagot kapag ibinuod na ngayon.';
+
+  @override
   String get chatEarlier => 'Mas maaga';
+
+  @override
+  String get chatEarlierNotFinished =>
+      'Hindi natapos ang naunang mensahe, kaya inihinto ang mga naghihintay.';
 
   @override
   String get chatEditCancel => 'Ihinto ang pag-edit';
@@ -1423,12 +1502,6 @@ class AppLocalizationsFil extends AppLocalizations {
       'Mahaba ang teksto ng mga litrato, kaya unang bahagi lang ng bawat isa ang ipapadala.';
 
   @override
-  String get chatPhotosWait => 'Hintaying mabasa ang mga litrato.';
-
-  @override
-  String get chatPicturePreparing => 'Inihahanda ang mga larawan…';
-
-  @override
   String get chatPictureSkipped =>
       'Hindi maipadala ang isang larawan, kaya teksto lang nito ang ipapadala.';
 
@@ -1438,6 +1511,34 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatPleaseCheck => 'Pakisuri';
+
+  @override
+  String get chatQueueClear => 'Burahin';
+
+  @override
+  String get chatQueueEdit => 'I-edit ang mensaheng naghihintay';
+
+  @override
+  String get chatQueueFull =>
+      'Masyadong maraming mensahe ang naghihintay. Hintaying maipadala ang isa.';
+
+  @override
+  String chatQueuePaused(int count) {
+    return '$count ang naghihintay';
+  }
+
+  @override
+  String get chatQueuePhotosFull =>
+      'Masyadong maraming litrato ang naghihintay. Hintaying maipadala ang isang mensahe.';
+
+  @override
+  String get chatQueueRemove => 'Alisin ang mensaheng naghihintay';
+
+  @override
+  String get chatQueueSendNow => 'Ipadala na';
+
+  @override
+  String get chatQueueWaiting => 'Naghihintay';
 
   @override
   String chatRanScript(String output) {
@@ -1472,6 +1573,9 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get chatSpeak => 'Magsalita';
+
+  @override
+  String get chatStillFinishing => 'Tinatapos pa ang naunang mensahe…';
 
   @override
   String get chatStop => 'Ihinto';
@@ -4377,6 +4481,72 @@ class AppLocalizationsFil extends AppLocalizations {
   String get remFix => 'Buksan ang settings';
 
   @override
+  String researchClosedLabel(String label) {
+    return '$label, listahan ng mga pinagmulan, nakasara';
+  }
+
+  @override
+  String researchCounts(int searches, int reads) {
+    String _temp0 = intl.Intl.pluralLogic(
+      searches,
+      locale: localeName,
+      other: '$searches paghahanap',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      reads,
+      locale: localeName,
+      other: '$reads pahina',
+    );
+    return '$_temp0, $_temp1';
+  }
+
+  @override
+  String researchDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pinagmulan',
+    );
+    return 'Nasaliksik, $_temp0';
+  }
+
+  @override
+  String get researchDoneNone => 'Nasaliksik';
+
+  @override
+  String get researchFailed => 'Hindi naabot ng pananaliksik ang web.';
+
+  @override
+  String researchOpenLabel(String label) {
+    return '$label, listahan ng mga pinagmulan, bukas';
+  }
+
+  @override
+  String researchOpenSource(String title, String host) {
+    return 'Buksan ang $title, $host';
+  }
+
+  @override
+  String researchRunning(String question) {
+    return 'Nagsasaliksik: $question';
+  }
+
+  @override
+  String get researchRunningNone => 'Nagsasaliksik';
+
+  @override
+  String get researchStoppedCancelled =>
+      'Huminto. Ito ang nakita nito hanggang ngayon.';
+
+  @override
+  String get researchStoppedOther =>
+      'Maaga itong huminto, kaya ito ang nakita nito hanggang ngayon.';
+
+  @override
+  String get researchStoppedTime =>
+      'Naubusan ng oras, kaya ito ang nakita nito hanggang ngayon.';
+
+  @override
   String get resetBack => 'Pumili ng ibang bahagi';
 
   @override
@@ -5819,6 +5989,225 @@ class AppLocalizationsFil extends AppLocalizations {
   String summaryMissingRates(int count) {
     return '$count pera ang wala sa kabuuang ito: wala pa silang palitan.';
   }
+
+  @override
+  String toolBlockedNamed(String what) {
+    return 'Hinarang: $what';
+  }
+
+  @override
+  String toolFailedNamed(String what) {
+    return 'Hindi umubra: $what';
+  }
+
+  @override
+  String toolGroupChecked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bagay',
+    );
+    return 'Nasuri ang $_temp0';
+  }
+
+  @override
+  String get toolGroupChecking => 'Sinusuri ang mga bagay';
+
+  @override
+  String toolGroupClosedLabel(String label, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hakbang',
+    );
+    return '$label, $_temp0, nakasara';
+  }
+
+  @override
+  String toolGroupOpenLabel(String label, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hakbang',
+    );
+    return '$label, $_temp0, bukas';
+  }
+
+  @override
+  String toolGroupOpenedPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pahina',
+    );
+    return 'Nabuksan ang $_temp0';
+  }
+
+  @override
+  String get toolGroupOpeningPages => 'Binubuksan ang mga pahina';
+
+  @override
+  String toolGroupProgress(int done, int total) {
+    return '$done sa $total';
+  }
+
+  @override
+  String toolGroupReadNotebooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notebook',
+    );
+    return 'Nabasa ang $_temp0';
+  }
+
+  @override
+  String toolGroupReadPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pahina',
+    );
+    return 'Nabasa ang $_temp0';
+  }
+
+  @override
+  String get toolGroupReadingNotebooks => 'Binabasa ang mga notebook';
+
+  @override
+  String get toolGroupReadingPages => 'Binabasa ang mga pahina';
+
+  @override
+  String toolGroupSearchedNotebooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count beses',
+    );
+    return 'Naghanap sa mga notebook nang $_temp0';
+  }
+
+  @override
+  String toolGroupSearchedWeb(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count beses',
+    );
+    return 'Naghanap sa web nang $_temp0';
+  }
+
+  @override
+  String get toolGroupSearchingNotebooks => 'Naghahanap sa mga notebook';
+
+  @override
+  String get toolGroupSearchingWeb => 'Naghahanap sa web';
+
+  @override
+  String toolOpenedPage(String subject) {
+    return 'Nabuksan ang $subject';
+  }
+
+  @override
+  String get toolOpenedPageNone => 'Nagbukas ng web page';
+
+  @override
+  String toolOpeningPage(String subject) {
+    return 'Binubuksan ang $subject';
+  }
+
+  @override
+  String get toolOpeningPageNone => 'Binubuksan ang isang web page';
+
+  @override
+  String toolReadNotebook(String subject) {
+    return 'Nabasa ang notebook na $subject';
+  }
+
+  @override
+  String get toolReadNotebookNone => 'Nabasa ang mga notebook mo';
+
+  @override
+  String toolReadPage(String subject) {
+    return 'Nabasa ang pahinang $subject';
+  }
+
+  @override
+  String get toolReadPageNone => 'Nabasa ang isang pahina';
+
+  @override
+  String toolReadingNotebook(String subject) {
+    return 'Binabasa ang notebook na $subject';
+  }
+
+  @override
+  String get toolReadingNotebookNone => 'Binabasa ang mga notebook mo';
+
+  @override
+  String toolReadingPage(String subject) {
+    return 'Binabasa ang pahinang $subject';
+  }
+
+  @override
+  String get toolReadingPageNone => 'Binabasa ang isang pahina';
+
+  @override
+  String toolSearchedNotebooks(String subject) {
+    return 'Hinanap ang $subject sa mga notebook';
+  }
+
+  @override
+  String get toolSearchedNotebooksNone => 'Naghanap sa mga notebook mo';
+
+  @override
+  String toolSearchedWeb(String subject) {
+    return 'Naghanap sa web ng $subject';
+  }
+
+  @override
+  String get toolSearchedWebNone => 'Naghanap sa web';
+
+  @override
+  String toolSearchingNotebooks(String subject) {
+    return 'Hinahanap ang $subject sa mga notebook';
+  }
+
+  @override
+  String get toolSearchingNotebooksNone => 'Naghahanap sa mga notebook mo';
+
+  @override
+  String toolSearchingWeb(String subject) {
+    return 'Naghahanap sa web ng $subject';
+  }
+
+  @override
+  String get toolSearchingWebNone => 'Naghahanap sa web';
+
+  @override
+  String toolTook(String text, int seconds) {
+    return '$text, $seconds s';
+  }
+
+  @override
+  String toolUpdatedPage(String subject) {
+    return 'Na-update ang pahinang $subject';
+  }
+
+  @override
+  String get toolUpdatedPageNone => 'Na-update ang isang pahina';
+
+  @override
+  String toolUpdatingNotebook(String subject) {
+    return 'Ina-update ang notebook na $subject';
+  }
+
+  @override
+  String toolUpdatingPage(String subject) {
+    return 'Ina-update ang pahinang $subject';
+  }
+
+  @override
+  String get toolUpdatingPageNone => 'Ina-update ang isang pahina';
 
   @override
   String toolboxChars(int count) {

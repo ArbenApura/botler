@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../theme/tokens.dart';
 import 'chat_state.dart';
 import 'notebook_rows.dart';
+import 'tool_words.dart';
 
 // -- CONSTANTS -- //
 
@@ -260,38 +261,64 @@ class StreamCaret extends StatelessWidget {
   );
 }
 
-/// A tool that has started and has not answered yet: a small spinner and what it is doing.
-class RunningToolRow extends StatelessWidget {
-  const RunningToolRow(this.name, {super.key});
-
-  final String name;
+/// The small spinner of a running tool. With animations removed a spinner would still spin, so a still mark stands in.
+class ToolSpinner extends StatelessWidget {
+  const ToolSpinner({super.key});
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final label = switch (name) {
-      'script_run' => context.t.chatRunningScript,
-      'toolbox' => context.t.chatUsingToolbox,
-      _ when isNotebookWrite(name) => context.t.chatSavingNotebook,
-      _ => context.t.chatChecking(toolWords(name)),
-    };
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Icon(Icons.more_horiz, size: 14, color: c.muted);
+    }
+    return SizedBox.square(
+      dimension: 14,
+      child: CircularProgressIndicator(strokeWidth: 2, color: c.muted),
+    );
+  }
+}
+
+/// A tool that has started and has not answered yet: a small spinner and what it is doing ("Reading page Trip plan").
+/// With no label from the server it says "Checking ..." from the tool's name, as before.
+class RunningToolRow extends StatelessWidget {
+  const RunningToolRow(this.name, {this.family, this.subject, super.key});
+
+  final String name;
+
+  /// The kind and the subject the server labelled the call with. Both null from an older server.
+  final String? family;
+  final String? subject;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final fromLabel = family == null
+        ? null
+        : runningWords(
+            context,
+            ToolItem(
+              0,
+              name: name,
+              status: 'running',
+              family: family,
+              subject: subject,
+            ),
+          );
+    final label =
+        fromLabel ??
+        switch (name) {
+          'script_run' => context.t.chatRunningScript,
+          'toolbox' => context.t.chatUsingToolbox,
+          _ when isNotebookWrite(name) => context.t.chatSavingNotebook,
+          _ => context.t.chatChecking(toolWords(name)),
+        };
     return Semantics(
       liveRegion: true,
       label: label,
       child: ExcludeSemantics(
         child: Row(
           children: <Widget>[
-            // With animations removed a spinner would still spin, so a still mark stands in
-            if (MediaQuery.disableAnimationsOf(context))
-              Icon(Icons.more_horiz, size: 14, color: c.muted)
-            else
-              SizedBox.square(
-                dimension: 14,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: c.muted,
-                ),
-              ),
+            const ToolSpinner(),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

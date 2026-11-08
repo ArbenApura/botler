@@ -1168,7 +1168,86 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatContextAtLast => 'At the last answer';
+
+  @override
+  String get chatContextDanger =>
+      'Almost full. Summarize now to start the next answer with room.';
+
+  @override
+  String get chatContextExplain =>
+      'As a chat grows, the older messages are summarized on their own. Nothing is lost and you do not need to do anything.';
+
+  @override
+  String get chatContextFailed => 'Could not summarize. Try again.';
+
+  @override
+  String chatContextFull(int percent) {
+    return '$percent percent full';
+  }
+
+  @override
+  String get chatContextLastSummary => 'Last summary';
+
+  @override
+  String get chatContextMonth => 'This month, all chats';
+
+  @override
+  String chatContextMonthShare(int percent) {
+    return '$percent percent of the monthly limit';
+  }
+
+  @override
+  String get chatContextNever => 'Not yet';
+
+  @override
+  String get chatContextOffline => 'Summarizing needs a connection.';
+
+  @override
+  String get chatContextShort =>
+      'Too short to summarize yet. It needs a few more messages.';
+
+  @override
+  String get chatContextSummarize => 'Summarize now';
+
+  @override
+  String get chatContextSummarized =>
+      'Summarized. The ring updates with your next message.';
+
+  @override
+  String get chatContextSummarizing => 'Summarizing';
+
+  @override
+  String get chatContextTitle => 'Context';
+
+  @override
+  String chatContextTooltip(int percent) {
+    return 'Context $percent percent full';
+  }
+
+  @override
+  String chatContextUsed(int used, int window) {
+    final intl.NumberFormat usedNumberFormat = intl.NumberFormat.decimalPattern(
+      localeName,
+    );
+    final String usedString = usedNumberFormat.format(used);
+    final intl.NumberFormat windowNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String windowString = windowNumberFormat.format(window);
+
+    return 'Used $usedString of $windowString tokens';
+  }
+
+  @override
+  String get chatContextWarn =>
+      'Getting full. Summarizing now keeps the next answers lighter.';
+
+  @override
   String get chatEarlier => 'Earlier';
+
+  @override
+  String get chatEarlierNotFinished =>
+      'The earlier message did not finish, so the waiting ones were paused.';
 
   @override
   String get chatEditCancel => 'Stop editing';
@@ -1413,12 +1492,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The photos hold a lot of text, so only the first part of each is sent.';
 
   @override
-  String get chatPhotosWait => 'Wait until the photos are read.';
-
-  @override
-  String get chatPicturePreparing => 'Getting the pictures ready…';
-
-  @override
   String get chatPictureSkipped =>
       'A picture could not be sent, so only its text goes.';
 
@@ -1428,6 +1501,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatPleaseCheck => 'Please check';
+
+  @override
+  String get chatQueueClear => 'Clear';
+
+  @override
+  String get chatQueueEdit => 'Edit this waiting message';
+
+  @override
+  String get chatQueueFull =>
+      'Too many messages are waiting. Wait until one has been sent.';
+
+  @override
+  String chatQueuePaused(int count) {
+    return '$count waiting';
+  }
+
+  @override
+  String get chatQueuePhotosFull =>
+      'Too many photos are waiting. Wait until one message has been sent.';
+
+  @override
+  String get chatQueueRemove => 'Remove this waiting message';
+
+  @override
+  String get chatQueueSendNow => 'Send now';
+
+  @override
+  String get chatQueueWaiting => 'Waiting';
 
   @override
   String chatRanScript(String output) {
@@ -1462,6 +1563,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSpeak => 'Speak';
+
+  @override
+  String get chatStillFinishing => 'Still finishing the earlier message…';
 
   @override
   String get chatStop => 'Stop';
@@ -4354,6 +4458,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get remFix => 'Open settings';
 
   @override
+  String researchClosedLabel(String label) {
+    return '$label, list of sources, closed';
+  }
+
+  @override
+  String researchCounts(int searches, int reads) {
+    String _temp0 = intl.Intl.pluralLogic(
+      searches,
+      locale: localeName,
+      other: '$searches searches',
+      one: '$searches search',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      reads,
+      locale: localeName,
+      other: '$reads pages',
+      one: '$reads page',
+    );
+    return '$_temp0, $_temp1';
+  }
+
+  @override
+  String researchDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sources',
+      one: '$count source',
+    );
+    return 'Researched, $_temp0';
+  }
+
+  @override
+  String get researchDoneNone => 'Researched';
+
+  @override
+  String get researchFailed => 'Research could not reach the web.';
+
+  @override
+  String researchOpenLabel(String label) {
+    return '$label, list of sources, open';
+  }
+
+  @override
+  String researchOpenSource(String title, String host) {
+    return 'Open $title, $host';
+  }
+
+  @override
+  String researchRunning(String question) {
+    return 'Researching: $question';
+  }
+
+  @override
+  String get researchRunningNone => 'Researching';
+
+  @override
+  String get researchStoppedCancelled =>
+      'Stopped. This is what it found so far.';
+
+  @override
+  String get researchStoppedOther =>
+      'It stopped early, so this is what it found so far.';
+
+  @override
+  String get researchStoppedTime =>
+      'It ran out of time, so this is what it found so far.';
+
+  @override
   String get resetBack => 'Choose another part';
 
   @override
@@ -5787,6 +5960,233 @@ class AppLocalizationsEn extends AppLocalizations {
   String summaryMissingRates(int count) {
     return '$count currencies are not in this total: no exchange rate yet.';
   }
+
+  @override
+  String toolBlockedNamed(String what) {
+    return 'Blocked: $what';
+  }
+
+  @override
+  String toolFailedNamed(String what) {
+    return 'Failed: $what';
+  }
+
+  @override
+  String toolGroupChecked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count things',
+      one: '$count thing',
+    );
+    return 'Checked $_temp0';
+  }
+
+  @override
+  String get toolGroupChecking => 'Checking things';
+
+  @override
+  String toolGroupClosedLabel(String label, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count steps',
+      one: '$count step',
+    );
+    return '$label, $_temp0, closed';
+  }
+
+  @override
+  String toolGroupOpenLabel(String label, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count steps',
+      one: '$count step',
+    );
+    return '$label, $_temp0, open';
+  }
+
+  @override
+  String toolGroupOpenedPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pages',
+      one: '$count page',
+    );
+    return 'Opened $_temp0';
+  }
+
+  @override
+  String get toolGroupOpeningPages => 'Opening pages';
+
+  @override
+  String toolGroupProgress(int done, int total) {
+    return '$done of $total';
+  }
+
+  @override
+  String toolGroupReadNotebooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notebooks',
+      one: '$count notebook',
+    );
+    return 'Read $_temp0';
+  }
+
+  @override
+  String toolGroupReadPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pages',
+      one: '$count page',
+    );
+    return 'Read $_temp0';
+  }
+
+  @override
+  String get toolGroupReadingNotebooks => 'Reading notebooks';
+
+  @override
+  String get toolGroupReadingPages => 'Reading pages';
+
+  @override
+  String toolGroupSearchedNotebooks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count times',
+      one: '$count time',
+    );
+    return 'Searched notebooks $_temp0';
+  }
+
+  @override
+  String toolGroupSearchedWeb(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count times',
+      one: '$count time',
+    );
+    return 'Searched the web $_temp0';
+  }
+
+  @override
+  String get toolGroupSearchingNotebooks => 'Searching notebooks';
+
+  @override
+  String get toolGroupSearchingWeb => 'Searching the web';
+
+  @override
+  String toolOpenedPage(String subject) {
+    return 'Opened $subject';
+  }
+
+  @override
+  String get toolOpenedPageNone => 'Opened a web page';
+
+  @override
+  String toolOpeningPage(String subject) {
+    return 'Opening $subject';
+  }
+
+  @override
+  String get toolOpeningPageNone => 'Opening a web page';
+
+  @override
+  String toolReadNotebook(String subject) {
+    return 'Read notebook $subject';
+  }
+
+  @override
+  String get toolReadNotebookNone => 'Read your notebooks';
+
+  @override
+  String toolReadPage(String subject) {
+    return 'Read page $subject';
+  }
+
+  @override
+  String get toolReadPageNone => 'Read a page';
+
+  @override
+  String toolReadingNotebook(String subject) {
+    return 'Reading notebook $subject';
+  }
+
+  @override
+  String get toolReadingNotebookNone => 'Reading your notebooks';
+
+  @override
+  String toolReadingPage(String subject) {
+    return 'Reading page $subject';
+  }
+
+  @override
+  String get toolReadingPageNone => 'Reading a page';
+
+  @override
+  String toolSearchedNotebooks(String subject) {
+    return 'Searched notebooks for $subject';
+  }
+
+  @override
+  String get toolSearchedNotebooksNone => 'Searched your notebooks';
+
+  @override
+  String toolSearchedWeb(String subject) {
+    return 'Searched the web for $subject';
+  }
+
+  @override
+  String get toolSearchedWebNone => 'Searched the web';
+
+  @override
+  String toolSearchingNotebooks(String subject) {
+    return 'Searching notebooks for $subject';
+  }
+
+  @override
+  String get toolSearchingNotebooksNone => 'Searching your notebooks';
+
+  @override
+  String toolSearchingWeb(String subject) {
+    return 'Searching the web for $subject';
+  }
+
+  @override
+  String get toolSearchingWebNone => 'Searching the web';
+
+  @override
+  String toolTook(String text, int seconds) {
+    return '$text, $seconds s';
+  }
+
+  @override
+  String toolUpdatedPage(String subject) {
+    return 'Updated page $subject';
+  }
+
+  @override
+  String get toolUpdatedPageNone => 'Updated a page';
+
+  @override
+  String toolUpdatingNotebook(String subject) {
+    return 'Updating notebook $subject';
+  }
+
+  @override
+  String toolUpdatingPage(String subject) {
+    return 'Updating page $subject';
+  }
+
+  @override
+  String get toolUpdatingPageNone => 'Updating a page';
 
   @override
   String toolboxChars(int count) {

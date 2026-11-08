@@ -15,7 +15,7 @@ import '../../core/chat_photos.dart';
 import '../../core/clipboard_image.dart';
 import '../../core/device.dart';
 import '../../core/photo_budget.dart';
-import '../../core/photo_upload.dart';
+import '../../core/photo_prep.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/tokens.dart';
@@ -28,9 +28,11 @@ import 'chat_items.dart';
 import 'chat_start.dart';
 import 'chat_state.dart';
 import 'chats_drawer.dart';
+import 'context_meter.dart';
 import 'live_parts.dart';
 import 'message_actions.dart';
 import 'photo_widgets.dart';
+import 'queued_chip.dart';
 import 'summary_card.dart';
 
 // -- TYPES -- //
@@ -58,20 +60,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// The photos read for the next message, in the order they were added.
   final List<PhotoNote> _photos = <PhotoNote>[];
 
-  /// Photos copied and shown, still being read. They have a tile with a spinner; sending waits for them.
+  /// Photos copied and shown, still being made ready in the background. They have a tile with a spinner; sending does not wait for them.
   final List<String> _pending = <String>[];
+
+  /// The background work of each photo on the strip, by its copy: one future for its text and its prepared picture.
+  final Map<String, PhotoJob> _jobs = <String, PhotoJob>{};
 
   /// Where each copy came from, so a picture chosen twice is added once.
   final Map<String, String> _sourceOf = <String, String>{};
 
   /// The strip was showing at the last build: it appearing or going moves the end of the list.
   bool _stripShown = false;
-
-  /// Photos are being read: sending waits for them.
-  bool _reading = false;
-
-  /// The pictures of a message are being made ready to send: sending waits for them.
-  bool _preparing = false;
   bool _hearing = false;
 
   /// Words typed and not sent, kept for each chat while the person looks at another one.
@@ -283,34 +282,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   Future<void> _send() async {
-    // A turn is running: the words stay in the box instead of being lost
-    if (ref.read(chatProvider).busy) return;
-    // A photo still being read would be left out of the message
-    if (_reading || _preparing) {
-      say(context, context.t.chatPhotosWait);
-      return;
-    }
     final text = _text.text.trim();
+    final editing = ref.read(editProvider);
+    // An edit takes messages out of this chat, which cannot happen while one is being answered or others wait: the words stay in the box
+    if (editing != null && ref.read(chatProvider).working) return;
+    final hasPhotos =
+        editing == null && (_photos.isNotEmpty || _pending.isNotEmpty);
     // Whether the pictures themselves go with this message: the person chose them AND the server says its AI server reads them. Decided now, at
-    // the moment of sending, whatever it was when the photos were picked
+    // the moment of sending, whatever it was when the photos were picked; the session reads it again when this message's own turn starts
     var usePictures = ref.read(settingsProvider).usesPictures;
     // Pictures going for the first time, when the choice was made after the photos were picked: the person is told once, and may say no
     if (usePictures &&
-        _photos.isNotEmpty &&
-        ref.read(editProvider) == null &&
+        hasPhotos &&
         !await pictureNoticeAccepted(context, ref)) {
       usePictures = false;
     }
     if (!mounted) return;
-    // Without the pictures a photo is worth its text only, so the ones that held none are left out
-    final usable = <PhotoNote>[
-      for (final p in _photos)
-        if (usePictures || p.text.isNotEmpty) p,
-    ];
-    if (text.isEmpty && usable.isEmpty) {
-      if (_photos.isNotEmpty) say(context, context.t.chatPhotoEmpty);
-      return;
-    }
+    if (text.isEmpty && !hasPhotos) return;
     // Sending always brings the newest words into view
     _stick = true;
     // The keyboard goes away with the message, and a dictation still running is stopped so it cannot refill the box
@@ -319,7 +307,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       await _listener.stop();
       if (mounted) setState(() => _hearing = false);
     }
-    final editing = ref.read(editProvider);
     if (editing != null) {
       // Only new words can be sent as an edit
       if (text.isEmpty) return;
@@ -349,92 +336,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ..invalidate(balancesProvider);
       return;
     }
-    final chatId = ref.read(chatProvider).chatId;
-    // The words leave the box now, so anything typed while the pictures are made ready belongs to the next message
+    // The words leave the box now. The photos still being made ready go with the message as they are: the message is on screen at once and
+    // its request waits for them only at the last moment (the queue of the session decides when its turn comes)
     _text.clear();
-    // The pictures are made ready first, one at a time, with the strip locked: a picture that cannot be made is sent as its text, and a photo
-    // that has neither its picture nor any text has nothing to send
-    var images = <String>[];
-    final pictured = <String>[];
-    var sendable = usable;
-    if (usePictures) {
-      setState(() => _preparing = true);
-      final made = await prepareUploads(<String>[
-        for (final p in usable) p.path,
-      ], cancelled: () => !mounted);
-      if (!mounted) return;
-      setState(() => _preparing = false);
-      // Another chat came on screen meanwhile: this message is not sent from it, and its words go back
-      if (ref.read(chatProvider).chatId != chatId) {
-        if (_text.text.isEmpty) _text.text = text;
-        return;
-      }
-      sendable = <PhotoNote>[
-        for (var i = 0; i < usable.length; i++)
-          if (made[i] != null || usable[i].text.isNotEmpty) usable[i],
-      ];
-      images = <String>[
-        for (final m in made)
-          if (m != null) m.data,
-      ];
-      pictured.addAll(<String>[
-        for (var i = 0; i < usable.length; i++)
-          if (made[i] != null) usable[i].path,
-      ]);
-      if (made.any((m) => m == null)) {
-        say(
-          context,
-          sendable.length < usable.length
-              ? context.t.chatPhotosSkipped(usable.length - sendable.length)
-              : context.t.chatPictureSkipped,
-        );
-      }
-      if (text.isEmpty && sendable.isEmpty) {
-        _dropPhotos();
-        return;
-      }
-    }
-    if (!mounted) return;
-    final photos = fitPhotoTexts(<String>[
-      for (final p in sendable)
-        if (p.text.isNotEmpty) p.text,
-    ]);
-    final receipt = usePictures && sendable.isNotEmpty
-        ? context.t.chatPhotoOnlyMessage
-        : context.t.chatReceiptMessage;
-    final sent = <String>[for (final p in sendable) p.path];
-    // The photos as the server will count them: the ones sent as pictures (those that could be made), and the ones whose text was sent
-    final texted = <String>[
-      for (final p in sendable)
-        if (p.text.isNotEmpty) p.path,
+    final jobs = <PhotoJob>[
+      for (final p in _photos) ?_jobs[p.path],
+      for (final copy in _pending) ?_jobs[copy],
     ];
-    final left = <String>[
-      for (final p in _photos)
-        if (!sendable.contains(p)) p.path,
-    ];
-    // The copies now belong to the message being sent; those left out (no text, and no picture to send) are deleted
     setState(() {
       _photos.clear();
+      _pending.clear();
       _sourceOf.clear();
+      _jobs.clear();
     });
-    if (left.isNotEmpty && mounted) {
-      unawaited(ref.read(chatPhotoStoreProvider).discard(left));
-      if (!usePictures) say(context, context.t.chatPhotosSkipped(left.length));
-    }
-    if (photos.trimmed && mounted) say(context, context.t.chatPhotosTrimmed);
     await ref
         .read(chatProvider.notifier)
-        .send(
-          text.isEmpty ? receipt : text,
-          photoTexts: photos.texts,
-          photoPaths: sent,
-          images: images,
-          imagePaths: pictured,
-          textPaths: texted,
-        );
-    ref
-      ..invalidate(syncProvider)
-      ..invalidate(balancesProvider);
+        .send(text, photoJobs: jobs, allowPictures: usePictures);
+  }
+
+  /// A waiting message goes back into the box to be changed: only one without photos can, since the photos have moved on with it.
+  void _editQueued(QueuedMessage m) {
+    if (m.photoCount > 0) return;
+    final taken = ref.read(chatProvider.notifier).removeQueued(m.id);
+    if (taken == null) return;
+    final now = _text.text.trim();
+    _fill(now.isEmpty ? taken.text : '${taken.text}\n$now');
   }
 
   /// Forgets every photo chosen for the next message and deletes their copies.
@@ -444,14 +370,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _photos.clear();
       _pending.clear();
       _sourceOf.clear();
+      _jobs.clear();
     });
     unawaited(ref.read(chatPhotoStoreProvider).discard(copies));
   }
 
+  /// Gives up the copies of a pick that was cut short: they leave the strip and are deleted.
+  void _dropStaged(List<String> staged) {
+    if (staged.isEmpty) return;
+    final copies = List<String>.of(staged);
+    staged.clear();
+    if (mounted) {
+      setState(() {
+        _pending.removeWhere(copies.contains);
+        for (final copy in copies) {
+          _sourceOf.remove(copy);
+          _jobs.remove(copy);
+        }
+      });
+    }
+    unawaited(_store?.discard(copies) ?? Future<void>.value());
+  }
+
   /// Takes the photo at [index] of the strip (the ones read first, then the ones still being read) off the next message.
   void _removePhoto(int index) {
-    // Nothing on the strip changes while the pictures are made ready
-    if (_preparing) return;
     final String copy;
     if (index < _photos.length) {
       copy = _photos[index].path;
@@ -462,6 +404,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       _photos.removeWhere((p) => p.path == copy);
       _pending.remove(copy);
       _sourceOf.remove(copy);
+      _jobs.remove(copy);
     });
     unawaited(ref.read(chatPhotoStoreProvider).discard(<String>[copy]));
   }
@@ -470,13 +413,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   /// the ones that hold no text are left out and counted, and a picture chosen twice is added once.
   /// With [ready], those files (a picture pasted from the clipboard or the keyboard) are used instead of opening the picker; the rest is the same.
   Future<void> _photo(PhotoSource source, {List<String>? ready}) async {
-    if (_reading || _preparing) return;
     // The photos wait while a message is edited: an edit sends only new words
     if (ref.read(editProvider) != null) {
       say(context, context.t.chatPhotoEditing);
       return;
     }
-    final room = maxPhotos - _photos.length;
+    final room = maxPhotos - _photos.length - _pending.length;
     if (room <= 0) {
       say(context, context.t.chatPhotosLimit(maxPhotos));
       return;
@@ -486,25 +428,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (pictures && !await pictureNoticeAccepted(context, ref))
       pictures = false;
     if (!mounted) return;
-    final reader = PhotoReader();
+    final prepper = ref.read(photoPrepperProvider);
     final store = ref.read(chatPhotoStoreProvider);
     _store = store;
     final chatId = ref.read(chatProvider).chatId;
     var picked = 0;
     var unread = 0;
     var failed = false;
-    // The copies this pick made that are not yet read or dropped
+    // The copies this pick made, to delete if the pick is cut short
     final staged = <String>[];
+    // The background work of this pick, so the notice at the end knows how many photos held nothing
+    final working = <Future<void>>[];
     try {
       final paths = ready ?? await pickPhotos(source, room: room);
       if (paths.isEmpty || !mounted) return;
       picked = paths.length;
-      setState(() => _reading = true);
-      // Every picture is copied first (the picker's own copy can be cleared by the phone) so its tile shows at once, then read one by one
+      // Every picture is copied first (the picker's own copy can be cleared by the phone) so its tile shows at once; reading its text and
+      // making its picture then go on in the background, and sending never waits for them
       for (final path in paths) {
-        if (staged.length + _photos.length + _pending.length >= maxPhotos) {
-          break;
-        }
+        if (_photos.length + _pending.length >= maxPhotos) break;
         if (_sourceOf.containsValue(path)) continue;
         final copy = await store.stage(path);
         if (copy == null) {
@@ -513,70 +455,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         }
         staged.add(copy);
         // Gone from the screen, or the person moved to another chat meanwhile: nothing of this pick is kept
-        if (!mounted || ref.read(chatProvider).chatId != chatId) return;
+        if (!mounted || ref.read(chatProvider).chatId != chatId) {
+          _dropStaged(staged);
+          return;
+        }
         _sourceOf[copy] = path;
+        final job = prepper.start(copy, picture: pictures);
+        _jobs[copy] = job;
         setState(() => _pending.add(copy));
-      }
-      for (final copy in List<String>.of(staged)) {
-        if (!mounted) return;
-        // Removed by the person while waiting
-        if (!_pending.contains(copy)) {
-          staged.remove(copy);
-          continue;
-        }
-        try {
-          final text = await reader.read(copy);
-          if (!mounted) return;
-          // The person moved to another chat while this was read: the photo is left out
-          if (ref.read(chatProvider).chatId != chatId) return;
-          // Removed during the read: not an unreadable photo, the person took it off
-          if (!_pending.contains(copy)) {
+        working.add(
+          job.result.then((made) {
             staged.remove(copy);
-            continue;
-          }
-          staged.remove(copy);
-          // A picture with no words on it (a dish, a chart, a handwritten note) is still worth sending when the picture itself goes
-          if (text.isEmpty && !pictures) {
-            unread++;
-            setState(() {
-              _pending.remove(copy);
-              _sourceOf.remove(copy);
-            });
-            unawaited(store.discard(<String>[copy]));
-          } else {
-            setState(() {
-              _pending.remove(copy);
-              _photos.add(PhotoNote(copy, text));
-            });
-          }
-        } on Object {
-          // One photo that cannot be read does not stop the others
-          staged.remove(copy);
-          if (_pending.contains(copy)) unread++;
-          if (mounted) {
-            setState(() {
-              _pending.remove(copy);
-              _sourceOf.remove(copy);
-            });
-          }
-          unawaited(store.discard(<String>[copy]));
-        }
+            // Sent, removed or dropped meanwhile: the message or the person has taken over this copy
+            if (!mounted || !_pending.contains(copy)) return;
+            if (made.empty) {
+              // Neither words nor a picture: nothing to send from this photo
+              unread++;
+              setState(() {
+                _pending.remove(copy);
+                _sourceOf.remove(copy);
+                _jobs.remove(copy);
+              });
+              unawaited(store.discard(<String>[copy]));
+            } else {
+              setState(() {
+                _pending.remove(copy);
+                _photos.add(PhotoNote(copy, made.text));
+              });
+            }
+          }),
+        );
       }
+      await Future.wait(working);
     } on Object {
       failed = true;
     } finally {
-      await reader.close();
       // Copies left over (a chat switch, the screen going away, an error) are deleted and leave the strip
-      if (staged.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _pending.removeWhere(staged.contains);
-            staged.forEach(_sourceOf.remove);
-          });
-        }
-        unawaited(store.discard(staged));
-      }
-      if (mounted) setState(() => _reading = false);
+      _dropStaged(staged);
     }
     if (!mounted) return;
     if (failed) {
@@ -799,6 +714,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 child: const Icon(Icons.cloud_off_outlined),
               ),
             ),
+          // How full the chat's context is: nothing until the chat has an answer with a reported size
+          const ContextRingButton(),
           IconButton(
             tooltip: context.t.chatSummaryOpen,
             onPressed: () => showSummarySheet(context),
@@ -842,7 +759,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         itemCount:
-                            rows.length + lead + (working || showStart ? 1 : 0),
+                            rows.length +
+                            lead +
+                            (working || showStart ? 1 : 0) +
+                            chat.queue.length +
+                            (chat.queuePaused && chat.queue.isNotEmpty ? 1 : 0),
                         separatorBuilder: (_, _) => const SizedBox(height: 14),
                         itemBuilder: (context, i) {
                           if (i == 0) return const SummaryCard();
@@ -850,6 +771,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             return _BranchNote(
                               from: chat.forkedFrom!,
                               onOpen: () => _openOrigin(chat.forkedFrom!.id),
+                            );
+                          }
+                          // The messages waiting for their turn, after everything else, then the one line of a paused queue
+                          final waiting =
+                              i -
+                              lead -
+                              rows.length -
+                              (working || showStart ? 1 : 0);
+                          if (waiting >= 0) {
+                            if (waiting < chat.queue.length) {
+                              final m = chat.queue[waiting];
+                              return QueuedChip(
+                                key: ValueKey<String>('queued-${m.id}'),
+                                text: m.text,
+                                photos: m.photoCount,
+                                onRemove: () => ref
+                                    .read(chatProvider.notifier)
+                                    .removeQueued(m.id),
+                                onEdit: () => _editQueued(m),
+                              );
+                            }
+                            return PausedQueueLine(
+                              count: chat.queue.length,
+                              onSendNow: ref
+                                  .read(chatProvider.notifier)
+                                  .resumeQueue,
+                              onClear: ref
+                                  .read(chatProvider.notifier)
+                                  .clearQueue,
                             );
                           }
                           if (i - lead == rows.length && showStart) {
@@ -870,7 +820,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           final row = rows[i - lead];
                           return ChatItemView(
                             row.item,
-                            more: row.more,
+                            group: row.members,
                             // Only the newest answer carries the marker
                             key: row.item == lastAnswer
                                 ? _answerKey
@@ -929,17 +879,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   for (final p in _pending) StripPhoto(p, null),
                 ],
                 onRemove: _removePhoto,
-              ),
-            if (_preparing)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    context.t.chatPicturePreparing,
-                    style: TextStyle(color: c.muted),
-                  ),
-                ),
               ),
             if (ref.watch(editProvider) != null)
               _EditingBar(onCancel: ref.read(editProvider.notifier).stop),
@@ -1120,76 +1059,95 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own.
+    // One soft pill: photo and voice inside it, a round send button at the end. The field has no border of its own. While a turn runs, Stop is its
+    // own round button beside the pill: Send stays Send, so the next message can be written and sent (it waits its turn).
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.chip,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            IconButton(
-              tooltip: context.t.chatPhotoTooltip,
-              onPressed: busy ? null : onPhoto,
-              icon: Icon(Icons.add_photo_alternate_outlined, color: c.muted),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          Expanded(child: _pill(context, c)),
+          if (busy)
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: IconButton.outlined(
+                tooltip: context.t.chatStop,
+                onPressed: onStop,
+                icon: const Icon(Icons.stop_rounded),
+              ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: TextField(
-                  controller: controller,
-                  focusNode: focus,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  // Enter adds a new line; the send button is the only way to send
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  // A picture offered by the keyboard goes the same way as a pasted one
-                  contentInsertionConfiguration: ContentInsertionConfiguration(
-                    allowedMimeTypes: pastableMimeTypes,
-                    onContentInserted: onKeyboardImage,
-                  ),
-                  // The text menu gets a Paste photo item while a picture is on the clipboard
-                  contextMenuBuilder: (menuContext, editable) =>
-                      _PasteMenu(editable: editable, onPaste: onPaste),
-                  decoration: InputDecoration(
-                    hintText: context.t.chatHintMessage,
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    hintStyle: TextStyle(color: c.muted),
-                  ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(BuildContext context, BotlerColors c) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.chip,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          IconButton(
+            tooltip: context.t.chatPhotoTooltip,
+            onPressed: onPhoto,
+            icon: Icon(Icons.add_photo_alternate_outlined, color: c.muted),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: TextField(
+                controller: controller,
+                focusNode: focus,
+                minLines: 1,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                // Enter adds a new line; the send button is the only way to send
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                // A picture offered by the keyboard goes the same way as a pasted one
+                contentInsertionConfiguration: ContentInsertionConfiguration(
+                  allowedMimeTypes: pastableMimeTypes,
+                  onContentInserted: onKeyboardImage,
+                ),
+                // The text menu gets a Paste photo item while a picture is on the clipboard
+                contextMenuBuilder: (menuContext, editable) =>
+                    _PasteMenu(editable: editable, onPaste: onPaste),
+                decoration: InputDecoration(
+                  hintText: context.t.chatHintMessage,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  hintStyle: TextStyle(color: c.muted),
                 ),
               ),
             ),
-            IconButton(
-              tooltip: hearing
-                  ? context.t.chatStopListening
-                  : context.t.chatSpeak,
-              onPressed: busy ? null : onSpeak,
-              icon: Icon(
-                hearing ? Icons.stop_circle_outlined : Icons.mic_none,
-                color: hearing ? c.danger : c.muted,
-              ),
+          ),
+          IconButton(
+            tooltip: hearing
+                ? context.t.chatStopListening
+                : context.t.chatSpeak,
+            onPressed: onSpeak,
+            icon: Icon(
+              hearing ? Icons.stop_circle_outlined : Icons.mic_none,
+              color: hearing ? c.danger : c.muted,
             ),
-            Padding(
-              padding: const EdgeInsets.all(4),
-              // The one primary action: send, and while a turn runs the same button stops it
-              child: IconButton.filled(
-                tooltip: busy ? context.t.chatStop : context.t.chatSend,
-                onPressed: busy ? onStop : onSend,
-                icon: Icon(busy ? Icons.stop_rounded : Icons.arrow_upward),
-              ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(4),
+            // The one primary action: send, also while a turn runs
+            child: IconButton.filled(
+              tooltip: context.t.chatSend,
+              onPressed: onSend,
+              icon: const Icon(Icons.arrow_upward),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

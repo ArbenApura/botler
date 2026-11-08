@@ -39,7 +39,11 @@ Future<Widget> screenOf(
         body: ListView(
           children: <Widget>[
             for (final r in rows)
-              ChatItemView(r.item, more: r.more, key: ValueKey<int>(r.item.id)),
+              ChatItemView(
+                r.item,
+                group: r.members,
+                key: ValueKey<int>(r.item.id),
+              ),
           ],
         ),
       ),

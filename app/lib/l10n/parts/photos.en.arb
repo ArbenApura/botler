@@ -17,7 +17,6 @@
   "chatPhotoOnlyMessage": "Here are the photos.",
   "chatPicturesNoted": "This answer goes by the text read from the picture, not the picture itself.",
   "chatPictureSkipped": "A picture could not be sent, so only its text goes.",
-  "chatPicturePreparing": "Getting the pictures ready…",
   "settingsToolbox": "Toolbox",
   "settingsToolboxBody": "Scripts Botler saved on this phone",
   "toolboxTitle": "Toolbox",

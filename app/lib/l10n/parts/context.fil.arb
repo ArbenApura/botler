@@ -1,0 +1,20 @@
+{
+  "chatContextTooltip": "Context, {percent} porsyento na ang puno",
+  "chatContextTitle": "Context",
+  "chatContextFull": "{percent} porsyento na ang puno",
+  "chatContextUsed": "Nagamit ang {used} sa {window} token",
+  "chatContextAtLast": "Sa huling sagot",
+  "chatContextExplain": "Habang humahaba ang usapan, kusang binubuod ang mga naunang mensahe. Walang nawawala at wala kang kailangang gawin.",
+  "chatContextWarn": "Malapit nang mapuno. Mas gumagaan ang mga susunod na sagot kapag ibinuod na ngayon.",
+  "chatContextDanger": "Halos puno na. Ibuod na ngayon para may espasyo ang susunod na sagot.",
+  "chatContextLastSummary": "Huling buod",
+  "chatContextNever": "Wala pa",
+  "chatContextMonth": "Ngayong buwan, lahat ng usapan",
+  "chatContextMonthShare": "{percent} porsyento ng buwanang limitasyon",
+  "chatContextSummarize": "Ibuod na ngayon",
+  "chatContextSummarizing": "Binubuod",
+  "chatContextSummarized": "Nabuod na. Mag-a-update ang bilog sa susunod mong mensahe.",
+  "chatContextShort": "Masyado pang maikli para buurin. Kailangan pa ng ilang mensahe.",
+  "chatContextFailed": "Hindi nabuod. Subukan ulit.",
+  "chatContextOffline": "Kailangan ng koneksyon para makapagbuod."
+}

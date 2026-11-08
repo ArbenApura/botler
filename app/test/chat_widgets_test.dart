@@ -465,15 +465,18 @@ void main() {
         await tester.enterText(find.byType(TextField), 'hello there');
         await tester.tap(find.byTooltip('Send'));
         await tester.pump(const Duration(milliseconds: 100));
+        // Send stays Send, and Stop is its own button beside it
         expect(find.byTooltip('Stop'), findsOneWidget);
-        expect(find.byTooltip('Send'), findsNothing);
+        expect(find.byTooltip('Send'), findsOneWidget);
         expect(find.text('Working on it'), findsOneWidget);
 
-        // Words typed while it runs are kept, not lost
+        // Words sent while it runs wait their turn as a chip
         await tester.enterText(find.byType(TextField), 'and another');
-        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.tap(find.byTooltip('Send'));
         await tester.pump(const Duration(milliseconds: 100));
         expect(find.text('and another'), findsOneWidget);
+        expect(find.text('Waiting'), findsOneWidget);
+        expect(container.read(chatProvider).queue, hasLength(1));
 
         await tester.tap(find.byTooltip('Stop'));
         await tester.pump(const Duration(milliseconds: 100));
@@ -483,8 +486,18 @@ void main() {
         );
         await tester.pump();
         expect(container.read(chatProvider).busy, false);
+        expect(find.byTooltip('Stop'), findsNothing);
         expect(find.byTooltip('Send'), findsOneWidget);
         expect(find.text('Stopped.'), findsOneWidget);
+        // The queue paused with its one quiet line, and nothing was sent unasked
+        expect(container.read(chatProvider).queuePaused, true);
+        expect(find.text('1 waiting'), findsOneWidget);
+        expect(find.text('Send now'), findsOneWidget);
+        expect(streams, hasLength(1));
+        await tester.tap(find.text('Clear'));
+        await tester.pump();
+        expect(container.read(chatProvider).queue, isEmpty);
+        expect(find.text('Waiting'), findsNothing);
       },
     );
   });

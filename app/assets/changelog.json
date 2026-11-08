@@ -694,5 +694,23 @@
       "Hawak na ulit ng net balance ang perang naipon na ng mga payday rule mo para sa susunod na bayarin, tulad ng Parents at Meralco, para hindi mo ito magastos nang hindi sinasadya.",
       "Tinatawag nang huli ang mga huling bayarin, at hinati ang listahan sa dapat bayaran na at sa nakatabi para sa susunod."
     ]
+  },
+  {
+    "versionCode": 62,
+    "versionName": "1.8.0",
+    "en": [
+      "When Botler looks something up on the web it now researches in a helper of its own, with as many searches and pages as the question needs. A card counts up while it works and folds to one line, like \"Researched, 14 sources\", that opens to the list.",
+      "Each step Botler takes in a chat says what it is about, and steps of one kind fold into one counted row.",
+      "A small ring at the top of a chat shows how full the conversation is, with a button to summarize it.",
+      "You can type your next message while Botler is still answering. It waits its turn.",
+      "Photos are made ready in the background as soon as you pick them, so sending is quicker."
+    ],
+    "fil": [
+      "Kapag may hinahanap si Botler sa web, may sarili na itong katulong na nagsasaliksik, kasing dami ng paghahanap at pahina ang kailangan ng tanong. May card na nagbibilang habang gumagana at nagiging isang linya, tulad ng \"Nasaliksik, 14 pinagmulan\", na bumubukas sa listahan.",
+      "Sinasabi na ng bawat hakbang ni Botler sa chat kung tungkol saan ito, at ang mga hakbang na magkapareho ay pinagsasama sa isang hilera na may bilang.",
+      "May maliit na singsing sa itaas ng chat na nagpapakita kung gaano na kapuno ang usapan, at may button para ibuod ito.",
+      "Puwede mong i-type ang susunod mong mensahe habang sumasagot pa si Botler. Maghihintay ito ng turn nito.",
+      "Inihahanda na sa background ang mga litrato pagkapili mo, kaya mas mabilis ang pagpapadala."
+    ]
   }
 ]

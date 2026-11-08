@@ -48,7 +48,7 @@ Future<void> showMessageSheet(
   int? itemId,
 }) async {
   final t = context.t;
-  final busy = ref.read(chatProvider).busy;
+  final busy = ref.read(chatProvider).working;
   final canBranch = turnId != null && !busy;
   // A message of the person's own can be edited even when the server never took it (a failed send has no turn)
   final canEdit = mine && !busy && (turnId != null || itemId != null);

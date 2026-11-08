@@ -29,7 +29,10 @@ import 'notebook_rows.dart';
 import 'photo_mark_card.dart';
 import 'shown_files.dart';
 import 'photo_widgets.dart';
+import 'research_card.dart';
 import 'script_card.dart';
+import 'tool_group.dart';
+import 'tool_words.dart';
 
 // -- FUNCTIONS -- //
 
@@ -60,19 +63,25 @@ Future<void> undoEntry(
 }
 
 class ChatItemView extends ConsumerWidget {
-  const ChatItemView(this.item, {this.more = 0, super.key});
+  const ChatItemView(this.item, {this.group = const <ToolItem>[], super.key});
 
   final ChatItem item;
 
-  /// How many identical quiet tool lines were folded into this one.
-  final int more;
+  /// The calls of one kind that this row stands for (two or more), or empty when it is a single item.
+  final List<ToolItem> group;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final text = Theme.of(context).textTheme;
     return switch (item) {
-      UserItem(:final text, :final photos, :final photoPaths, :final turnId) =>
+      UserItem(
+        :final text,
+        :final photos,
+        :final photoPaths,
+        :final turnId,
+        :final preparing,
+      ) =>
         Align(
           alignment: Alignment.centerRight,
           child: _Actionable(
@@ -100,14 +109,16 @@ class ChatItemView extends ConsumerWidget {
                     children: <Widget>[
                       // The pictures themselves when this phone still has them, otherwise just the count of photos in words
                       if (photoPaths.isNotEmpty) ...<Widget>[
-                        PhotoGrid(paths: photoPaths),
-                        const SizedBox(height: 8),
+                        PhotoGrid(paths: photoPaths, preparing: preparing),
+                        if (text.isNotEmpty) const SizedBox(height: 8),
                       ],
-                      Text(
-                        photos > 0 && photoPaths.isEmpty
-                            ? context.t.chatWithPhotos(text, photos)
-                            : text,
-                      ),
+                      // A message sent with photos only has no words until its photos are ready
+                      if (text.isNotEmpty || photoPaths.isEmpty)
+                        Text(
+                          photos > 0 && photoPaths.isEmpty
+                              ? context.t.chatWithPhotos(text, photos)
+                              : text,
+                        ),
                     ],
                   ),
                 ),
@@ -131,7 +142,8 @@ class ChatItemView extends ConsumerWidget {
         ),
       ),
       ThinkingItem() => ThinkingPanel(item as ThinkingItem),
-      ToolItem() => _ToolView(item as ToolItem, more: more),
+      ToolItem() =>
+        group.length > 1 ? ToolGroupRow(group) : _ToolView(item as ToolItem),
       CardItem() => _CardView(item as CardItem),
       FallbackItem() => PaperCard(
         child: Column(
@@ -199,14 +211,18 @@ class _Actionable extends ConsumerWidget {
 }
 
 class _ToolView extends ConsumerWidget {
-  const _ToolView(this.item, {this.more = 0});
+  const _ToolView(this.item);
 
   final ToolItem item;
-  final int more;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
+    // A web research call has a card of its own for every state (running, done, stopped, failed); one from an earlier session stays a quiet line
+    if (item.name == 'research' && !item.restored) {
+      if (item.status == 'needs_approval') return const SizedBox.shrink();
+      return ResearchCard(item);
+    }
     // Started and not answered yet: a spinner and what it is doing, never the "failed" words below
     if (item.running) {
       if (item.name == 'script_run' || item.name == 'toolbox') {
@@ -215,10 +231,14 @@ class _ToolView extends ConsumerWidget {
           toolbox: item.name == 'toolbox',
         );
       }
-      return RunningToolRow(item.name);
+      return RunningToolRow(
+        item.name,
+        family: item.family,
+        subject: item.subject,
+      );
     }
     // From an earlier session: one quiet read-only line, never a chip or Undo
-    if (item.restored) return _RestoredToolLine(item, more: more);
+    if (item.restored) return _RestoredToolLine(item);
     if (item.status == 'needs_approval') return const SizedBox.shrink();
     if (item.status != 'ok') {
       if (item.name == 'script_run' || item.name == 'toolbox') {
@@ -228,10 +248,7 @@ class _ToolView extends ConsumerWidget {
           message: item.message,
         );
       }
-      return Text(
-        item.message ?? context.t.chatToolFailed,
-        style: TextStyle(color: c.muted),
-      );
+      return _FailedRow(item);
     }
     // A save in a notebook is one quiet line of its own, never "Checked ...": it names what the answer says was written
     if (isNotebookWrite(item.name)) {
@@ -381,14 +398,15 @@ class _ToolView extends ConsumerWidget {
               : ShownFiles(files: shown, chatId: ref.read(chatProvider).chatId),
         );
       default:
-        // A read the assistant did: one small quiet line, never a block
+        // A read the assistant did: one small quiet line, never a block. With a label it says what was read, and for how long
+        final words = doneWords(context, item);
         return _QuietRow(
-          icon: Icons.search,
-          text: _humanize(context, item.name),
+          icon: words == null ? Icons.search : Icons.check_circle_outline,
+          iconColor: words == null ? null : c.success,
+          text: words ?? _humanize(context, item.name),
           style:
               Theme.of(context).textTheme.bodySmall?.copyWith(color: c.muted) ??
               TextStyle(color: c.muted),
-          more: more,
         );
     }
   }
@@ -422,27 +440,29 @@ String _humanize(BuildContext context, String name) {
   return context.t.chatChecked(words);
 }
 
-/// One quiet line for something the assistant looked up. [more] is how many identical lines were folded into it: it shows as "+5" and is read out in words.
+/// One quiet line for something the assistant looked up or did. Several of the same kind are one group row (see ToolGroupRow), never a count here.
 class _QuietRow extends StatelessWidget {
   const _QuietRow({
     required this.icon,
     required this.text,
     required this.style,
-    this.more = 0,
+    this.iconColor,
     this.maxLines = 1,
   });
 
   final IconData icon;
   final String text;
   final TextStyle style;
-  final int more;
+
+  /// The colour of the icon when it is not the text's own (a done mark is the success colour).
+  final Color? iconColor;
   final int maxLines;
 
   @override
   Widget build(BuildContext context) {
-    final row = Row(
+    return Row(
       children: <Widget>[
-        Icon(icon, size: 14, color: style.color),
+        Icon(icon, size: 14, color: iconColor ?? style.color),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
@@ -452,42 +472,70 @@ class _QuietRow extends StatelessWidget {
             style: style,
           ),
         ),
-        if (more > 0)
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Text(
-              context.t.chatCheckedMore(more),
-              // Tabular figures so the count does not shift as it grows
-              style: style.copyWith(
-                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
       ],
     );
-    if (more == 0) return row;
+  }
+}
+
+/// A call that failed or was blocked: an error icon, what it was doing in words, and the reason underneath. Never reads as done.
+class _FailedRow extends StatelessWidget {
+  const _FailedRow(this.item);
+
+  final ToolItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final small = Theme.of(context).textTheme.bodySmall;
+    final headline = failedWords(context, item);
+    final reason = item.message ?? context.t.chatToolFailed;
     return Semantics(
-      label: context.t.chatCheckedMany(text, more),
+      label: '$headline. $reason',
       excludeSemantics: true,
-      child: row,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(Icons.error_outline, size: 14, color: c.danger),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  headline,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: small?.copyWith(color: c.danger),
+                ),
+                Text(
+                  reason,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: small?.copyWith(color: c.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 /// A tool result from an earlier session as one quiet line. It shows an amount only when the stored answer really holds it, never a made up one.
 class _RestoredToolLine extends ConsumerWidget {
-  const _RestoredToolLine(this.item, {this.more = 0});
+  const _RestoredToolLine(this.item);
 
   final ToolItem item;
-  final int more;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.colors;
     final muted = TextStyle(color: c.muted, fontSize: 13);
-    if (item.status != 'ok') {
-      return Text(item.message ?? context.t.chatToolFailed, style: muted);
-    }
+    if (item.status != 'ok') return _FailedRow(item);
     // The same words as the live line, from the stored answer
     if (isNotebookWrite(item.name)) {
       return _QuietRow(
@@ -538,7 +586,6 @@ class _RestoredToolLine extends ConsumerWidget {
             ? context.t.chatUsedToolbox
             : context.t.chatRanScriptQuiet,
         style: muted,
-        more: more,
         maxLines: 2,
       );
       final shown = shownOf(item.data);
@@ -551,11 +598,12 @@ class _RestoredToolLine extends ConsumerWidget {
         ],
       );
     }
+    final words = line ?? doneWords(context, item);
     return _QuietRow(
-      icon: line == null ? Icons.search : Icons.check_circle_outline,
-      text: line ?? _humanize(context, item.name),
+      icon: words == null ? Icons.search : Icons.check_circle_outline,
+      iconColor: words != null && line == null ? c.success : null,
+      text: words ?? _humanize(context, item.name),
       style: muted,
-      more: more,
       maxLines: 2,
     );
   }

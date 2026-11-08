@@ -1,0 +1,20 @@
+{
+  "researchRunning": "Researching: {question}",
+  "@researchRunning": {"placeholders": {"question": {"type": "String"}}},
+  "researchRunningNone": "Researching",
+  "researchCounts": "{searches, plural, =1{{searches} search} other{{searches} searches}}, {reads, plural, =1{{reads} page} other{{reads} pages}}",
+  "@researchCounts": {"placeholders": {"searches": {"type": "int"}, "reads": {"type": "int"}}},
+  "researchDone": "Researched, {count, plural, =1{{count} source} other{{count} sources}}",
+  "researchDoneNone": "Researched",
+  "@researchDone": {"placeholders": {"count": {"type": "int"}}},
+  "researchStoppedTime": "It ran out of time, so this is what it found so far.",
+  "researchStoppedCancelled": "Stopped. This is what it found so far.",
+  "researchStoppedOther": "It stopped early, so this is what it found so far.",
+  "researchFailed": "Research could not reach the web.",
+  "researchOpenLabel": "{label}, list of sources, open",
+  "@researchOpenLabel": {"placeholders": {"label": {"type": "String"}}},
+  "researchClosedLabel": "{label}, list of sources, closed",
+  "@researchClosedLabel": {"placeholders": {"label": {"type": "String"}}},
+  "researchOpenSource": "Open {title}, {host}",
+  "@researchOpenSource": {"placeholders": {"title": {"type": "String"}, "host": {"type": "String"}}}
+}

@@ -876,7 +876,59 @@
       }
     }
   },
+  "chatContextAtLast": "At the last answer",
+  "chatContextDanger": "Almost full. Summarize now to start the next answer with room.",
+  "chatContextExplain": "As a chat grows, the older messages are summarized on their own. Nothing is lost and you do not need to do anything.",
+  "chatContextFailed": "Could not summarize. Try again.",
+  "chatContextFull": "{percent} percent full",
+  "@chatContextFull": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "chatContextLastSummary": "Last summary",
+  "chatContextMonth": "This month, all chats",
+  "chatContextMonthShare": "{percent} percent of the monthly limit",
+  "@chatContextMonthShare": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "chatContextNever": "Not yet",
+  "chatContextOffline": "Summarizing needs a connection.",
+  "chatContextShort": "Too short to summarize yet. It needs a few more messages.",
+  "chatContextSummarize": "Summarize now",
+  "chatContextSummarized": "Summarized. The ring updates with your next message.",
+  "chatContextSummarizing": "Summarizing",
+  "chatContextTitle": "Context",
+  "chatContextTooltip": "Context {percent} percent full",
+  "@chatContextTooltip": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "chatContextUsed": "Used {used} of {window} tokens",
+  "@chatContextUsed": {
+    "placeholders": {
+      "used": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "window": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "chatContextWarn": "Getting full. Summarizing now keeps the next answers lighter.",
   "chatEarlier": "Earlier",
+  "chatEarlierNotFinished": "The earlier message did not finish, so the waiting ones were paused.",
   "chatEditCancel": "Stop editing",
   "chatEditing": "Editing your message",
   "chatGreeting": "What can I help with?",
@@ -1095,11 +1147,24 @@
     }
   },
   "chatPhotosTrimmed": "The photos hold a lot of text, so only the first part of each is sent.",
-  "chatPhotosWait": "Wait until the photos are read.",
-  "chatPicturePreparing": "Getting the pictures ready…",
   "chatPictureSkipped": "A picture could not be sent, so only its text goes.",
   "chatPicturesNoted": "This answer goes by the text read from the picture, not the picture itself.",
   "chatPleaseCheck": "Please check",
+  "chatQueueClear": "Clear",
+  "chatQueueEdit": "Edit this waiting message",
+  "chatQueueFull": "Too many messages are waiting. Wait until one has been sent.",
+  "chatQueuePaused": "{count} waiting",
+  "@chatQueuePaused": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatQueuePhotosFull": "Too many photos are waiting. Wait until one message has been sent.",
+  "chatQueueRemove": "Remove this waiting message",
+  "chatQueueSendNow": "Send now",
+  "chatQueueWaiting": "Waiting",
   "chatRanScript": "Ran a script: {output}",
   "@chatRanScript": {
     "placeholders": {
@@ -1124,6 +1189,7 @@
   "chatScriptFailed": "The script did not finish",
   "chatSend": "Send",
   "chatSpeak": "Speak",
+  "chatStillFinishing": "Still finishing the earlier message…",
   "chatStop": "Stop",
   "chatStopListening": "Stop listening",
   "chatStopped": "Stopped.",
@@ -3102,6 +3168,66 @@
   "remBlockedFailed": "The last try to set your reminders failed. It will try again.",
   "remBlockedNotifications": "Notifications are off for Botler, so reminders cannot show.",
   "remFix": "Open settings",
+  "researchClosedLabel": "{label}, list of sources, closed",
+  "@researchClosedLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "researchCounts": "{searches, plural, =1{{searches} search} other{{searches} searches}}, {reads, plural, =1{{reads} page} other{{reads} pages}}",
+  "@researchCounts": {
+    "placeholders": {
+      "searches": {
+        "type": "int"
+      },
+      "reads": {
+        "type": "int"
+      }
+    }
+  },
+  "researchDone": "Researched, {count, plural, =1{{count} source} other{{count} sources}}",
+  "@researchDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "researchDoneNone": "Researched",
+  "researchFailed": "Research could not reach the web.",
+  "researchOpenLabel": "{label}, list of sources, open",
+  "@researchOpenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "researchOpenSource": "Open {title}, {host}",
+  "@researchOpenSource": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "researchRunning": "Researching: {question}",
+  "@researchRunning": {
+    "placeholders": {
+      "question": {
+        "type": "String"
+      }
+    }
+  },
+  "researchRunningNone": "Researching",
+  "researchStoppedCancelled": "Stopped. This is what it found so far.",
+  "researchStoppedOther": "It stopped early, so this is what it found so far.",
+  "researchStoppedTime": "It ran out of time, so this is what it found so far.",
   "resetBack": "Choose another part",
   "resetBiometric": "Confirm with your fingerprint or screen lock first.",
   "resetButton": "Erase now",
@@ -4191,6 +4317,236 @@
       }
     }
   },
+  "toolBlockedNamed": "Blocked: {what}",
+  "@toolBlockedNamed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "toolFailedNamed": "Failed: {what}",
+  "@toolFailedNamed": {
+    "placeholders": {
+      "what": {
+        "type": "String"
+      }
+    }
+  },
+  "toolGroupChecked": "Checked {count, plural, one{{count} thing} other{{count} things}}",
+  "@toolGroupChecked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupChecking": "Checking things",
+  "toolGroupClosedLabel": "{label}, {count, plural, one{{count} step} other{{count} steps}}, closed",
+  "@toolGroupClosedLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupOpenLabel": "{label}, {count, plural, one{{count} step} other{{count} steps}}, open",
+  "@toolGroupOpenLabel": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupOpenedPages": "Opened {count, plural, one{{count} page} other{{count} pages}}",
+  "@toolGroupOpenedPages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupOpeningPages": "Opening pages",
+  "toolGroupProgress": "{done} of {total}",
+  "@toolGroupProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupReadNotebooks": "Read {count, plural, one{{count} notebook} other{{count} notebooks}}",
+  "@toolGroupReadNotebooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupReadPages": "Read {count, plural, one{{count} page} other{{count} pages}}",
+  "@toolGroupReadPages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupReadingNotebooks": "Reading notebooks",
+  "toolGroupReadingPages": "Reading pages",
+  "toolGroupSearchedNotebooks": "Searched notebooks {count, plural, one{{count} time} other{{count} times}}",
+  "@toolGroupSearchedNotebooks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupSearchedWeb": "Searched the web {count, plural, one{{count} time} other{{count} times}}",
+  "@toolGroupSearchedWeb": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "toolGroupSearchingNotebooks": "Searching notebooks",
+  "toolGroupSearchingWeb": "Searching the web",
+  "toolOpenedPage": "Opened {subject}",
+  "@toolOpenedPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolOpenedPageNone": "Opened a web page",
+  "toolOpeningPage": "Opening {subject}",
+  "@toolOpeningPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolOpeningPageNone": "Opening a web page",
+  "toolReadNotebook": "Read notebook {subject}",
+  "@toolReadNotebook": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolReadNotebookNone": "Read your notebooks",
+  "toolReadPage": "Read page {subject}",
+  "@toolReadPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolReadPageNone": "Read a page",
+  "toolReadingNotebook": "Reading notebook {subject}",
+  "@toolReadingNotebook": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolReadingNotebookNone": "Reading your notebooks",
+  "toolReadingPage": "Reading page {subject}",
+  "@toolReadingPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolReadingPageNone": "Reading a page",
+  "toolSearchedNotebooks": "Searched notebooks for {subject}",
+  "@toolSearchedNotebooks": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolSearchedNotebooksNone": "Searched your notebooks",
+  "toolSearchedWeb": "Searched the web for {subject}",
+  "@toolSearchedWeb": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolSearchedWebNone": "Searched the web",
+  "toolSearchingNotebooks": "Searching notebooks for {subject}",
+  "@toolSearchingNotebooks": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolSearchingNotebooksNone": "Searching your notebooks",
+  "toolSearchingWeb": "Searching the web for {subject}",
+  "@toolSearchingWeb": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolSearchingWebNone": "Searching the web",
+  "toolTook": "{text}, {seconds} s",
+  "@toolTook": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "toolUpdatedPage": "Updated page {subject}",
+  "@toolUpdatedPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolUpdatedPageNone": "Updated a page",
+  "toolUpdatingNotebook": "Updating notebook {subject}",
+  "@toolUpdatingNotebook": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolUpdatingPage": "Updating page {subject}",
+  "@toolUpdatingPage": {
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "toolUpdatingPageNone": "Updating a page",
   "toolboxChars": "{count} characters",
   "@toolboxChars": {
     "placeholders": {

@@ -1987,11 +1987,125 @@ abstract class AppLocalizations {
   /// **'Is it {amount} on {account}?'**
   String chatConfirmQuestion(String amount, String account);
 
+  /// No description provided for @chatContextAtLast.
+  ///
+  /// In en, this message translates to:
+  /// **'At the last answer'**
+  String get chatContextAtLast;
+
+  /// No description provided for @chatContextDanger.
+  ///
+  /// In en, this message translates to:
+  /// **'Almost full. Summarize now to start the next answer with room.'**
+  String get chatContextDanger;
+
+  /// No description provided for @chatContextExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'As a chat grows, the older messages are summarized on their own. Nothing is lost and you do not need to do anything.'**
+  String get chatContextExplain;
+
+  /// No description provided for @chatContextFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not summarize. Try again.'**
+  String get chatContextFailed;
+
+  /// No description provided for @chatContextFull.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} percent full'**
+  String chatContextFull(int percent);
+
+  /// No description provided for @chatContextLastSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Last summary'**
+  String get chatContextLastSummary;
+
+  /// No description provided for @chatContextMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month, all chats'**
+  String get chatContextMonth;
+
+  /// No description provided for @chatContextMonthShare.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent} percent of the monthly limit'**
+  String chatContextMonthShare(int percent);
+
+  /// No description provided for @chatContextNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get chatContextNever;
+
+  /// No description provided for @chatContextOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarizing needs a connection.'**
+  String get chatContextOffline;
+
+  /// No description provided for @chatContextShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Too short to summarize yet. It needs a few more messages.'**
+  String get chatContextShort;
+
+  /// No description provided for @chatContextSummarize.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize now'**
+  String get chatContextSummarize;
+
+  /// No description provided for @chatContextSummarized.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarized. The ring updates with your next message.'**
+  String get chatContextSummarized;
+
+  /// No description provided for @chatContextSummarizing.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarizing'**
+  String get chatContextSummarizing;
+
+  /// No description provided for @chatContextTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Context'**
+  String get chatContextTitle;
+
+  /// No description provided for @chatContextTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Context {percent} percent full'**
+  String chatContextTooltip(int percent);
+
+  /// No description provided for @chatContextUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {used} of {window} tokens'**
+  String chatContextUsed(int used, int window);
+
+  /// No description provided for @chatContextWarn.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting full. Summarizing now keeps the next answers lighter.'**
+  String get chatContextWarn;
+
   /// No description provided for @chatEarlier.
   ///
   /// In en, this message translates to:
   /// **'Earlier'**
   String get chatEarlier;
+
+  /// No description provided for @chatEarlierNotFinished.
+  ///
+  /// In en, this message translates to:
+  /// **'The earlier message did not finish, so the waiting ones were paused.'**
+  String get chatEarlierNotFinished;
 
   /// No description provided for @chatEditCancel.
   ///
@@ -2353,18 +2467,6 @@ abstract class AppLocalizations {
   /// **'The photos hold a lot of text, so only the first part of each is sent.'**
   String get chatPhotosTrimmed;
 
-  /// No description provided for @chatPhotosWait.
-  ///
-  /// In en, this message translates to:
-  /// **'Wait until the photos are read.'**
-  String get chatPhotosWait;
-
-  /// No description provided for @chatPicturePreparing.
-  ///
-  /// In en, this message translates to:
-  /// **'Getting the pictures ready…'**
-  String get chatPicturePreparing;
-
   /// No description provided for @chatPictureSkipped.
   ///
   /// In en, this message translates to:
@@ -2382,6 +2484,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please check'**
   String get chatPleaseCheck;
+
+  /// No description provided for @chatQueueClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get chatQueueClear;
+
+  /// No description provided for @chatQueueEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit this waiting message'**
+  String get chatQueueEdit;
+
+  /// No description provided for @chatQueueFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many messages are waiting. Wait until one has been sent.'**
+  String get chatQueueFull;
+
+  /// No description provided for @chatQueuePaused.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting'**
+  String chatQueuePaused(int count);
+
+  /// No description provided for @chatQueuePhotosFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many photos are waiting. Wait until one message has been sent.'**
+  String get chatQueuePhotosFull;
+
+  /// No description provided for @chatQueueRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this waiting message'**
+  String get chatQueueRemove;
+
+  /// No description provided for @chatQueueSendNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Send now'**
+  String get chatQueueSendNow;
+
+  /// No description provided for @chatQueueWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting'**
+  String get chatQueueWaiting;
 
   /// No description provided for @chatRanScript.
   ///
@@ -2442,6 +2592,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Speak'**
   String get chatSpeak;
+
+  /// No description provided for @chatStillFinishing.
+  ///
+  /// In en, this message translates to:
+  /// **'Still finishing the earlier message…'**
+  String get chatStillFinishing;
 
   /// No description provided for @chatStop.
   ///
@@ -7399,6 +7555,78 @@ abstract class AppLocalizations {
   /// **'Open settings'**
   String get remFix;
 
+  /// No description provided for @researchClosedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, list of sources, closed'**
+  String researchClosedLabel(String label);
+
+  /// No description provided for @researchCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{searches, plural, =1{{searches} search} other{{searches} searches}}, {reads, plural, =1{{reads} page} other{{reads} pages}}'**
+  String researchCounts(int searches, int reads);
+
+  /// No description provided for @researchDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Researched, {count, plural, =1{{count} source} other{{count} sources}}'**
+  String researchDone(int count);
+
+  /// No description provided for @researchDoneNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Researched'**
+  String get researchDoneNone;
+
+  /// No description provided for @researchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Research could not reach the web.'**
+  String get researchFailed;
+
+  /// No description provided for @researchOpenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, list of sources, open'**
+  String researchOpenLabel(String label);
+
+  /// No description provided for @researchOpenSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {title}, {host}'**
+  String researchOpenSource(String title, String host);
+
+  /// No description provided for @researchRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Researching: {question}'**
+  String researchRunning(String question);
+
+  /// No description provided for @researchRunningNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Researching'**
+  String get researchRunningNone;
+
+  /// No description provided for @researchStoppedCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped. This is what it found so far.'**
+  String get researchStoppedCancelled;
+
+  /// No description provided for @researchStoppedOther.
+  ///
+  /// In en, this message translates to:
+  /// **'It stopped early, so this is what it found so far.'**
+  String get researchStoppedOther;
+
+  /// No description provided for @researchStoppedTime.
+  ///
+  /// In en, this message translates to:
+  /// **'It ran out of time, so this is what it found so far.'**
+  String get researchStoppedTime;
+
   /// No description provided for @resetBack.
   ///
   /// In en, this message translates to:
@@ -9760,6 +9988,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} currencies are not in this total: no exchange rate yet.'**
   String summaryMissingRates(int count);
+
+  /// No description provided for @toolBlockedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked: {what}'**
+  String toolBlockedNamed(String what);
+
+  /// No description provided for @toolFailedNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {what}'**
+  String toolFailedNamed(String what);
+
+  /// No description provided for @toolGroupChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Checked {count, plural, one{{count} thing} other{{count} things}}'**
+  String toolGroupChecked(int count);
+
+  /// No description provided for @toolGroupChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking things'**
+  String get toolGroupChecking;
+
+  /// No description provided for @toolGroupClosedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, {count, plural, one{{count} step} other{{count} steps}}, closed'**
+  String toolGroupClosedLabel(String label, int count);
+
+  /// No description provided for @toolGroupOpenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, {count, plural, one{{count} step} other{{count} steps}}, open'**
+  String toolGroupOpenLabel(String label, int count);
+
+  /// No description provided for @toolGroupOpenedPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened {count, plural, one{{count} page} other{{count} pages}}'**
+  String toolGroupOpenedPages(int count);
+
+  /// No description provided for @toolGroupOpeningPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening pages'**
+  String get toolGroupOpeningPages;
+
+  /// No description provided for @toolGroupProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String toolGroupProgress(int done, int total);
+
+  /// No description provided for @toolGroupReadNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Read {count, plural, one{{count} notebook} other{{count} notebooks}}'**
+  String toolGroupReadNotebooks(int count);
+
+  /// No description provided for @toolGroupReadPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Read {count, plural, one{{count} page} other{{count} pages}}'**
+  String toolGroupReadPages(int count);
+
+  /// No description provided for @toolGroupReadingNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading notebooks'**
+  String get toolGroupReadingNotebooks;
+
+  /// No description provided for @toolGroupReadingPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading pages'**
+  String get toolGroupReadingPages;
+
+  /// No description provided for @toolGroupSearchedNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched notebooks {count, plural, one{{count} time} other{{count} times}}'**
+  String toolGroupSearchedNotebooks(int count);
+
+  /// No description provided for @toolGroupSearchedWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched the web {count, plural, one{{count} time} other{{count} times}}'**
+  String toolGroupSearchedWeb(int count);
+
+  /// No description provided for @toolGroupSearchingNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching notebooks'**
+  String get toolGroupSearchingNotebooks;
+
+  /// No description provided for @toolGroupSearchingWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching the web'**
+  String get toolGroupSearchingWeb;
+
+  /// No description provided for @toolOpenedPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened {subject}'**
+  String toolOpenedPage(String subject);
+
+  /// No description provided for @toolOpenedPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened a web page'**
+  String get toolOpenedPageNone;
+
+  /// No description provided for @toolOpeningPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening {subject}'**
+  String toolOpeningPage(String subject);
+
+  /// No description provided for @toolOpeningPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening a web page'**
+  String get toolOpeningPageNone;
+
+  /// No description provided for @toolReadNotebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Read notebook {subject}'**
+  String toolReadNotebook(String subject);
+
+  /// No description provided for @toolReadNotebookNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Read your notebooks'**
+  String get toolReadNotebookNone;
+
+  /// No description provided for @toolReadPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Read page {subject}'**
+  String toolReadPage(String subject);
+
+  /// No description provided for @toolReadPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Read a page'**
+  String get toolReadPageNone;
+
+  /// No description provided for @toolReadingNotebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading notebook {subject}'**
+  String toolReadingNotebook(String subject);
+
+  /// No description provided for @toolReadingNotebookNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading your notebooks'**
+  String get toolReadingNotebookNone;
+
+  /// No description provided for @toolReadingPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading page {subject}'**
+  String toolReadingPage(String subject);
+
+  /// No description provided for @toolReadingPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading a page'**
+  String get toolReadingPageNone;
+
+  /// No description provided for @toolSearchedNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched notebooks for {subject}'**
+  String toolSearchedNotebooks(String subject);
+
+  /// No description provided for @toolSearchedNotebooksNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched your notebooks'**
+  String get toolSearchedNotebooksNone;
+
+  /// No description provided for @toolSearchedWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched the web for {subject}'**
+  String toolSearchedWeb(String subject);
+
+  /// No description provided for @toolSearchedWebNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched the web'**
+  String get toolSearchedWebNone;
+
+  /// No description provided for @toolSearchingNotebooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching notebooks for {subject}'**
+  String toolSearchingNotebooks(String subject);
+
+  /// No description provided for @toolSearchingNotebooksNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching your notebooks'**
+  String get toolSearchingNotebooksNone;
+
+  /// No description provided for @toolSearchingWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching the web for {subject}'**
+  String toolSearchingWeb(String subject);
+
+  /// No description provided for @toolSearchingWebNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching the web'**
+  String get toolSearchingWebNone;
+
+  /// No description provided for @toolTook.
+  ///
+  /// In en, this message translates to:
+  /// **'{text}, {seconds} s'**
+  String toolTook(String text, int seconds);
+
+  /// No description provided for @toolUpdatedPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated page {subject}'**
+  String toolUpdatedPage(String subject);
+
+  /// No description provided for @toolUpdatedPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated a page'**
+  String get toolUpdatedPageNone;
+
+  /// No description provided for @toolUpdatingNotebook.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating notebook {subject}'**
+  String toolUpdatingNotebook(String subject);
+
+  /// No description provided for @toolUpdatingPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating page {subject}'**
+  String toolUpdatingPage(String subject);
+
+  /// No description provided for @toolUpdatingPageNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating a page'**
+  String get toolUpdatingPageNone;
 
   /// No description provided for @toolboxChars.
   ///

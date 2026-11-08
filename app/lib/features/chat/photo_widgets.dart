@@ -191,11 +191,61 @@ class PhotoStrip extends StatelessWidget {
   }
 }
 
+/// A soft veil over a tile whose photo is still being made ready. It pulses gently, and stands still when the phone removes animations.
+class _PreparingPulse extends StatefulWidget {
+  const _PreparingPulse();
+
+  @override
+  State<_PreparingPulse> createState() => _PreparingPulseState();
+}
+
+class _PreparingPulseState extends State<_PreparingPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  bool _still = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _still = MediaQuery.disableAnimationsOf(context);
+    if (_still) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => ColoredBox(
+        color: c.scrim.withValues(
+          alpha: _still ? 0.3 : 0.18 + 0.2 * _controller.value,
+        ),
+      ),
+    );
+  }
+}
+
 /// The photos under a sent message: one wide picture, or two columns of squares. Tiles have fixed shapes so the list never jumps as pictures load.
 class PhotoGrid extends StatelessWidget {
-  const PhotoGrid({required this.paths, super.key});
+  const PhotoGrid({required this.paths, this.preparing = false, super.key});
 
   final List<String> paths;
+
+  /// The photos are still being made ready: each tile pulses softly until the message goes.
+  final bool preparing;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +274,15 @@ class PhotoGrid extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(11),
-                child: PhotoThumb(path: paths[i], width: tile),
+                child: preparing
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          PhotoThumb(path: paths[i], width: tile),
+                          const _PreparingPulse(),
+                        ],
+                      )
+                    : PhotoThumb(path: paths[i], width: tile),
               ),
             ),
           ),
