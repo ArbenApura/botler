@@ -13,6 +13,7 @@ import 'package:botler/features/simulate/simulate_screen.dart';
 import 'package:botler/l10n/l10n.dart';
 import 'package:botler/state/providers.dart';
 import 'package:botler/theme/theme.dart';
+import 'package:botler/ui/mark_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -956,6 +957,7 @@ void main() {
               'label': 'Rent',
               'amount': 150000,
               'dueDate': '2026-11-05',
+              'billId': 'b-rent',
             },
           ],
         ),
@@ -982,6 +984,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Rent, due'), findsOneWidget);
       expect(find.text('Owed now'), findsOneWidget);
+      // The account's badge on the tile and the bill's badge on its line, as in the Accounts card and the entries
+      expect(
+        find.descendant(
+          of: find.byType(HeldCard),
+          matching: find.byType(MarkBadge),
+        ),
+        findsNWidgets(2),
+      );
     },
   );
 

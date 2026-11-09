@@ -312,7 +312,15 @@ describe('net at a simulated day', () => {
 		for (const balance of [0, 700_000, 2_000_000, 9_000_000]) {
 			const now = computeNet(p, [wallet('gcash', balance), wallet('save', 5)], TODAY);
 			const sim = at(p, [wallet('gcash', balance), wallet('save', 5)], TODAY);
-			expect(sim.wallets).toEqual(now.wallets);
+			// The net at a simulated day also names the bill behind each hold (for its icon); the net of today does not
+			const plain = sim.wallets.map((w) => ({
+				...w,
+				holds: w.holds.map(({ billId: _billId, ...h }) => h)
+			}));
+			expect(plain).toEqual(now.wallets);
+			expect(sim.wallets.flatMap((w) => w.holds).every((h) => h.kind === 'goal' || h.billId)).toBe(
+				true
+			);
 			expect(sim.until).toBe(now.until);
 		}
 	});
@@ -374,7 +382,7 @@ describe('net at a simulated day', () => {
 		const sim = at(plan(), [wallet('gcash', 5_000_000)], '2027-06-02');
 		expect(sim.until).toBe('2027-06-15');
 		expect(gcash(sim)?.holds).toEqual([
-			{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2027-06-05' }
+			{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2027-06-05', billId: 'rent' }
 		]);
 	});
 

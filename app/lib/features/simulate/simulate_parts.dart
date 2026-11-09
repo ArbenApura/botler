@@ -1412,9 +1412,16 @@ class _AccountBlock extends StatelessWidget {
 /// the goal, in the words and order of the Accounts screen (NetHolds). Only the one-period detail answer carries the holds; nothing is
 /// drawn when no wallet holds anything or the setting is off.
 class HeldCard extends StatelessWidget {
-  const HeldCard({required this.period, super.key});
+  const HeldCard({
+    required this.period,
+    this.billMarks = const <String, Mark>{},
+    super.key,
+  });
 
   final SimPeriod period;
+
+  /// The icons of the bills (a bill with none of its own shows its account's, as the server sends them).
+  final Map<String, Mark> billMarks;
 
   @override
   Widget build(BuildContext context) {
@@ -1438,6 +1445,13 @@ class HeldCard extends StatelessWidget {
               currency: held[i].currency,
               title: held[i].accountName,
               subtitle: t.simNetEnd,
+              // The same badges as the Accounts card above and the entries below: the account, and each bill by its own icon
+              leading: AccountBadge(
+                accountId: held[i].accountId,
+                name: held[i].accountName,
+                size: 32,
+              ),
+              marks: billMarks,
             ),
           ],
         ],

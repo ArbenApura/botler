@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
 import '../../core/json.dart';
+import '../../core/marks.dart' show Mark;
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -200,6 +201,8 @@ class NetHolds extends StatelessWidget {
     required this.currency,
     this.title,
     this.subtitle,
+    this.leading,
+    this.marks,
     super.key,
   });
 
@@ -210,8 +213,18 @@ class NetHolds extends StatelessWidget {
   final String? title;
   final String? subtitle;
 
+  /// Beside the title (Time travel puts the account's badge here).
+  final Widget? leading;
+
+  /// The icons of the bills, by bill id: when given, every hold line that names a bill (`billId`) starts with that bill's badge, and
+  /// the others keep the same indent so the words line up. Left out, the lines are as the Accounts screen has always had them.
+  final Map<String, Mark>? marks;
+
   /// The most height the opened list takes.
   static const double _maxListHeight = 160;
+
+  /// The size of a bill's badge in a hold line.
+  static const double _badge = 28;
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +237,25 @@ class NetHolds extends StatelessWidget {
     final saved = holds.where((h) => !holdIsOwed(h)).toList();
     final spent = netInt(wallet, 'spentSetAside') ?? 0;
     // One line per hold, with its amount
+    final icons = marks;
     Widget row(Json h) => Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: EdgeInsets.only(top: icons == null ? 2 : 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: icons == null
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: <Widget>[
+          if (icons != null) ...<Widget>[
+            if (h['billId'] is String)
+              MarkBadge(
+                name: str(h['label']),
+                mark: icons[str(h['billId'])] ?? const Mark(),
+                size: _badge,
+              )
+            else
+              const SizedBox(width: _badge, height: _badge),
+            const SizedBox(width: 8),
+          ],
           Expanded(child: Text(holdWords(context, h))),
           const SizedBox(width: 8),
           Text(
@@ -251,6 +278,7 @@ class NetHolds extends StatelessWidget {
       shape: const Border(),
       collapsedShape: const Border(),
       minTileHeight: 48,
+      leading: leading,
       title: Row(
         children: <Widget>[
           Expanded(

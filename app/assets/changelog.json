@@ -780,5 +780,15 @@
       "Ipinapakita na ng Time travel ang net na balanse para sa mga tinantyang panahon: ang natitira pagkatapos ng mga bayarin na due bago ang susunod na sahod, ng perang itinabi ng mga payday rule mo at ng perang nakalaan para sa goal. Sumusunod ito sa setting na Ipakita ang net na balanse, at may bagong card na \"Ano ang nakalaan\" na naglilista ng mga nakalaan.",
       "Sa Week tab na ngayon nagbubukas ang Time travel."
     ]
+  },
+  {
+    "versionCode": 69,
+    "versionName": "1.9.1",
+    "en": [
+      "The \"What is held\" card in Time travel now shows the icon of each account and of each bill it holds money for, like the rest of the screen."
+    ],
+    "fil": [
+      "Ipinapakita na ng card na \"Ano ang nakalaan\" sa Time travel ang icon ng bawat account at ng bawat bayarin na may nakalaang pera, tulad ng iba pang bahagi ng screen."
+    ]
   }
 ]

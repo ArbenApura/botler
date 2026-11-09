@@ -919,7 +919,9 @@ describe('net of the simulated balance', () => {
 		const july = month(out, '2026-07');
 		const gcash = walletOf(july, 'gcash');
 		expect(gcash?.simulatedHolds).toEqual(
-			expect.arrayContaining([{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2026-08-05' }])
+			expect.arrayContaining([
+				{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2026-08-05', billId: 'rent' }
+			])
 		);
 		expect(gcash?.simulatedHolds?.some((h) => h.label === 'Internet')).toBe(false);
 		const balance = gcash?.simulated ?? 0;

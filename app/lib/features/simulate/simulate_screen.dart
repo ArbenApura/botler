@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../core/marks.dart' show Mark;
 import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -311,7 +312,12 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
                             net: showNet,
                             held: heldPeriod == null || !showNet
                                 ? null
-                                : HeldCard(period: heldPeriod),
+                                : HeldCard(
+                                    period: heldPeriod,
+                                    billMarks:
+                                        allValue?.value?.sim.billMarks ??
+                                        const <String, Mark>{},
+                                  ),
                           ),
                           if (shown.offline)
                             Text(

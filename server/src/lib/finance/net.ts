@@ -41,6 +41,8 @@ export type NetHold = {
 	amount: number;
 	/** The bill's due date, for a bill. */
 	dueDate?: ManilaDate;
+	/** The bill a bill hold is for, or the bill a rule saves for, so the screen can show its icon. Only the net at a simulated day sets it. */
+	billId?: string;
 	/** True (only ever set to true) for an unpaid bill whose due date is before today, so the screen can name it as late. */
 	overdue?: true;
 };
@@ -344,7 +346,13 @@ export function computeNetAt(
 			});
 			continue;
 		}
-		push(bills, key, { kind: 'bill', label: b.name, amount: b.amount, dueDate: b.dueDate });
+		push(bills, key, {
+			kind: 'bill',
+			label: b.name,
+			amount: b.amount,
+			dueDate: b.dueDate,
+			billId: b.billId
+		});
 	}
 	// What a linked rule has set aside for a bill that is not held in full above
 	for (const { link: l, dates } of ctx.links) {
@@ -364,7 +372,13 @@ export function computeNetAt(
 		);
 		const key = keyOf(l.accountId, plan.main);
 		if (set > 0 && walletKeys.has(key))
-			push(rules, key, { kind: 'rule', label: l.ruleLabel, amount: set, dueDate: next.dueDate });
+			push(rules, key, {
+				kind: 'rule',
+				label: l.ruleLabel,
+				amount: set,
+				dueDate: next.dueDate,
+				billId: l.billId
+			});
 	}
 	return { wallets: settle(plan, wallets, bills, rules), unmatched, notes: [], until };
 }
