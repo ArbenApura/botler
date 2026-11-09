@@ -368,20 +368,82 @@ describe('the research loop', () => {
 		expect(res.sources.every((s) => s.title.length <= 120 && !/[<>]/.test(s.title))).toBe(true);
 	});
 
-	it('quick mode: one round of at most three searches and two reads, then the answer', async () => {
+	it('quick mode: a search round, then a round that reads a page, then the answer with nothing stopped', async () => {
 		const web = slowWeb();
 		const model = stubModel([], {
-			helper: (r) =>
-				r.toolChoice === 'none'
-					? { say: 'Quick digest.' }
-					: { calls: [1, 2, 3, 4, 5].map((i) => searchCall(`fact ${i}`)) }
+			helper: (r, n) =>
+				n === 0
+					? { calls: [searchCall('fact one')] }
+					: n === 1
+						? { calls: [['web_read', { url: 'https://site.example/fact%20one/1' }]] }
+						: { say: `Quick digest. ${r.toolChoice ?? 'auto'}` }
 		});
 		const { deps } = setup(model, web.deps, { limits: { ...QUICK_LIMITS } });
 		const res = await runResearch(input({ depth: 'quick' }), deps);
+		expect(res.searches).toBe(1);
+		expect(res.reads).toBe(1);
+		expect(web.seen.read).toEqual(['https://site.example/fact%20one/1']);
+		expect(res.stopped).toBeUndefined();
+		expect(res.digest).toBe('Quick digest. auto');
+		expect(res.sources.map((s) => s.url)).toEqual(['https://site.example/fact%20one/1']);
+	});
+
+	it('quick mode: stops on rounds after three rounds, with the search and page ceilings kept', async () => {
+		const web = slowWeb();
+		const model = stubModel([], {
+			helper: (r, n) =>
+				r.toolChoice === 'none'
+					? { say: 'Quick digest.' }
+					: n === 0
+						? { calls: [1, 2, 3, 4, 5].map((i) => searchCall(`fact ${i}`)) }
+						: {
+								calls: [1, 2, 3, 4, 5].map((i): [string, unknown] => [
+									'web_read',
+									{ url: `https://site.example/fact%201/${((i + n) % 3) + 1}` }
+								])
+							}
+		});
+		const { deps } = setup(model, web.deps, { limits: { ...QUICK_LIMITS } });
+		const res = await runResearch(input({ depth: 'quick' }), deps);
+		expect(QUICK_LIMITS.rounds).toBe(3);
 		expect(web.seen.searched).toHaveLength(QUICK_LIMITS.searches);
+		expect(web.seen.read.length).toBeLessThanOrEqual(QUICK_LIMITS.reads);
+		expect(web.seen.read.length).toBeGreaterThan(0);
 		expect(res.stopped).toBe('rounds');
-		expect(model.helperRequests).toHaveLength(2);
+		// Three tool rounds, then the wrap-up call with tools off
+		expect(model.helperRequests).toHaveLength(QUICK_LIMITS.rounds + 1);
+		expect(model.helperRequests.at(-1)?.toolChoice).toBe('none');
 		expect(res.digest).toBe('Quick digest.');
+	});
+
+	it('quick mode: tells the helper its room, and a deep helper is not told', async () => {
+		const web = slowWeb();
+		const model = stubModel([], { helper: () => ({ say: 'Done.' }) });
+		const quick = setup(model, web.deps, { limits: { ...QUICK_LIMITS } });
+		await runResearch(input({ depth: 'quick' }), quick.deps);
+		const quickText = String(model.helperRequests[0]?.messages.at(-1)?.content);
+		expect(quickText).toContain(
+			`${QUICK_LIMITS.rounds} rounds of tool calls, ${QUICK_LIMITS.searches} searches and ${QUICK_LIMITS.reads} pages`
+		);
+		expect(quickText).toContain('open the best pages');
+		const deepModel = stubModel([], { helper: () => ({ say: 'Done.' }) });
+		await runResearch(input(), setup(deepModel, web.deps).deps);
+		expect(String(deepModel.helperRequests[0]?.messages.at(-1)?.content)).not.toContain(
+			'Your room'
+		);
+	});
+
+	it('quick mode: an address the person gave can be read in the first round', async () => {
+		const web = slowWeb();
+		const given = 'https://given.example/label';
+		const model = stubModel([], {
+			helper: (_r, n) => (n === 0 ? { calls: [['web_read', { url: given }]] } : { say: 'Read it.' })
+		});
+		const { deps } = setup(model, web.deps, { limits: { ...QUICK_LIMITS } });
+		const res = await runResearch(input({ depth: 'quick', urls: [given] }), deps);
+		expect(web.seen.read).toEqual([given]);
+		expect(res.reads).toBe(1);
+		expect(res.stopped).toBeUndefined();
 	});
 
 	it('Slots lets at most n jobs run at once and runs the rest as places free up', async () => {
@@ -561,7 +623,7 @@ describe('research in a message', () => {
 			}
 		);
 		const events = await play({ f, model, text: 'one fact', web: web.deps });
-		expect(web.searched).toHaveLength(3);
-		expect(toolEvents(events)[0]?.data).toMatchObject({ searches: 5, stopped: 'rounds' });
+		expect(web.searched).toHaveLength(4);
+		expect(toolEvents(events)[0]?.data).toMatchObject({ searches: 15, stopped: 'rounds' });
 	});
 });

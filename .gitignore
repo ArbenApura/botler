@@ -29,6 +29,7 @@ server/.output/
 server/cli/
 server/coverage/
 server/test-results/
+server/.eslintcache
 
 # Flutter and Dart
 app/.dart_tool/

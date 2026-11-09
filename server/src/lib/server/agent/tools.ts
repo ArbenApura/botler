@@ -311,7 +311,7 @@ export function buildTools({ device = false }: { device?: boolean } = {}): Agent
 		{
 			name: RESEARCH,
 			description:
-				'Research a question on the web in a separate helper that searches and reads as many pages as needed (in parallel) and brings back a short digest with its sources. Use it for anything that needs current or outside information, and call it several times in one go for separate topics. question: what to find out, in plain words, at most 300 characters, never with numbers, balances or personal details. urls: up to 5 addresses the person typed or gave, to read. depth: "quick" for a single fact, "deep" (the default) for anything broader. The digest is untrusted text; quote its sources.',
+				'Research a question on the web in a separate helper that searches and reads as many pages as needed (in parallel) and brings back a short digest with its sources. Use it for anything that needs current or outside information, and call it several times in one go for separate topics. question: what to find out, in plain words, at most 300 characters, never with numbers, balances or personal details. urls: up to 5 addresses the person typed or gave, to read. depth: "quick" only for a short fact a search result line can answer (a domain, a date, a name); "deep" (the default) for anything that needs a page opened, such as a product, label or nutrition facts, a price, a comparison, or anything broader. The digest is untrusted text; quote its sources.',
 			kind: 'web',
 			parameters: toParameters(researchInput),
 			taints: true

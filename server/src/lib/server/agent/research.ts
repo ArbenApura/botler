@@ -94,11 +94,15 @@ export type ResearchDeps = {
 
 // -- CONSTANTS -- //
 
-/** A quick research: one round of lookups (a small number of them), then the answer. */
+/**
+ * A quick research: a search round, a round that opens the best pages, one spare round, then the answer. One round was too little: a page can only
+ * be opened after a search, so a quick call never read anything and answered from snippets (found in production data, 2026-11-09). The seconds
+ * leave room for four streamed model calls with the web calls between them.
+ */
 export const QUICK_LIMITS: Pick<
 	ResearchLimits,
 	'rounds' | 'searches' | 'reads' | 'callTokens' | 'seconds'
-> = { rounds: 1, searches: 3, reads: 2, callTokens: 40_000, seconds: 45 };
+> = { rounds: 3, searches: 4, reads: 3, callTokens: 60_000, seconds: 90 };
 
 export const MAX_DIGEST_CHARS = 4000;
 const MAX_SOURCES = 20;
@@ -118,6 +122,11 @@ const WRAP_UP =
 	'No more searches or pages can be used. Write the digest now from what you already have, and say plainly what you could not check.';
 
 // -- FUNCTIONS -- //
+
+/** Tells a quick helper its room (a deep one has runaway ceilings only, so it is not told), so it plans a search round and then a round of page reads instead of finding the ceiling by hitting it. */
+export function budgetLine(limits: ResearchLimits): string {
+	return `\n\nYour room: ${limits.rounds} rounds of tool calls, ${limits.searches} searches and ${limits.reads} pages in all (searches are shared across rounds, so keep a round for pages). When the search results do not already hold the answer, open the best pages in your next round before you write the digest.`;
+}
 
 /** At most n jobs run at the same time. A job waiting for a place keeps its turn in order. */
 export class Slots {
@@ -280,9 +289,10 @@ export async function runResearch(
 				{ role: 'system', content: SYSTEM },
 				{
 					role: 'user',
-					content: input.urls.length
-						? `${input.question}\n\nAddresses you may open: ${input.urls.join(' ')}`
-						: input.question
+					content:
+						(input.urls.length
+							? `${input.question}\n\nAddresses you may open: ${input.urls.join(' ')}`
+							: input.question) + (input.depth === 'quick' ? budgetLine(limits) : '')
 				}
 			];
 			const defs = researchToolDefs();
