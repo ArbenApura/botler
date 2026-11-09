@@ -889,6 +889,9 @@
     }
   },
   "chatContextLastSummary": "Last summary",
+  "chatContextLevelCalm": "Plenty of room",
+  "chatContextLevelDanger": "Almost full",
+  "chatContextLevelWarn": "Getting full",
   "chatContextMonth": "This month, all chats",
   "chatContextMonthShare": "{percent} percent of the monthly limit",
   "@chatContextMonthShare": {

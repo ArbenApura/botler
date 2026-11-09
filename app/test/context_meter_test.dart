@@ -132,6 +132,8 @@ Widget app(
   ChatState state, {
   Brightness mode = Brightness.light,
   List<ContextInfo?> refreshes = const <ContextInfo?>[],
+  Locale locale = const Locale('en'),
+  double textScale = 1,
 }) => ProviderScope(
   overrides: [
     chatProvider.overrideWith(() => FakeChat(state, refreshes)),
@@ -144,10 +146,15 @@ Widget app(
     ),
   ],
   child: MaterialApp(
-    locale: const Locale('en'),
+    locale: locale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     theme: buildTheme(mode),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(textScale)),
+      child: child!,
+    ),
     home: const Scaffold(body: Center(child: ContextRingButton())),
   ),
 );
@@ -335,15 +342,22 @@ void main() {
         await tester.pumpWidget(app(s, chatWith(82000), mode: mode));
         await tester.tap(find.byType(IconButton));
         await tester.pumpAndSettle();
-        expect(find.text('8 percent full'), findsOneWidget);
+        expect(find.text('8%'), findsOneWidget);
+        expect(find.text('Plenty of room'), findsOneWidget);
         expect(find.text('Used 82,000 of 1,000,000 tokens'), findsOneWidget);
         expect(find.text('At the last answer'), findsOneWidget);
         expect(find.text('Not yet'), findsOneWidget);
         expect(find.text('19 percent of the monthly limit'), findsOneWidget);
         expect(find.text('Summarize now'), findsOneWidget);
         // Plenty of room: no callout
-        expect(find.textContaining('Getting full'), findsNothing);
-        expect(find.textContaining('Almost full'), findsNothing);
+        expect(
+          find.textContaining('keeps the next answers lighter'),
+          findsNothing,
+        );
+        expect(
+          find.textContaining('start the next answer with room'),
+          findsNothing,
+        );
       });
     }
 
@@ -351,16 +365,30 @@ void main() {
       await tester.pumpWidget(app(MeterServer(), chatWith(720000)));
       await tester.tap(find.byType(IconButton));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Getting full'), findsOneWidget);
-      expect(find.textContaining('Almost full'), findsNothing);
+      expect(find.text('Getting full'), findsOneWidget);
+      expect(
+        find.textContaining('keeps the next answers lighter'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('start the next answer with room'),
+        findsNothing,
+      );
     });
 
     testWidgets('has a stronger one from 90 percent', (tester) async {
       await tester.pumpWidget(app(MeterServer(), chatWith(930000)));
       await tester.tap(find.byType(IconButton));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Almost full'), findsOneWidget);
-      expect(find.textContaining('Getting full'), findsNothing);
+      expect(find.text('Almost full'), findsOneWidget);
+      expect(
+        find.textContaining('start the next answer with room'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('keeps the next answers lighter'),
+        findsNothing,
+      );
     });
 
     testWidgets('summarizes: working, then the new summary time', (
@@ -441,6 +469,86 @@ void main() {
         );
       },
     );
+
+    // -- OVERFLOW -- //
+    // A flutter test fails on any RenderFlex overflow, so opening the sheet and pumping is the check
+    group('does not overflow', () {
+      final sizes = <(String, Size)>[
+        ('320 dp wide', const Size(320, 640)),
+        ('360 dp wide', const Size(360, 780)),
+        ('a short landscape screen', const Size(780, 320)),
+      ];
+      final levels = <(String, int)>[
+        ('calm', 82000),
+        ('warning', 720000),
+        ('danger', 930000),
+      ];
+      for (final size in sizes) {
+        for (final scale in <double>[1, 2]) {
+          for (final locale in const <Locale>[Locale('en'), Locale('fil')]) {
+            for (final level in levels) {
+              final name =
+                  '${level.$1}, ${size.$1}, text x$scale, ${locale.languageCode}';
+              testWidgets(name, (tester) async {
+                tester.view.physicalSize = size.$2;
+                tester.view.devicePixelRatio = 1;
+                addTearDown(tester.view.reset);
+                await tester.pumpWidget(
+                  app(
+                    MeterServer(),
+                    chatWith(
+                      level.$2,
+                      summarizedAt: DateTime.utc(2026, 11, 8, 1, 14),
+                    ),
+                    mode: level.$1 == 'danger'
+                        ? Brightness.dark
+                        : Brightness.light,
+                    locale: locale,
+                    textScale: scale,
+                  ),
+                );
+                await tester.tap(find.byType(IconButton));
+                await tester.pumpAndSettle();
+                expect(tester.takeException(), isNull);
+                // The button can always be reached by scrolling inside the sheet
+                await tester.scrollUntilVisible(
+                  find.byType(FilledButton),
+                  200,
+                  scrollable: find.descendant(
+                    of: find.byType(SingleChildScrollView),
+                    matching: find.byType(Scrollable),
+                  ),
+                );
+                expect(find.byType(FilledButton), findsOneWidget);
+              });
+            }
+          }
+        }
+      }
+
+      for (final key in <String>['short', 'failed', 'working']) {
+        testWidgets('the $key state at 320 dp and text x2', (tester) async {
+          tester.view.physicalSize = const Size(320, 640);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.reset);
+          final s = MeterServer();
+          if (key == 'short') {
+            s.compact = <String, Object?>{'queued': false, 'reason': 'short'};
+          }
+          if (key == 'failed') s.compactFails = true;
+          await tester.pumpWidget(app(s, chatWith(82000), textScale: 2));
+          await tester.tap(find.byType(IconButton));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byType(FilledButton));
+          await tester.tap(find.byType(FilledButton));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          // Let the working poll run out (the refresh never shows a new summary) so no timer outlives the test
+          await tester.pumpAndSettle(const Duration(seconds: 3));
+          expect(tester.takeException(), isNull);
+        });
+      }
+    });
   });
 }
 

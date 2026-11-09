@@ -1199,6 +1199,15 @@ class AppLocalizationsFil extends AppLocalizations {
   String get chatContextLastSummary => 'Huling buod';
 
   @override
+  String get chatContextLevelCalm => 'Maluwag pa';
+
+  @override
+  String get chatContextLevelDanger => 'Halos puno na';
+
+  @override
+  String get chatContextLevelWarn => 'Napupuno na';
+
+  @override
   String get chatContextMonth => 'Ngayong buwan, lahat ng usapan';
 
   @override

@@ -1190,6 +1190,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatContextLastSummary => 'Last summary';
 
   @override
+  String get chatContextLevelCalm => 'Plenty of room';
+
+  @override
+  String get chatContextLevelDanger => 'Almost full';
+
+  @override
+  String get chatContextLevelWarn => 'Getting full';
+
+  @override
   String get chatContextMonth => 'This month, all chats';
 
   @override

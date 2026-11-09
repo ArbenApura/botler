@@ -2,6 +2,8 @@
 // The sheet says the figure in words, what happens as a chat grows, when it was last summarized, this month's share of the monthly limit, and has one
 // action: "Summarize now" (the server folds the older messages into the chat's summary; nothing is lost). The ring is hidden until the chat has an answer
 // with a reported size. Accent while there is room, warning from 70 percent, danger from 90 (a status never comes from the accent).
+// The sheet is one hero card (ring with the percent inside, the level in words, the token count), a status callout from 70 percent, one grouped card of
+// equal rows, the explanation, a reserved status line and the one button. Every text wraps, the content scrolls, and the sheet is height and width capped.
 
 // -- DEP-MODULES -- //
 import 'dart:async';
@@ -72,6 +74,9 @@ void showContextSheet(BuildContext context) {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    useSafeArea: true,
+    // Never wider than a comfortable column on a tablet; the height is the screen's, the content scrolls inside it
+    constraints: const BoxConstraints(maxWidth: 560),
     backgroundColor: context.colors.paper,
     builder: (_) => const _ContextSheet(),
   );
@@ -224,6 +229,7 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final t = context.t;
+    final text = Theme.of(context).textTheme;
     final info = ref.watch(chatProvider.select((s) => s.context));
     // The figure can vanish while the sheet is open (another chat was opened): the sheet has nothing to say then
     if (info == null) return const SizedBox(height: 120);
@@ -237,57 +243,76 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
       _Compact.offline => t.chatContextOffline,
       _ => null,
     };
+    final levelWords = switch (info.level) {
+      ContextLevel.calm => t.chatContextLevelCalm,
+      ContextLevel.warning => t.chatContextLevelWarn,
+      ContextLevel.danger => t.chatContextLevelDanger,
+    };
     final callout = switch (info.level) {
       ContextLevel.calm => null,
       ContextLevel.warning => (t.chatContextWarn, c.warning),
       ContextLevel.danger => (t.chatContextDanger, c.danger),
     };
     return SafeArea(
+      top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 12),
-              child: Text(
-                t.chatContextTitle.toUpperCase(),
-                style: Theme.of(context).textTheme.labelMedium
-                    ?.copyWith(color: c.muted, letterSpacing: 0.8),
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  t.chatContextTitle,
+                  style: text.titleLarge?.copyWith(fontWeight: FontWeight.w400),
+                ),
               ),
             ),
-            // The figure, in words and in a larger ring
+            // The figure: the ring says the percent once, the words say the level
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: c.surface,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: c.line),
               ),
               child: Row(
                 children: <Widget>[
-                  SizedBox(
-                    width: 76,
-                    height: 76,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: <Widget>[
-                        CustomPaint(
-                          size: const Size(76, 76),
-                          painter: _RingPainter(
-                            share: info.share,
-                            color: color,
-                            track: c.line,
-                            stroke: 6,
+                  Semantics(
+                    label: t.chatContextFull(info.percent),
+                    excludeSemantics: true,
+                    child: SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: <Widget>[
+                          CustomPaint(
+                            size: const Size(88, 88),
+                            painter: _RingPainter(
+                              share: info.share,
+                              color: color,
+                              track: c.line,
+                              stroke: 7,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${info.percent}%',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w300)
-                              .merge(_tabular),
-                        ),
-                      ],
+                          // Scales down inside the ring instead of spilling over it at a large text size
+                          SizedBox(
+                            width: 56,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${info.percent}%',
+                                style: text.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w300)
+                                    .merge(_tabular),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 18),
@@ -296,22 +321,22 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          t.chatContextFull(info.percent),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w300),
+                          levelWords,
+                          style: text.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w300,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           t.chatContextUsed(info.tokens, info.window),
-                          style: Theme.of(context).textTheme.bodyMedium
+                          style: text.bodyMedium
                               ?.copyWith(color: c.muted)
                               .merge(_tabular),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           t.chatContextAtLast,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: c.muted),
+                          style: text.bodySmall?.copyWith(color: c.muted),
                         ),
                       ],
                     ),
@@ -319,82 +344,103 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
-              child: Text(
-                t.chatContextExplain,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: c.muted, height: 1.5),
-              ),
-            ),
-            // Only from 70 percent: a quiet outlined line in the status colour, never an alarm before 90
+            // Only from 70 percent: a tint of the status colour over the card, never an alarm before 90
             if (callout != null)
               Container(
-                margin: const EdgeInsets.only(top: 14),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
+                  color: Color.alphaBlend(
+                    callout.$2.withValues(alpha: 0.12),
+                    c.surface,
+                  ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: callout.$2),
                 ),
-                child: Text(
-                  callout.$1,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: callout.$2),
-                ),
-              ),
-            const SizedBox(height: 10),
-            _Row(
-              label: t.chatContextLastSummary,
-              value: summarized == null
-                  ? t.chatContextNever
-                  : fmtDateTime(manilaWall(summarized), DateKind.monthDay),
-            ),
-            Container(height: 1, color: c.line),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 12, 4, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Flexible(
-                        child: Text(
-                          t.chatContextMonth,
-                          style: Theme.of(context).textTheme.bodyLarge,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: ExcludeSemantics(
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          size: 20,
+                          color: callout.$2,
                         ),
                       ),
-                      // While it loads or if it cannot be read, the row shows its label only
-                      if (month != null) ...<Widget>[
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Text(
-                            t.chatContextMonthShare(month.percent),
-                            textAlign: TextAlign.end,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: c.muted)
-                                .merge(_tabular),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (month != null) ...<Widget>[
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: month.share,
-                        minHeight: 4,
-                        color: c.accent,
-                        backgroundColor: c.line,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        callout.$1,
+                        style: text.bodyMedium?.copyWith(color: c.ink),
                       ),
                     ),
                   ],
+                ),
+              ),
+            // One grouped card, rows of the same build, split by a hairline
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: c.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: c.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _Row(
+                    label: t.chatContextLastSummary,
+                    value: summarized == null
+                        ? t.chatContextNever
+                        : fmtDateTime(
+                            manilaWall(summarized),
+                            DateKind.monthDay,
+                          ),
+                  ),
+                  Container(height: 1, color: c.line),
+                  // While it loads or if it cannot be read, the row shows its label only
+                  _Row(
+                    label: t.chatContextMonth,
+                    value: month == null
+                        ? null
+                        : t.chatContextMonthShare(month.percent),
+                    share: month?.share,
+                  ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+              child: Text(
+                t.chatContextExplain,
+                style: text.bodyMedium?.copyWith(color: c.muted, height: 1.5),
+              ),
+            ),
+            // The result of the action has its own line above the button, so the button never moves
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                child: Center(
+                  child: status == null
+                      ? null
+                      : Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            status,
+                            textAlign: TextAlign.center,
+                            style: text.bodySmall?.copyWith(
+                              color: _compact == _Compact.failed
+                                  ? c.danger
+                                  : c.muted,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                ),
               ),
             ),
             // The one primary action of the sheet
@@ -407,31 +453,17 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
                   ? null
                   : () => _summarize(info),
               child: _compact == _Compact.working
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
+                  ? Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
                       children: <Widget>[
                         Text(t.chatContextSummarizing),
-                        const SizedBox(width: 10),
                         const PulsingDots(),
                       ],
                     )
-                  : Text(t.chatContextSummarize),
+                  : Text(t.chatContextSummarize, textAlign: TextAlign.center),
             ),
-            if (status != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    status,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _compact == _Compact.failed ? c.danger : c.muted,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -439,36 +471,57 @@ class _ContextSheetState extends ConsumerState<_ContextSheet> {
   }
 }
 
-/// A label on the left and its value on the right, at least 48 dp tall.
+/// A row of the grouped card, at least 56 dp tall: the label, its value beside it when both fit and under it when not, and an optional bar of [share].
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value});
+  const _Row({required this.label, this.value, this.share});
 
   final String label;
-  final String value;
+  final String? value;
+  final double? share;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final text = Theme.of(context).textTheme;
+    final v = value;
+    final s = share;
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
+      constraints: const BoxConstraints(minHeight: 56),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Flexible(
-              child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
+            // A Wrap, not two squeezed Flexibles: a long label or value drops to its own line instead of clipping
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 2,
+              children: <Widget>[
+                Text(label, style: text.bodyLarge),
+                if (v != null)
+                  Text(
+                    v,
+                    style: text.bodyMedium
+                        ?.copyWith(color: c.muted)
+                        .merge(_tabular),
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(color: c.muted)
-                    .merge(_tabular),
+            if (s != null) ...<Widget>[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: s,
+                  minHeight: 4,
+                  color: c.accent,
+                  backgroundColor: c.line,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

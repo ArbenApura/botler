@@ -2023,6 +2023,24 @@ abstract class AppLocalizations {
   /// **'Last summary'**
   String get chatContextLastSummary;
 
+  /// No description provided for @chatContextLevelCalm.
+  ///
+  /// In en, this message translates to:
+  /// **'Plenty of room'**
+  String get chatContextLevelCalm;
+
+  /// No description provided for @chatContextLevelDanger.
+  ///
+  /// In en, this message translates to:
+  /// **'Almost full'**
+  String get chatContextLevelDanger;
+
+  /// No description provided for @chatContextLevelWarn.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting full'**
+  String get chatContextLevelWarn;
+
   /// No description provided for @chatContextMonth.
   ///
   /// In en, this message translates to:

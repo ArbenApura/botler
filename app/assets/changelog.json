@@ -790,5 +790,17 @@
     "fil": [
       "Ipinapakita na ng card na \"Ano ang nakalaan\" sa Time travel ang icon ng bawat account at ng bawat bayarin na may nakalaang pera, tulad ng iba pang bahagi ng screen."
     ]
+  },
+  {
+    "versionCode": 70,
+    "versionName": "1.9.2",
+    "en": [
+      "The chat size sheet (tap the ring in a chat) has a clearer layout: the ring shows the percent, the words say how much room is left, and everything fits at large text sizes.",
+      "Quick web lookups now open the best pages instead of answering from search results only, so answers about products, labels and prices are more accurate."
+    ],
+    "fil": [
+      "Mas malinaw na ang ayos ng sheet ng laki ng chat (i-tap ang bilog sa chat): ipinapakita ng bilog ang porsyento, sinasabi ng mga salita kung gaano pa kaluwag, at kasya ang lahat kahit malaki ang text.",
+      "Binubuksan na ng mabibilis na paghahanap sa web ang pinakamagandang mga page sa halip na sumagot mula sa resulta ng search lang, kaya mas tama ang mga sagot tungkol sa produkto, label at presyo."
+    ]
   }
 ]
