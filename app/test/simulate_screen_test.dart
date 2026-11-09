@@ -5,6 +5,7 @@
 import 'dart:convert';
 
 import 'package:botler/core/api.dart';
+import 'package:botler/core/clock.dart' show calendarDaysBetween;
 import 'package:botler/features/calendar/calendar_data.dart';
 import 'package:botler/features/simulate/simulate_data.dart';
 import 'package:botler/features/simulate/simulate_parts.dart';
@@ -37,6 +38,9 @@ final List<String> _groups = <String>[];
 bool _failLater = false;
 bool _refuseDetail = false;
 bool _oldAnswer = false;
+
+/// Whether the answer carries the net at the end of a simulated period (an older server does not).
+bool _withNet = false;
 List<String> _leftOut = <String>[];
 
 /// The currencies left out of the running total only, and the day a past period's span ends (today unless a test says it is an old copy).
@@ -60,6 +64,10 @@ Map<String, Object?> _period(String from, String to) {
     'replayEnd': part == 'past' ? 150000 : null,
     'simulatedStart': part == 'past' ? null : 120000,
     'simulatedEnd': part == 'past' ? null : 180000,
+    if (_withNet && part != 'past') ...<String, Object?>{
+      'simulatedNetEnd': 90000,
+      'simulatedShortfallEnd': 0,
+    },
     'gap': part == 'past' ? -30000 : null,
     'missed': part == 'past' ? 1 : 0,
     'low': false,
@@ -364,6 +372,7 @@ void main() {
     _failLater = false;
     _refuseDetail = false;
     _oldAnswer = false;
+    _withNet = false;
     _leftOut = <String>[];
     _spanLeftOut = <String>[];
     _spanTo = _today;
@@ -421,20 +430,26 @@ void main() {
     tester,
   ) async {
     final container = await _open(tester);
+    // It opens on the week tab (the owner's choice of 2026-11-09), so a step is seven days
+    expect(container.read(simViewProvider).zoom, Zoom.week);
     final before = container.read(simViewProvider).anchor;
     await tester.tap(find.byTooltip('Later'));
     await tester.pumpAndSettle();
     final after = container.read(simViewProvider).anchor;
-    expect(
-      after.month == before.month + 1 || after.year == before.year + 1,
-      isTrue,
-    );
+    expect(calendarDaysBetween(before, after), 7);
     await tester.tap(find.byTooltip('Earlier'));
     await tester.pumpAndSettle();
-    // A step clamps to the length of the month (31 Oct -> 30 Nov -> 30 Oct), so on a month end only the month is compared
-    final back = container.read(simViewProvider).anchor;
-    expect(back.year, before.year);
-    expect(back.month, before.month);
+    expect(container.read(simViewProvider).anchor, before);
+    // On the month tab a step is a month; a step clamps to the length of the month, so only the month is compared
+    await tester.tap(find.text('Month'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Later'));
+    await tester.pumpAndSettle();
+    final next = container.read(simViewProvider).anchor;
+    expect(
+      next.month == before.month + 1 || next.year == before.year + 1,
+      isTrue,
+    );
   });
 
   testWidgets('the zoom is one control and changes the window', (tester) async {
@@ -461,18 +476,20 @@ void main() {
   testWidgets(
     'the saved copy says when it was saved when there is no connection',
     (tester) async {
+      // The screen opens on the week tab: the copy is the block of 13 weeks that holds today
       final n = DateTime.now();
-      final key = '${n.year}-01-01|${n.year}-12-31|month|';
+      final window = windowFor(Zoom.week, n, 1, n);
+      final key = window.key(const WhatIf());
       final data = _answer(<String, Object?>{
-        'from': '${n.year}-01-01',
-        'to': '${n.year}-12-31',
-        'group': 'month',
+        'from': window.from,
+        'to': window.to,
+        'group': 'week',
       });
       await _open(
         tester,
         offline: true,
         saved: <String, Object>{
-          '${simulateCachePrefix}month': jsonEncode(<String, Object?>{
+          '${simulateCachePrefix}week': jsonEncode(<String, Object?>{
             'key': key,
             'savedAt': '2026-10-01T08:00:00.000',
             'data': data,
@@ -780,6 +797,233 @@ void main() {
       );
       expect(chart.value, contains('Simulated'));
       handle.dispose();
+    },
+  );
+
+  // -- NET AT THE END OF A SIMULATED PERIOD (BTL-20261109-0230) -- //
+
+  const netOn = <String, Object>{'settings.showNet': true};
+  const netOff = <String, Object>{'settings.showNet': false};
+
+  testWidgets(
+    'with Show net balance on, a simulated period leads with its net, the balance beneath, and says it is the period end',
+    (tester) async {
+      _withNet = true;
+      await _open(tester, saved: netOn);
+      expect(find.text('Net at the end'), findsOneWidget);
+      expect(find.text('Simulated at the end'), findsNothing);
+      expect(find.textContaining('900.00'), findsWidgets);
+      expect(find.textContaining('Balance'), findsWidgets);
+      // The period of today ends later: its net is the net of that day, not of now
+      expect(find.textContaining('not today'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'with the setting off the headline is as it was, even when the server sends a net',
+    (tester) async {
+      _withNet = true;
+      await _open(tester, saved: netOff);
+      expect(find.text('Simulated at the end'), findsOneWidget);
+      expect(find.text('Net at the end'), findsNothing);
+      expect(find.textContaining('not today'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'an answer without a net shows the balance as counted and says so, never a net of zero',
+    (tester) async {
+      await _open(tester, saved: netOn);
+      expect(find.text('Simulated at the end'), findsOneWidget);
+      expect(find.text('Net at the end'), findsNothing);
+      expect(
+        find.text(
+          'Net is not available for this period. Balances are shown as counted.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'a past period stays as counted, with one line that net is not recorded for the past',
+    (tester) async {
+      _withNet = true;
+      await _open(tester, saved: netOn);
+      await _jump(tester, '1 year back');
+      expect(find.text('Recorded at the end'), findsOneWidget);
+      expect(find.text('Net at the end'), findsNothing);
+      expect(
+        find.text(
+          'Net is not recorded for the past, so only balances are shown.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  Map<String, Object?> netWallet(
+    String id,
+    String name,
+    String currency,
+    int balance, {
+    required int? net,
+    int? netMain,
+    int? balanceMain,
+    int shortfall = 0,
+    List<Object?> holds = const <Object?>[],
+  }) => <String, Object?>{
+    'accountId': id,
+    'accountName': name,
+    'currency': currency,
+    'archived': false,
+    'recorded': null,
+    'replay': null,
+    'simulated': balance,
+    'recordedMain': null,
+    'replayMain': null,
+    'simulatedMain': balanceMain,
+    'simulatedNet': net,
+    'simulatedShortfall': shortfall,
+    'simulatedSpentSetAside': 0,
+    'simulatedNetMain': netMain,
+    'simulatedHolds': holds,
+  };
+
+  testWidgets(
+    'a wallet shows its net, the balance as counted and what a due bill lacks; a foreign wallet shows the main-currency figure of its net or that it has no rate',
+    (tester) async {
+      _withNet = true;
+      _walletsOverride = <Object?>[
+        netWallet(
+          'a1',
+          'GCash',
+          'PHP',
+          100000,
+          net: 0,
+          netMain: 0,
+          balanceMain: 100000,
+          shortfall: 50000,
+        ),
+        netWallet(
+          'a2',
+          'Wise',
+          'USD',
+          42000,
+          net: 40000,
+          netMain: 2240000,
+          balanceMain: 2352000,
+        ),
+        netWallet(
+          'a3',
+          'Rakuten',
+          'JPY',
+          85000,
+          net: 85000,
+          netMain: null,
+          balanceMain: null,
+        ),
+      ];
+      await _open(tester, saved: netOn);
+      await tester.scrollUntilVisible(
+        find.text('Accounts'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('Short by'), findsOneWidget);
+      expect(find.textContaining('Balance'), findsWidgets);
+      expect(find.textContaining('about'), findsOneWidget);
+      expect(find.text('no exchange rate yet'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'what is held lists the holds of a wallet from the detail answer',
+    (tester) async {
+      _withNet = true;
+      _walletsOverride = <Object?>[
+        netWallet(
+          'a1',
+          'GCash',
+          'PHP',
+          200000,
+          net: 50000,
+          netMain: 50000,
+          balanceMain: 200000,
+          holds: <Object?>[
+            <String, Object?>{
+              'kind': 'bill',
+              'label': 'Rent',
+              'amount': 150000,
+              'dueDate': '2026-11-05',
+            },
+          ],
+        ),
+      ];
+      await _open(tester, saved: netOn);
+      await tester.scrollUntilVisible(
+        find.text('What is held'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final tile = find.descendant(
+        of: find.byType(HeldCard),
+        matching: find.byType(ExpansionTile),
+      );
+      // The entries list is lazy, so the page grows as rows are built: one scroll may stop short
+      final height =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      for (var i = 0; i < 8; i++) {
+        await tester.ensureVisible(tile);
+        await tester.pump();
+        if (tester.getCenter(tile).dy < height - 20) break;
+      }
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Rent, due'), findsOneWidget);
+      expect(find.text('Owed now'), findsOneWidget);
+    },
+  );
+
+  testWidgets('what is held is not drawn when the setting is off', (
+    tester,
+  ) async {
+    _withNet = true;
+    _walletsOverride = <Object?>[
+      netWallet(
+        'a1',
+        'GCash',
+        'PHP',
+        200000,
+        net: 50000,
+        netMain: 50000,
+        balanceMain: 200000,
+        holds: <Object?>[
+          <String, Object?>{
+            'kind': 'bill',
+            'label': 'Rent',
+            'amount': 150000,
+            'dueDate': '2026-11-05',
+          },
+        ],
+      ),
+    ];
+    await _open(tester, saved: netOff);
+    expect(find.text('What is held'), findsNothing);
+    expect(find.byType(HeldCard), findsNothing);
+  });
+
+  testWidgets(
+    'the info sheet explains the net and that the chart is as counted',
+    (tester) async {
+      await _open(tester);
+      await tester.tap(find.byTooltip('What am I looking at?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Net at the end'), findsOneWidget);
+      expect(
+        find.textContaining('net is in the numbers under it'),
+        findsOneWidget,
+      );
     },
   );
 

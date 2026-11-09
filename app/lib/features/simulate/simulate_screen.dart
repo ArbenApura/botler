@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // -- MODULES -- //
+import '../../core/money_scope.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../../theme/theme.dart';
@@ -194,6 +195,9 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
       groupKey,
       allKey,
     );
+    // The same setting as Accounts; what is held comes with the one-period detail answer, as the breakdown does
+    final showNet = ref.watch(settingsProvider.select((s) => s.showNetBalance));
+    final heldPeriod = allValue?.value?.sim.periodOf(day);
     return Scaffold(
       appBar: AppBar(
         title: Text(t.simTitle),
@@ -304,6 +308,10 @@ class _SimulateScreenState extends ConsumerState<SimulateScreen> {
                             zoom: view.zoom,
                             day: day,
                             breakdown: breakdown,
+                            net: showNet,
+                            held: heldPeriod == null || !showNet
+                                ? null
+                                : HeldCard(period: heldPeriod),
                           ),
                           if (shown.offline)
                             Text(
@@ -506,25 +514,43 @@ class _HeaderCard extends ConsumerWidget {
     final c = context.colors;
     final s = sim;
     final p = period;
+    // The same setting as Accounts decides whether a simulated period leads with its net or with the balance as counted
+    final showNet = ref.watch(settingsProvider.select((x) => x.showNetBalance));
     Widget? headline;
+    // Quiet lines under the headline: why a number is the kind it is
+    final quiet = <String>[];
     List<String> codes = const <String>[];
     if (s != null && p != null) {
       final rates = rateInfoOf(s, p);
       codes = rates.codes;
       if (p.part == SimPart.past) {
-        headline = p.beforeFirstRecord || p.recordedEnd == null
+        final none = p.beforeFirstRecord || p.recordedEnd == null;
+        headline = none
             ? Text(t.simNoRecords, style: TextStyle(color: c.muted))
             : HeadlineTotal(
                 label: t.simRecordedEnd,
                 source: SimSource.recorded,
                 amount: rates.noTotal ? null : p.recordedEnd,
               );
+        if (showNet && !none) quiet.add(t.simNetPast);
       } else if (p.simulatedEnd != null) {
+        final net = showNet && p.hasNet;
+        final gross = p.simulatedEnd ?? 0;
         headline = HeadlineTotal(
-          label: t.simSimulatedEnd,
+          label: net ? t.simNetEnd : t.simSimulatedEnd,
           source: SimSource.simulated,
-          amount: rates.noTotal ? null : p.simulatedEnd,
+          amount: rates.noTotal
+              ? null
+              : (net ? p.simulatedNetEnd : p.simulatedEnd),
+          sub: net && p.simulatedNetEnd != gross
+              ? t.netGross(context.moneyMain(gross))
+              : null,
         );
+        // The period of today ends later than today: its net is the net of that last day, not of now
+        if (net && p.part == SimPart.mixed) {
+          quiet.add(t.simNetMixed(shortDay(context, p.to)));
+        }
+        if (showNet && !p.hasNet && !rates.noTotal) quiet.add(t.simNetMissing);
       }
     }
     return PaperCard(
@@ -540,6 +566,8 @@ class _HeaderCard extends ConsumerWidget {
             onPick: onPick,
           ),
           ?headline,
+          for (final line in quiet)
+            Text(line, style: TextStyle(color: c.muted)),
           if (codes.isNotEmpty) RateWarning(codes),
         ],
       ),
@@ -554,6 +582,8 @@ class _Loaded extends ConsumerWidget {
     required this.zoom,
     required this.day,
     required this.breakdown,
+    required this.net,
+    this.held,
   });
 
   final SimLoad load;
@@ -562,6 +592,12 @@ class _Loaded extends ConsumerWidget {
 
   /// Where the spending went, when there is something to show or it is on its way.
   final Widget? breakdown;
+
+  /// Show net balance is on: simulated wallets lead with their net.
+  final bool net;
+
+  /// What is held at the end of the period, from the one-period detail answer; null until it is there, offline, or with the setting off.
+  final Widget? held;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -600,7 +636,8 @@ class _Loaded extends ConsumerWidget {
         SpendCard(sim: sim, period: period),
         SpanCard(period: period),
         ?breakdown,
-        WalletsCard(period: period, mainCurrency: sim.currency),
+        WalletsCard(period: period, mainCurrency: sim.currency, net: net),
+        ?held,
       ],
     );
   }

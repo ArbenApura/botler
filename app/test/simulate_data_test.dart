@@ -267,6 +267,95 @@ void main() {
     expect(window.key(w), startsWith('2026-01-01|2026-12-31|month|{'));
   });
 
+  test(
+    'Time travel opens on the week tab (the owner asked for it on 2026-11-09)',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(simViewProvider).zoom, Zoom.week);
+    },
+  );
+
+  test(
+    'reads the net at the end of a simulated period, and never makes one up',
+    () {
+      final net = SimPeriod(<String, Object?>{
+        'from': '2026-07-01',
+        'to': '2026-07-31',
+        'part': 'future',
+        'simulatedEnd': 400,
+        'simulatedNetEnd': 250,
+        'simulatedShortfallEnd': 40,
+        'wallets': <Object?>[
+          <String, Object?>{
+            'accountId': 'a',
+            'accountName': 'GCash',
+            'currency': 'PHP',
+            'simulated': 400,
+            'simulatedMain': 400,
+            'simulatedNet': 250,
+            'simulatedShortfall': 40,
+            'simulatedSpentSetAside': 10,
+            'simulatedNetMain': 250,
+            'simulatedHolds': <Object?>[
+              <String, Object?>{
+                'kind': 'bill',
+                'label': 'Rent',
+                'amount': 150,
+                'dueDate': '2026-08-05',
+              },
+            ],
+            'simulatedHoldsMore': 2,
+          },
+        ],
+      });
+      expect(net.hasNet, isTrue);
+      expect(net.simulatedNetEnd, 250);
+      final wallet = net.wallets.single;
+      expect(wallet.hasNet, isTrue);
+      expect(wallet.holds, hasLength(1));
+      expect(wallet.holdsMore, 2);
+      // The shape NetAmount and NetHolds read
+      expect(wallet.netJson['netBalance'], 250);
+      expect(wallet.netJson['balance'], 400);
+      expect(wallet.netJson['shortfall'], 40);
+      expect(wallet.mainLead(past: false, net: true), 250);
+      expect(wallet.mainLead(past: false, net: false), 400);
+
+      // An older server, or a net the server could not work out: no net, not a net of zero
+      final old = SimResult(answer()).periods[2];
+      expect(old.hasNet, isFalse);
+      expect(old.wallets, isEmpty);
+      final unknown = SimPeriod(<String, Object?>{
+        'from': '2026-07-01',
+        'to': '2026-07-31',
+        'part': 'future',
+        'simulatedEnd': 400,
+        'simulatedNetEnd': null,
+        'wallets': <Object?>[
+          <String, Object?>{
+            'accountId': 'a',
+            'currency': 'PHP',
+            'simulated': 400,
+            'simulatedNet': null,
+          },
+        ],
+      });
+      expect(unknown.hasNet, isFalse);
+      expect(unknown.wallets.single.hasNet, isFalse);
+      expect(unknown.wallets.single.simulatedNet, isNull);
+
+      // The past has no net, even if a server sent one
+      final past = SimPeriod(<String, Object?>{
+        'from': '2026-05-01',
+        'to': '2026-05-31',
+        'part': 'past',
+        'simulatedNetEnd': 5,
+      });
+      expect(past.hasNet, isFalse);
+    },
+  );
+
   test('a what-if is asked for only after a pause', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

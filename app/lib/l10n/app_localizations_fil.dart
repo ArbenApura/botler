@@ -5435,6 +5435,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get simGroupOther => 'Iba pa';
 
   @override
+  String get simHeldTitle => 'Ano ang nakalaan';
+
+  @override
   String get simHidden => 'nakatago';
 
   @override
@@ -5442,7 +5445,7 @@ class AppLocalizationsFil extends AppLocalizations {
 
   @override
   String get simInfoChart =>
-      'Isang tuldok sa bawat panahon. Ang tuloy-tuloy na linya ay naitala, ang putol-putol ay tantiya o replay ng plano mo. I-tap o i-drag para pumili ng panahon. Ang bilog ay panahong bumababa o mas mababa sa zero.';
+      'Isang tuldok sa bawat panahon. Ang tuloy-tuloy na linya ay naitala, ang putol-putol ay tantiya o replay ng plano mo. I-tap o i-drag para pumili ng panahon. Ang bilog ay panahong bumababa o mas mababa sa zero. Palaging balanseng binilang ang chart; nasa mga numero sa ibaba ang net.';
 
   @override
   String get simInfoChartTitle => 'Ang chart';
@@ -5457,6 +5460,13 @@ class AppLocalizationsFil extends AppLocalizations {
   @override
   String get simInfoIntro =>
       'Pumili ng kahit anong araw, linggo, buwan o taon, hanggang 5 taon pabalik o pasulong, para makita ang laman o ang magiging laman ng mga account mo. Tantiya lang ang lahat pagkatapos ng ngayon, galing sa balanse ngayon at sa plano mo, hindi totoong pera.';
+
+  @override
+  String get simInfoNet =>
+      'Ang natitira sa isang account sa dulo ng tinantyang panahon, pagkatapos ng mga bayarin na due bago ang susunod na sahod, ng perang itinabi ng mga payday rule mo para sa susunod na bayarin at ng perang nakalaan para sa goal. Walang net ang nakaraan, dahil hindi naitala kung ano ang nakalaan noon. I-on o i-off ito sa Ipakita ang net na balanse sa Accounts.';
+
+  @override
+  String get simInfoNetTitle => 'Net sa dulo';
 
   @override
   String get simInfoTags =>
@@ -5527,6 +5537,22 @@ class AppLocalizationsFil extends AppLocalizations {
   String simMoveTo(String account) {
     return 'papunta sa $account';
   }
+
+  @override
+  String get simNetEnd => 'Net sa dulo';
+
+  @override
+  String get simNetMissing =>
+      'Walang net para sa panahong ito. Ipinapakita ang balanseng binilang.';
+
+  @override
+  String simNetMixed(String date) {
+    return 'Net sa $date, hindi ngayon.';
+  }
+
+  @override
+  String get simNetPast =>
+      'Hindi naitatala ang net sa nakaraan, kaya balanse lang ang ipinapakita.';
 
   @override
   String get simNoEntries => 'Walang laman ang panahong ito.';

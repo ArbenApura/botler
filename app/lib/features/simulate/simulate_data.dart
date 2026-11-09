@@ -59,7 +59,13 @@ class SimWallet {
       replayMain = _intOrNull(j['replayMain']),
       simulatedMain = _intOrNull(j['simulatedMain']),
       mainKnown =
-          j.containsKey('recordedMain') || j.containsKey('simulatedMain');
+          j.containsKey('recordedMain') || j.containsKey('simulatedMain'),
+      simulatedNet = _intOrNull(j['simulatedNet']),
+      simulatedShortfall = _intOrNull(j['simulatedShortfall']),
+      simulatedSpentSetAside = _intOrNull(j['simulatedSpentSetAside']),
+      simulatedNetMain = _intOrNull(j['simulatedNetMain']),
+      holds = asJsonList(j['simulatedHolds']),
+      holdsMore = intOf(j['simulatedHoldsMore']);
 
   final String accountId;
   final String accountName;
@@ -78,9 +84,38 @@ class SimWallet {
   /// False for an older saved answer that has no main-currency figures at all (nothing can be said about rates then).
   final bool mainKnown;
 
+  /// The net of the simulated balance at the end of the period (what is left after the bills due before the next payday, the money
+  /// rules set aside and the money kept for a goal), in this wallet's own currency, and the main-currency twin. Absent or null for a
+  /// past period, an older server or a saved answer: then only the balance shows, never a net of zero.
+  final int? simulatedNet;
+  final int? simulatedShortfall;
+  final int? simulatedSpentSetAside;
+  final int? simulatedNetMain;
+
+  /// The detail view only: what is held (kind, label, amount, dueDate), as the server sent it, and how many more there were.
+  final List<Json> holds;
+  final int holdsMore;
+
   /// The balance for the past or for after today, and its main-currency twin.
   int? amountFor({required bool past}) => past ? recorded : simulated;
   int? mainFor({required bool past}) => past ? recordedMain : simulatedMain;
+
+  /// True when this wallet has a net to show for the end of its period.
+  bool get hasNet => simulatedNet != null;
+
+  /// The main-currency figure of what leads: the net when it leads and exists, else the balance.
+  int? mainLead({required bool past, required bool net}) =>
+      net && hasNet ? simulatedNetMain : mainFor(past: past);
+
+  /// The wallet in the shape NetAmount and NetHolds read (the same keys as an account's wallet on the Accounts screen).
+  Json get netJson => <String, Object?>{
+    'currency': currency,
+    'balance': simulated,
+    'netBalance': simulatedNet,
+    'shortfall': simulatedShortfall,
+    'spentSetAside': simulatedSpentSetAside,
+    'holds': holds,
+  };
 
   /// A balance exists but could not be converted: its currency has no rate.
   bool noRate({required bool past}) =>
@@ -118,6 +153,8 @@ class SimPeriod {
       spanSpent = _intOrNull(j['spanSpent']),
       spanReceived = _intOrNull(j['spanReceived']),
       spanLeftOut = <String>[for (final c in asList(j['spanLeftOut'])) str(c)],
+      simulatedNetEnd = _intOrNull(j['simulatedNetEnd']),
+      simulatedShortfallEnd = _intOrNull(j['simulatedShortfallEnd']),
       wallets = <SimWallet>[
         for (final w in asJsonList(j['wallets'])) SimWallet(w),
       ];
@@ -163,7 +200,16 @@ class SimPeriod {
 
   /// Currencies with no rate left out of the span figures only; `leftOut` stays the period's own.
   final List<String> spanLeftOut;
+
+  /// The net at the end of a simulated or mixed period in the main currency (the sum of each wallet's own converted net, a currency with
+  /// no rate left out), and what the bills due before the next payday still lack. Null for a past period, an older server or a saved
+  /// answer, and when the server could not work it out: the screen then shows the balance as counted.
+  final int? simulatedNetEnd;
+  final int? simulatedShortfallEnd;
   final List<SimWallet> wallets;
+
+  /// True when the server sent a net for the end of this period.
+  bool get hasNet => part != SimPart.past && simulatedNetEnd != null;
 
   /// True when the server sent a span for this period.
   bool get spanKnown =>
@@ -591,7 +637,7 @@ DateTime jumpMonths(DateTime anchor, int months) => _addMonths(anchor, months);
 
 class SimViewNotifier extends Notifier<SimView> {
   @override
-  SimView build() => SimView(zoom: Zoom.month, anchor: manilaTodayPicker());
+  SimView build() => SimView(zoom: Zoom.week, anchor: manilaTodayPicker());
 
   DateTime get _today => manilaTodayPicker();
 

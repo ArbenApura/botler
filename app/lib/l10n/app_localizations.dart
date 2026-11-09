@@ -9102,6 +9102,12 @@ abstract class AppLocalizations {
   /// **'Other'**
   String get simGroupOther;
 
+  /// No description provided for @simHeldTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What is held'**
+  String get simHeldTitle;
+
   /// No description provided for @simHidden.
   ///
   /// In en, this message translates to:
@@ -9117,7 +9123,7 @@ abstract class AppLocalizations {
   /// No description provided for @simInfoChart.
   ///
   /// In en, this message translates to:
-  /// **'One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero.'**
+  /// **'One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero. The chart always shows balances as counted; net is in the numbers under it.'**
   String get simInfoChart;
 
   /// No description provided for @simInfoChartTitle.
@@ -9143,6 +9149,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick any day, week, month or year, up to 5 years back or ahead, to see what your accounts held or will hold. Anything after today is an estimate from today\'s balances and your plan, never real money.'**
   String get simInfoIntro;
+
+  /// No description provided for @simInfoNet.
+  ///
+  /// In en, this message translates to:
+  /// **'What is left of an account at the end of an estimated period, after the bills due before the next payday, the money your payday rules set aside for later bills and the money kept for a goal. The past has no net, because what was held then was never recorded. Turn it on or off with Show net balance on Accounts.'**
+  String get simInfoNet;
+
+  /// No description provided for @simInfoNetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Net at the end'**
+  String get simInfoNetTitle;
 
   /// No description provided for @simInfoTags.
   ///
@@ -9233,6 +9251,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'to {account}'**
   String simMoveTo(String account);
+
+  /// No description provided for @simNetEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Net at the end'**
+  String get simNetEnd;
+
+  /// No description provided for @simNetMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Net is not available for this period. Balances are shown as counted.'**
+  String get simNetMissing;
+
+  /// No description provided for @simNetMixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Net on {date}, not today.'**
+  String simNetMixed(String date);
+
+  /// No description provided for @simNetPast.
+  ///
+  /// In en, this message translates to:
+  /// **'Net is not recorded for the past, so only balances are shown.'**
+  String get simNetPast;
 
   /// No description provided for @simNoEntries.
   ///

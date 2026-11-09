@@ -314,6 +314,44 @@ describe('limits and the assistant', () => {
 		expect(JSON.stringify(agent).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
 		expect(agent.periods.length || agent.summary?.length).toBe(month.periods.length);
 	});
+
+	// A two-year range by week (105 periods) was already too long for the assistant before the net, and still is: it is asked to be shorter
+	it('carries the net of simulated periods, says what it is, and still fits the assistant a 62-day, a half-year and a four-year range (BTL-20261109-0230)', async () => {
+		const app = await sim({ from: addDays(today, -40), to: addDays(today, 60), group: 'month' });
+		const ahead = app.periods.filter((x) => x.part !== 'past');
+		expect(ahead.length).toBeGreaterThan(0);
+		expect(ahead.every((x) => x.simulatedNetEnd !== undefined)).toBe(true);
+		expect(
+			app.periods.filter((x) => x.part === 'past').every((x) => x.simulatedNetEnd === undefined)
+		).toBe(true);
+		expect(app.notes.some((n) => n.startsWith('Net (simulatedNetEnd'))).toBe(true);
+		expect(app.net).toMatchObject({ failed: false });
+		for (const [group, days] of [
+			['day', 61],
+			['week', 182],
+			['month', 1500]
+		] as const) {
+			const agent = (await invokeVerb(asAgent(f), 'balance_simulate', {
+				from: today,
+				to: addDays(today, days),
+				group
+			})) as SimulationView;
+			expect(JSON.stringify(agent).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
+			// The period lines or the summary keep the net, and a wallet never carries the app's holds
+			// The net rides on the period lines or the summary; a range too long for it says it was left out, and still answers
+			const first = agent.periods[0]?.simulatedNetEnd ?? agent.summary?.[0]?.net;
+			const said = agent.notes.some((n) => n.includes('left out here to keep the answer short'));
+			expect(first !== undefined || said).toBe(true);
+			for (const app of [
+				'simulatedHolds',
+				'simulatedHoldsMore',
+				'simulatedHeld',
+				'simulatedSpentSetAside',
+				'simulatedNetMain'
+			])
+				expect(JSON.stringify(agent)).not.toContain(app);
+		}
+	});
 });
 
 describe('spent per period and entries a page at a time', () => {

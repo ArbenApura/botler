@@ -14,6 +14,7 @@
 import type { ManilaDate } from './dates';
 import type { Group, RangeLimits } from './forecast';
 import type { Txn } from './ledger';
+import type { NetContext, NetHold } from './net';
 import type { PlanData, PlanFlow, PlanNote } from './planFlows';
 // -- MODULES -- //
 import { billOccurrences } from './billWindows';
@@ -21,6 +22,7 @@ import { addDays, dayStart, toLocalDate } from './dates';
 import { checkRange, periodEnd, SIMULATE_LIMITS } from './forecast';
 import { canConvert, convert } from './fx';
 import { balanceOf, effectOn } from './ledger';
+import { buildNetContext, computeNetAt } from './net';
 import { planFlows } from './planFlows';
 import { occurrencesBetween } from './schedule';
 
@@ -137,6 +139,21 @@ export type SimWallet = {
 	recordedMain: number | null;
 	replayMain: number | null;
 	simulatedMain: number | null;
+	/**
+	 * The net of the simulated balance at the end of the period (finance/net.ts computeNetAt): what is left after the bills due before the
+	 * next payday, the money rules set aside for later bills and the money kept for a goal. Minor units of the wallet's currency. Left out
+	 * for a past period and for an answer without net; null when the net could not be worked out. Never a net of zero for unknown.
+	 */
+	simulatedNet?: number | null;
+	simulatedHeld?: number | null;
+	simulatedShortfall?: number | null;
+	/** Money the rules set aside here that the balance no longer holds. */
+	simulatedSpentSetAside?: number | null;
+	/** The net in the main currency at the stored rates. Null when the wallet has no net or its currency has no rate. */
+	simulatedNetMain?: number | null;
+	/** detail only: what is held, at most SIM_HOLDS lines, and how many more there were. */
+	simulatedHolds?: NetHold[];
+	simulatedHoldsMore?: number;
 };
 
 export type SimPeriod = {
@@ -186,6 +203,13 @@ export type SimPeriod = {
 	spanSpent?: number | null;
 	spanReceived?: number | null;
 	spanLeftOut?: string[];
+	/**
+	 * The net at the end of a simulated or mixed period, in the main currency: the sum of each wallet's own converted net (never a
+	 * conversion of a sum), a currency with no rate left out and named in `missing`. And what the bills due before the next payday still
+	 * lack, the same way. Left out for a past period; null when the net could not be worked out.
+	 */
+	simulatedNetEnd?: number | null;
+	simulatedShortfallEnd?: number | null;
 	wallets: SimWallet[];
 };
 
@@ -228,6 +252,15 @@ export type Simulation = {
 	notes: PlanNote[];
 	/** Currencies held or moved with no rate: left out of every total. */
 	missing: string[];
+	/** What the net left out or could not do, said once for the range. Absent when nothing is simulated. */
+	net?: {
+		/** The net could not be worked out (a stored schedule could not be read). */
+		failed: boolean;
+		/** Bills (by name) due from a wallet that does not exist in their currency, so no wallet holds them. */
+		unmatched: string[];
+		/** Rules that point at a bill but cannot save for it. */
+		broken: string[];
+	};
 };
 
 // -- CONSTANTS -- //
@@ -240,6 +273,10 @@ export const BREAKDOWN_GROUPS = 30;
 /** The group of spending with no bill and no category. */
 export const OTHER_GROUP = 'other';
 const MAX_WARNINGS = 30;
+/** The most hold lines a wallet carries in the detail view. */
+export const SIM_HOLDS = 8;
+/** The most bill names the net says it could not place. */
+const MAX_NET_NAMES = 5;
 const ORDER = { in: 0, move: 1, out: 2 } as const;
 
 // -- FUNCTIONS -- //
@@ -469,6 +506,22 @@ export function simulate(input: SimulateInput): Simulation {
 		}
 		return { low, below };
 	};
+
+	// -- NET AT THE END OF A SIMULATED PERIOD -- //
+	// The plan with the what-if applied, read once for the whole range; each period end then costs one pass over the shared dates
+	// (finance/net.ts buildNetContext, computeNetAt). A stored schedule that cannot be read leaves the net out and the balances untouched.
+
+	let netCtx: NetContext | null = null;
+	let netFailed = false;
+	const netUnmatched = new Set<string>();
+	if (future) {
+		try {
+			netCtx = buildNetContext(plan, today, to);
+		} catch (e) {
+			if (!(e instanceof RangeError)) throw e;
+			netFailed = true;
+		}
+	}
 
 	// -- MISSED -- //
 
@@ -803,6 +856,9 @@ export function simulate(input: SimulateInput): Simulation {
 		let replayReceived: number | null = null;
 		let simulatedSpent: number | null = null;
 		let simulatedReceived: number | null = null;
+		/** Whether this period has a net to report (a simulated end), and whether it could be worked out. */
+		let netHere = false;
+		let netOk = false;
 
 		if (part !== 'future' && !beforeFirst) {
 			// What was recorded in the period, up to now for the period of today
@@ -851,6 +907,36 @@ export function simulate(input: SimulateInput): Simulation {
 			if (ends) {
 				simulatedEnd = totalOf(ends);
 				for (const [k, b] of ends) if (b !== null) line(k).simulated = b;
+				// The net of those same balances at the end of the period
+				netHere = true;
+				if (netCtx && !netFailed) {
+					const held = [...ends].flatMap(([k, b]) => {
+						const w = walletKeys.get(k);
+						return w && b !== null
+							? [{ accountId: w.accountId, currency: w.currency, balance: b }]
+							: [];
+					});
+					try {
+						const net = computeNetAt(netCtx, held, end);
+						for (const u of net.unmatched)
+							if (netUnmatched.size < MAX_NET_NAMES) netUnmatched.add(u.label);
+						for (const nw of net.wallets) {
+							const l = line(key(nw.accountId, nw.currency));
+							l.simulatedNet = nw.net;
+							l.simulatedHeld = nw.held;
+							l.simulatedShortfall = nw.shortfall;
+							l.simulatedSpentSetAside = nw.spentSetAside;
+							if (input.detail) {
+								l.simulatedHolds = nw.holds.slice(0, SIM_HOLDS);
+								if (nw.holds.length > SIM_HOLDS) l.simulatedHoldsMore = nw.holds.length - SIM_HOLDS;
+							}
+						}
+						netOk = true;
+					} catch (e) {
+						if (!(e instanceof RangeError)) throw e;
+						netFailed = true;
+					}
+				}
 			}
 			// Low and below in the simulated days of this period
 			const lo = start > today ? start : today;
@@ -872,6 +958,37 @@ export function simulate(input: SimulateInput): Simulation {
 					: undefined;
 		const missedHere = missedEntries.filter((m) => m.date >= start && m.date <= end);
 		if (input.detail) entries.push(...missedHere);
+		// The main-currency twin of each balance: a currency with no rate stays null (and is named in `missing`), never zero. The net total is
+		// the sum of each wallet's own converted net, so it matches the rows under it to the last unit.
+		let netEnd = 0;
+		let shortEnd = 0;
+		const wallets = [...lines.values()]
+			.filter((l) => !(l.archived && l.recorded === 0 && l.replay === 0))
+			.map((l) => {
+				const out: SimWallet = {
+					...l,
+					recordedMain: l.recorded === null ? null : inMain(l.recorded, l.currency),
+					replayMain: l.replay === null ? null : inMain(l.replay, l.currency),
+					simulatedMain: l.simulated === null ? null : inMain(l.simulated, l.currency)
+				};
+				if (netOk && l.simulatedNet !== undefined && l.simulatedNet !== null) {
+					const n = inMain(l.simulatedNet, l.currency);
+					out.simulatedNetMain = n;
+					if (n !== null) netEnd += n;
+					const s = inMain(l.simulatedShortfall ?? 0, l.currency);
+					if (s !== null) shortEnd += s;
+				}
+				return out;
+			})
+			.sort((a, b) =>
+				a.accountName < b.accountName
+					? -1
+					: a.accountName > b.accountName
+						? 1
+						: a.currency < b.currency
+							? -1
+							: 1
+			);
 		periods.push({
 			from: start,
 			to: end,
@@ -900,24 +1017,10 @@ export function simulate(input: SimulateInput): Simulation {
 			spanSpent: spanSum ? spanSum.spent : null,
 			spanReceived: spanSum ? spanSum.received : null,
 			spanLeftOut: spanSum ? spanSum.left : [],
-			wallets: [...lines.values()]
-				.filter((l) => !(l.archived && l.recorded === 0 && l.replay === 0))
-				// The main-currency twin of each balance: a currency with no rate stays null (and is named in `missing`), never zero
-				.map((l) => ({
-					...l,
-					recordedMain: l.recorded === null ? null : inMain(l.recorded, l.currency),
-					replayMain: l.replay === null ? null : inMain(l.replay, l.currency),
-					simulatedMain: l.simulated === null ? null : inMain(l.simulated, l.currency)
-				}))
-				.sort((a, b) =>
-					a.accountName < b.accountName
-						? -1
-						: a.accountName > b.accountName
-							? 1
-							: a.currency < b.currency
-								? -1
-								: 1
-				)
+			...(netHere
+				? { simulatedNetEnd: netOk ? netEnd : null, simulatedShortfallEnd: netOk ? shortEnd : null }
+				: {}),
+			wallets
 		});
 		start = addDays(end, 1);
 	}
@@ -1015,7 +1118,16 @@ export function simulate(input: SimulateInput): Simulation {
 			a.first < b.first ? -1 : a.first > b.first ? 1 : 0
 		),
 		notes,
-		missing: [...missing].sort()
+		missing: [...missing].sort(),
+		...(future
+			? {
+					net: {
+						failed: netFailed,
+						unmatched: [...netUnmatched].sort(),
+						broken: (netCtx?.broken ?? []).slice(0, MAX_NET_NAMES).map((b) => b.ruleLabel)
+					}
+				}
+			: {})
 	};
 }
 

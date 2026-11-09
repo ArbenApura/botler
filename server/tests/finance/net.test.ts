@@ -6,7 +6,7 @@ import type { PlanData, PlanRule } from '../../src/lib/finance/planFlows';
 // -- DEP-MODULES -- //
 import { describe, expect, it } from 'vitest';
 // -- MODULES -- //
-import { computeNet, nextPayday } from '../../src/lib/finance/net';
+import { buildNetContext, computeNet, computeNetAt, nextPayday } from '../../src/lib/finance/net';
 import { NET, RENT, plan as rawPlan } from './planFixture';
 
 // -- CONSTANTS -- //
@@ -288,5 +288,120 @@ describe('net balance', () => {
 			expect(w?.net).toBeLessThanOrEqual(Math.max(balance, 0));
 			expect(w?.held).toBe(w?.holds.reduce((n, h) => n + h.amount, 0));
 		}
+	});
+});
+
+// -- NET AT A SIMULATED DAY (BTL-20261109-0230) -- //
+
+describe('net at a simulated day', () => {
+	const at = (p: PlanData, w: ReturnType<typeof wallet>[], asOf: string, last = asOf) =>
+		computeNetAt(buildNetContext(p, TODAY, last < asOf ? asOf : last), w, asOf);
+	const whatIf = (over: Partial<NonNullable<PlanData['whatIf']>> = {}) => ({
+		skip: new Set<string>(),
+		billAmounts: new Map<string, number>(),
+		delayDays: 0,
+		deferDeferrable: false,
+		extra: [],
+		...over
+	});
+	const withRule = (p: PlanData, over: Partial<PlanRule> = {}) =>
+		plan({ rules: [...p.rules, { ...SAVES_FOR_NET, ...over }], settled: p.settled });
+
+	it('equals the net of today on a day with no bill and no pay, whatever the rules set aside', () => {
+		const p = withRule(plan());
+		for (const balance of [0, 700_000, 2_000_000, 9_000_000]) {
+			const now = computeNet(p, [wallet('gcash', balance), wallet('save', 5)], TODAY);
+			const sim = at(p, [wallet('gcash', balance), wallet('save', 5)], TODAY);
+			expect(sim.wallets).toEqual(now.wallets);
+			expect(sim.until).toBe(now.until);
+		}
+	});
+
+	it('treats the bills and the pay dated on the day as done: the next payday and the held bills start after it', () => {
+		const p = plan();
+		const sim = at(p, [wallet('gcash', 5_000_000)], '2026-01-15');
+		// The rent of the 5th was paid by the simulation, the pay of the 15th arrived, the Internet bill of the 20th is before the 30th
+		expect(sim.until).toBe('2026-01-30');
+		expect(gcash(sim)?.holds.map((h) => h.label)).toEqual(['Internet']);
+		// The net of today read on that date would hold the unpaid rent as late and take the 15th as the horizon
+		expect(gcash(computeNet(p, [wallet('gcash', 5_000_000)], '2026-01-15'))?.holds[0]?.label).toBe(
+			'Rent'
+		);
+	});
+
+	it('counts the pays up to and including the day for a rule, and none after it', () => {
+		const p = withRule(plan(), { fundsBillId: 'rent' });
+		const rule = (day: string) =>
+			gcash(at(p, [wallet('gcash', 5_000_000)], day))?.holds.find((h) => h.kind === 'rule');
+		// Rent of 5 Feb; the last rent date was 5 Jan; the pays since are 15 Jan and 30 Jan
+		expect(rule('2026-01-14')).toBeUndefined();
+		expect(rule('2026-01-15')).toMatchObject({ amount: 100_000, dueDate: '2026-02-05' });
+		// On the 30th the rent of 5 Feb is before the next payday (13 Feb): it is held in full, so its rule holds nothing twice
+		expect(rule('2026-01-30')).toBeUndefined();
+		expect(
+			gcash(at(p, [wallet('gcash', 5_000_000)], '2026-01-30'))?.holds.map((h) => h.label)
+		).toEqual(['Rent']);
+	});
+
+	it('holds a bill the day before it is due and not on its own day', () => {
+		const p = plan();
+		// Rent falls on 5 Jan: held on the 4th, done on the 5th (the Internet bill of the 20th is after the 15th)
+		expect(gcash(at(p, [wallet('gcash', 5_000_000)], '2026-01-04'))?.holds[0]?.label).toBe('Rent');
+		expect(gcash(at(p, [wallet('gcash', 5_000_000)], '2026-01-05'))?.holds).toEqual([]);
+	});
+
+	it('follows the what-if: a skipped payday moves the horizon, a delay moves a bill across the day, a forced amount replaces the amount', () => {
+		const base = plan();
+		const skipped = plan({ whatIf: whatIf({ skip: new Set(['pay|2026-01-15']) }) });
+		expect(at(skipped, [wallet('gcash', 5_000_000)], '2026-01-02').until).toBe('2026-01-30');
+		expect(
+			gcash(at(skipped, [wallet('gcash', 5_000_000)], '2026-01-02'))?.holds.map((h) => h.label)
+		).toEqual(['Rent', 'Internet']);
+		expect(
+			gcash(at(base, [wallet('gcash', 5_000_000)], '2026-01-02'))?.holds.map((h) => h.label)
+		).toEqual(['Rent']);
+		// 12 days late: the rent of the 5th is due on the 17th, after the 15th, so it is held when the 15th is done
+		const late = plan({ whatIf: whatIf({ delayDays: 12 }) });
+		expect(gcash(at(late, [wallet('gcash', 5_000_000)], '2026-01-15'))?.holds[0]).toMatchObject({
+			label: 'Rent',
+			dueDate: '2026-01-17'
+		});
+		const forced = plan({ whatIf: whatIf({ billAmounts: new Map([['rent', 2_000_000]]) }) });
+		expect(gcash(at(forced, [wallet('gcash', 5_000_000)], '2026-01-02'))?.held).toBe(2_000_000);
+	});
+
+	it('still finds the bills of a day more than 400 days out', () => {
+		const sim = at(plan(), [wallet('gcash', 5_000_000)], '2027-06-02');
+		expect(sim.until).toBe('2027-06-15');
+		expect(gcash(sim)?.holds).toEqual([
+			{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2027-06-05' }
+		]);
+	});
+
+	it('keeps a goal wallet whole, names a bill with no wallet and leaves out an archived account', () => {
+		const p = plan();
+		expect(at(p, [wallet('save', 300_000)], '2026-01-02').wallets[0]).toMatchObject({
+			net: 0,
+			held: 300_000
+		});
+		expect(at(p, [wallet('rcbc', 1)], '2026-01-02').unmatched).toEqual([
+			{ accountId: 'gcash', currency: 'PHP', label: 'Rent', amount: RENT, dueDate: '2026-01-05' }
+		]);
+		const archived = {
+			...p,
+			accounts: p.accounts.map((a) => (a.id === 'gcash' ? { ...a, archived: true } : a))
+		};
+		expect(at(archived, [wallet('gcash', 1)], '2026-01-02').unmatched).toEqual([]);
+	});
+
+	it('does not hold a bill with no amount yet, and names a rule that cannot save for it once in the context', () => {
+		const base = plan();
+		const unknown = {
+			...base,
+			bills: base.bills.map((b) => (b.id === 'rent' ? { ...b, usualAmount: null } : b))
+		};
+		expect(gcash(at(unknown, [wallet('gcash', 2_000_000)], '2026-01-02'))?.held).toBe(0);
+		const broken = withRule(base, { mode: 'rest', amount: null });
+		expect(buildNetContext(broken, TODAY, '2026-03-01').broken).toHaveLength(1);
 	});
 });

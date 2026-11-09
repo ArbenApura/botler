@@ -5407,6 +5407,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simGroupOther => 'Other';
 
   @override
+  String get simHeldTitle => 'What is held';
+
+  @override
   String get simHidden => 'hidden';
 
   @override
@@ -5415,7 +5418,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simInfoChart =>
-      'One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero.';
+      'One point for each period. A solid line was recorded, a dashed line is an estimate or a replay of your plan. Tap or drag to pick a period. A ring marks a period that goes low or below zero. The chart always shows balances as counted; net is in the numbers under it.';
 
   @override
   String get simInfoChartTitle => 'The chart';
@@ -5430,6 +5433,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get simInfoIntro =>
       'Pick any day, week, month or year, up to 5 years back or ahead, to see what your accounts held or will hold. Anything after today is an estimate from today\'s balances and your plan, never real money.';
+
+  @override
+  String get simInfoNet =>
+      'What is left of an account at the end of an estimated period, after the bills due before the next payday, the money your payday rules set aside for later bills and the money kept for a goal. The past has no net, because what was held then was never recorded. Turn it on or off with Show net balance on Accounts.';
+
+  @override
+  String get simInfoNetTitle => 'Net at the end';
 
   @override
   String get simInfoTags =>
@@ -5500,6 +5510,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String simMoveTo(String account) {
     return 'to $account';
   }
+
+  @override
+  String get simNetEnd => 'Net at the end';
+
+  @override
+  String get simNetMissing =>
+      'Net is not available for this period. Balances are shown as counted.';
+
+  @override
+  String simNetMixed(String date) {
+    return 'Net on $date, not today.';
+  }
+
+  @override
+  String get simNetPast =>
+      'Net is not recorded for the past, so only balances are shown.';
 
   @override
   String get simNoEntries => 'Nothing in this period.';

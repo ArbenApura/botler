@@ -51,6 +51,9 @@ export type SimulationView = Omit<Simulation, 'notes'> & {
 		recorded: number | null;
 		replay: number | null;
 		simulated: number | null;
+		/** The net at the end of a simulated or mixed period, in the main currency; absent for a past period. */
+		net?: number | null;
+		shortfall?: number | null;
 		gap: number | null;
 		missed: number;
 		/** What was spent and received by source; a source the period has nothing for is left out to keep the summary short. */
@@ -63,6 +66,10 @@ export type SimulationView = Omit<Simulation, 'notes'> & {
 
 /** How far back and ahead of today a range may reach: 5 years each way. */
 export const REACH_DAYS = 1827;
+
+/** How the note that explains the net starts, so the assistant's short answer can find and drop it with the net. */
+const NET_NOTE_START = 'Net';
+const NET_NOTE = `${NET_NOTE_START} (simulatedNetEnd`;
 
 /** A detail view (every entry) covers at most a year. */
 export const MAX_DETAIL_DAYS = 366;
@@ -375,6 +382,29 @@ export async function balanceSimulate(ctx: Ctx, raw: unknown): Promise<Simulatio
 	if (gathered.status.stale)
 		notes.push('The exchange rates are older than a day; the totals use the stored ones.');
 	notes.push('Totals of other currencies, past and future, use the latest stored exchange rates.');
+	if (result.net) {
+		notes.push(
+			`${NET_NOTE}, and simulatedNet on a wallet) is what is left at the END of a simulated period after the bills due before the next payday, the rules' set-asides and goal money. A past period has none.`
+		);
+		// Every net note starts with NET_NOTE_START, so the assistant's short answer can drop them all together with the net
+		if (result.net.failed)
+			notes.push(
+				`${NET_NOTE_START} could not be worked out because a stored schedule or amount could not be read. Balances are unchanged.`
+			);
+		if (result.net.unmatched.length > 0)
+			notes.push(
+				`${NET_NOTE_START}: no wallet holds ${result.net.unmatched.join(', ')} in the bill's currency, so it is in no net.`
+			);
+		if (result.net.broken.length > 0)
+			notes.push(
+				`${NET_NOTE_START}: ${result.net.broken.join(', ')} cannot save for its bill, so it sets nothing aside.`
+			);
+		// Only a payday still to come matters: a net is worked out for simulated periods
+		if (result.notes.some((n) => n.kind !== 'shortfall' && n.payday >= today))
+			notes.push(
+				`${NET_NOTE_START} after a payday whose split could not be worked out can read low: it moved no money, but a rule's set-aside is still counted for it.`
+			);
+	}
 	if (applied.changes > 0)
 		notes.push(
 			`A what-if with ${applied.changes} change${applied.changes > 1 ? 's' : ''} is on: it changes the replay and the simulation, never what was recorded, and nothing is saved.`
@@ -424,7 +454,16 @@ export function forAgent(full: SimulationView): SimulationView {
 			spanSource: undefined,
 			spanSpent: undefined,
 			spanReceived: undefined,
-			spanLeftOut: undefined
+			spanLeftOut: undefined,
+			// A wallet keeps only its net and shortfall: the held amount is the balance less the net, and the holds are the app's detail
+			wallets: p.wallets.map((w) => ({
+				...w,
+				simulatedHeld: undefined,
+				simulatedSpentSetAside: undefined,
+				simulatedNetMain: undefined,
+				simulatedHolds: undefined,
+				simulatedHoldsMore: undefined
+			}))
 		}))
 	};
 	const fits = (v: SimulationView) => JSON.stringify(v).length <= MAX_AGENT_CHARS;
@@ -449,13 +488,21 @@ export function forAgent(full: SimulationView): SimulationView {
 	if (fits(v)) return v;
 	v = { ...v, walletsOmitted: true, periods: v.periods.map((p) => ({ ...p, wallets: [] })) };
 	if (fits(v)) return v;
-	// Last: each period's end totals only, by source
-	v = {
+	// Last: each period's end totals only, by source. The net rides along when it fits; a range that was answerable before the net existed
+	// stays answerable, with the net left out and said so, never an error because of it.
+	const summaryOf = (withNet: boolean, say: boolean): SimulationView => ({
 		...v,
 		warnings: v.warnings.slice(0, 5),
 		unknown: v.unknown.slice(0, 5),
 		detailsOmitted: true,
-		notes: [...v.notes, 'Each period is in summary: its end totals by source.'],
+		net: withNet ? v.net : undefined,
+		notes: [
+			...(withNet ? v.notes : v.notes.filter((n) => !n.startsWith(NET_NOTE_START))),
+			'Each period is in summary: its end totals by source.',
+			...(say
+				? [`${NET_NOTE_START} left out here to keep the answer short: ask for fewer periods.`]
+				: [])
+		],
 		periods: [],
 		summary: v.periods.map((p) => ({
 			from: p.from,
@@ -464,13 +511,22 @@ export function forAgent(full: SimulationView): SimulationView {
 			recorded: p.recordedEnd,
 			replay: p.replayEnd,
 			simulated: p.simulatedEnd,
+			...(withNet && p.simulatedNetEnd !== undefined ? { net: p.simulatedNetEnd } : {}),
 			gap: p.gap,
 			missed: p.missed,
 			spent: bySource(p.recordedSpent, p.replaySpent, p.simulatedSpent),
 			received: bySource(p.recordedReceived, p.replayReceived, p.simulatedReceived)
 		}))
-	};
-	if (fits(v)) return v;
+	});
+	// With the net; without it and saying so; without it and saying nothing (exactly the answer there was before the net)
+	for (const [withNet, say] of [
+		[true, false],
+		[false, true],
+		[false, false]
+	] as const) {
+		const last = summaryOf(withNet, say);
+		if (fits(last)) return last;
+	}
 	throw new OpsError(
 		'INVALID',
 		'That range is too long to answer at once: ask for fewer periods (group by year, or a shorter range).'

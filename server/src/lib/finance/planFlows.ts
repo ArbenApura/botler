@@ -289,8 +289,22 @@ export function placeBills(
 /** The latest of some dates. */
 const latest = (...dates: ManilaDate[]): ManilaDate => dates.reduce((a, b) => (a > b ? a : b));
 
+/** Every payday of every income near a range, for deferring a bill to the next one. Empty unless the what-if defers bills. */
+export function deferPaydays(plan: PlanData, from: ManilaDate, to: ManilaDate): ManilaDate[] {
+	if (!plan.whatIf?.deferDeferrable) return [];
+	return [
+		...new Set(
+			plan.incomes.flatMap((inc) =>
+				occurrencesBetween(inc.schedule, addDays(from, -SHIFT_REACH_DAYS), addDays(to, 800), {
+					weekend: inc.weekendRule
+				})
+			)
+		)
+	].sort();
+}
+
 /** The bill dates whose due date falls in a range, after the what-if moves them, each with the amount it will be. */
-function datedBills(
+export function datedBills(
 	plan: PlanData,
 	from: ManilaDate,
 	to: ManilaDate,
@@ -460,17 +474,7 @@ export function planFlows(plan: PlanData, opts: PlanFlowsOptions): PlanFlows {
 	const notes: PlanNote[] = [];
 
 	// Every payday of every income near the range, for deferring a bill to the next one
-	const allPaydays = plan.whatIf?.deferDeferrable
-		? [
-				...new Set(
-					plan.incomes.flatMap((inc) =>
-						occurrencesBetween(inc.schedule, addDays(from, -SHIFT_REACH_DAYS), addDays(to, 800), {
-							weekend: inc.weekendRule
-						})
-					)
-				)
-			].sort()
-		: [];
+	const allPaydays = deferPaydays(plan, from, to);
 
 	// Bills: in the future the unpaid ones, the late ones today; in a replay every date of the range
 	const billDates = replay

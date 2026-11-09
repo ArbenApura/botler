@@ -195,10 +195,20 @@ class _NetToggleLineState extends ConsumerState<NetToggleLine> {
 /// What a wallet holds back, one line each: the bill and its date, the rule saving for a bill, the goal. One line (the net now) until the
 /// person opens it, and the list inside is bounded and scrolls, so it never pushes the entries off a small screen.
 class NetHolds extends StatelessWidget {
-  const NetHolds({required this.wallet, required this.currency, super.key});
+  const NetHolds({
+    required this.wallet,
+    required this.currency,
+    this.title,
+    this.subtitle,
+    super.key,
+  });
 
   final Json wallet;
   final String currency;
+
+  /// The words on the left of the tile; "Net now" when left out. Time travel names the account and says "Net at the end" under it.
+  final String? title;
+  final String? subtitle;
 
   /// The most height the opened list takes.
   static const double _maxListHeight = 160;
@@ -244,7 +254,19 @@ class NetHolds extends StatelessWidget {
       title: Row(
         children: <Widget>[
           Expanded(
-            child: Text(t.netNetNow, style: TextStyle(color: c.muted)),
+            child: subtitle == null
+                ? Text(title ?? t.netNetNow, style: TextStyle(color: c.muted))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(title ?? t.netNetNow),
+                      Text(
+                        subtitle ?? '',
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: c.muted),
+                      ),
+                    ],
+                  ),
           ),
           Amount(
             net,

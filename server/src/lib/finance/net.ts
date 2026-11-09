@@ -24,7 +24,7 @@ import type { PlanData } from './planFlows';
 import { billOccurrences } from './billWindows';
 import { addDays } from './dates';
 import { reservedFor } from './funding';
-import { OVERDUE_DAYS, planLinks, recordedPays } from './planFlows';
+import { OVERDUE_DAYS, datedBills, deferPaydays, planLinks, recordedPays } from './planFlows';
 import { occurrencesBetween } from './schedule';
 
 // -- TYPES -- //
@@ -202,13 +202,23 @@ export function computeNet(
 			push(rules, key, { kind: 'rule', label: l.ruleLabel, amount: set, dueDate: next.dueDate });
 	}
 
+	return { wallets: settle(plan, wallets, bills, rules), unmatched, notes, until };
+}
+
+/** What each wallet holds back and what is left, once the holds are found. The one place the net, the shortfall and the goal rule are worked out. */
+function settle(
+	plan: PlanData,
+	wallets: readonly NetWalletInput[],
+	bills: Record<string, NetHold[]>,
+	rules: Record<string, NetHold[]>
+): NetWallet[] {
 	const goalAccounts = new Set(plan.goals.map((g) => g.accountId));
 	const goalName = (accountId: string) =>
 		plan.goals
 			.filter((g) => g.accountId === accountId)
 			.map((g) => g.name)
 			.join(', ');
-	const out: NetWallet[] = wallets.map((w) => {
+	return wallets.map((w) => {
 		const key = keyOf(w.accountId, w.currency);
 		const byDate = (a: NetHold, b: NetHold) => (a.dueDate ?? '').localeCompare(b.dueDate ?? '');
 		const dueHolds = [...(bills[key] ?? [])].sort(byDate);
@@ -238,5 +248,123 @@ export function computeNet(
 			spentSetAside: Math.min(ruleSum, Math.max(0, ruleSum - Math.max(0, own - dueSum)))
 		};
 	});
-	return { wallets: out, unmatched, notes, until };
+}
+
+// -- NET AT A SIMULATED DAY -- //
+// The simulation (finance/simulate.ts) has already paid every bill dated up to a day and received every pay up to it, so its balance at the end
+// of that day is read on a clock that starts after the day (BTL-20261109-0230): the next payday is the first after it, the held bills are those
+// dated after it and before that payday, and a rule has set aside the pays up to and including it. Bills are dated by the same function the
+// simulation's flows use (planFlows.ts datedBills), so a what-if delay, a deferral, a forced amount and a skipped payday all agree with the
+// balance. Everything that does not depend on the day is worked out once (buildNetContext) and shared by every period end.
+
+/** What the net at any simulated day needs from the plan, worked out once for a range. */
+export type NetContext = {
+	plan: PlanData;
+	/** Unpaid bill dates from today to the horizon, after the what-if. */
+	bills: DueBill[];
+	/** Paydays that bring money (an amount above zero, what-if skips left out), sorted. */
+	paydays: ManilaDate[];
+	/** The rules that save for a bill, with every date of that bill around the range. */
+	links: { link: ReturnType<typeof planLinks>['links'][number]; dates: DueBill[] }[];
+	/** Rules that point at a bill but cannot save for it, and why: say it once for the range. */
+	broken: ReturnType<typeof planLinks>['broken'];
+	active: ReadonlySet<string>;
+};
+
+/** Builds the shared part for days from `today` to `last`. Throws only on a bad schedule (a RangeError). */
+export function buildNetContext(plan: PlanData, today: ManilaDate, last: ManilaDate): NetContext {
+	const hi = addDays(last, 400);
+	const skip = plan.whatIf?.skip ?? new Set<string>();
+	const paydays = [
+		...new Set(
+			plan.incomes
+				.filter((i) => (i.expectedAmount ?? 0) > 0)
+				.flatMap((i) =>
+					occurrencesBetween(i.schedule, addDays(today, -800), hi, {
+						weekend: i.weekendRule
+					}).filter((d) => !skip.has(`${i.id}|${d}`))
+				)
+		)
+	].sort();
+	const deferral = deferPaydays(plan, today, hi);
+	const bills = datedBills(plan, today, hi, deferral).filter((b) => !b.paid);
+	const { links, broken } = planLinks(plan);
+	const linked = links.flatMap((link) => {
+		const b = plan.bills.find((x) => x.id === link.billId);
+		if (!b) return [];
+		return [
+			{
+				link,
+				dates: datedBills({ ...plan, bills: [b] }, addDays(today, -400), hi, deferral)
+			}
+		];
+	});
+	return {
+		plan,
+		bills,
+		paydays,
+		links: linked,
+		broken,
+		active: new Set(plan.accounts.filter((a) => !a.archived).map((a) => a.id))
+	};
+}
+
+/**
+ * What each wallet holds back at the end of `asOf` (a day from today on), given its balance then. The bills with no amount yet are the
+ * simulation's `unknown` list, so they are not repeated here, and the broken links are in the context.
+ */
+export function computeNetAt(
+	ctx: NetContext,
+	wallets: readonly NetWalletInput[],
+	asOf: ManilaDate
+): NetResult {
+	const { plan } = ctx;
+	const until = ctx.paydays.find((p) => p > asOf) ?? addDays(asOf, NO_PAYDAY_DAYS);
+	const walletKeys = new Set(wallets.map((w) => keyOf(w.accountId, w.currency)));
+	const bills: Record<string, NetHold[]> = {};
+	const rules: Record<string, NetHold[]> = {};
+	const unmatched: NetUnmatched[] = [];
+	const push = (into: Record<string, NetHold[]>, key: string, hold: NetHold) => {
+		(into[key] ??= []).push(hold);
+	};
+	const dueIds = new Set<string>();
+	for (const b of ctx.bills) {
+		if (b.dueDate <= asOf || b.dueDate >= until || !ctx.active.has(b.accountId)) continue;
+		// As in the net of today, a bill due before the payday is "due" for its rule whether or not it has an amount or a wallet
+		dueIds.add(b.billId);
+		if (b.amount === null || b.unknownAmount || b.amount <= 0) continue;
+		const key = keyOf(b.accountId, b.currency);
+		if (!walletKeys.has(key)) {
+			unmatched.push({
+				accountId: b.accountId,
+				currency: b.currency,
+				label: b.name,
+				amount: b.amount,
+				dueDate: b.dueDate
+			});
+			continue;
+		}
+		push(bills, key, { kind: 'bill', label: b.name, amount: b.amount, dueDate: b.dueDate });
+	}
+	// What a linked rule has set aside for a bill that is not held in full above
+	for (const { link: l, dates } of ctx.links) {
+		if (!ctx.active.has(l.accountId)) continue;
+		const next = dates.find((d) => d.dueDate > asOf);
+		if (!next) continue;
+		if (next.dueDate < until && dueIds.has(next.billId)) continue;
+		const previous = [...dates].reverse().find((d) => d.dueDate < next.dueDate);
+		const since = previous ? addDays(previous.dueDate, 1) : l.effectiveFrom;
+		const set = reservedFor(
+			l,
+			next.amount ?? 0,
+			previous?.dueDate ?? null,
+			ctx.paydays.filter((p) => p >= since && p <= asOf),
+			addDays(asOf, 1),
+			next.paid
+		);
+		const key = keyOf(l.accountId, plan.main);
+		if (set > 0 && walletKeys.has(key))
+			push(rules, key, { kind: 'rule', label: l.ruleLabel, amount: set, dueDate: next.dueDate });
+	}
+	return { wallets: settle(plan, wallets, bills, rules), unmatched, notes: [], until };
 }

@@ -18,6 +18,7 @@ import '../../theme/theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import '../calendar/calendar_data.dart';
+import '../money/net_parts.dart';
 import 'simulate_data.dart';
 import '../../core/clock.dart';
 
@@ -239,6 +240,7 @@ Future<void> showSimInfo(BuildContext context) => showFormSheet<void>(
       children: <Widget>[
         Text(t.simInfoIntro),
         item(t.simInfoChartTitle, t.simInfoChart),
+        item(t.simInfoNetTitle, t.simInfoNet),
         item(t.simInfoTagsTitle, t.simInfoTags),
         item(t.simInfoGapTitle, t.simInfoGap),
         item(t.simInfoWarnTitle, t.simInfoWarn),
@@ -536,6 +538,7 @@ class HeadlineTotal extends StatelessWidget {
     required this.source,
     this.amount,
     this.reason,
+    this.sub,
     super.key,
   });
 
@@ -545,6 +548,9 @@ class HeadlineTotal extends StatelessWidget {
   /// Null when there is nothing to total: [reason] says why.
   final int? amount;
   final String? reason;
+
+  /// A quiet line under the amount (the balance as counted under a net).
+  final String? sub;
 
   @override
   Widget build(BuildContext context) {
@@ -573,6 +579,11 @@ class HeadlineTotal extends StatelessWidget {
                 Text(
                   reason ?? context.t.simNoTotal,
                   style: theme.titleMedium?.copyWith(color: c.muted),
+                ),
+              if (value != null && sub != null)
+                Text(
+                  sub ?? '',
+                  style: TextStyle(color: c.muted, fontFeatures: tabular),
                 ),
             ],
           ),
@@ -1247,11 +1258,15 @@ class WalletsCard extends StatelessWidget {
   const WalletsCard({
     required this.period,
     required this.mainCurrency,
+    this.net = false,
     super.key,
   });
 
   final SimPeriod period;
   final String mainCurrency;
+
+  /// The person chose Show net balance: a simulated wallet that has a net leads with it and shows the balance as counted beneath.
+  final bool net;
 
   @override
   Widget build(BuildContext context) {
@@ -1286,6 +1301,7 @@ class WalletsCard extends StatelessWidget {
             _AccountBlock(
               wallets: wallets,
               past: past,
+              net: net && !past,
               source: source,
               mainCurrency: mainCurrency,
               hiddenWord: t.simHidden,
@@ -1303,6 +1319,7 @@ class _AccountBlock extends StatelessWidget {
   const _AccountBlock({
     required this.wallets,
     required this.past,
+    required this.net,
     required this.source,
     required this.mainCurrency,
     required this.hiddenWord,
@@ -1313,6 +1330,9 @@ class _AccountBlock extends StatelessWidget {
 
   final List<SimWallet> wallets;
   final bool past;
+
+  /// Net leads for the wallets that have one (never for the past).
+  final bool net;
   final SimSource source;
   final String mainCurrency;
   final String hiddenWord;
@@ -1347,33 +1367,81 @@ class _AccountBlock extends StatelessWidget {
           spacing: gapS,
           children: <Widget>[
             for (final w in wallets) ...<Widget>[
-              Text(
-                context.moneyIn(w.amountFor(past: past) ?? 0, w.currency),
-                style: TextStyle(
-                  fontFeatures: tabular,
-                  color: (w.amountFor(past: past) ?? 0) < 0
-                      ? c.danger
-                      : source == SimSource.recorded
-                      ? c.ink
-                      : c.info,
+              // A wallet with a net leads with it: the net, the balance as counted when it differs, then what a due bill lacks
+              if (net && w.hasNet)
+                NetAmount(
+                  wallet: w.netJson,
+                  currency: w.currency,
+                  style: TextStyle(color: c.info),
+                )
+              else
+                Text(
+                  context.moneyIn(w.amountFor(past: past) ?? 0, w.currency),
+                  style: TextStyle(
+                    fontFeatures: tabular,
+                    color: (w.amountFor(past: past) ?? 0) < 0
+                        ? c.danger
+                        : source == SimSource.recorded
+                        ? c.ink
+                        : c.info,
+                  ),
                 ),
-              ),
-              // A foreign wallet: what it comes to in the main currency, or that it has no rate
+              // A foreign wallet: what it comes to in the main currency (of the net when that leads), or that it has no rate
               if (w.currency != mainCurrency && w.mainKnown)
                 Text(
-                  switch (w.mainFor(past: past)) {
+                  switch (w.mainLead(past: past, net: net)) {
                     final int m => aboutOf(context.moneyMain(m)),
                     null => noRateWord,
                   },
                   style: TextStyle(
                     fontFeatures: tabular,
-                    color: w.noRate(past: past) ? c.warning : c.muted,
+                    color: w.mainLead(past: past, net: net) == null
+                        ? c.warning
+                        : c.muted,
                   ),
                 ),
             ],
           ],
         ),
       ],
+    );
+  }
+}
+
+/// What is held at the end of a simulated period, wallet by wallet: the bills due before the next payday, what the rules set aside and
+/// the goal, in the words and order of the Accounts screen (NetHolds). Only the one-period detail answer carries the holds; nothing is
+/// drawn when no wallet holds anything or the setting is off.
+class HeldCard extends StatelessWidget {
+  const HeldCard({required this.period, super.key});
+
+  final SimPeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final held = <SimWallet>[
+      for (final w in period.wallets)
+        if (w.hasNet && w.holds.isNotEmpty) w,
+    ];
+    if (period.part == SimPart.past || held.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return PaperCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(t.simHeldTitle, style: Theme.of(context).textTheme.titleSmall),
+          for (var i = 0; i < held.length; i++) ...<Widget>[
+            if (i > 0) const Divider(),
+            NetHolds(
+              wallet: held[i].netJson,
+              currency: held[i].currency,
+              title: held[i].accountName,
+              subtitle: t.simNetEnd,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

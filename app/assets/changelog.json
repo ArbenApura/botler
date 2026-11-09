@@ -768,5 +768,17 @@
     "fil": [
       "May pantay nang espasyo sa itaas at ibaba ang Stop button sa status bar, at wala na ang gumagalaw na linya sa ilalim, kaya mas kalmado itong tingnan at tugma sa kahon ng mensahe."
     ]
+  },
+  {
+    "versionCode": 68,
+    "versionName": "1.9.0",
+    "en": [
+      "Time travel now shows your net balance for estimated periods: what is left after the bills due before the next payday, the money your payday rules set aside and the money kept for goals. It follows the Show net balance setting, and a new \"What is held\" card lists what is held.",
+      "Time travel now opens on the Week tab."
+    ],
+    "fil": [
+      "Ipinapakita na ng Time travel ang net na balanse para sa mga tinantyang panahon: ang natitira pagkatapos ng mga bayarin na due bago ang susunod na sahod, ng perang itinabi ng mga payday rule mo at ng perang nakalaan para sa goal. Sumusunod ito sa setting na Ipakita ang net na balanse, at may bagong card na \"Ano ang nakalaan\" na naglilista ng mga nakalaan.",
+      "Sa Week tab na ngayon nagbubukas ang Time travel."
+    ]
   }
 ]

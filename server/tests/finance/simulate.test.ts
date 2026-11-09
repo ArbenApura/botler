@@ -12,7 +12,7 @@ import { convert } from '../../src/lib/finance/fx';
 import { planFlows } from '../../src/lib/finance/planFlows';
 import { applyScenario } from '../../src/lib/finance/scenario';
 import { MAX_ENTRIES, simulate } from '../../src/lib/finance/simulate';
-import { forAgent } from '../../src/lib/server/ops/simulate';
+import { forAgent, MAX_AGENT_CHARS } from '../../src/lib/server/ops/simulate';
 import { GOAL_PER_PAY, NET, PAY, plan, RENT } from './planFixture';
 
 // -- CONSTANTS -- //
@@ -884,5 +884,152 @@ describe('entries in one order, and in bulk', () => {
 		expect(total).toBe(p.recordedSpent);
 		expect(out.entries).toHaveLength(500);
 		expect(out.entriesOmitted).toBeGreaterThanOrEqual(4_000 - 500);
+	});
+});
+
+// -- NET AT THE END OF A SIMULATED PERIOD (BTL-20261109-0230) -- //
+
+describe('net of the simulated balance', () => {
+	const walletOf = (p: ReturnType<typeof month>, id: string) =>
+		p.wallets.find((w) => w.accountId === id);
+	const whatIf = (over: Partial<NonNullable<PlanData['whatIf']>> = {}) => ({
+		skip: new Set<string>(),
+		billAmounts: new Map<string, number>(),
+		delayDays: 0,
+		deferDeferrable: false,
+		extra: [],
+		...over
+	});
+
+	it('gives a simulated or mixed period a net and leaves a past period without one', () => {
+		const out = sim();
+		expect(month(out, '2026-03').simulatedNetEnd).toBeUndefined();
+		expect(walletOf(month(out, '2026-03'), 'gcash')?.simulatedNet).toBeUndefined();
+		for (const ym of ['2026-06', '2026-07', '2026-12']) {
+			const p = month(out, ym);
+			expect(typeof p.simulatedNetEnd).toBe('number');
+			expect(p.simulatedNetEnd).toBeLessThanOrEqual(p.simulatedEnd ?? 0);
+		}
+		expect(out.net).toEqual({ failed: false, unmatched: [], broken: [] });
+	});
+
+	it('holds the bills due before the next payday out of the balance at the end of the month', () => {
+		// 31 July: the next payday is 14 August, and the rent of 5 August falls before it; the internet bill of the 20th does not
+		const out = sim({ from: '2026-07-01', to: '2026-07-31', detail: true });
+		const july = month(out, '2026-07');
+		const gcash = walletOf(july, 'gcash');
+		expect(gcash?.simulatedHolds).toEqual(
+			expect.arrayContaining([{ kind: 'bill', label: 'Rent', amount: RENT, dueDate: '2026-08-05' }])
+		);
+		expect(gcash?.simulatedHolds?.some((h) => h.label === 'Internet')).toBe(false);
+		const balance = gcash?.simulated ?? 0;
+		expect(gcash?.simulatedNet).toBe(Math.max(0, balance - (gcash?.simulatedHeld ?? 0)));
+		// Only the rent is due before the payday, so only it can be short
+		expect(gcash?.simulatedShortfall).toBe(Math.max(0, RENT - Math.max(balance, 0)));
+	});
+
+	it('keeps a goal wallet whole and adds the wallets net to the period total to the last unit', () => {
+		const july = month(sim(), '2026-07');
+		const goal = walletOf(july, 'save');
+		expect(goal?.simulatedNet).toBe(0);
+		expect(goal?.simulatedHeld).toBe(Math.max(goal?.simulated ?? 0, 0));
+		const sum = july.wallets.reduce((n, w) => n + (w.simulatedNetMain ?? 0), 0);
+		expect(july.simulatedNetEnd).toBe(sum);
+		const short = july.wallets.reduce((n, w) => n + (w.simulatedShortfall ?? 0), 0);
+		expect(july.simulatedShortfallEnd).toBe(short);
+	});
+
+	it('follows the what-if: a delay moves the rent past the payday, so it is not held at the end of July', () => {
+		const base = month(sim({ from: '2026-07-01', to: '2026-07-31' }), '2026-07');
+		const delayed = month(
+			sim(
+				{ from: '2026-07-01', to: '2026-07-31' },
+				realPlan({ whatIf: whatIf({ delayDays: 12 }) })
+			),
+			'2026-07'
+		);
+		// 5 August is held at 31 July; 12 days late it is the 17th, after the payday of the 14th
+		expect(walletOf(base, 'gcash')?.simulatedHeld).toBeGreaterThanOrEqual(RENT);
+		expect(walletOf(delayed, 'gcash')?.simulatedHeld).toBeLessThan(RENT);
+	});
+
+	it('leaves a currency with no rate out of the net total and names it, never counting it as zero', () => {
+		const eur = { accountId: 'save', currency: 'EUR' };
+		const out = sim({
+			wallets: [...WALLETS, eur],
+			snapshots: [
+				...SNAPSHOTS,
+				{ accountId: 'save', currency: 'EUR', amount: 10_000, takenAt: dayNoon('2026-01-02') }
+			]
+		});
+		const july = month(out, '2026-07');
+		const w = july.wallets.find((x) => x.currency === 'EUR');
+		expect(w?.simulatedNet).toBe(10_000);
+		expect(w?.simulatedNetMain).toBeNull();
+		expect(out.missing).toContain('EUR');
+		const sum = july.wallets.reduce((n, x) => n + (x.simulatedNetMain ?? 0), 0);
+		expect(july.simulatedNetEnd).toBe(sum);
+	});
+
+	it('holds no bill and no set-aside for an archived account', () => {
+		const base = realPlan();
+		const p = {
+			...base,
+			accounts: base.accounts.map((a) => (a.id === 'gcash' ? { ...a, archived: true } : a))
+		};
+		const july = month(sim({}, p), '2026-07');
+		expect(walletOf(july, 'gcash')?.simulatedHeld ?? 0).toBe(0);
+	});
+
+	it('answers a 62-day range by day and a two-year range by week, each period with its net', () => {
+		const daily = sim({ from: '2026-06-10', to: '2026-08-10', group: 'day' });
+		expect(daily.periods).toHaveLength(62);
+		expect(daily.periods.every((p) => typeof p.simulatedNetEnd === 'number')).toBe(true);
+		const started = Date.now();
+		const weekly = sim({ from: '2026-06-10', to: '2028-06-09', group: 'week' });
+		expect(weekly.periods.length).toBeGreaterThan(100);
+		expect(weekly.periods.every((p) => typeof p.simulatedNetEnd === 'number')).toBe(true);
+		expect(Date.now() - started).toBeLessThan(5_000);
+	});
+
+	it('cuts the assistant summary so the net stays while it fits and goes, with every net note, when it does not', () => {
+		const out = sim({ from: '2026-06-10', to: '2026-12-31', group: 'week' });
+		const view = (pad: number) =>
+			({
+				...out,
+				view: 'overview',
+				rates: { asOf: null, stale: false },
+				notes: [
+					'Only recorded numbers are real.',
+					'Net (simulatedNetEnd, and simulatedNet on a wallet) is what is left.',
+					"Net: no wallet holds Rent in the bill's currency, so it is in no net.",
+					'x'.repeat(pad)
+				]
+			}) as unknown as SimulationView;
+		const answers: SimulationView[] = [];
+		for (let pad = 0; pad <= 16_000; pad += 40) {
+			try {
+				answers.push(forAgent(view(pad)));
+			} catch {
+				// Too much padding even for the bare summary: the cut has nothing left to drop
+				break;
+			}
+		}
+		const withNet = answers.filter((r) => r.summary?.some((p) => p.net !== undefined));
+		const without = answers.filter((r) => r.summary?.every((p) => p.net === undefined));
+		expect(withNet.length).toBeGreaterThan(0);
+		expect(without.length).toBeGreaterThan(0);
+		for (const r of answers) expect(JSON.stringify(r).length).toBeLessThanOrEqual(MAX_AGENT_CHARS);
+		for (const r of withNet)
+			expect(r.notes.some((n) => n.startsWith('Net (simulatedNetEnd'))).toBe(true);
+		for (const r of without) {
+			expect(r.net).toBeUndefined();
+			// Every net note went with the net; at most the one short sentence saying so is left
+			expect(
+				r.notes.filter(
+					(n) => n.startsWith('Net') && !n.includes('left out here to keep the answer short')
+				)
+			).toEqual([]);
+		}
 	});
 });
