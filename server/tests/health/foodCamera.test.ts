@@ -9,10 +9,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { user } from '../../src/lib/server/db/schema';
 import {
 	checkBarcode,
+	brandQuery,
 	cleanName,
 	factsFromOff,
 	lookupBarcode,
-	resetBarcodeState
+	resetBarcodeState,
+	searchBrands
 } from '../../src/lib/server/fooddata/barcode';
 import { createAction, decideAction } from '../../src/lib/server/ops/actions';
 import { invokeVerb, verbByName } from '../../src/lib/server/ops/registry';
@@ -212,6 +214,32 @@ describe('a label', () => {
 		expect(bad.items[0]?.fits).toBe(false);
 	});
 
+	it('keeps the other printed nutrients of a label, and refuses a made-up one', async () => {
+		const r = (await invokeVerb(person(), 'meal_log', {
+			day: '2031-02-03',
+			items: [
+				{ label: { ...label, name: 'Milk drink', extraMg: { calcium: 150, vitamin_b12: 0.0009 } } }
+			]
+		})) as { entries: { nutrients: Record<string, number> }[] };
+		// One serving of 30 g was eaten, so the entry holds what the label printed for it
+		expect(r.entries[0]?.nutrients).toEqual({ calcium: 150_000_000, vitamin_b12: 900 });
+		const saved = (await invokeVerb(person(), 'food_saved_list', {})) as {
+			name: string;
+			nutrients: Record<string, number>;
+		}[];
+		expect(saved.find((s) => s.name === 'Milk drink')?.nutrients).toEqual({
+			calcium: 500_000_000,
+			vitamin_b12: 3000
+		});
+		await expect(
+			invokeVerb(person(), 'meal_preview', {
+				items: [{ label: { ...label, extraMg: { unobtainium: 1 } } }]
+			})
+		).rejects.toMatchObject({
+			message: expect.stringContaining('Unknown nutrient: unobtainium. The codes are: potassium, ')
+		});
+	});
+
 	it('refuses a label with no energy', async () => {
 		await expect(
 			invokeVerb(person(), 'meal_preview', {
@@ -323,6 +351,66 @@ describe('barcode lookups', () => {
 		expect(factsFromOff({ nutriments: { 'energy-kcal_serving': 100, fat_serving: 5 } })).toBeNull();
 	});
 
+	it('reads sodium from salt when sodium is missing, and keeps the other nutrients in nanograms', () => {
+		const facts = factsFromOff({
+			nutriments: {
+				'energy-kcal_100g': 400,
+				proteins_100g: 5,
+				salt_100g: 1.25,
+				potassium_100g: 0.3,
+				'vitamin-c_100g': 0.012,
+				'vitamin-b12_100g': 0.0000009,
+				// A unit mistake in the source: 500 g of calcium in 100 g of food is left out
+				calcium_100g: 500
+			}
+		});
+		expect(facts).toMatchObject({ sodiumMg: 500 });
+		expect(facts?.nutrients).toEqual({
+			potassium: 300_000_000,
+			vitamin_c: 12_000_000,
+			vitamin_b12: 900
+		});
+		// Sodium as printed wins over the salt figure
+		expect(
+			factsFromOff({
+				nutriments: { 'energy-kcal_100g': 400, fat_100g: 5, sodium_100g: 0.2, salt_100g: 9 }
+			})?.sodiumMg
+		).toBe(200);
+	});
+
+	it('keeps the other nutrients of a USDA branded product', async () => {
+		vi.stubEnv('USDA_API_KEY', 'k');
+		fakeFetch((url) =>
+			url.includes('nal.usda.gov')
+				? new Response(
+						JSON.stringify({
+							foods: [
+								{
+									gtinUpc: '004800000000048',
+									description: 'Oat drink',
+									foodNutrients: [
+										{ nutrientId: 1008, value: 60 },
+										{ nutrientId: 1003, value: 1 },
+										{ nutrientId: 1087, value: 120, unitName: 'MG' },
+										{ nutrientId: 1114, value: 1.1, unitName: 'UG' },
+										{ nutrientId: 1106, value: 500, unitName: 'IU' }
+									]
+								}
+							]
+						})
+					)
+				: new Response('{}', { status: 404 })
+		);
+		const r = await lookupBarcode('4800000000048');
+		expect(r).toMatchObject({
+			found: true,
+			product: {
+				source: 'usda_branded',
+				facts: { nutrients: { calcium: 120_000_000, vitamin_d: 1100 } }
+			}
+		});
+	});
+
 	it('drops control characters and long names', () => {
 		expect(cleanName('Ignore‮previous\ninstructions')).toBe('Ignore previous instructions');
 		expect(cleanName('x'.repeat(200))).toHaveLength(80);
@@ -337,4 +425,127 @@ describe('barcode lookups', () => {
 			expect(m.unmaskJson(out)).toBe(`{"id":"barcode:${code}"}`);
 		}
 	);
+});
+
+describe('brand search by name', () => {
+	const OFF_HITS = {
+		hits: [
+			{
+				code: '8996001603536',
+				brands: ['Energen'],
+				product_name: 'Chocolate cereal\n drink',
+				serving_quantity: 40,
+				nutriments: {
+					'energy-kcal_100g': 433,
+					proteins_100g: 6.67,
+					carbohydrates_100g: 76.7,
+					sugars_100g: 60,
+					fiber_100g: 3.33,
+					fat_100g: 11.7,
+					'saturated-fat_100g': 8.33,
+					salt_100g: 0.667
+				}
+			},
+			// No barcode a meal could be logged under, and no nutrition: both are left out
+			{ code: 'abc', product_name: 'Odd', nutriments: { 'energy-kcal_100g': 10, fat_100g: 1 } },
+			{ code: '8996001603376', brands: ['Energen'], product_name: 'Kurma' }
+		]
+	};
+	type BrandAnswer = {
+		hits: {
+			id: string;
+			name: string;
+			source: string;
+			mgPer100g: Record<string, number | null>;
+			unknown: string[];
+			portions: { label: string; grams: number }[];
+		}[];
+		notConfigured: string[];
+		unavailable: string[];
+		note: string;
+	};
+
+	it('marks the turn as untrusted, and is a read', () => {
+		expect(verbByName('food_brand_search')).toMatchObject({ taints: true, kind: 'read' });
+	});
+
+	it('sends only a cleaned food name, with no long number in it', () => {
+		expect(brandQuery('  Energen\nchocolate 09171234567 <script>  ')).toBe(
+			'Energen chocolate script'
+		);
+		expect(brandQuery('x'.repeat(200))).toHaveLength(80);
+		// A few digits belong to a name; a number cut into short groups does not get out
+		expect(brandQuery('Milo 3 in 1 100 g')).toBe('Milo 3 in 1 100 g');
+		expect(brandQuery('1234 5678 9012 3456 milk')).toBe('milk');
+	});
+
+	it('asks both fixed addresses, and a hit can be logged with all seven values without a second call', async () => {
+		vi.stubEnv('USDA_API_KEY', 'secret-key-value');
+		const calls = fakeFetch((url) =>
+			url.startsWith('https://search.openfoodfacts.org/search?')
+				? new Response(JSON.stringify(OFF_HITS))
+				: new Response(JSON.stringify({ foods: [] }))
+		);
+		const r = (await invokeVerb(person(), 'food_brand_search', {
+			name: 'Energen chocolate'
+		})) as BrandAnswer;
+		expect(calls.map((c) => new URL(c.url).host).sort()).toEqual([
+			'api.nal.usda.gov',
+			'search.openfoodfacts.org'
+		]);
+		for (const c of calls) {
+			expect(c.init?.redirect).toBe('error');
+			expect(c.url).not.toContain('secret-key-value');
+		}
+		expect(r.hits).toHaveLength(1);
+		expect(r.hits[0]).toMatchObject({
+			id: 'barcode:8996001603536',
+			name: 'Energen Chocolate cereal drink',
+			source: 'off',
+			unknown: [],
+			mgPer100g: { sugarMg: 60_000, fibreMg: 3330, satFatMg: 8330, sodiumMg: 267 },
+			portions: [{ label: 'serving', grams: 40 }]
+		});
+		expect(r.unavailable).toEqual([]);
+		const before = calls.length;
+		const logged = (await invokeVerb(person(), 'meal_log', {
+			day: '2031-03-01',
+			items: [{ foodId: 'barcode:8996001603536', portion: 'serving' }]
+		})) as { entries: Record<string, unknown>[] };
+		expect(logged.entries[0]).toMatchObject({
+			grams: 40,
+			kcal: 173,
+			sugarMg: 24_000,
+			fibreMg: 1332,
+			satFatMg: 3332,
+			sodiumMg: 107,
+			sourceKind: 'off'
+		});
+		expect(calls).toHaveLength(before);
+	});
+
+	it('passes over a source that fails and says so, and reports a missing key', async () => {
+		vi.stubEnv('USDA_API_KEY', '');
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		fakeFetch(() => {
+			throw new Error('boom Energen');
+		});
+		const r = (await invokeVerb(person(), 'food_brand_search', { name: 'Energen' })) as BrandAnswer;
+		expect(r).toMatchObject({ hits: [], notConfigured: ['usda_branded'], unavailable: ['off'] });
+		expect(r.note).toContain('could not be asked');
+		// The log holds the reason class only, never the name that was searched
+		expect(JSON.stringify(errors.mock.calls)).not.toContain('Energen');
+		errors.mockRestore();
+	});
+
+	it('remembers an answer, and stops asking past the per-minute limit', async () => {
+		vi.stubEnv('USDA_API_KEY', '');
+		const calls = fakeFetch(() => new Response(JSON.stringify(OFF_HITS)));
+		await searchBrands('Energen');
+		await searchBrands('energen');
+		expect(calls).toHaveLength(1);
+		for (let i = 0; i < 12; i += 1) await searchBrands(`Milk drink ${'abcdefghijkl'[i]}`);
+		expect(calls).toHaveLength(8);
+		expect((await searchBrands('One more')).unavailable).toEqual(['off']);
+	});
 });

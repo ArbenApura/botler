@@ -704,9 +704,16 @@ export const foodSearchInput = z.object({
 
 export type FoodSearchInput = z.infer<typeof foodSearchInput>;
 
+/** A packaged product looked up by name in the outside food data (BTL-20261110-1532). */
+export const foodBrandSearchInput = z.object({ name: z.string().trim().min(2).max(80) });
+
+export type FoodBrandSearchInput = z.infer<typeof foodBrandSearchInput>;
+
 /** One food of a meal: a food from a search with its amount, a marked estimate, a quick rough total, or numbers the person gave. */
 const mealItemInput = z.object({
 	foodId: z.string().min(3).max(80).optional(),
+	/** An entry already in the log, to eat the same again (BTL-20261110-1532): its stored numbers are copied, scaled when grams is given. */
+	entryId: z.string().uuid().optional(),
 	grams: gramsField.optional(),
 	lowGrams: gramsField.optional(),
 	highGrams: gramsField.optional(),
@@ -717,7 +724,12 @@ const mealItemInput = z.object({
 			name: foodNameField,
 			proteinG: z.number().min(0).max(500),
 			carbsG: z.number().min(0).max(1000),
-			fatG: z.number().min(0).max(500)
+			fatG: z.number().min(0).max(500),
+			// The other four main nutrients, when a fair estimate exists (BTL-20261110-1532). Left out means unknown, never zero
+			sugarG: z.number().min(0).max(1000).optional(),
+			fibreG: z.number().min(0).max(500).optional(),
+			satFatG: z.number().min(0).max(500).optional(),
+			sodiumMg: milligramsField.optional()
 		})
 		.optional(),
 	rough: z.object({ name: foodNameField, kcal: z.number().int().min(1).max(20_000) }).optional(),
@@ -727,7 +739,11 @@ const mealItemInput = z.object({
 			kcal: z.number().int().min(0).max(20_000),
 			proteinMg: milligramsField.optional(),
 			carbsMg: milligramsField.optional(),
-			fatMg: milligramsField.optional()
+			fatMg: milligramsField.optional(),
+			sugarMg: milligramsField.optional(),
+			fibreMg: milligramsField.optional(),
+			satFatMg: milligramsField.optional(),
+			sodiumMg: milligramsField.optional()
 		})
 		.optional(),
 	/** What a nutrition label says, on the basis it says it (one serving or 100 g). Milligrams for nutrients. */
@@ -745,7 +761,34 @@ const mealItemInput = z.object({
 			fatMg: milligramsField.optional(),
 			satFatMg: milligramsField.optional(),
 			sodiumMg: milligramsField.optional(),
+			/** The other printed nutrients on the same basis, in milligrams by the codes of health/nutrients.ts (0.0009 for 0.9 micrograms). */
+			extraMg: z.record(z.string().max(40), z.number().min(0).max(100_000)).optional(),
 			barcode: barcodeField.optional()
+		})
+		.optional(),
+	/**
+	 * What a web search found for a product, on the basis the page gave (one serving or 100 g), with the site it came from
+	 * (BTL-20261110-1532). Milligrams for nutrients. It is always a card: the person checks the numbers before they are saved.
+	 */
+	web: z
+		.object({
+			name: foodNameField,
+			host: z
+				.string()
+				.trim()
+				.toLowerCase()
+				.regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/, 'A site name')
+				.max(80),
+			basisGrams: gramsField,
+			servingG: gramsField.optional(),
+			kcal: z.number().int().min(0).max(5000),
+			proteinMg: milligramsField.optional(),
+			carbsMg: milligramsField.optional(),
+			sugarMg: milligramsField.optional(),
+			fibreMg: milligramsField.optional(),
+			fatMg: milligramsField.optional(),
+			satFatMg: milligramsField.optional(),
+			sodiumMg: milligramsField.optional()
 		})
 		.optional()
 });
@@ -776,7 +819,22 @@ export const foodEditInput = z.object({
 	kcal: z.number().int().min(0).max(20_000).optional(),
 	name: foodNameField.optional(),
 	meal: z.enum(MEAL_KINDS).optional(),
-	day: dayField.optional()
+	day: dayField.optional(),
+	/**
+	 * Values for the main nutrients this entry does not know yet, in milligrams for the amount eaten (BTL-20261110-1532).
+	 * Only an estimate, manual or rough entry takes them, and a value the entry already has is never replaced.
+	 */
+	fill: z
+		.object({
+			proteinMg: milligramsField.optional(),
+			carbsMg: milligramsField.optional(),
+			sugarMg: milligramsField.optional(),
+			fibreMg: milligramsField.optional(),
+			fatMg: milligramsField.optional(),
+			satFatMg: milligramsField.optional(),
+			sodiumMg: milligramsField.optional()
+		})
+		.optional()
 });
 
 export type FoodEditInput = z.infer<typeof foodEditInput>;

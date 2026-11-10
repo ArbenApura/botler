@@ -1,0 +1,2 @@
+ALTER TABLE "food_entry" DROP CONSTRAINT "food_entry_source_chk";--> statement-breakpoint
+ALTER TABLE "food_entry" ADD CONSTRAINT "food_entry_source_chk" CHECK ("food_entry"."source_kind" in ('usda', 'filipino', 'saved', 'off', 'usda_branded', 'label', 'estimate', 'manual', 'rough', 'web'));

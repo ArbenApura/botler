@@ -26,7 +26,7 @@ import { id, oneOf, plainTable, stamps, userTable, version } from './helpers';
 // -- CONSTANTS -- //
 
 export const MEAL_KINDS = ['breakfast', 'lunch', 'merienda', 'dinner', 'snack'] as const;
-/** Where the numbers of a food entry came from. An estimate is the model's guess of protein, carbs and fat; rough is a quick total. */
+/** Where the numbers of a food entry came from. An estimate is the model's guess of protein, carbs and fat; rough is a quick total; web is what a web search found for the product, checked by the person on a card (BTL-20261110-1532). */
 export const FOOD_SOURCES = [
 	'usda',
 	'filipino',
@@ -36,7 +36,8 @@ export const FOOD_SOURCES = [
 	'label',
 	'estimate',
 	'manual',
-	'rough'
+	'rough',
+	'web'
 ] as const;
 export const SAVED_FOOD_SOURCES = ['label', 'barcode', 'manual', 'chat'] as const;
 export const PROPOSAL_KINDS = ['target', 'week', 'review'] as const;

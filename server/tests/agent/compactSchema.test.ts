@@ -102,7 +102,8 @@ describe('compact tool schemas', () => {
 		// 34_700 since mark_from_web: it measures 34_037 and the cap keeps about 600 of margin
 		// Health adds its own tools (BTL-20261105-0015): the cap is set again with the measured size when each phase lands
 		// 45_300 since the workout, sleep, weight and check-in tools: they measure about 44_700 and the cap keeps about 600 of margin
-		expect(json.length).toBeLessThan(45_300);
+		// 47_400 since the food nutrients (BTL-20261110-1532): the web and entryId meal items, the extra fields of an estimate, a label and food_edit, and food_brand_search measure 46_809, and the cap keeps about 600 of margin
+		expect(json.length).toBeLessThan(47_400);
 	});
 
 	it('turn anyOf with null into a nullable type and drop a type beside a const', () => {

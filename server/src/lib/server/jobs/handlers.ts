@@ -15,7 +15,9 @@ import {
 	requestLog,
 	undoJournal
 } from '../db/schema';
+import { backfillFilipinoNutrients } from '../ops/food';
 import { runWeekly, runWeeklyReview } from '../ops/weight';
+import { NUTRIENT_BACKFILL_JOB } from './backfillSql';
 import { enqueue } from './queue';
 import { advancePrograms } from '../ops/workouts';
 
@@ -82,6 +84,12 @@ export const jobHandlers: Record<string, JobHandler> = {
 		const review = await runWeeklyReview(tx, job.userId, today);
 		if (target.proposed || review.proposed)
 			await enqueue(tx, { userId: job.userId, kind: 'push.health', key: job.key });
+	},
+	// A one-off fill of old Filipino-list entries (BTL-20261110-1532). Nothing schedules it: scripts/health-backfill.ts queues it once per
+	// person, on the owner's word. No model call. Counts only in the log, never a food name
+	[NUTRIENT_BACKFILL_JOB.kind]: async (job, tx) => {
+		const done = await backfillFilipinoNutrients(tx, job.userId);
+		console.log(JSON.stringify({ event: 'nutrient_backfill_done', ...done }));
 	},
 	...Object.fromEntries(RETIRED_JOB_KINDS.map((kind) => [kind, retired]))
 };

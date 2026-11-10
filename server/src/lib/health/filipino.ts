@@ -79,11 +79,67 @@ const RAW: readonly (readonly [
 	['instant_noodles', 'Instant pancit canton', ['lucky me', 'instant noodles'], 60, 10, 66, 20]
 ];
 
+/**
+ * The other four main nutrients of each dish, per 100 g: [sugar g, fibre g, saturated fat g, sodium mg] (BTL-20261110-1532).
+ * Rough estimates like the rest of the list, worked out from the usual ingredients of a home-cooked version (USDA values of the meat, rice,
+ * vegetables, oil, soy sauce, fish sauce and sugar a dish holds), so a day's sugar, fibre and sodium are not left unknown for home food.
+ * Sugar and fibre never exceed the dish's carbs and saturated fat never exceeds its fat: a test checks every row.
+ */
+const MORE: Readonly<Record<string, readonly [number, number, number, number]>> = {
+	adobo_chicken: [0.5, 0.2, 3.3, 480],
+	adobo_pork: [0.5, 0.2, 7.8, 470],
+	sinigang_pork: [1, 0.8, 1.8, 330],
+	sinigang_fish: [1, 0.8, 0.5, 320],
+	tinola: [0.8, 0.5, 1.1, 260],
+	nilaga: [1, 0.8, 2, 240],
+	bulalo: [0.8, 0.5, 3.3, 230],
+	kare_kare: [1.5, 1.5, 4, 180],
+	menudo: [2.5, 1, 3, 360],
+	afritada: [2.5, 1, 1.9, 330],
+	kaldereta: [2, 1, 4, 380],
+	mechado: [2.5, 1, 3.5, 370],
+	bistek: [1.5, 0.5, 4.2, 560],
+	lechon_kawali: [0, 0, 14, 420],
+	sisig: [0.8, 0.4, 8.5, 520],
+	pork_chop: [0, 0.1, 6.2, 380],
+	fried_chicken: [0.1, 0.3, 4, 480],
+	fried_fish: [0, 0.1, 2.3, 330],
+	tortang_talong: [2.5, 2, 2.2, 260],
+	ginisang_munggo: [1.5, 4.5, 0.8, 240],
+	pinakbet: [3, 2.2, 1.1, 380],
+	laing: [2, 3, 13, 360],
+	bicol_express: [1.5, 1, 14, 450],
+	kangkong_garlic: [1, 2, 1, 430],
+	chopsuey: [2.5, 1.8, 0.9, 340],
+	pancit_canton: [1.5, 1.5, 1.2, 480],
+	pancit_bihon: [1.2, 1.2, 0.9, 440],
+	spaghetti_pinoy: [8, 1.5, 1.8, 360],
+	lumpia_shanghai: [1.5, 1.2, 4.5, 480],
+	sinangag: [0.1, 0.5, 0.7, 250],
+	kanin: [0.1, 0.4, 0.1, 1],
+	tapsilog: [2, 0.4, 3, 360],
+	longganisa: [9, 0.2, 9.8, 820],
+	tocino: [12, 0, 5.6, 750],
+	tuyo: [0, 0, 2.4, 4500],
+	pandesal: [8, 2, 1.3, 400],
+	ensaymada: [14, 1.2, 9, 330],
+	arroz_caldo: [0.3, 0.3, 0.6, 280],
+	turon: [22, 2, 1.6, 60],
+	halo_halo: [22, 1, 2, 45],
+	taho: [10, 0.3, 0.2, 10],
+	banana_cue: [26, 2.2, 0.7, 5],
+	bibingka: [16, 0.8, 5, 300],
+	puto: [18, 0.6, 0.8, 220],
+	balut: [0.5, 0, 3.3, 120],
+	instant_noodles: [4, 2.5, 9, 1900]
+};
+
 export const FILIPINO_FOODS: readonly FilipinoFood[] = RAW.map(
 	([key, name, aliases, servingG, p, c, f]) => {
 		const proteinMg = Math.round(p * 1000);
 		const carbsMg = Math.round(c * 1000);
 		const fatMg = Math.round(f * 1000);
+		const more = MORE[key];
 		return {
 			id: `fil:${key}`,
 			name,
@@ -94,10 +150,10 @@ export const FILIPINO_FOODS: readonly FilipinoFood[] = RAW.map(
 				proteinMg,
 				carbsMg,
 				fatMg,
-				sugarMg: null,
-				fibreMg: null,
-				satFatMg: null,
-				sodiumMg: null,
+				sugarMg: more ? Math.round(more[0] * 1000) : null,
+				fibreMg: more ? Math.round(more[1] * 1000) : null,
+				satFatMg: more ? Math.round(more[2] * 1000) : null,
+				sodiumMg: more ? Math.round(more[3]) : null,
 				nutrients: {}
 			}
 		};

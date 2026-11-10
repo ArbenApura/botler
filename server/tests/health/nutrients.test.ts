@@ -225,6 +225,28 @@ describe('the Filipino list', () => {
 		}
 	});
 
+	it('knows sugar, fibre, saturated fat and sodium of every dish, within its carbs and fat', () => {
+		for (const f of FILIPINO_FOODS) {
+			const { sugarMg, fibreMg, satFatMg, sodiumMg, carbsMg, fatMg } = f.facts;
+			expect(sugarMg, f.name).not.toBeNull();
+			expect(fibreMg, f.name).not.toBeNull();
+			expect(satFatMg, f.name).not.toBeNull();
+			expect(sodiumMg, f.name).not.toBeNull();
+			expect((sugarMg ?? 0) + (fibreMg ?? 0), f.name).toBeLessThanOrEqual(carbsMg ?? 0);
+			expect(satFatMg ?? 0, f.name).toBeLessThanOrEqual(fatMg ?? 0);
+			expect(sodiumMg ?? 0, f.name).toBeLessThan(6000);
+		}
+		// Known answers, so a swapped column shows: the unit of sodium is milligrams, the others are grams turned to milligrams
+		const adobo = FILIPINO_FOODS.find((f) => f.id === 'fil:adobo_chicken');
+		expect(adobo?.facts).toMatchObject({
+			kcal: 192,
+			sugarMg: 500,
+			fibreMg: 200,
+			satFatMg: 3300,
+			sodiumMg: 480
+		});
+	});
+
 	it('finds dishes by their common names', () => {
 		for (const [word, id] of [
 			['adobo', 'fil:adobo_chicken'],

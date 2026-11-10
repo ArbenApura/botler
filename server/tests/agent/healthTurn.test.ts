@@ -11,10 +11,11 @@ import { addDays, atLocalTime, toLocalDate } from '../../src/lib/finance/dates';
 import { chat, chatTurn } from '../../src/lib/server/db/schema';
 import { withUser } from '../../src/lib/server/db/tenant';
 import { purgeOld } from '../../src/lib/server/jobs/handlers';
+import { decideAction } from '../../src/lib/server/ops/actions';
 import { activeChatId, chatList, resolveChat, touchChat } from '../../src/lib/server/ops/chats';
 import { resetBarcodeState } from '../../src/lib/server/fooddata/barcode';
 import { supersedeAndPropose } from '../../src/lib/server/ops/proposals';
-import { invokeVerb } from '../../src/lib/server/ops/registry';
+import { invokeVerb, verbByName } from '../../src/lib/server/ops/registry';
 import { SYSTEM_PREFIX } from '../../src/lib/server/agent/prompt';
 import { buildTools } from '../../src/lib/server/agent/tools';
 import { handleChat } from '../../src/lib/server/agent/chat';
@@ -93,6 +94,185 @@ describe('from plain chat', () => {
 		]);
 		await play({ f, model, text: `greens ${n}` });
 		expect((await day()).totals.kcal).toBe(86);
+	});
+});
+
+describe('the same food again (BTL-20261110-1532)', () => {
+	type Day = {
+		entries: {
+			id: string;
+			name: string;
+			grams: number | null;
+			kcal: number;
+			foodId?: string;
+			sugarMg: number | null;
+			sourceKind: string;
+		}[];
+	};
+	const dayOf = (d: string) => invokeVerb(f.ctx, 'food_day', { day: d }) as unknown as Promise<Day>;
+	let writes = 0;
+	/** The person's own write, with the request id every write needs. */
+	const write = (verb: string, args: unknown) =>
+		invokeVerb({ ...f.ctx, requestId: `req-again-${n}-${++writes}` }, verb, args);
+
+	it('repeats the entries of a day read in this message, one as it was and one with new grams', async () => {
+		f = await seedPerson(t);
+		await write('meal_log', {
+			day: '2030-03-01',
+			meal: 'dinner',
+			items: [
+				{ foodId: 'fil:adobo_chicken', grams: 200 },
+				{ estimate: { name: 'Pork hamonado', proteinG: 20, carbsG: 10, fatG: 12, sugarG: 8 } }
+			]
+		});
+		const before = await dayOf('2030-03-01');
+		expect(before.entries[0]?.foodId).toBe('fil:adobo_chicken');
+		expect(before.entries[1]?.foodId).toBeUndefined();
+		const [adobo, hamonado] = before.entries;
+		const model = stubModel([
+			call('food_day', { day: '2030-03-01' }),
+			call('meal_log', {
+				day: '2030-03-02',
+				meal: 'lunch',
+				items: [{ entryId: adobo?.id, grams: 100 }, { entryId: hamonado?.id }]
+			}),
+			reply('Logged the same.')
+		]);
+		const events = await play({ f, model, text: `same as yesterday ${n}` });
+		expect(cardEvents(events)).toHaveLength(0);
+		expect(toolEvents(events).find((e) => e.name === 'meal_log')?.status).toBe('ok');
+		const after = await dayOf('2030-03-02');
+		expect(after.entries[0]).toMatchObject({
+			name: 'Chicken adobo',
+			grams: 100,
+			kcal: 192,
+			sugarMg: 500,
+			sourceKind: 'filipino'
+		});
+		expect(after.entries[1]).toMatchObject({
+			name: 'Pork hamonado',
+			grams: null,
+			kcal: hamonado?.kcal,
+			sugarMg: 8000,
+			sourceKind: 'estimate'
+		});
+	});
+
+	it('takes the foodId of a day entry or of the saved list, and still refuses an id from nowhere', async () => {
+		f = await seedPerson(t);
+		const saved = (await write('food_save', {
+			name: 'Energen',
+			kcal: 425,
+			servingG: 40
+		})) as { id: string };
+		const model = stubModel([
+			call('food_saved_list', {}),
+			call('meal_log', { items: [{ foodId: saved.id, grams: 40 }] }),
+			// A bare id, as the model sent it in production, and an entry no food_day listed
+			call('meal_log', { items: [{ foodId: saved.id.slice('saved:'.length), grams: 40 }] }),
+			call('meal_log', { items: [{ entryId: '00000000-0000-4000-8000-000000000000' }] }),
+			reply('Done.')
+		]);
+		const events = await play({ f, model, text: `energen again ${n}` });
+		const logs = toolEvents(events).filter((e) => e.name === 'meal_log');
+		expect(logs.map((e) => e.status)).toEqual(['ok', 'error', 'error']);
+		expect(logs[1]?.message).toContain('a saved food is "saved:" and its id');
+		expect(logs[2]?.message).toContain('was not in a food_day of this message');
+		expect((await day()).entries).toHaveLength(1);
+	});
+
+	it('refuses new grams for an entry that has no weight, and an entry that is gone', async () => {
+		f = await seedPerson(t);
+		const logged = (await write('meal_log', {
+			day: '2030-03-03',
+			items: [{ rough: { name: 'Buffet', kcal: 1500 } }]
+		})) as unknown as Day;
+		const entryId = logged.entries[0]?.id ?? '';
+		await expect(
+			invokeVerb(f.ctx, 'meal_preview', { items: [{ entryId, grams: 100 }] })
+		).rejects.toMatchObject({ message: expect.stringContaining('logged without a weight') });
+		await write('food_delete', { entryId });
+		await expect(invokeVerb(f.ctx, 'meal_preview', { items: [{ entryId }] })).rejects.toMatchObject(
+			{
+				code: 'NOT_FOUND',
+				message: expect.stringContaining('not there any more')
+			}
+		);
+	});
+});
+
+describe('what the assistant is told about food numbers (BTL-20261110-1532)', () => {
+	it('gives the order of sources, asks for all seven values and keeps research to one call', () => {
+		for (const line of [
+			'give all seven values for the amount eaten (protein, carbs, fat, sugar, fibre, saturated fat, sodium)',
+			'food_brand_search with its name',
+			'one research call, depth quick',
+			'Do not run research for a food the database has',
+			'Never leave those four unknown when a hit, a label, a page or a fair estimate gives them',
+			'Printed vitamins and minerals go in extraMg by code'
+		])
+			expect(SYSTEM_PREFIX, line).toContain(line);
+	});
+
+	it('offers the brand search to the assistant', () => {
+		expect(verbByName('food_brand_search')?.agent).not.toBe(false);
+		expect(verbByName('meal_log')?.description).toContain('web {name, host, basisGrams');
+	});
+});
+
+describe('numbers from the web (BTL-20261110-1532)', () => {
+	const WEB_ITEM = {
+		web: {
+			name: 'Energen Chocolate',
+			host: 'Example.com',
+			basisGrams: 40,
+			kcal: 170,
+			proteinMg: 2000,
+			carbsMg: 31_000,
+			sugarMg: 17_000,
+			fibreMg: 2000,
+			fatMg: 4000,
+			satFatMg: 3500,
+			sodiumMg: 220
+		}
+	};
+
+	it('are always a card, also when nothing outside was read, and are stored with every value once approved', async () => {
+		f = await seedPerson(t);
+		const model = stubModel([call('meal_log', { items: [WEB_ITEM] }), reply('Check the card.')]);
+		const events = await play({ f, model, text: `log my energen ${n}` });
+		const cards = cardEvents(events);
+		expect(cards).toHaveLength(1);
+		expect(toolEvents(events).find((e) => e.name === 'meal_log')?.status).toBe('needs_approval');
+		expect(JSON.stringify(cards[0])).toContain('from a web search');
+		expect((await day()).entries).toHaveLength(0);
+		const actionId = (cards[0] as { actionId?: string }).actionId ?? '';
+		await decideAction(f.ctx, { actionId, decision: 'approve' });
+		const d = (await invokeVerb(f.ctx, 'food_day', {})) as unknown as {
+			entries: Record<string, unknown>[];
+		};
+		expect(d.entries[0]).toMatchObject({
+			name: 'Energen Chocolate',
+			grams: 40,
+			kcal: 170,
+			lowKcal: 119,
+			highKcal: 221,
+			sugarMg: 17_000,
+			fibreMg: 2000,
+			satFatMg: 3500,
+			sodiumMg: 220,
+			sourceKind: 'web',
+			byAgent: true
+		});
+	});
+
+	it('refuses a figure no food can hold', async () => {
+		f = await seedPerson(t);
+		await expect(
+			invokeVerb(f.ctx, 'meal_preview', {
+				items: [{ web: { ...WEB_ITEM.web, basisGrams: 10, kcal: 170 } }]
+			})
+		).rejects.toMatchObject({ message: expect.stringContaining('more than any food holds') });
 	});
 });
 

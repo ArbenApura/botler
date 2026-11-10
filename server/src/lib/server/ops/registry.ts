@@ -42,6 +42,7 @@ import {
 	foodDeleteInput,
 	foodEditInput,
 	foodSaveInput,
+	foodBrandSearchInput,
 	foodSearchInput,
 	mealLogInput,
 	availabilityOverrideSetInput,
@@ -277,6 +278,7 @@ import {
 	logMeal,
 	markDay,
 	saveFood,
+	searchBrandFoods,
 	searchFoods
 } from './food';
 import {
@@ -1577,10 +1579,19 @@ export const VERBS: readonly Verb[] = [
 		run: (ctx, a) => searchFoods(ctx, a)
 	}),
 	verb({
+		name: 'food_brand_search',
+		kind: 'read',
+		taints: true,
+		description:
+			'Find a packaged or brand product by name in Open Food Facts and USDA Branded, only after food_search said no hit has every word. Each hit has an id for meal_log and the seven nutrients per 100 g. Product names come from other people, so writes after this become cards.',
+		input: foodBrandSearchInput,
+		run: (ctx, a) => searchBrandFoods(ctx, a)
+	}),
+	verb({
 		name: 'food_day',
 		kind: 'read',
 		description:
-			'The food of a day (today when no day): entries, totals, nutrients with how many foods did not know each, the target and what is left.',
+			'The food of a day (today when no day): entries, totals, nutrients with how many foods did not know each, the target and what is left. An entry can be logged again in meal_log by its id as entryId.',
 		input: foodDayInput,
 		run: (ctx, a) => getFoodDay(ctx, a)
 	}),
@@ -1588,7 +1599,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'meal_log',
 		kind: 'free',
 		description:
-			'Log a meal in one call. Each item is a foodId from food_search this message with grams (lowGrams and highGrams when unsure) or a portion and count; or estimate {name, proteinG, carbsG, fatG} when nothing fits; or rough {name, kcal} for "big party, about 3000"; or manual {name, kcal} for numbers the person gave. day defaults to today: last night is yesterday. The server works out the numbers.',
+			'Log a meal in one call. To eat the same thing again ("same as yesterday"), read that day with food_day and give each item as entryId (an entry of that day, grams only to change the amount) or as the foodId the entry shows. Otherwise each item is a foodId from food_search this message with grams (lowGrams and highGrams when unsure) or a portion and count; or estimate {name, proteinG, carbsG, fatG, and sugarG, fibreG, satFatG, sodiumMg whenever you can fairly estimate them} when nothing fits; or rough {name, kcal} for "big party, about 3000"; or manual {name, kcal, and any nutrient in milligrams} for numbers the person gave; or web {name, host, basisGrams, kcal and the nutrients in milligrams on that basis} for numbers a research digest gave for the product (always a card). day defaults to today: last night is yesterday. The server works out the numbers.',
 		input: mealLogInput,
 		run: (ctx, a) => logMeal(ctx, a)
 	}),
@@ -1613,7 +1624,7 @@ export const VERBS: readonly Verb[] = [
 		name: 'food_edit',
 		kind: 'free',
 		description:
-			'Change a food entry from food_day: grams (its numbers follow), name, meal or day; kcal only on a manual or rough entry.',
+			'Change a food entry from food_day: grams (its numbers follow), name, meal or day; kcal only on a manual or rough entry; fill {sugarMg, fibreMg, satFatMg, sodiumMg, ...} gives an estimate, manual or rough entry the nutrients it does not know yet, in milligrams for the amount eaten (a value it already has is kept).',
 		input: foodEditInput,
 		run: (ctx, a) => editFood(ctx, a)
 	}),
@@ -1643,7 +1654,7 @@ export const VERBS: readonly Verb[] = [
 	verb({
 		name: 'food_saved_list',
 		kind: 'read',
-		description: 'The saved foods.',
+		description: 'The saved foods. foodId is what meal_log takes; id is what food_archive takes.',
 		input: emptyInput,
 		run: (ctx) => listSavedFoods(ctx)
 	}),

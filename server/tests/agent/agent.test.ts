@@ -215,7 +215,8 @@ describe('the verb registry', () => {
 			].sort()
 		);
 		// 43 since picture_get, a read verb for the app only (it is not offered to the assistant); chat_usage (the context meter) is another
-		expect(by('read')).toHaveLength(63);
+		// 64 since food_brand_search (BTL-20261110-1532), a read verb that marks the turn as untrusted
+		expect(by('read')).toHaveLength(64);
 	});
 
 	it('lets the assistant edit what exists on its own (name, amount, linked account) and leaves the trail to say who', async () => {

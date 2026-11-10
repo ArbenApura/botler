@@ -174,12 +174,12 @@ export const LIMITS = {
 	contextGuardTokens: 100_000,
 	/** From this share of the tool calls used on, every tool result says how many are left. */
 	toolsLeftNoteShare: 0.75,
-	/** Research (agent/research.ts): there is no count of searches or reads per message, only runaway ceilings per call. The server sets them from the RESEARCH_* variables. */
+	/** Research (agent/research.ts): there is no count of research calls per message, only ceilings per call. Since the owner decision of 2026-11-10 (BTL-20261110-1532) a deep call searches and opens few pages (6 and 6), a quick one 2 and 3. The server sets them from the RESEARCH_* variables. */
 	researchCallsAtOnce: 3,
 	researchToolParallel: 6,
 	researchRounds: 12,
-	researchSearches: 40,
-	researchReads: 80,
+	researchSearches: 6,
+	researchReads: 6,
 	researchCallTokens: 150_000,
 	researchSeconds: 120,
 	researchPageChars: 8000,
@@ -228,6 +228,33 @@ export class TurnState {
 	/** The food ids a search or a scan of this message gave. meal_log takes only these. */
 	readonly foodIds = new Set<string>();
 	constructor(readonly userUrls: ReadonlySet<string> = new Set()) {}
+	/** The entries a food_day of this message listed. meal_log repeats only these (entryId). */
+	readonly entryIds = new Set<string>();
+	/** Keeps what a food_day or food_saved_list answer listed (BTL-20261110-1532): the foodId of each row, and the id of each entry of a day. */
+	rememberListed(result: unknown) {
+		const food = (v: unknown) => {
+			const id = (v as { foodId?: unknown } | null)?.foodId;
+			if (typeof id === 'string') this.foodIds.add(id);
+		};
+		if (Array.isArray(result)) result.forEach(food);
+		const entries = (result as { entries?: unknown } | null)?.entries;
+		if (Array.isArray(entries))
+			for (const e of entries) {
+				food(e);
+				const id = (e as { id?: unknown } | null)?.id;
+				if (typeof id === 'string') this.entryIds.add(id);
+			}
+	}
+	/** The first entryId in a meal_log that no food_day of this message listed, or null. */
+	strayEntry(args: unknown): string | null {
+		const items = (args as { items?: unknown } | null)?.items;
+		if (!Array.isArray(items)) return null;
+		for (const item of items) {
+			const id = (item as { entryId?: unknown } | null)?.entryId;
+			if (typeof id === 'string' && !this.entryIds.has(id)) return id;
+		}
+		return null;
+	}
 	/** Keeps the ids of a food_search or barcode_lookup answer. */
 	rememberFoods(result: unknown) {
 		const take = (v: unknown) => {
@@ -235,6 +262,9 @@ export class TurnState {
 			if (typeof id === 'string') this.foodIds.add(id);
 		};
 		take(result);
+		// A brand search answers one name with its hits
+		const own = (result as { hits?: unknown } | null)?.hits;
+		if (Array.isArray(own)) own.forEach(take);
 		if (Array.isArray(result))
 			for (const r of result) {
 				const hits = (r as { hits?: unknown } | null)?.hits;
@@ -786,8 +816,19 @@ async function executeTool(
 		if (stray)
 			return err(
 				'invalid_arguments',
-				`The food "${stray.slice(0, 60)}" was not in a food_search or barcode_lookup of this message. Search for it first, or use estimate.`
+				`The food "${stray.slice(0, 60)}" was not in a food_search, food_brand_search, barcode_lookup, food_saved_list or food_day of this message. Search for it first${/^[0-9a-f-]{36}$/i.test(stray) ? ' (a saved food is "saved:" and its id; an entry to repeat goes in entryId)' : ''}, or use estimate.`
 			);
+		const strayEntry = state.strayEntry(args);
+		if (strayEntry)
+			return err(
+				'invalid_arguments',
+				'That entry was not in a food_day of this message. Read the day with food_day first, then repeat one of its entries.'
+			);
+		// Numbers said to come from a web page are always checked by the person, also when no outside text was read in this message
+		// (BTL-20261110-1532): the model cannot write them straight into the log under a site's name
+		const items = (args as { items?: unknown }).items;
+		if (Array.isArray(items) && items.some((i) => (i as { web?: unknown } | null)?.web))
+			return asCard('Numbers from the web are checked by the person before they are saved.');
 	}
 	if (tool.kind === 'gated')
 		return asCard('This changes the plan, so it needs the person to approve it.');
@@ -810,7 +851,13 @@ async function executeTool(
 			tool.name
 		);
 		state.succeeded.set(callHash, sameBefore + 1);
-		if (tool.name === 'food_search' || tool.name === 'barcode_lookup') state.rememberFoods(result);
+		if (
+			tool.name === 'food_search' ||
+			tool.name === 'food_brand_search' ||
+			tool.name === 'barcode_lookup'
+		)
+			state.rememberFoods(result);
+		if (tool.name === 'food_day' || tool.name === 'food_saved_list') state.rememberListed(result);
 		// A read that can hold text other people wrote (a calendar) is untrusted like a web page: it is marked, and the turn is
 		// closed to writes from here on
 		if (tool.taints) {

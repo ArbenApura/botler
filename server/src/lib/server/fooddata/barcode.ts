@@ -5,7 +5,7 @@
 // -- TYPES -- //
 import type { CoreKey, FoodFacts } from '../../health/nutrients';
 // -- MODULES -- //
-import { CORE_KEYS } from '../../health/nutrients';
+import { CORE_KEYS, NUTRIENTS, toNanograms } from '../../health/nutrients';
 import { OpsError } from '../ops/context';
 
 // -- TYPES -- //
@@ -46,6 +46,15 @@ const OFF_PER_MINUTE = 15;
 const CACHE_MS = 3_600_000;
 const CACHE_MAX = 500;
 const NAME_MAX = 80;
+/**
+ * The name search of Open Food Facts (its search service; the older cgi/search.pl answered in 9 s or with a 503 when tried on 2026-11-10,
+ * this one in about a second). Its limit is lower than the product address, so this server stays well under it.
+ */
+const OFF_SEARCH_URL = 'https://search.openfoodfacts.org/search';
+const OFF_SEARCH_PER_MINUTE = 8;
+const BRAND_QUERY_MAX = 80;
+const BRAND_QUERY_DIGITS = 6;
+const BRAND_HITS = 5;
 
 const USDA_NUTRIENT_IDS: Record<CoreKey, number> = {
 	proteinMg: 1003,
@@ -68,10 +77,41 @@ const OFF_FIELD_OF: Record<CoreKey, string> = {
 	sodiumMg: 'sodium'
 };
 
+/** Open Food Facts field names of the other nutrients, by the code of health/nutrients.ts. Its values are grams per 100 g, whatever the nutrient (BTL-20261110-1532). */
+const OFF_EXTRA_FIELD_OF: Readonly<Record<string, string>> = {
+	potassium: 'potassium',
+	calcium: 'calcium',
+	iron: 'iron',
+	magnesium: 'magnesium',
+	phosphorus: 'phosphorus',
+	zinc: 'zinc',
+	copper: 'copper',
+	selenium: 'selenium',
+	cholesterol: 'cholesterol',
+	vitamin_a: 'vitamin-a',
+	vitamin_c: 'vitamin-c',
+	vitamin_d: 'vitamin-d',
+	vitamin_e: 'vitamin-e',
+	vitamin_k: 'vitamin-k',
+	thiamin: 'vitamin-b1',
+	riboflavin: 'vitamin-b2',
+	niacin: 'vitamin-pp',
+	vitamin_b6: 'vitamin-b6',
+	folate: 'vitamin-b9',
+	vitamin_b12: 'vitamin-b12'
+};
+
+/** Sodium is this part of salt by weight. */
+const SODIUM_IN_SALT = 0.4;
+/** No food holds more of one of the other nutrients than this in 100 g: a larger figure is a unit mistake in the source and is left out. */
+const MAX_EXTRA_NG = 20e9;
+
 // -- STATES -- //
 
 const cache = new Map<string, { at: number; answer: BarcodeAnswer }>();
+const brandCache = new Map<string, { at: number; answer: BrandSearchAnswer }>();
 let offCalls: number[] = [];
+let offSearches: number[] = [];
 
 // -- FUNCTIONS -- //
 
@@ -129,7 +169,19 @@ export function factsFromOff(product: Json): FoodFacts | null {
 		})
 	) as Record<CoreKey, number | null>;
 	if (core.proteinMg === null && core.carbsMg === null && core.fatMg === null) return null;
-	return { kcal: Math.round(kcal), ...core, nutrients: {} };
+	// Many products list salt and no sodium
+	if (core.sodiumMg === null) {
+		const salt = per100('salt');
+		if (salt !== null) core.sodiumMg = Math.round(salt * SODIUM_IN_SALT * 1000);
+	}
+	const nutrients: Record<string, number> = {};
+	for (const [code, field] of Object.entries(OFF_EXTRA_FIELD_OF)) {
+		const g = per100(field);
+		if (g === null) continue;
+		const ng = Math.round(g * 1e9);
+		if (ng <= MAX_EXTRA_NG) nutrients[code] = ng;
+	}
+	return { kcal: Math.round(kcal), ...core, nutrients };
 }
 
 async function fromOff(code: string): Promise<BarcodeAnswer | null> {
@@ -170,6 +222,12 @@ async function fromUsda(code: string, key: string): Promise<BarcodeAnswer | null
 	const want = code.replace(/^0+/, '');
 	const food = foods.find((f) => String(f.gtinUpc ?? '').replace(/^0+/, '') === want);
 	if (!food) return null;
+	const product = usdaProduct(food, code);
+	return product ? { found: true, notConfigured: [], product } : null;
+}
+
+/** One USDA Branded food as a product under a barcode, or null when it has no usable energy or name. */
+function usdaProduct(food: Json, code: string): BarcodeProduct | null {
 	const list = Array.isArray(food.foodNutrients) ? (food.foodNutrients as Json[]) : [];
 	const value = (id: number): number | null => num(list.find((x) => x.nutrientId === id)?.value);
 	const kcal = value(1008);
@@ -182,20 +240,152 @@ async function fromUsda(code: string, key: string): Promise<BarcodeAnswer | null
 	) as Record<CoreKey, number | null>;
 	const name = cleanName(food.description);
 	if (!name) return null;
+	const nutrients: Record<string, number> = {};
+	for (const def of NUTRIENTS) {
+		const row = list.find((x) => x.nutrientId === def.usda);
+		const amount = num(row?.value);
+		if (amount === null) continue;
+		const ng = toNanograms(amount, typeof row?.unitName === 'string' ? row.unitName : '');
+		if (ng !== null && ng <= MAX_EXTRA_NG) nutrients[def.code] = ng;
+	}
 	const unit = String(food.servingSizeUnit ?? '').toLowerCase();
 	return {
-		found: true,
-		notConfigured: [],
-		product: {
+		id: `barcode:${code}`,
+		barcode: code,
+		source: 'usda_branded',
+		name,
+		servingG: unit === 'g' ? num(food.servingSize) : null,
+		packG: null,
+		facts: { kcal: Math.round(kcal), ...core, nutrients }
+	};
+}
+
+// -- BRAND SEARCH BY NAME (BTL-20261110-1532) -- //
+// The same two sources as a barcode, asked by a product name the person typed. Fixed addresses, the name cleaned and cut, both asked at the
+// same time under the one timeout, and only products that carry a barcode come back, under that barcode: a later meal_log finds them through
+// the barcode path, and the lookup is remembered so it makes no second call.
+
+export type BrandSearchAnswer = {
+	products: BarcodeProduct[];
+	/** Sources with no key on this server. */
+	notConfigured: string[];
+	/** Sources that could not be asked now (the per-minute limit, an error or a timeout). */
+	unavailable: string[];
+};
+
+/** A product name as it is sent out: cleaned, no long runs of digits (nothing but a food name leaves), cut short. Empty when nothing is left. */
+export function brandQuery(name: string): string {
+	const cleaned = cleanName(name).replace(/\d{5,}/g, ' ');
+	// A product name holds a few digits at most ("7 Up", "3 in 1", "100 Plus"). More than six in all is not a name: every digit is dropped,
+	// so a number cannot be sent out in pieces
+	const few = (cleaned.match(/\d/g) ?? []).length <= BRAND_QUERY_DIGITS;
+	return (few ? cleaned : cleaned.replace(/\d/g, ' '))
+		.replace(/[^\p{L}\p{N} '&.-]/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, BRAND_QUERY_MAX);
+}
+
+const withBrand = (name: string, brand: unknown): string => {
+	// One source gives a list of brands, the other a text with commas
+	const first = cleanName(String((Array.isArray(brand) ? brand[0] : brand) ?? '').split(',')[0]);
+	return first && !name.toLowerCase().includes(first.toLowerCase())
+		? cleanName(`${first} ${name}`)
+		: name;
+};
+
+async function brandsFromOff(query: string): Promise<BarcodeProduct[] | null> {
+	const now = Date.now();
+	offSearches = offSearches.filter((t) => now - t < 60_000);
+	if (offSearches.length >= OFF_SEARCH_PER_MINUTE) return null;
+	offSearches.push(now);
+	const json = await getJson(
+		`${OFF_SEARCH_URL}?q=${encodeURIComponent(query)}&page_size=${BRAND_HITS}&fields=code,${OFF_FIELDS}`,
+		{ 'user-agent': process.env.FOOD_USER_AGENT || 'Botler/1.0' }
+	);
+	const list = Array.isArray(json?.hits) ? (json.hits as Json[]) : [];
+	const out: BarcodeProduct[] = [];
+	for (const product of list) {
+		const code = String(product.code ?? '');
+		const name = cleanName(product.product_name);
+		const facts = factsFromOff(product);
+		if (!/^\d{8,14}$/.test(code) || !name || !facts) continue;
+		out.push({
 			id: `barcode:${code}`,
 			barcode: code,
-			source: 'usda_branded',
-			name,
-			servingG: unit === 'g' ? num(food.servingSize) : null,
-			packG: null,
-			facts: { kcal: Math.round(kcal), ...core, nutrients: {} }
+			source: 'off',
+			name: withBrand(name, product.brands),
+			servingG: num(product.serving_quantity),
+			packG: num(product.product_quantity),
+			facts
+		});
+	}
+	return out;
+}
+
+async function brandsFromUsda(query: string, key: string): Promise<BarcodeProduct[]> {
+	const json = await getJson(
+		`${USDA_URL}?dataType=Branded&pageSize=${BRAND_HITS}&query=${encodeURIComponent(query)}`,
+		{ 'x-api-key': key }
+	);
+	const foods = Array.isArray(json?.foods) ? (json.foods as Json[]) : [];
+	const out: BarcodeProduct[] = [];
+	for (const food of foods) {
+		const code = String(food.gtinUpc ?? '').replace(/^0+(?=\d{8})/, '');
+		if (!/^\d{8,14}$/.test(code)) continue;
+		const product = usdaProduct(food, code);
+		if (product) out.push({ ...product, name: withBrand(product.name, food.brandName) });
+	}
+	return out;
+}
+
+/** Products by name from both sources at once. A source that fails is named and passed over; found products are remembered under their barcodes. */
+export async function searchBrands(rawName: string): Promise<BrandSearchAnswer> {
+	const query = brandQuery(rawName);
+	if (query.length < 2) throw new OpsError('INVALID', 'Give the product name to look for.');
+	const held = brandCache.get(query.toLowerCase());
+	if (held && Date.now() - held.at < CACHE_MS) return held.answer;
+	const usdaKey = process.env.USDA_API_KEY;
+	const notConfigured = usdaKey ? [] : ['usda_branded'];
+	const unavailable: string[] = [];
+	const attempt = async (
+		source: string,
+		fn: () => Promise<BarcodeProduct[] | null>
+	): Promise<BarcodeProduct[]> => {
+		try {
+			const found = await fn();
+			if (found === null) unavailable.push(source);
+			return found ?? [];
+		} catch (e) {
+			unavailable.push(source);
+			// The reason class only: an error of a fetch can hold the address, and the address holds the name
+			console.error(
+				JSON.stringify({
+					event: 'brand_source_error',
+					error: e instanceof Error ? e.name : 'Error'
+				})
+			);
+			return [];
 		}
 	};
+	const [off, usda] = await Promise.all([
+		attempt('off', () => brandsFromOff(query)),
+		usdaKey ? attempt('usda_branded', () => brandsFromUsda(query, usdaKey)) : Promise.resolve([])
+	]);
+	const byCode = new Map<string, BarcodeProduct>();
+	for (const p of [...off, ...usda]) if (!byCode.has(p.barcode)) byCode.set(p.barcode, p);
+	const products = [...byCode.values()].slice(0, BRAND_HITS);
+	const at = Date.now();
+	if (cache.size + products.length >= CACHE_MAX) cache.clear();
+	for (const product of products)
+		cache.set(product.barcode, { at, answer: { found: true, product, notConfigured } });
+	const answer: BrandSearchAnswer = { products, notConfigured, unavailable };
+	// An answer with a source missing is not remembered, so the next try asks again
+	if (unavailable.length === 0) {
+		if (brandCache.size >= CACHE_MAX) brandCache.clear();
+		brandCache.set(query.toLowerCase(), { at, answer });
+	}
+	return answer;
 }
 
 async function nameFromUpc(code: string): Promise<string | null> {
@@ -255,5 +445,7 @@ export async function lookupBarcode(rawCode: string): Promise<BarcodeAnswer> {
 /** For tests: starts with no remembered lookups and no counted calls. */
 export function resetBarcodeState(): void {
 	cache.clear();
+	brandCache.clear();
 	offCalls = [];
+	offSearches = [];
 }

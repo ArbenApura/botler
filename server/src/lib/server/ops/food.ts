@@ -13,18 +13,19 @@ import type {
 	FoodDeleteInput,
 	FoodEditInput,
 	FoodSaveInput,
+	FoodBrandSearchInput,
 	FoodSearchInput,
 	MealItemInput,
 	MealLogInput
 } from '../db/zod';
 import type { FoodSource, MealKind } from '../db/schema';
-import type { FoodFacts, FoodNumbers } from '../../health/nutrients';
+import type { CoreKey, FoodFacts, FoodNumbers } from '../../health/nutrients';
 import type { Ctx } from './context';
 // -- DEP-MODULES -- //
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 // -- MODULES -- //
-import { toLocalDate } from '../../finance/dates';
+import { localHm, toLocalDate } from '../../finance/dates';
 import { englishTerm, filipinoById, searchFilipino } from '../../health/filipino';
 import {
 	addUp,
@@ -32,6 +33,7 @@ import {
 	isNutrientCode,
 	kcalFits,
 	kcalFromMacros,
+	NUTRIENTS,
 	RANGE_PERCENT,
 	rangeOf,
 	scaleFood
@@ -52,10 +54,11 @@ import {
 	foodDeleteInput,
 	foodEditInput,
 	foodSaveInput,
+	foodBrandSearchInput,
 	foodSearchInput,
 	mealLogInput
 } from '../db/zod';
-import { checkBarcode, lookupBarcode } from '../fooddata/barcode';
+import { checkBarcode, lookupBarcode, searchBrands } from '../fooddata/barcode';
 import { DATA_TYPE_ORDER } from '../nutrition/usda';
 import { OpsError, run, runWrite } from './context';
 import { mapped, parse, plain } from './shared';
@@ -68,6 +71,10 @@ export type FoodHit = {
 	source: 'saved' | 'filipino' | 'usda';
 	kcalPer100g: number;
 	proteinMgPer100g: number | null;
+	/** The seven main nutrients per 100 g in milligrams, so a sugar or sodium question is answered from the hit (BTL-20261110-1532). */
+	mgPer100g: Record<CoreKey, number | null>;
+	/** The main nutrients this food does not know. Empty for a complete food. */
+	unknown: CoreKey[];
 	portions: { label: string; grams: number }[];
 	/** An estimate written for the starter list rather than a measured value. */
 	estimate: boolean;
@@ -87,6 +94,12 @@ type ResolvedFood = {
 // -- CONSTANTS -- //
 
 const MAX_HITS = 5;
+/** The most calories one entry may hold (the table's own check). */
+const MAX_ENTRY_KCAL = 20_000;
+/** How much worse a row may match the searched words and still win a shortlist place for knowing more nutrients. */
+const SCORE_MARGIN = 0.05;
+/** Pure fat is 900 kcal in 100 g: a larger figure is a mistake in the source. */
+const MAX_KCAL_PER_100G = 900;
 const ENTRY_COLUMNS = {
 	id: foodEntry.id,
 	day: foodEntry.day,
@@ -106,6 +119,7 @@ const ENTRY_COLUMNS = {
 	sodiumMg: foodEntry.sodiumMg,
 	nutrients: foodEntry.nutrients,
 	sourceKind: foodEntry.sourceKind,
+	sourceRef: foodEntry.sourceRef,
 	foodItemId: foodEntry.foodItemId,
 	byAgent: foodEntry.byAgent,
 	version: foodEntry.version
@@ -126,6 +140,15 @@ const factsOf = (r: FoodFacts): FoodFacts => ({
 	nutrients: r.nutrients
 });
 
+/** The main nutrients of a food for a search hit, and which of them it does not know. */
+function coreOf(r: Record<CoreKey, number | null>): Pick<FoodHit, 'mgPer100g' | 'unknown'> {
+	const mgPer100g = Object.fromEntries(CORE_KEYS.map((k) => [k, r[k]])) as Record<
+		CoreKey,
+		number | null
+	>;
+	return { mgPer100g, unknown: CORE_KEYS.filter((k) => r[k] === null) };
+}
+
 /** Nearly identical rows ("Rice, white, cooked" three times over) become one line in a shortlist. */
 const collapseKey = (name: string) => name.toLowerCase().split(',').slice(0, 2).join(',').trim();
 
@@ -137,6 +160,12 @@ async function usdaHits(tx: Tx, query: string): Promise<FoodHit[]> {
 			name: nutritionFood.name,
 			kcal: nutritionFood.kcal,
 			proteinMg: nutritionFood.proteinMg,
+			carbsMg: nutritionFood.carbsMg,
+			sugarMg: nutritionFood.sugarMg,
+			fibreMg: nutritionFood.fibreMg,
+			fatMg: nutritionFood.fatMg,
+			satFatMg: nutritionFood.satFatMg,
+			sodiumMg: nutritionFood.sodiumMg,
 			dataType: nutritionFood.dataType,
 			score: sql<number>`word_similarity(${term}, ${nutritionFood.name})`
 		})
@@ -148,10 +177,19 @@ async function usdaHits(tx: Tx, query: string): Promise<FoodHit[]> {
 		)
 		.limit(40);
 	const best = new Map<string, (typeof rows)[number]>();
+	// Among near-identical rows the one that knows more of the main nutrients wins (many SR Legacy rows have no sugar), then the data type
+	const gaps = (r: (typeof rows)[number]) => CORE_KEYS.filter((k) => r[k] === null).length;
 	for (const r of rows) {
 		const key = collapseKey(r.name);
 		const seen = best.get(key);
-		if (!seen || DATA_TYPE_ORDER.indexOf(r.dataType) < DATA_TYPE_ORDER.indexOf(seen.dataType))
+		if (
+			!seen ||
+			// Only a row that matches the words about as well may win on knowing more: "rice, white, raw" must not replace
+			// "rice, white, cooked" (the rows come best match first) just because it lists its sugar
+			(gaps(r) < gaps(seen) && Number(r.score) >= Number(seen.score) - SCORE_MARGIN) ||
+			(gaps(r) === gaps(seen) &&
+				DATA_TYPE_ORDER.indexOf(r.dataType) < DATA_TYPE_ORDER.indexOf(seen.dataType))
+		)
 			best.set(key, r);
 	}
 	const hits = [...best.values()].slice(0, MAX_HITS);
@@ -172,6 +210,7 @@ async function usdaHits(tx: Tx, query: string): Promise<FoodHit[]> {
 		source: 'usda' as const,
 		kcalPer100g: h.kcal,
 		proteinMgPer100g: h.proteinMg,
+		...coreOf(h),
 		estimate: false,
 		portions: portions
 			.filter((p) => p.foodId === h.id)
@@ -257,6 +296,7 @@ export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 				source: 'saved',
 				kcalPer100g: s.kcal,
 				proteinMgPer100g: s.proteinMg,
+				...coreOf(s),
 				estimate: false,
 				portions: s.servingG ? [{ label: 'serving', grams: s.servingG }] : []
 			}));
@@ -267,6 +307,7 @@ export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 					source: 'filipino',
 					kcalPer100g: f.facts.kcal,
 					proteinMgPer100g: f.facts.proteinMg,
+					...coreOf(f.facts),
 					estimate: true,
 					portions: [{ label: 'serving', grams: f.servingG }]
 				});
@@ -285,7 +326,7 @@ export async function searchFoods(ctx: Ctx, raw: FoodSearchInput) {
 				...(missing
 					? {
 							matched: 'partial' as const,
-							note: `No food in the database matches every word of "${name}" (missing: ${missing.join(', ')}). ${shown.length > 0 ? 'The hits are only the closest names and may be a different product: do not present one as the exact food. ' : ''}Search the web for the exact product (research), or ask the person for its label.`
+							note: `No food in the database matches every word of "${name}" (missing: ${missing.join(', ')}). ${shown.length > 0 ? 'The hits are only the closest names and may be a different product: do not present one as the exact food. ' : ''}For a packaged product call food_brand_search with its name; if that finds nothing, research it once or ask the person for its label.`
 						}
 					: {})
 			});
@@ -392,7 +433,18 @@ async function resolveFood(
 
 /** Grams from what was said: grams, or a count of a household amount the food has. Otherwise the caller says what is missing. */
 function gramsFor(item: MealItemInput, food: ResolvedFood): number {
+	if (item.lowGrams !== undefined && item.highGrams !== undefined && item.lowGrams > item.highGrams)
+		throw new OpsError(
+			'INVALID',
+			`The lowest amount of "${food.name}" is above its highest. Give grams, with lowGrams below and highGrams above it.`
+		);
 	if (item.grams !== undefined) return item.grams;
+	// A range with no middle is logged at its middle (BTL-20261110-1532: this was the commonest failed meal log), before any serving default
+	if (item.lowGrams !== undefined || item.highGrams !== undefined) {
+		const low = item.lowGrams ?? item.highGrams ?? 1;
+		const high = item.highGrams ?? item.lowGrams ?? low;
+		return Math.max(1, Math.round((low + high) / 2));
+	}
 	if (item.portion) {
 		const want = item.portion.toLowerCase();
 		const p =
@@ -438,8 +490,22 @@ function labelFacts(l: NonNullable<MealItemInput['label']>): FoodFacts {
 		fatMg: per100(l.fatMg),
 		satFatMg: per100(l.satFatMg),
 		sodiumMg: per100(l.sodiumMg),
-		nutrients: {}
+		nutrients: labelExtras(l)
 	};
+}
+
+/** The other printed nutrients of a label, per 100 g in nanograms. A code the list does not hold is refused, so nothing is stored under a made-up name. */
+function labelExtras(l: NonNullable<MealItemInput['label']>): Record<string, number> {
+	const out: Record<string, number> = {};
+	for (const [code, mg] of Object.entries(l.extraMg ?? {})) {
+		if (!isNutrientCode(code))
+			throw new OpsError(
+				'INVALID',
+				`Unknown nutrient: ${code.slice(0, 40)}. The codes are: ${NUTRIENTS.map((n) => n.code).join(', ')}. Leave any other out.`
+			);
+		out[code] = Math.round((mg * 1e6 * 100) / l.basisGrams);
+	}
+	return out;
 }
 
 async function entryFor(
@@ -470,6 +536,89 @@ async function entryFor(
 						? true
 						: kcalFits(per100.kcal, per100.proteinMg, per100.carbsMg, per100.fatMg)
 			}
+		};
+	}
+	if (item.entryId) {
+		// The same food again: the numbers the earlier entry kept, so nothing is looked up or estimated twice
+		const [e] = await tx
+			.select()
+			.from(foodEntry)
+			.where(and(eq(foodEntry.userId, userId), eq(foodEntry.id, item.entryId)));
+		if (!e)
+			throw new OpsError(
+				'NOT_FOUND',
+				'The food entry to repeat is not there any more. Search for the food and log it fresh.'
+			);
+		if (item.grams !== undefined && !e.grams)
+			throw new OpsError(
+				'INVALID',
+				`"${e.name}" was logged without a weight, so it can only be repeated as it was. Leave grams out.`
+			);
+		const from = e.grams;
+		const ratio = (v: number) =>
+			item.grams === undefined || !from ? v : Math.round((v * item.grams) / from);
+		// An amount far above the first one would pass what an entry can hold: say so instead of failing in the database
+		if (ratio(e.highKcal) > MAX_ENTRY_KCAL)
+			throw new OpsError(
+				'INVALID',
+				`That is too much of "${e.name}" for one entry. Log it in smaller amounts.`
+			);
+		const core = Object.fromEntries(
+			CORE_KEYS.map((k) => {
+				const v = e[k];
+				return [k, v === null ? null : ratio(v)];
+			})
+		) as Record<CoreKey, number | null>;
+		return {
+			name: e.name,
+			grams: item.grams ?? e.grams,
+			numbers: {
+				kcal: ratio(e.kcal),
+				...core,
+				nutrients: Object.fromEntries(
+					Object.entries(e.nutrients).map(([code, ng]) => [code, ratio(ng)])
+				)
+			},
+			lowKcal: ratio(e.lowKcal),
+			highKcal: ratio(e.highKcal),
+			sourceKind: e.sourceKind,
+			sourceRef: e.sourceRef,
+			foodItemId: e.foodItemId
+		};
+	}
+	if (item.web) {
+		// What a web search found. It is nobody's label, so it is not saved as a food, and its range is as wide as an estimate's
+		const w = item.web;
+		const per100 = (v: number | undefined) =>
+			v === undefined ? null : Math.round((v * 100) / w.basisGrams);
+		const kcal100 = per100(w.kcal) ?? 0;
+		if (kcal100 > MAX_KCAL_PER_100G)
+			throw new OpsError(
+				'INVALID',
+				`${kcal100} kcal in 100 g is more than any food holds. Check the serving size the page gave.`
+			);
+		const facts: FoodFacts = {
+			kcal: kcal100,
+			proteinMg: per100(w.proteinMg),
+			carbsMg: per100(w.carbsMg),
+			sugarMg: per100(w.sugarMg),
+			fibreMg: per100(w.fibreMg),
+			fatMg: per100(w.fatMg),
+			satFatMg: per100(w.satFatMg),
+			sodiumMg: per100(w.sodiumMg),
+			nutrients: {}
+		};
+		const grams =
+			item.grams ?? Math.max(1, Math.round((w.servingG ?? w.basisGrams) * (item.count ?? 1)));
+		const numbers = scaleFood(facts, grams);
+		return {
+			name: w.name,
+			grams,
+			numbers,
+			...rangeOf(numbers.kcal, RANGE_PERCENT.estimate),
+			sourceKind: 'web',
+			sourceRef: w.host,
+			foodItemId: null
 		};
 	}
 	if (item.foodId) {
@@ -508,10 +657,23 @@ async function entryFor(
 		const carbsMg = Math.round(item.estimate.carbsG * 1000);
 		const fatMg = Math.round(item.estimate.fatG * 1000);
 		const kcal = kcalFromMacros(proteinMg, carbsMg, fatMg);
+		// The other four when the assistant gave them (BTL-20261110-1532): a part can never be more than its whole, so each is held to it
+		const part = (g: number | undefined, whole: number) =>
+			g === undefined ? null : Math.min(Math.round(g * 1000), whole);
 		return {
 			name: item.estimate.name,
 			grams: item.grams ?? null,
-			numbers: { ...empty, kcal, proteinMg, carbsMg, fatMg },
+			numbers: {
+				...empty,
+				kcal,
+				proteinMg,
+				carbsMg,
+				fatMg,
+				sugarMg: part(item.estimate.sugarG, carbsMg),
+				fibreMg: part(item.estimate.fibreG, carbsMg),
+				satFatMg: part(item.estimate.satFatG, fatMg),
+				sodiumMg: item.estimate.sodiumMg ?? null
+			},
 			...rangeOf(kcal, RANGE_PERCENT.estimate),
 			sourceKind: 'estimate',
 			sourceRef: null,
@@ -539,7 +701,11 @@ async function entryFor(
 				kcal: m.kcal,
 				proteinMg: m.proteinMg ?? null,
 				carbsMg: m.carbsMg ?? null,
-				fatMg: m.fatMg ?? null
+				fatMg: m.fatMg ?? null,
+				sugarMg: m.sugarMg ?? null,
+				fibreMg: m.fibreMg ?? null,
+				satFatMg: m.satFatMg ?? null,
+				sodiumMg: m.sodiumMg ?? null
 			},
 			...rangeOf(m.kcal, RANGE_PERCENT.printed),
 			sourceKind: 'manual',
@@ -607,9 +773,18 @@ export async function previewMeal(ctx: Ctx, raw: MealLogInput) {
 				proteinMg: e.numbers.proteinMg,
 				carbsMg: e.numbers.carbsMg,
 				fatMg: e.numbers.fatMg,
+				// Null is unknown, never zero (BTL-20261110-1532)
+				sugarMg: e.numbers.sugarMg,
+				fibreMg: e.numbers.fibreMg,
+				satFatMg: e.numbers.satFatMg,
+				sodiumMg: e.numbers.sodiumMg,
 				sourceKind: e.sourceKind,
 				...(e.label ? { basisGrams: e.label.basisGrams, fits: e.label.fits } : {})
 			})),
+			// Each main nutrient of the whole meal with how many foods did not know it, as on the day
+			core: addUp(entries.map((e) => ({ ...e.numbers, lowKcal: e.lowKcal, highKcal: e.highKcal })))
+				.core,
+			foods: entries.length,
 			kcal: add((e) => e.numbers.kcal),
 			lowKcal: add((e) => e.lowKcal),
 			highKcal: add((e) => e.highKcal),
@@ -627,7 +802,30 @@ export async function mealCardSummary(ctx: Ctx, args: MealLogInput): Promise<str
 		(i) =>
 			`${i.name}${i.grams ? ` ${i.grams} g` : ''}, about ${i.kcal} kcal${i.sourceKind === 'estimate' ? ' (an AI estimate)' : ''}`
 	);
-	return `Log this food: ${parts.join('; ')}. About ${p.kcal} kcal in all (could be ${p.lowKcal} to ${p.highKcal}), ${mealSourceWords(p.items.map((i) => i.sourceKind))}, so check the amounts.`;
+	return `Log this food: ${parts.join('; ')}. About ${p.kcal} kcal in all (could be ${p.lowKcal} to ${p.highKcal}), ${mealSourceWords(p.items.map((i) => i.sourceKind))}, so check the amounts. ${mealNutrientWords(p.core, p.foods)}`;
+}
+
+/**
+ * The four nutrients a card did not show before, in one sentence: "Sugar 12 g, fibre 3 g, saturated fat 4 g, sodium 620 mg."
+ * A nutrient no food knows reads "unknown", and one only some foods know reads "at least", so a low number is never read as the whole. Pure.
+ */
+export function mealNutrientWords(
+	core: Record<CoreKey, { mg: number; unknownFoods: number }>,
+	foods: number
+): string {
+	const grams = (mg: number) => `${Math.round(mg / 100) / 10} g`;
+	const part = (label: string, key: CoreKey, text: (mg: number) => string) => {
+		const { mg, unknownFoods } = core[key];
+		if (foods > 0 && unknownFoods >= foods) return `${label} unknown`;
+		return `${label} ${unknownFoods > 0 ? 'at least ' : ''}${text(mg)}`;
+	};
+	const words = [
+		part('sugar', 'sugarMg', grams),
+		part('fibre', 'fibreMg', grams),
+		part('saturated fat', 'satFatMg', grams),
+		part('sodium', 'sodiumMg', (mg) => `${mg} mg`)
+	].join(', ');
+	return `${words.charAt(0).toUpperCase()}${words.slice(1)}.`;
 }
 
 /** Where a meal's numbers came from, in words for its card: not "from a photo" for a meal the assistant only worked out from the person's words. */
@@ -636,7 +834,47 @@ export function mealSourceWords(kinds: readonly string[]): string {
 		return 'an AI estimate from what you said';
 	if (kinds.some((k) => k === 'estimate'))
 		return 'partly an AI estimate, partly from a photo, a label or the food list';
+	if (kinds.length > 0 && kinds.every((k) => k === 'web')) return 'from a web search';
+	if (kinds.some((k) => k === 'web'))
+		return 'partly from a web search, partly from a photo, a label or the food list';
 	return 'from a photo, a label or the food list';
+}
+
+/**
+ * A packaged product by name, from the outside food data (BTL-20261110-1532). Asked only after food_search found no hit with every word.
+ * The caller is checked first in a short transaction of its own, and the outside calls run after it, so a slow source never holds the
+ * person's lock. Names come from other people: the verb taints the turn, and only numbers and a cleaned name leave.
+ */
+export async function searchBrandFoods(ctx: Ctx, raw: FoodBrandSearchInput) {
+	const { name } = parse(foodBrandSearchInput, raw);
+	await run(ctx, async () => undefined);
+	const answer = await searchBrands(name);
+	return {
+		name,
+		hits: answer.products.map((p) => ({
+			id: p.id,
+			name: p.name,
+			source: p.source,
+			kcalPer100g: p.facts.kcal,
+			...coreOf(p.facts),
+			portions: [
+				...(p.servingG ? [{ label: 'serving', grams: p.servingG }] : []),
+				...(p.packG ? [{ label: 'pack', grams: p.packG }] : [])
+			]
+		})),
+		notConfigured: answer.notConfigured,
+		unavailable: answer.unavailable,
+		...(answer.products.length === 0
+			? {
+					note:
+						answer.unavailable.length > 0
+							? 'The food data could not be asked just now. Use research once for the product, or ask the person for a photo of its label.'
+							: 'No packaged product by that name. Use research once for the product, or ask the person for a photo of its label.'
+				}
+			: {
+					note: 'These are products other people entered: pick one only when its name is the product the person means, and say which you used.'
+				})
+	};
 }
 
 /** A barcode: the person's saved food first, then the outside sources. Numbers and a short clean name only. */
@@ -687,7 +925,8 @@ export function mealForHour(hour: number): MealKind {
 	return 'dinner';
 }
 
-const manilaHour = (d: Date) => (d.getUTCHours() + 8) % 24;
+/** The hour of the day in the zone of the person whose verb is running (BTL-20261110-1532: it was a fixed Manila offset). */
+const localHour = (d: Date) => Number(localHm(d).slice(0, 2));
 
 async function saveLabelFood(tx: Tx, userId: string, e: EntryNumbers): Promise<string | null> {
 	const per100 = e.label?.per100;
@@ -704,6 +943,7 @@ async function saveLabelFood(tx: Tx, userId: string, e: EntryNumbers): Promise<s
 		fatMg: per100.fatMg,
 		satFatMg: per100.satFatMg,
 		sodiumMg: per100.sodiumMg,
+		nutrients: per100.nutrients,
 		servingG: e.grams
 	};
 	const [same] = await tx
@@ -738,7 +978,7 @@ export async function logMeal(ctx: Ctx, raw: MealLogInput) {
 		runWrite(ctx, 'food.meal_log', input, async (tx, userId) => {
 			const now = new Date();
 			const day = input.day ?? toLocalDate(now);
-			const meal = input.meal ?? mealForHour(manilaHour(now));
+			const meal = input.meal ?? mealForHour(localHour(now));
 			const mealGroup = randomUUID();
 			const made = [];
 			for (const e of await entriesFor(tx, userId, input, scanned)) {
@@ -808,8 +1048,21 @@ export async function readDay(tx: Tx, userId: string, day: string) {
 		targetKcal,
 		leftKcal: targetKcal === null ? null : targetKcal - totals.kcal,
 		totals,
-		entries: plain(rows)
+		entries: plain(rows).map((e) => ({ ...e, ...againId(e) }))
 	};
+}
+
+/**
+ * The id meal_log takes to log the food of an entry again from its source (BTL-20261110-1532): a saved food, a database food or a Filipino
+ * dish. Any other entry (an estimate, a label, a scan) is repeated by its own id, as entryId.
+ */
+function againId(e: { foodItemId: string | null; sourceKind: string; sourceRef: string | null }): {
+	foodId?: string;
+} {
+	if (e.foodItemId) return { foodId: `saved:${e.foodItemId}` };
+	if ((e.sourceKind === 'usda' || e.sourceKind === 'filipino') && e.sourceRef)
+		return { foodId: e.sourceRef };
+	return {};
 }
 
 export async function getFoodDay(ctx: Ctx, raw: FoodDayInput) {
@@ -857,12 +1110,38 @@ export async function editFood(ctx: Ctx, raw: FoodEditInput) {
 				set.kcal = input.kcal;
 				Object.assign(set, rangeOf(input.kcal, percent));
 			}
+			const filled: CoreKey[] = [];
+			if (input.fill) {
+				// Only a guessed entry can be completed by hand: a food from the data, a label or a scan keeps what its source said
+				if (e.sourceKind !== 'estimate' && e.sourceKind !== 'manual' && e.sourceKind !== 'rough')
+					throw new OpsError(
+						'INVALID',
+						'The nutrients of this food come from its data and cannot be filled in by hand.'
+					);
+				for (const k of CORE_KEYS) {
+					const value = input.fill[k];
+					const now = k in set ? set[k] : e[k];
+					// A value the entry already has is never replaced
+					if (value === undefined || (now !== null && now !== undefined)) continue;
+					// A part is held to its whole when the whole is known, as for an estimate
+					const wholeKey: CoreKey | null =
+						k === 'sugarMg' || k === 'fibreMg' ? 'carbsMg' : k === 'satFatMg' ? 'fatMg' : null;
+					const whole = wholeKey ? (wholeKey in set ? set[wholeKey] : e[wholeKey]) : null;
+					set[k] = typeof whole === 'number' ? Math.min(value, whole) : value;
+					filled.push(k);
+				}
+			}
 			const [row] = await tx
 				.update(foodEntry)
 				.set({ ...set, version: sql`${foodEntry.version} + 1`, updatedAt: new Date() })
 				.where(and(eq(foodEntry.userId, userId), eq(foodEntry.id, input.entryId)))
 				.returning(ENTRY_COLUMNS);
-			return { entry: plain(row), today: await readDay(tx, userId, row?.day ?? e.day) };
+			return {
+				entry: plain(row),
+				// Which unknown values were filled, so the assistant says what it added and what was already there
+				...(input.fill ? { filled } : {}),
+				today: await readDay(tx, userId, row?.day ?? e.day)
+			};
 		})
 	);
 }
@@ -880,6 +1159,66 @@ export async function deleteFood(ctx: Ctx, raw: FoodDeleteInput) {
 			return { removed: plain(row), today: await readDay(tx, userId, row.day) };
 		})
 	);
+}
+
+/**
+ * Fills the sugar, fibre, saturated fat and sodium that older Filipino-list entries never got (BTL-20261110-1532), from the list as it is now.
+ * Only what is unknown is written, column by column, and only on an entry that still is what the list made: it has a weight, its dish is still
+ * in the list and its calories are the list's for that weight. An entry the person changed any other way is left alone and counted.
+ * Called by the health.backfill_nutrients job inside the person's transaction and lock. Safe to run twice: a filled entry has nothing unknown left.
+ */
+export async function backfillFilipinoNutrients(
+	tx: Tx,
+	userId: string
+): Promise<{ filled: number; skipped: number; complete: number }> {
+	const rows = await tx
+		.select()
+		.from(foodEntry)
+		.where(and(eq(foodEntry.userId, userId), eq(foodEntry.sourceKind, 'filipino')));
+	const FILL: readonly CoreKey[] = ['sugarMg', 'fibreMg', 'satFatMg', 'sodiumMg'];
+	let filled = 0;
+	let skipped = 0;
+	let complete = 0;
+	for (const e of rows) {
+		if (FILL.every((k) => e[k] !== null)) {
+			complete += 1;
+			continue;
+		}
+		const dish = e.sourceRef ? filipinoById(e.sourceRef) : undefined;
+		if (!e.grams || !dish) {
+			skipped += 1;
+			continue;
+		}
+		const now = scaleFood(dish.facts, e.grams);
+		// One kcal of slack: an entry whose grams were edited was scaled from its own rounded numbers
+		if (Math.abs(now.kcal - e.kcal) > 1) {
+			skipped += 1;
+			continue;
+		}
+		const done = await tx
+			.update(foodEntry)
+			.set({
+				sugarMg: sql`coalesce(${foodEntry.sugarMg}, ${now.sugarMg})`,
+				fibreMg: sql`coalesce(${foodEntry.fibreMg}, ${now.fibreMg})`,
+				satFatMg: sql`coalesce(${foodEntry.satFatMg}, ${now.satFatMg})`,
+				sodiumMg: sql`coalesce(${foodEntry.sodiumMg}, ${now.sodiumMg})`,
+				version: sql`${foodEntry.version} + 1`,
+				updatedAt: new Date()
+			})
+			// The weight and calories read above must still be the entry's: a change in between leaves it for the next run
+			.where(
+				and(
+					eq(foodEntry.userId, userId),
+					eq(foodEntry.id, e.id),
+					eq(foodEntry.grams, e.grams),
+					eq(foodEntry.kcal, e.kcal)
+				)
+			)
+			.returning({ id: foodEntry.id });
+		if (done.length > 0) filled += 1;
+		else skipped += 1;
+	}
+	return { filled, skipped, complete };
 }
 
 /** Says whether everything eaten that day is logged. Only complete days feed the burn estimate. */
@@ -960,7 +1299,8 @@ export async function listSavedFoods(ctx: Ctx) {
 				.from(foodItem)
 				.where(and(eq(foodItem.userId, userId), isNull(foodItem.archivedAt)))
 				.orderBy(foodItem.name)
-		)
+			// The id stays the plain one (food_archive takes it); foodId is the form meal_log takes (BTL-20261110-1532)
+		).map((f) => ({ ...f, foodId: `saved:${f.id}` }))
 	);
 }
 

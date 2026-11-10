@@ -162,13 +162,13 @@ export const variables = defineEnvVars({
 	},
 	RESEARCH_SEARCHES: {
 		description:
-			'The most web searches of one deep research call (a runaway guard, not a per-message cap). Default 40. A bad value stops the server.',
-		schema: (value) => positiveInt(value, 40, 'RESEARCH_SEARCHES')
+			'The most web searches of one deep research call (not a per-message cap). Default 6 since the owner decision of 2026-11-10: few searches, the best pages only. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 6, 'RESEARCH_SEARCHES')
 	},
 	RESEARCH_READS: {
 		description:
-			'The most pages one deep research call may open (a runaway guard, not a per-message cap). Default 80. A bad value stops the server.',
-		schema: (value) => positiveInt(value, 80, 'RESEARCH_READS')
+			'The most pages one deep research call may open (not a per-message cap). Default 6 since the owner decision of 2026-11-10: the best one to three pages, six at most. A bad value stops the server.',
+		schema: (value) => positiveInt(value, 6, 'RESEARCH_READS')
 	},
 	RESEARCH_CALL_TOKENS: {
 		description:

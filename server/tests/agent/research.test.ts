@@ -181,8 +181,34 @@ describe('the research loop', () => {
 		const { deps } = setup(model, web.deps, { limits: { searches: 2 } });
 		const res = await runResearch(input(), deps);
 		expect(web.seen.searched).toHaveLength(2);
-		// Counted before they ran, the blocked ones too
-		expect(res.searches).toBe(5);
+		// A search past the ceiling is refused and not counted, so the count is what really went out (BTL-20261110-1532)
+		expect(res.searches).toBe(2);
+	});
+
+	it('opens no page past the page ceiling, and counts only the pages it asked for under it', async () => {
+		const web = slowWeb();
+		const model = stubModel([], {
+			helper: (_r, n) =>
+				n === 0
+					? { calls: [searchCall('topic 1')] }
+					: n === 1
+						? {
+								calls: [1, 2, 3, 1, 2].map((i): [string, unknown] => [
+									'web_read',
+									{ url: `https://site.example/topic%201/${i}` }
+								])
+							}
+						: { say: 'Digest.' }
+		});
+		const { deps } = setup(model, web.deps, { limits: { reads: 3 } });
+		const res = await runResearch(input(), deps);
+		expect(web.seen.read).toHaveLength(3);
+		expect(res.reads).toBe(3);
+		// The two refused calls were told to write the digest
+		const refused = model.helperRequests
+			.at(-1)
+			?.messages.filter((m) => m.role === 'tool' && String(m.content).includes('page limit'));
+		expect(refused).toHaveLength(2);
 	});
 
 	it('stops with a partial digest when the call has used its own token ceiling', async () => {
@@ -416,7 +442,7 @@ describe('the research loop', () => {
 		expect(res.digest).toBe('Quick digest.');
 	});
 
-	it('quick mode: tells the helper its room, and a deep helper is not told', async () => {
+	it('quick mode: tells the helper its room, and a deep helper is told its own', async () => {
 		const web = slowWeb();
 		const model = stubModel([], { helper: () => ({ say: 'Done.' }) });
 		const quick = setup(model, web.deps, { limits: { ...QUICK_LIMITS } });
@@ -428,9 +454,14 @@ describe('the research loop', () => {
 		expect(quickText).toContain('open the best pages');
 		const deepModel = stubModel([], { helper: () => ({ say: 'Done.' }) });
 		await runResearch(input(), setup(deepModel, web.deps).deps);
-		expect(String(deepModel.helperRequests[0]?.messages.at(-1)?.content)).not.toContain(
-			'Your room'
-		);
+		// A deep call has a real page ceiling since BTL-20261110-1532, so it is told too
+		expect(String(deepModel.helperRequests[0]?.messages.at(-1)?.content)).toContain('Your room');
+		// The helper is asked to be lean: the best one to three pages, and to stop when it can answer
+		const system = String(deepModel.helperRequests[0]?.messages[0]?.content);
+		expect(system).toContain('open only the best one to three pages');
+		expect(system).toContain('Stop as soon as you can answer');
+		expect(QUICK_LIMITS).toMatchObject({ searches: 2, reads: 3 });
+		expect(LIMITS).toMatchObject({ researchSearches: 6, researchReads: 6 });
 	});
 
 	it('quick mode: an address the person gave can be read in the first round', async () => {
@@ -623,7 +654,8 @@ describe('research in a message', () => {
 			}
 		);
 		const events = await play({ f, model, text: 'one fact', web: web.deps });
-		expect(web.searched).toHaveLength(4);
-		expect(toolEvents(events)[0]?.data).toMatchObject({ searches: 15, stopped: 'rounds' });
+		// Two searches go out (the quick ceiling since BTL-20261110-1532), and the count is those two, not the 15 the helper asked for
+		expect(web.searched).toHaveLength(2);
+		expect(toolEvents(events)[0]?.data).toMatchObject({ searches: 2, stopped: 'rounds' });
 	});
 });

@@ -669,6 +669,7 @@ const EXPECTED_TOOLS = [
 	'expense_from_text',
 	'expense_log',
 	'food_archive',
+	'food_brand_search',
 	'food_day',
 	'food_day_mark',
 	'food_delete',
