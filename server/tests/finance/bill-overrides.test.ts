@@ -83,6 +83,9 @@ async function household(id: string) {
 			schedule: { kind: 'monthly', day: 10 },
 			weekendRule: 'none',
 			deferrable: false,
+			// The tests name dates in November 2026. Without a start day a bill starts today, so from 2026-11-11 on its 10 November date
+			// was no longer due and fifteen of these tests failed by the calendar alone (found 2026-11-11, BTL-20261110-1532)
+			startsOn: '2026-01-01',
 			...extra
 		} as Parameters<typeof createBill>[1]);
 	const due = (from: string, to: string) => listDueBills(person(id), from, to);
@@ -615,7 +618,8 @@ describe('a new bill and a one-time bill', () => {
 	});
 
 	it('is not overdue for the dates before the day it was added', async () => {
-		await h.monthly('Water');
+		// Added today, as the app does when no start day is given
+		await h.monthly('Water', { startsOn: today() });
 		const list = await h.due(shift(-120), shift(-1));
 		expect(list).toEqual([]);
 	});
