@@ -1,9 +1,9 @@
 ---
 name: flow-audit
 description: Use when implementation of a /flow item or phase on Agent Flow Board is finished, before asking the user for commit sign-off, alongside /flow-critic, or when the user asks whether everything done is recorded in the plan. Compares what was actually built (the working tree, untracked files, commits since the plan's base, database migrations) against the item on Agent Flow Board (steps, decisions, sections, history) in both directions, then fixes the board so it tells the truth. Board only; never changes code or ticks anything unverified.
-afb-bundle: 1.1.15
-afb-version: 1.1.3
-afb-source-sha256: f299a277ab2cab898d21f04fa41be20a80fd0cc80c8c805a7f33dcb6e815cdb4
+afb-bundle: 1.5.1
+afb-version: 1.1.5
+afb-source-sha256: c53769f83dc883dae286cf075f383b4957eca0dd55b68f89ce357ca033834a76
 ---
 
 # Progress Audit
@@ -70,6 +70,7 @@ Also check the records against each other:
 - The `lessons` section is true and useful: each bullet names a real file or step, says what happened and what to watch for, and is not generic ("went well", "tests pass"). A plan in review with none is a finding (`board_validate` warns the same). The `learned-from` section names plans that exist, and each reuse it claims shows up as a `settled` decision that cites the source item.
 - The `resume-here` note describes where the work really stands and its next step is the real next step. `blockers` lists what really blocks.
 - `board_validate` reports drift (planned with done steps, complete but not in review, in review with open steps); every drift flag is explained or fixed. A status change was made with `item_status` and a note.
+- A plan with a mockup (`mockup_list` with the item returns one) has a `Mockup read: <mockup id> v<n>: ...` line in its `design-brief` section for every phase whose changed files include a screen, component or style (judge from the working tree, not from how the plan words the phase: a markup, component, layout or stylesheet file counts, a server-only file does not; the line names the phase key). A step that changed such files with no line for its phase is `NOT RECORDED`: reopen it with `record`, and tell the user the mockup was never read. A line naming an older version than the current one is a finding too.
 - The `validation` section has results only where a check actually ran, with the date.
 - The `references` section lists the new files, migrations and operations the item now depends on.
 - Decisions: every decision the build relied on exists, and none is contradicted by the code.
@@ -80,7 +81,7 @@ Correct every gap in the same pass:
 
 - Tick verified steps with `step_done` and reopen `CLAIMED, NOT BUILT` ones with `record` (mark `open`), with a log line saying why (at most 500 characters).
 - Add an "As built" section (`item_update`, slug `as-built`) for every `DIFFERS` item. If the difference is a real decision, add a decision with its number and title.
-- A step that no longer fits: name the replacement to the user and add it with `plan_add_steps` only after they confirm (never insert steps or tasks on your own), reword an open one with `step_update`, and waive or supersede a closed one with `record`. Never edit a done step.
+- A step that no longer fits: when the plan's goal needs its replacement, add it at once with `plan_add_steps` (the reason in the step text) and name it in the report; new scope or a task is never inserted on your own, it is one line in the report for the user to say yes to (`/flow` section 3 step 7). Reword an open one with `step_update`, and waive or supersede a closed one with `record`. Never edit a done step.
 - Rewrite `resume-here` (at most 15 lines, kept true) and `blockers`.
 - Change the status only with `item_status`.
 - Fill in `validation` results that ran, and `references` entries that are missing.

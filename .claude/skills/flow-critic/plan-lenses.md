@@ -89,8 +89,8 @@ Whatever the topic, one subagent (usually Subagent 2, or whichever owns operatio
 - [ ] **Git and Package Rules**
   Does the plan avoid commits and pushes without the user's word, avoid creating or switching branches unless told, follow the package manager the repo rulebook names, and never delete `node_modules`, `.git` or other tooling folders?
   (example) Yarn 4 only, no `package-lock.json` or `pnpm-lock.yaml`.
-- [ ] **The Gates Are Counted Steps**
-  Does each phase end with the gate commands the repo rulebook names (type check, lint, format check, related tests, and the full suite at the end of the phase), each as a counted step? Do browser checks run against a build preview, never the dev server, if the rulebook says so? If no rulebook names the gates, the plan says "no gates found" and asks instead of inventing commands.
+- [ ] **The Gates Run Once, At The End**
+  Does the plan end with one counted step for the full gates the repo rulebook names (the whole-project type check or build and the full test suite)? A plan that repeats the whole-project gates in every phase, or lists each gate as its own step, is a `MEDIUM`: the fast gate (formatter, linter, related tests on the changed files) is part of each step's own work and is never a step, and an earlier full run is justified only after a shared type, schema or config change. Do browser checks run against a build preview, never the dev server, if the rulebook says so? If no rulebook names the gates, the plan says "no gates found" and asks instead of inventing commands.
   (example) `yarn check`, `yarn eslint`, `yarn prettier --check`, `yarn vitest run`, and the full `yarn test`; checks against `yarn build && yarn preview`.
 - [ ] **Protected Surfaces**
   Does the plan edit an applied migration, hand-patch generated security SQL, rename a technical id, or change a published protocol? Any such step needs the user's explicit instruction.
@@ -143,6 +143,7 @@ Whatever the topic, when the plan adds or changes a screen, one subagent also ch
 - [ ] **The inspiration is real**
   Do the similar screens and components the brief names exist at those paths, and does what it says it copies match their code? A false one is a `HIGH`.
 - [ ] **The mockup question was handled**
+  A plan that already has a mockup must not tell the build to skip it or to design its own screen: that is a `HIGH`. A mockup is read in every phase that touches a screen (`/flow` step 3a), and the plan may not make that optional.
   A plan may record the mockup answer as a `settled` decision, and a mockup on the board is linked from `design-brief`. A mockup made without a recorded yes, a mockup written as a counted step or a file in the repo, a mockup asked on its own turn instead of in the single approval question, or a mockup treated as a spec or as something to approve is a `MEDIUM`. A plan with no recorded answer is fine when it was written where `/flow` step 6a does not apply (no visible change, or a repo rulebook that forbids mockups), and is a `MEDIUM` when that step applied.
 - [ ] **Names its sibling pages**
   Does the spec name 1 to 3 sibling pages the new screen is copied from, level by level? Missing is a `MEDIUM`.

@@ -1,7 +1,7 @@
 ---
 name: flow-task
 description: Use when the user hands over something small to remember or do later on Agent Flow Board, such as a one-line to-do, a pasted list from a meeting or a note to follow up, or types /flow-task. Turns the words into tasks on Agent Flow Board (one per item of a list), shows what was written and stops. It only records. It never plans, builds, claims an item or starts the work, and it points to /flow when the request is a feature or too big for one task.
-afb-bundle: 1.1.15
+afb-bundle: 1.5.1
 afb-version: 1.1.2
 afb-source-sha256: 266f80fdba5a1ea7c1224c2b38a237b3307c5af1046c19a00fe9c452f76b2028
 ---

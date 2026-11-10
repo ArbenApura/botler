@@ -76,3 +76,6 @@ app/.dev/
 
 # The nutrition seed built from the USDA downloads
 server/data/
+
+# Skill update backups
+.claude/skills/**/*.bak

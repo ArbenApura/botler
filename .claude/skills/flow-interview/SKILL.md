@@ -1,9 +1,9 @@
 ---
 name: flow-interview
 description: Use when the user asks to be grilled or interviewed about an Agent Flow Board plan, or to double check what will be built, and after a /flow plan is drafted but before it is approved or built. Also works with no plan at all, as a brainstorm (an idea typed after /flow-interview, or no open item on the board), where it asks the same plain multiple-choice questions to shape the idea and offers to hand the result to /flow. Reads the item from Agent Flow Board (spec, steps, decisions, resume note) plus the code it touches, then asks the user plain, detailed, multiple-choice questions in rounds until every gap, assumption and open choice is settled, and writes each answer back to the board as a decision and a plan change. Board only, no code. Complements /flow (writes the plan), /flow-critic (agents attack the plan) and /flow-audit (checks the build is recorded). Formerly /feat-interview.
-afb-bundle: 1.1.16
-afb-version: 1.1.4
-afb-source-sha256: 3d657ac0573f6e765ce229299f296d4e8d576b5d671d3d058559b4013fdd2bb2
+afb-bundle: 1.5.1
+afb-version: 1.1.5
+afb-source-sha256: 78dda87c270d468c9b683439c77c020302f5bce725f5e02c8df6045517420d42
 ---
 
 # Plan Interview
@@ -88,4 +88,4 @@ Write answers to the board as you go, not at the end. **One decision per `item_u
 
 ## Step 5 - Close
 
-Report in chat, briefly: what changed in the plan as a short list with the item link, the questions left open and who has to answer them, and whether the plan changed enough that `/flow-critic` should run again (it should when answers changed data, access, tenancy or phases). Then stop. Building starts only when the user approves the plan (`/flow` section 3).
+Report in chat, briefly: what changed in the plan as a short list with the item link, the questions left open and who has to answer them, and whether the plan changed enough that `/flow-critic` should run again (it should when answers changed data, access, tenancy or phases). Then stop, unless the interview was the user's answer to the `/flow` approval question (option b, interview then build) or their message also said build: then carry on into the build in the same turn, with no second approval. In every other case building starts only when the user approves the plan (`/flow` section 3).
