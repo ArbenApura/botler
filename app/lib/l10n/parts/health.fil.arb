@@ -142,6 +142,7 @@
   "healthSourceSaved": "Naka-save",
   "healthSourceLabel": "Mula sa label",
   "healthSourceEstimate": "Tantiya ng AI",
+  "healthSourceWeb": "Mula sa web",
   "healthSourceYours": "Bilang mo",
   "healthOilName": "Mantika",
   "healthLeftWordsAbout": "Mga {kcal} kcal",

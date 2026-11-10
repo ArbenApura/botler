@@ -4759,6 +4759,12 @@ abstract class AppLocalizations {
   /// **'Saved'**
   String get healthSourceSaved;
 
+  /// No description provided for @healthSourceWeb.
+  ///
+  /// In en, this message translates to:
+  /// **'From the web'**
+  String get healthSourceWeb;
+
   /// No description provided for @healthSourceYours.
   ///
   /// In en, this message translates to:

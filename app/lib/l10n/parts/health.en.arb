@@ -275,6 +275,7 @@
   "healthSourceSaved": "Saved",
   "healthSourceLabel": "From the label",
   "healthSourceEstimate": "AI estimate",
+  "healthSourceWeb": "From the web",
   "healthSourceYours": "Your numbers",
   "healthOilName": "Cooking oil",
   "healthLeftWordsAbout": "About {kcal} kcal",

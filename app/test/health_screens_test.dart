@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:botler/core/api.dart';
 import 'package:botler/core/json.dart';
+import 'package:botler/features/health/barcode_screen.dart';
 import 'package:botler/features/health/home_tiles.dart';
 import 'package:botler/features/health/review_screen.dart';
 import 'package:botler/features/health/session_screen.dart';
@@ -154,6 +155,44 @@ void main() {
     expect(plainFromMarkdown('| a |\n|---|\n| b |'), '| a |\n| b |');
   });
 
+  testWidgets(
+    'a barcode result shows the four other nutrients, and unknown for the one the product does not list',
+    (tester) async {
+      await _show(
+        tester,
+        const BarcodeResultScreen(code: '8996001603536'),
+        _api(<String, Object?>{
+          'barcode_lookup': <String, Object?>{
+            'found': true,
+            'id': 'barcode:8996001603536',
+            'source': 'off',
+            'name': 'Chocolate cereal drink',
+            'kcalPer100g': 433,
+            'servingG': 40,
+            'packG': null,
+            'facts': <String, Object?>{
+              'kcal': 433,
+              'proteinMg': 6670,
+              'carbsMg': 76700,
+              'sugarMg': 60000,
+              'fibreMg': null,
+              'fatMg': 11700,
+              'satFatMg': 8330,
+              'sodiumMg': 267,
+            },
+          },
+        }, <(String, Json)>[]),
+      );
+      // One serving of 40 g
+      expect(find.text('Sugar'), findsOneWidget);
+      expect(find.text('24 g'), findsOneWidget);
+      expect(find.text('3.3 g'), findsOneWidget);
+      expect(find.text('107 mg'), findsOneWidget);
+      expect(find.text('Fibre'), findsOneWidget);
+      expect(find.text('Unknown'), findsOneWidget);
+    },
+  );
+
   group('the meal review', () {
     const args = <String, Object?>{
       'meal': 'lunch',
@@ -197,6 +236,92 @@ void main() {
           findsOneWidget,
         );
         expect(find.textContaining('**', findRichText: true), findsNothing);
+      },
+    );
+
+    // -- THE OTHER FOUR NUTRIENTS (BTL-20261110-1532) -- //
+
+    Map<String, Object?> withCore(
+      Map<String, Object?> core, {
+      int foods = 2,
+      String kind = 'filipino',
+    }) => <String, Object?>{
+      ...preview,
+      'items': <Object?>[
+        <String, Object?>{
+          ...asJson((preview['items']! as List<Object?>).first),
+          'sourceKind': kind,
+        },
+      ],
+      'foods': foods,
+      'core': core,
+    };
+    Map<String, Object?> part(int mg, int unknownFoods) => <String, Object?>{
+      'mg': mg,
+      'unknownFoods': unknownFoods,
+    };
+
+    testWidgets(
+      'shows sugar, fibre, saturated fat and sodium, and says when only some foods know one',
+      (tester) async {
+        await _show(
+          tester,
+          const MealReviewScreen(actionId: 'c1', args: args),
+          _api(<String, Object?>{
+            'meal_preview': withCore(<String, Object?>{
+              'sugarMg': part(1000, 0),
+              'fibreMg': part(2400, 1),
+              // No food of the meal knows it: a word, never a zero
+              'satFatMg': part(0, 2),
+              'sodiumMg': part(960, 0),
+            }),
+          }, <(String, Json)>[]),
+        );
+        expect(find.text('Sugar'), findsOneWidget);
+        expect(find.text('1 g'), findsOneWidget);
+        expect(find.text('2.4 g'), findsOneWidget);
+        expect(find.text('Known for 1 of 2 foods'), findsOneWidget);
+        expect(find.text('960 mg'), findsOneWidget);
+        expect(find.text('Unknown'), findsOneWidget);
+        expect(find.text('0 g'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'reads every one as unknown when no food knows any, and marks numbers from the web',
+      (tester) async {
+        await _show(
+          tester,
+          const MealReviewScreen(actionId: 'c1', args: args),
+          _api(<String, Object?>{
+            'meal_preview': withCore(
+              <String, Object?>{
+                'sugarMg': part(0, 1),
+                'fibreMg': part(0, 1),
+                'satFatMg': part(0, 1),
+                'sodiumMg': part(0, 1),
+              },
+              foods: 1,
+              kind: 'web',
+            ),
+          }, <(String, Json)>[]),
+        );
+        expect(find.text('Unknown'), findsNWidgets(4));
+        expect(find.text('0 mg'), findsNothing);
+        expect(find.text('From the web'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'shows no nutrient lines for a server that does not send them',
+      (tester) async {
+        await _show(
+          tester,
+          const MealReviewScreen(actionId: 'c1', args: args),
+          _api(<String, Object?>{'meal_preview': preview}, <(String, Json)>[]),
+        );
+        expect(find.text('Sugar'), findsNothing);
+        expect(find.text('Unknown'), findsNothing);
       },
     );
 

@@ -23,6 +23,7 @@ import '../../ui/markdown_kit.dart';
 import '../../ui/ui.dart';
 import 'camera_screen.dart';
 import 'health_parts.dart';
+import 'nutrient_line.dart';
 import 'reading_screen.dart';
 
 // -- TYPES -- //
@@ -385,9 +386,40 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
               Expanded(child: _macro(t.healthFat, intOf(p['fatMg']), c.muted)),
             ],
           ),
+          ..._otherNutrients(p),
         ],
       ),
     );
+  }
+
+  /// Sugar, fibre, saturated fat and sodium of the whole meal (BTL-20261110-1532). A nutrient no food knows reads "Unknown", never zero,
+  /// and one only some foods know says for how many. A server that does not send them yet shows nothing here.
+  List<Widget> _otherNutrients(Json p) {
+    final t = context.t;
+    if (p['core'] is! Map) return const <Widget>[];
+    final core = asJson(p['core']);
+    final foods = intOf(p['foods']);
+    Widget line(String name, String key, {bool inMg = false}) {
+      final v = asJson(core[key]);
+      final unknown = intOf(v['unknownFoods']);
+      final known = foods - unknown;
+      return NutrientLine(
+        name: name,
+        mg: known <= 0 ? null : mgOrNull(v['mg']),
+        inMg: inMg,
+        note: unknown == 0 || known <= 0
+            ? null
+            : t.healthKnownFor('$known', '$foods'),
+      );
+    }
+
+    return <Widget>[
+      const Divider(height: 20),
+      line(t.healthSugar, 'sugarMg'),
+      line(t.healthFibre, 'fibreMg'),
+      line(t.healthSatFat, 'satFatMg'),
+      line(t.healthSodium, 'sodiumMg', inMg: true),
+    ];
   }
 
   Widget _macro(String name, int mg, Color color) {
@@ -426,7 +458,8 @@ class _MealReviewScreenState extends ConsumerState<MealReviewScreen> {
     final c = context.colors;
     final kind = str(view['sourceKind']);
     final grams = view['grams'] == null ? null : intOf(view['grams']);
-    final isEstimate = kind == 'estimate';
+    // Numbers from a web search are as loose as an estimate, and are marked the same way
+    final isEstimate = kind == 'estimate' || kind == 'web';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(

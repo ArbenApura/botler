@@ -17,6 +17,7 @@ import '../../state/providers.dart';
 import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'health_parts.dart';
+import 'nutrient_line.dart';
 
 // -- TYPES -- //
 
@@ -152,6 +153,7 @@ class _BarcodeResultScreenState extends ConsumerState<BarcodeResultScreen> {
     final facts = asJson(a['facts']);
     final grams = (_baseGrams(a) * _servings).round();
     int part(String key) => (intOf(facts[key]) * grams / 100).round();
+    int? partOrNull(String key) => facts[key] == null ? null : part(key);
     final isOff = str(a['source']) == 'off';
     return Scaffold(
       appBar: AppBar(title: Text(t.healthIsThisIt)),
@@ -194,10 +196,16 @@ class _BarcodeResultScreenState extends ConsumerState<BarcodeResultScreen> {
                   Text(
                     '${t.healthFat}: ${t.healthGrams(gramsFromMgText(part('fatMg')))}',
                   ),
-                if (facts['sodiumMg'] != null)
-                  Text(
-                    '${t.healthSodium}: ${t.healthMilligrams(kcalText(part('sodiumMg')))}',
-                  ),
+                // The other four, each as its own line: a value the product does not list reads "Unknown", never zero (BTL-20261110-1532)
+                const Divider(height: 20),
+                NutrientLine(name: t.healthSugar, mg: partOrNull('sugarMg')),
+                NutrientLine(name: t.healthFibre, mg: partOrNull('fibreMg')),
+                NutrientLine(name: t.healthSatFat, mg: partOrNull('satFatMg')),
+                NutrientLine(
+                  name: t.healthSodium,
+                  mg: partOrNull('sodiumMg'),
+                  inMg: true,
+                ),
               ],
             ),
           ),

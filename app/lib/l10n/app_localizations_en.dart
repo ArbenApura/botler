@@ -2828,6 +2828,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get healthSourceSaved => 'Saved';
 
   @override
+  String get healthSourceWeb => 'From the web';
+
+  @override
   String get healthSourceYours => 'Your numbers';
 
   @override

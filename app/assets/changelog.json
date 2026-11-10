@@ -802,5 +802,23 @@
       "Mas malinaw na ang ayos ng sheet ng laki ng chat (i-tap ang bilog sa chat): ipinapakita ng bilog ang porsyento, sinasabi ng mga salita kung gaano pa kaluwag, at kasya ang lahat kahit malaki ang text.",
       "Binubuksan na ng mabibilis na paghahanap sa web ang pinakamagandang mga page sa halip na sumagot mula sa resulta ng search lang, kaya mas tama ang mga sagot tungkol sa produkto, label at presyo."
     ]
+  },
+  {
+    "versionCode": 71,
+    "versionName": "1.10.0",
+    "en": [
+      "Food you log now comes with its sugar, fibre, saturated fat and sodium far more often: Filipino dishes have them, and Botler estimates them when no food in the list fits, instead of leaving them unknown.",
+      "Botler can look up a packaged or brand product by name, and can log what it finds on the web after you check the card.",
+      "The meal review and the barcode result show sugar, fibre, saturated fat and sodium. A value nobody knows reads \"Unknown\", never zero.",
+      "Saying \"same as yesterday\" logs the same food again without a search, and meal logs fail less often.",
+      "Web lookups are leaner: Botler opens only the best one to three pages and stops when it has the answer."
+    ],
+    "fil": [
+      "Mas madalas nang may kasamang asukal, fiber, saturated fat at sodium ang pagkaing nila-log mo: mayroon na nito ang mga lutuing Pilipino, at tinatantiya ito ni Botler kapag walang tugmang pagkain sa listahan, sa halip na iwanang hindi alam.",
+      "Kaya nang hanapin ni Botler ang isang naka-pack o branded na produkto ayon sa pangalan, at i-log ang nakita nito sa web pagkatapos mong tingnan ang card.",
+      "Ipinapakita na ng review ng pagkain at ng resulta ng barcode ang asukal, fiber, saturated fat at sodium. Ang halagang walang nakakaalam ay \"Hindi alam\" ang nakasulat, hindi kailanman zero.",
+      "Kapag sinabi mong \"pareho ng kahapon\", nila-log ulit ang parehong pagkain nang walang paghahanap, at mas bihira nang pumalya ang pag-log ng pagkain.",
+      "Mas matipid na ang paghahanap sa web: ang pinakamagandang isa hanggang tatlong page lang ang binubuksan ni Botler at humihinto ito kapag may sagot na."
+    ]
   }
 ]

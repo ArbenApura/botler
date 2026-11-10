@@ -223,6 +223,8 @@ String sourceWord(BuildContext context, String kind) {
     'off' => 'Open Food Facts',
     'label' => t.healthSourceLabel,
     'estimate' => t.healthSourceEstimate,
+    // What a web search found for the product (BTL-20261110-1532)
+    'web' => t.healthSourceWeb,
     _ => t.healthSourceYours,
   };
 }

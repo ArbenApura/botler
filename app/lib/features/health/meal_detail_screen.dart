@@ -15,6 +15,7 @@ import '../../theme/tokens.dart';
 import '../../ui/ui.dart';
 import 'food_sheets.dart';
 import 'health_parts.dart';
+import 'nutrient_line.dart';
 import 'reading_screen.dart';
 
 // -- CONSTANTS -- //
@@ -330,40 +331,9 @@ class _FoodCardState extends ConsumerState<_FoodCard> {
   }
 
   /// One nutrient line: unknown is a word, not a zero.
-  Widget _line(String name, int? mg, {bool inMg = false}) {
-    final t = context.t;
-    final c = context.colors;
-    final value = mg == null
-        ? t.healthUnknown
-        : inMg
-        ? t.healthMilligrams(kcalText(mg))
-        : t.healthGrams(_gramsText(mg));
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: <Widget>[
-          Expanded(child: Text(name)),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              fontFeatures: tabular,
-              color: mg == null ? c.muted : null,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Grams with one decimal under ten, so 2.4 g of sugar is not shown as 2.
-  String _gramsText(int mg) {
-    if (mg >= 10000) return gramsFromMgText(mg);
-    final tenths = (mg / 100).round();
-    return tenths % 10 == 0
-        ? '${tenths ~/ 10}'
-        : '${tenths ~/ 10}.${tenths % 10}';
-  }
+  // The line itself is shared with the review and the barcode result (nutrient_line.dart)
+  Widget _line(String name, int? mg, {bool inMg = false}) =>
+      NutrientLine(name: name, mg: mg, inMg: inMg);
 
   int? _mg(String key) =>
       widget.entry[key] == null ? null : intOf(widget.entry[key]);

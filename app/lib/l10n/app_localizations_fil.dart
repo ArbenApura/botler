@@ -2843,6 +2843,9 @@ class AppLocalizationsFil extends AppLocalizations {
   String get healthSourceSaved => 'Naka-save';
 
   @override
+  String get healthSourceWeb => 'Mula sa web';
+
+  @override
   String get healthSourceYours => 'Bilang mo';
 
   @override
